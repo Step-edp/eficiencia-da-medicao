@@ -2150,7 +2150,6 @@ function HomePanel({
                 <ItemIcon title={area.title} />
                 <span>{area.title}</span>
               </h3>
-              <p>{area.description}</p>
               <button
                 className="secondary-button"
                 type="button"
