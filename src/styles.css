@@ -347,26 +347,6 @@ button {
   border-color: rgba(24, 216, 240, 0.35);
 }
 
-.lab-trail-step-index {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  border: 1px solid rgba(24, 216, 240, 0.35);
-  background: rgba(8, 39, 66, 0.9);
-  color: #c8f4ff;
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.lab-trail-step.is-active .lab-trail-step-index {
-  border-color: rgba(57, 255, 0, 0.75);
-  background: rgba(57, 255, 0, 0.22);
-  color: #eaffea;
-}
-
 .lab-trail-step-content {
   display: inline-flex;
   flex-direction: column;

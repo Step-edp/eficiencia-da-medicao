@@ -19,7 +19,7 @@ export function LabMeasurementTrail({
   return (
     <nav className="lab-trail" aria-label="Trilha operacional do laboratório">
       <p className="lab-trail-heading">Trilha</p>
-      <ol className="lab-trail-steps">
+      <ul className="lab-trail-steps">
         {LAB_TRAIL_STEPS.map((step, index) => {
           const isActive = step.key === activeStep
           const isCompleted = activeIndex >= 0 && index < activeIndex
@@ -32,7 +32,6 @@ export function LabMeasurementTrail({
                 aria-current={isActive ? 'step' : undefined}
                 onClick={() => onSelect(step.key)}
               >
-                <span className="lab-trail-step-index">{index + 1}</span>
                 <span className="lab-trail-step-content">
                   {renderIcon(step.key)}
                   <span>{step.label}</span>
@@ -44,7 +43,7 @@ export function LabMeasurementTrail({
             </li>
           )
         })}
-      </ol>
+      </ul>
     </nav>
   )
 }
