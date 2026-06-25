@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
+import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
 import { EnsaiarForm } from './EnsaiarForm'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
 import { getLabTrailLabel, LAB_TRAIL_KEYS } from './labTrailSteps'
@@ -1651,10 +1652,7 @@ function HomePanel({
             <p className="section-tag">Equipe de campo</p>
             <h2>{selectedFieldTeamSection}</h2>
             {selectedFieldTeamSection === 'Cadastrar' ? (
-              <p>
-                Registre visitas técnicas, atividades externas e informações de
-                campo da operação de Medição.
-              </p>
+              <FieldTeamCadastrarForm />
             ) : (
               <p>
                 Consulte registros de visitas, atividades e informações de campo
