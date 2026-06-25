@@ -3,6 +3,7 @@ import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { EnsaiarForm } from './EnsaiarForm'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
+import { getLabTrailLabel, LAB_TRAIL_KEYS } from './labTrailSteps'
 import {
   api,
   ApiError,
@@ -1645,7 +1646,11 @@ function HomePanel({
               onLogout={onLogout}
             />
             <p className="section-tag">Laboratório de Medição</p>
-            <h2>{selectedLabMeasurementSection}</h2>
+            <h2>
+              {LAB_TRAIL_KEYS.has(selectedLabMeasurementSection)
+                ? getLabTrailLabel(selectedLabMeasurementSection)
+                : selectedLabMeasurementSection}
+            </h2>
             <LabMeasurementTrail
               activeStep={selectedLabMeasurementSection}
               onSelect={setSelectedLabMeasurementSection}
