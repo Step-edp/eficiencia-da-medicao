@@ -685,8 +685,7 @@ function HomePanel({
       title: 'Laboratório de Medição',
       description:
         'Ambiente laboratorial para ensaios, calibração e estudos técnicos da medição.',
-      details:
-        'Acesse recursos específicos de bancada, procedimentos laboratoriais e análises avançadas para avaliação de equipamentos.',
+      details: '',
     },
     {
       title: 'Laboratório de Homologação',
@@ -2046,7 +2045,7 @@ function HomePanel({
           />
           <p className="section-tag">Área</p>
           <h2>{selectedArea.title}</h2>
-          <p>{selectedArea.details}</p>
+          {selectedArea.details ? <p>{selectedArea.details}</p> : null}
           {selectedArea.title === 'Medição' ? (
             <div className="measurement-sections" aria-label="Subáreas de medição">
               {measurementSections.map((section) => (
@@ -2141,10 +2140,6 @@ function HomePanel({
         <TopActionBar onLogout={onLogout} />
         <p className="section-tag">Home</p>
         <h2>Bem-vindo ao portal, {currentUser.name}</h2>
-        <p>
-          Seu acesso foi validado com sucesso. Nesta área você pode consultar os
-          recursos liberados para a operação da Medição.
-        </p>
         <div className="home-areas" aria-label="Áreas do portal">
           {areas.map((area) => (
             <article
