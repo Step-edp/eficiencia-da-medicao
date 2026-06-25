@@ -1,3 +1,4 @@
+import type { ChangeEvent } from 'react'
 import type { RatmFormData } from './types'
 import { IRREGULARITY_CODES, ITEM_LOOKUP_OPTIONS, TEST_BENCH_OPTIONS } from './types'
 
@@ -56,9 +57,57 @@ function ClearableRadioGroup({
   )
 }
 
+type PhotoUploadProps = {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}
+
+function PhotoUpload({ label, value, onChange }: PhotoUploadProps) {
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      onChange(typeof reader.result === 'string' ? reader.result : '')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  return (
+    <label className="full-width photo-upload-field">
+      {label}
+      <div className="photo-upload-area">
+        {value ? (
+          <img className="photo-preview" src={value} alt={label} />
+        ) : null}
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          aria-label={label}
+        />
+        <span className="photo-upload-hint">Toque ou clique para adicionar uma imagem</span>
+      </div>
+    </label>
+  )
+}
+
 export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFormFieldsProps) {
   const irregularityDescription =
     IRREGULARITY_CODES[data.irregularityCode] ?? 'Selecione um código válido.'
+
+  const fieldIrregularityDescription =
+    IRREGULARITY_CODES[data.fieldIrregularityCode] ?? 'Selecione um código válido.'
+
+  const updatePhoto = (photoIndex: number, value: string) => {
+    const photos = [...data.photos]
+    photos[photoIndex] = value
+    onChange({ photos })
+  }
 
   const handleMeterSearch = () => {
     const meter = data.meterSearch.trim()
@@ -417,12 +466,125 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
         <label className="full-width">
           Código da irregularidade em campo
-          <input
-            type="text"
+          <select
             value={data.fieldIrregularityCode}
             onChange={(event) => onChange({ fieldIrregularityCode: event.target.value })}
+          >
+            {Object.keys(IRREGULARITY_CODES).map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="full-width">
+          Descrição da irregularidade em campo
+          <input type="text" value={fieldIrregularityDescription} readOnly />
+        </label>
+
+        <label className="full-width">
+          Observações para Laboratório
+          <textarea
+            rows={4}
+            value={data.laboratoryNotes}
+            onChange={(event) => onChange({ laboratoryNotes: event.target.value })}
           />
         </label>
+
+        <label className="full-width">
+          Inspeção de campo realizada por:
+          <input
+            type="text"
+            value={data.fieldInspectionBy}
+            onChange={(event) => onChange({ fieldInspectionBy: event.target.value })}
+            placeholder="Maurício 6757 / Célio 6153"
+          />
+        </label>
+
+        <ClearableRadioGroup
+          legend="Tipo NS"
+          name={`ns-type-${index}`}
+          value={data.nsType}
+          options={['Consumo irregular (CI)', 'Falha na medição (FM)']}
+          onChange={(value) => onChange({ nsType: value })}
+          onClear={() => onChange({ nsType: '' })}
+          vertical
+        />
+
+        <h3 className="ratm-section-title full-width">RESULTADOS DE ENSAIO</h3>
+
+        <ClearableRadioGroup
+          legend="Medidor quebrado/ furado"
+          name={`broken-meter-${index}`}
+          value={data.brokenMeter}
+          options={['Sim', 'Não']}
+          onChange={(value) => onChange({ brokenMeter: value })}
+          onClear={() => onChange({ brokenMeter: '' })}
+        />
+
+        <ClearableRadioGroup
+          legend="Display apagado/ não liga"
+          name={`display-off-${index}`}
+          value={data.displayOff}
+          options={['Sim', 'Não']}
+          onChange={(value) => onChange({ displayOff: value })}
+          onClear={() => onChange({ displayOff: '' })}
+        />
+
+        <ClearableRadioGroup
+          legend="Facilidade de acesso ao interior do medidor"
+          name={`meter-interior-${index}`}
+          value={data.meterInteriorAccess}
+          options={['Sim', 'Não']}
+          onChange={(value) => onChange({ meterInteriorAccess: value })}
+          onClear={() => onChange({ meterInteriorAccess: '' })}
+        />
+
+        <ClearableRadioGroup
+          legend="Bobina danificada"
+          name={`damaged-coil-${index}`}
+          value={data.damagedCoil}
+          options={['Sim', 'Não']}
+          onChange={(value) => onChange({ damagedCoil: value })}
+          onClear={() => onChange({ damagedCoil: '' })}
+        />
+
+        <ClearableRadioGroup
+          legend="Aparentemente em ordem"
+          name={`apparently-order-${index}`}
+          value={data.apparentlyInOrder}
+          options={['Sim', 'Não']}
+          onChange={(value) => onChange({ apparentlyInOrder: value })}
+          onClear={() => onChange({ apparentlyInOrder: '' })}
+        />
+
+        <ClearableRadioGroup
+          legend="Reprovado dielétrico"
+          name={`dielectric-failed-${index}`}
+          value={data.dielectricFailed}
+          options={['Sim', 'Não']}
+          onChange={(value) => onChange({ dielectricFailed: value })}
+          onClear={() => onChange({ dielectricFailed: '' })}
+        />
+
+        <ClearableRadioGroup
+          legend="Corpo estranho no interior do medidor"
+          name={`foreign-body-${index}`}
+          value={data.foreignBodyInMeter}
+          options={['Sim', 'Não']}
+          onChange={(value) => onChange({ foreignBodyInMeter: value })}
+          onClear={() => onChange({ foreignBodyInMeter: '' })}
+        />
+
+        {data.photos.map((photo, photoIndex) => (
+          <PhotoUpload
+            key={photoIndex}
+            label={`Foto ${photoIndex + 1}`}
+            value={photo}
+            onChange={(value) => updatePhoto(photoIndex, value)}
+          />
+        ))}
       </div>
     </div>
   )

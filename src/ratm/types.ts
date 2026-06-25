@@ -39,6 +39,17 @@ export type RatmFormData = {
   itemLookup: string
   fieldReportCorrect: string
   fieldIrregularityCode: string
+  laboratoryNotes: string
+  fieldInspectionBy: string
+  nsType: string
+  brokenMeter: string
+  displayOff: string
+  meterInteriorAccess: string
+  damagedCoil: string
+  apparentlyInOrder: string
+  dielectricFailed: string
+  foreignBodyInMeter: string
+  photos: string[]
 }
 
 export const IRREGULARITY_CODES: Record<string, string> = {
@@ -95,6 +106,17 @@ export function createEmptyRatmForm(): RatmFormData {
     irregularityNotes: '',
     itemLookup: '',
     fieldReportCorrect: '',
-    fieldIrregularityCode: '',
+    fieldIrregularityCode: '23',
+    laboratoryNotes: '',
+    fieldInspectionBy: '',
+    nsType: '',
+    brokenMeter: '',
+    displayOff: '',
+    meterInteriorAccess: '',
+    damagedCoil: '',
+    apparentlyInOrder: '',
+    dielectricFailed: '',
+    foreignBodyInMeter: '',
+    photos: ['', '', '', ''],
   }
 }
