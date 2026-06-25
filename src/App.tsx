@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
+import { EnsaiarForm } from './EnsaiarForm'
 import {
   api,
   ApiError,
@@ -1654,6 +1655,11 @@ function HomePanel({
               <>
                 <p>Preencha os dados abaixo para reservar a data de agendamento.</p>
                 <ScheduleAgendarForm />
+              </>
+            ) : selectedLabMeasurementSection === 'Ensaiar' ? (
+              <>
+                <p>Escolha quantos RATMs deseja realizar de uma vez (máximo 10).</p>
+                <EnsaiarForm />
               </>
             ) : (
               <p>
