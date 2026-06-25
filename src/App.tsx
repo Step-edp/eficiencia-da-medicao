@@ -1,49 +1,14 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { EdpLogo } from './EdpLogo'
-
-type Panel = 'login' | 'cadastro'
-type AppRoute = 'default' | 'compras-homologacao'
-type UserRole = 'admin' | 'compras'
-type ApprovalStatus = 'approved' | 'pending'
-
-type AppUser = {
-  id: string
-  name: string
-  registration: string
-  password: string
-  email: string
-  role: UserRole
-  approvalStatus: ApprovalStatus
-  requestedAt: string
-  approvedAt?: string
-  birthDate: string
-  jobTitle: string
-  cpf: string
-  personalDescription: string
-  hobby: string
-}
-
-type HomologationRequestItem = {
-  equipmentType: string
-  materialCode: string
-  quantity: number
-  description: string
-}
-
-type HomologationRequest = {
-  id: string
-  requesterUserId: string
-  requesterName: string
-  requesterRegistration: string
-  requesterEmail: string
-  requesterArea: 'Compras'
-  orderNumber: string
-  manufacturer: string
-  items: HomologationRequestItem[]
-  justification: string
-  requestedAt: string
-  status: 'Recebido'
-}
+import {
+  api,
+  ApiError,
+  type AppUser,
+  type HomologationRequest,
+  type MaterialRecord,
+  type PasswordRecord,
+  type PasswordType,
+} from './api'
 
 const hobbyOptions = [
   'Esportes',
@@ -54,56 +19,13 @@ const hobbyOptions = [
   'Fotografia',
 ]
 
-const demoUser = {
-  id: 'admin-demo-user',
-  registration: 'E706032',
-  password: 'Step@241',
-  name: 'Usuário de Demonstração',
-  email: 'e706032@edp.com',
-  role: 'admin' as const,
-  approvalStatus: 'approved' as const,
-  requestedAt: '2026-04-08T00:00:00.000Z',
-  approvedAt: '2026-04-08T00:00:00.000Z',
-  birthDate: '',
-  jobTitle: 'Administrador do Portal',
-  cpf: '',
-  personalDescription: '',
-  hobby: '',
-}
-
-const demoComprasUser = {
-  id: 'compras-demo-user',
-  registration: 'C900001',
-  password: 'Compras@241',
-  name: 'Usuário de Compras (Demonstração)',
-  email: 'compras.demo@edp.com',
-  role: 'compras' as const,
-  approvalStatus: 'approved' as const,
-  requestedAt: '2026-04-08T00:00:00.000Z',
-  approvedAt: '2026-04-08T00:00:00.000Z',
-  birthDate: '',
-  jobTitle: 'Analista de Compras',
-  cpf: '',
-  personalDescription: '',
-  hobby: '',
-}
-
-const defaultUsers: AppUser[] = [demoUser, demoComprasUser]
-
-const USERS_DB_KEY = 'eficiencia-medicao-users-db-v1'
-const HOMOLOGATION_REQUESTS_DB_KEY = 'eficiencia-medicao-homologation-requests-v1'
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
+
+type Panel = 'login' | 'cadastro'
+type AppRoute = 'default' | 'compras-homologacao'
 
 function getRouteFromHash(hash: string): AppRoute {
   return hash === FIXED_PURCHASE_REQUEST_HASH ? 'compras-homologacao' : 'default'
-}
-
-function ensureDefaultUsers(users: AppUser[]) {
-  const customUsers = users.filter(
-    (user) => user.id !== demoUser.id && user.id !== demoComprasUser.id,
-  )
-
-  return [demoUser, demoComprasUser, ...customUsers]
 }
 
 export default function App() {
@@ -111,9 +33,19 @@ export default function App() {
   const [activeRoute, setActiveRoute] = useState<AppRoute>(() =>
     getRouteFromHash(window.location.hash),
   )
-  const [registeredUsers, setRegisteredUsers] = useState<AppUser[]>(defaultUsers)
+  const [bootstrapping, setBootstrapping] = useState(true)
+  const [registeredUsers, setRegisteredUsers] = useState<AppUser[]>([])
   const [authenticatedUser, setAuthenticatedUser] = useState<AppUser | null>(null)
   const [homologationRequests, setHomologationRequests] = useState<HomologationRequest[]>([])
+
+  const loadAdminData = useCallback(async () => {
+    const [usersResponse, requestsResponse] = await Promise.all([
+      api.listUsers(),
+      api.listHomologationRequests(),
+    ])
+    setRegisteredUsers(usersResponse.users)
+    setHomologationRequests(requestsResponse.requests)
+  }, [])
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -129,225 +61,92 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    try {
-      const rawUsers = localStorage.getItem(USERS_DB_KEY)
+    let cancelled = false
 
-      if (!rawUsers) {
-        setRegisteredUsers(defaultUsers)
-        return
+    async function bootstrap() {
+      try {
+        const { user } = await api.me()
+        if (cancelled) {
+          return
+        }
+        setAuthenticatedUser(user)
+        if (user.role === 'admin') {
+          await loadAdminData()
+        }
+      } catch {
+        if (!cancelled) {
+          setAuthenticatedUser(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setBootstrapping(false)
+        }
       }
-
-      const parsedUsers = JSON.parse(rawUsers) as unknown
-
-      if (!Array.isArray(parsedUsers)) {
-        setRegisteredUsers(defaultUsers)
-        return
-      }
-
-      const normalizedUsers: AppUser[] = parsedUsers
-        .filter((item): item is AppUser => {
-          return (
-            Boolean(item) &&
-            typeof item === 'object' &&
-            typeof (item as AppUser).id === 'string' &&
-            typeof (item as AppUser).registration === 'string' &&
-            typeof (item as AppUser).password === 'string' &&
-            typeof (item as AppUser).name === 'string' &&
-            typeof (item as AppUser).email === 'string'
-          )
-        })
-        .map((user) => ({
-          ...user,
-          role: (user.role === 'admin' ? 'admin' : 'compras') as UserRole,
-          approvalStatus: (user.approvalStatus === 'approved' ? 'approved' : 'pending') as ApprovalStatus,
-          birthDate: user.birthDate ?? '',
-          jobTitle: user.jobTitle ?? '',
-          cpf: user.cpf ?? '',
-          personalDescription: user.personalDescription ?? '',
-          hobby: user.hobby ?? '',
-          requestedAt: user.requestedAt ?? new Date().toISOString(),
-        }))
-
-      setRegisteredUsers(ensureDefaultUsers(normalizedUsers))
-    } catch {
-      setRegisteredUsers(defaultUsers)
     }
-  }, [])
 
-  useEffect(() => {
-    localStorage.setItem(USERS_DB_KEY, JSON.stringify(ensureDefaultUsers(registeredUsers)))
-  }, [registeredUsers])
+    bootstrap()
 
-  useEffect(() => {
-    try {
-      const rawRequests = localStorage.getItem(HOMOLOGATION_REQUESTS_DB_KEY)
-
-      if (!rawRequests) {
-        setHomologationRequests([])
-        return
-      }
-
-      const parsedRequests = JSON.parse(rawRequests) as unknown
-
-      if (!Array.isArray(parsedRequests)) {
-        setHomologationRequests([])
-        return
-      }
-
-      const normalizedRequests: HomologationRequest[] = parsedRequests
-        .filter(
-          (item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object',
-        )
-        .map((item, index) => {
-          const legacyEquipmentType =
-            typeof item.equipmentType === 'string' ? item.equipmentType.trim() : ''
-          const legacyMaterialCode =
-            typeof item.materialCode === 'string' ? item.materialCode.trim() : ''
-          const legacyDescription =
-            typeof item.description === 'string' ? item.description.trim() : ''
-          const legacyQuantity =
-            typeof item.quantity === 'number' ? item.quantity : Number(item.quantity ?? 0)
-
-          const items = Array.isArray(item.items)
-            ? item.items
-                .filter(
-                  (group): group is Record<string, unknown> =>
-                    Boolean(group) && typeof group === 'object',
-                )
-                .map((group) => ({
-                  equipmentType:
-                    typeof group.equipmentType === 'string'
-                      ? group.equipmentType.trim()
-                      : '',
-                  materialCode:
-                    typeof group.materialCode === 'string'
-                      ? group.materialCode.trim()
-                      : '',
-                  quantity:
-                    typeof group.quantity === 'number'
-                      ? group.quantity
-                      : Number(group.quantity ?? 0),
-                  description:
-                    typeof group.description === 'string'
-                      ? group.description.trim()
-                      : '',
-                }))
-                .filter(
-                  (group) =>
-                    group.equipmentType.length > 0 &&
-                    group.materialCode.length > 0 &&
-                    group.description.length > 0 &&
-                    Number.isInteger(group.quantity) &&
-                    group.quantity > 0,
-                )
-            : []
-
-          const fallbackItems: HomologationRequestItem[] =
-            items.length > 0
-              ? items
-              : legacyEquipmentType &&
-                  legacyMaterialCode &&
-                  legacyDescription &&
-                  Number.isInteger(legacyQuantity) &&
-                  legacyQuantity > 0
-                ? [
-                    {
-                      equipmentType: legacyEquipmentType,
-                      materialCode: legacyMaterialCode,
-                      quantity: legacyQuantity,
-                      description: legacyDescription,
-                    },
-                  ]
-                : []
-
-          return {
-            id:
-              typeof item.id === 'string' && item.id.trim().length > 0
-                ? item.id
-                : `legacy-request-${index}`,
-            requesterUserId:
-              typeof item.requesterUserId === 'string' ? item.requesterUserId : 'unknown',
-            requesterName:
-              typeof item.requesterName === 'string'
-                ? item.requesterName
-                : 'Solicitante não identificado',
-            requesterRegistration:
-              typeof item.requesterRegistration === 'string'
-                ? item.requesterRegistration
-                : '-',
-            requesterEmail: typeof item.requesterEmail === 'string' ? item.requesterEmail : '-',
-            requesterArea: 'Compras' as const,
-            orderNumber: typeof item.orderNumber === 'string' ? item.orderNumber.trim() : '',
-            manufacturer:
-              typeof item.manufacturer === 'string' ? item.manufacturer.trim() : '',
-            items: fallbackItems,
-            justification:
-              typeof item.justification === 'string' ? item.justification : '',
-            requestedAt:
-              typeof item.requestedAt === 'string'
-                ? item.requestedAt
-                : new Date().toISOString(),
-            status: 'Recebido' as const,
-          }
-        })
-        .filter((request) => request.manufacturer.length > 0 && request.items.length > 0)
-
-      setHomologationRequests(normalizedRequests)
-    } catch {
-      setHomologationRequests([])
+    return () => {
+      cancelled = true
     }
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem(
-      HOMOLOGATION_REQUESTS_DB_KEY,
-      JSON.stringify(homologationRequests),
-    )
-  }, [homologationRequests])
+  }, [loadAdminData])
 
   const fixedRequestLink = `${window.location.origin}${window.location.pathname}${FIXED_PURCHASE_REQUEST_HASH}`
 
-  const handleRegisterUser = (user: AppUser) => {
-    setRegisteredUsers((prev) =>
-      ensureDefaultUsers([user, ...prev.filter((item) => item.id !== user.id)]),
-    )
-    setActivePanel('login')
+  const handleRegisterUser = async (payload: {
+    name: string
+    registration: string
+    birthDate: string
+    email: string
+    jobTitle: string
+    cpf: string
+    password: string
+    personalDescription: string
+    hobby: string
+  }) => {
+    await api.register(payload)
   }
 
-  const handleApproveUser = (userId: string) => {
-    setRegisteredUsers((prev) =>
-      prev.map((user) =>
-        user.id === userId
-          ? {
-              ...user,
-              approvalStatus: 'approved',
-              approvedAt: new Date().toISOString(),
-            }
-          : user,
-      ),
-    )
+  const handleApproveUser = async (userId: string) => {
+    const { user } = await api.approveUser(userId)
+    setRegisteredUsers((prev) => prev.map((item) => (item.id === user.id ? user : item)))
   }
 
-  const handleCreateHomologationRequest = (
-    user: AppUser,
-    payload: Omit<HomologationRequest, 'id' | 'requesterUserId' | 'requesterName' | 'requesterRegistration' | 'requesterEmail' | 'requesterArea' | 'requestedAt' | 'status'>,
+  const handleCreateHomologationRequest = async (
+    payload: Omit<
+      HomologationRequest,
+      | 'id'
+      | 'requesterUserId'
+      | 'requesterName'
+      | 'requesterRegistration'
+      | 'requesterEmail'
+      | 'requesterArea'
+      | 'requestedAt'
+      | 'status'
+    >,
   ) => {
-    const request: HomologationRequest = {
-      id: `${Date.now()}-${user.id}`,
-      requesterUserId: user.id,
-      requesterName: user.name,
-      requesterRegistration: user.registration,
-      requesterEmail: user.email,
-      requesterArea: 'Compras',
-      orderNumber: payload.orderNumber,
-      manufacturer: payload.manufacturer,
-      items: payload.items,
-      justification: payload.justification,
-      requestedAt: new Date().toISOString(),
-      status: 'Recebido',
-    }
-
+    const { request } = await api.createHomologationRequest(payload)
     setHomologationRequests((prev) => [request, ...prev])
+  }
+
+  const handleLogout = async () => {
+    try {
+      await api.logout()
+    } finally {
+      setAuthenticatedUser(null)
+      setRegisteredUsers([])
+      setHomologationRequests([])
+    }
+  }
+
+  if (bootstrapping) {
+    return (
+      <main className="shell">
+        <section className="home-card">
+          <p>Carregando portal...</p>
+        </section>
+      </main>
+    )
   }
 
   if (authenticatedUser) {
@@ -360,7 +159,7 @@ export default function App() {
         homologationRequests={homologationRequests}
         onApproveUser={handleApproveUser}
         onCreateHomologationRequest={handleCreateHomologationRequest}
-        onLogout={() => setAuthenticatedUser(null)}
+        onLogout={handleLogout}
       />
     )
   }
@@ -411,14 +210,18 @@ export default function App() {
           {activePanel === 'login' ? (
             <LoginPanel
               activeRoute={activeRoute}
-              users={registeredUsers}
-              onLoginSuccess={(user) => setAuthenticatedUser(user)}
+              onLoginSuccess={(user) => {
+                setAuthenticatedUser(user)
+                if (user.role === 'admin') {
+                  void loadAdminData()
+                }
+              }}
             />
           ) : (
             <RegisterPanel
               activeRoute={activeRoute}
-              users={registeredUsers}
               onRegister={handleRegisterUser}
+              onRegistered={() => setActivePanel('login')}
             />
           )}
         </div>
@@ -429,44 +232,37 @@ export default function App() {
 
 type LoginPanelProps = {
   activeRoute: AppRoute
-  users: AppUser[]
   onLoginSuccess: (user: AppUser) => void
 }
 
-function LoginPanel({ activeRoute, users, onLoginSuccess }: LoginPanelProps) {
+function LoginPanel({ activeRoute, onLoginSuccess }: LoginPanelProps) {
   const [registration, setRegistration] = useState('')
   const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setSubmitting(true)
+    setFeedback(null)
 
-    const normalizedRegistration = registration.trim().toUpperCase()
-    const matchingUser = users.find(
-      (user) => user.registration.trim().toUpperCase() === normalizedRegistration,
-    )
-
-    if (!matchingUser || matchingUser.password !== password) {
-      setFeedback({
-        type: 'error',
-        message: 'Matrícula ou senha inválida. Use as credenciais cadastradas no sistema.',
-      })
-      return
-    }
-
-    if (matchingUser.approvalStatus !== 'approved') {
+    try {
+      const { user } = await api.login(registration, password)
+      onLoginSuccess(user)
+    } catch (error) {
       setFeedback({
         type: 'error',
         message:
-          'Seu cadastro ainda está pendente de aprovação do ADM. Aguarde a liberação para acessar.',
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível entrar. Tente novamente.',
       })
-      return
+    } finally {
+      setSubmitting(false)
     }
-
-    onLoginSuccess(matchingUser)
   }
 
   return (
@@ -508,8 +304,8 @@ function LoginPanel({ activeRoute, users, onLoginSuccess }: LoginPanelProps) {
           />
         </label>
 
-        <button className="primary-button" type="submit">
-          Entrar
+        <button className="primary-button" type="submit" disabled={submitting}>
+          {submitting ? 'Entrando...' : 'Entrar'}
         </button>
       </form>
 
@@ -537,12 +333,21 @@ type HomePanelProps = {
   fixedRequestLink: string
   users: AppUser[]
   homologationRequests: HomologationRequest[]
-  onApproveUser: (userId: string) => void
+  onApproveUser: (userId: string) => Promise<void>
   onCreateHomologationRequest: (
-    user: AppUser,
-    payload: Omit<HomologationRequest, 'id' | 'requesterUserId' | 'requesterName' | 'requesterRegistration' | 'requesterEmail' | 'requesterArea' | 'requestedAt' | 'status'>,
-  ) => void
-  onLogout: () => void
+    payload: Omit<
+      HomologationRequest,
+      | 'id'
+      | 'requesterUserId'
+      | 'requesterName'
+      | 'requesterRegistration'
+      | 'requesterEmail'
+      | 'requesterArea'
+      | 'requestedAt'
+      | 'status'
+    >,
+  ) => Promise<void>
+  onLogout: () => Promise<void>
 }
 
 type Area = {
@@ -551,30 +356,7 @@ type Area = {
   details: string
 }
 
-type PasswordType = 'alphanumeric' | 'letters' | 'numbers'
 type PasswordTypeSelection = PasswordType | ''
-
-type PasswordRecord = {
-  id: string
-  meter: string
-  password: string
-  manufacturer: string
-  materialType: string
-  orderNumber: string
-  passwordType: PasswordType
-  digits: number
-  createdAt: string
-}
-
-type MaterialRecord = {
-  material: string
-  oldCode: string
-  newCode: string
-  description: string
-  manufacturer: string
-  prefix: string
-  equipmentType: string
-}
 
 type MaterialCatalogItem = {
   equipmentType: string
@@ -582,65 +364,7 @@ type MaterialCatalogItem = {
   description: string
 }
 
-const PASSWORD_DB_KEY = 'eficiencia-medicao-password-db-v3'
-const defaultManufacturers = ['Eletra', 'Nansen']
 const defaultMaterialTypes = ['17000001', '17000002']
-const initialMaterialRows: MaterialRecord[] = [
-  {
-    material: '10002260',
-    oldCode: '90002260',
-    newCode: '17000001',
-    description: 'MEDIDOR ENERG FRONT 280V-2,5A-4F-3E-0,2S',
-    manufacturer: 'CENNATECH',
-    prefix: '4077',
-    equipmentType: 'Medidor',
-  },
-  {
-    material: '10002260',
-    oldCode: '90002261',
-    newCode: '17000002',
-    description: 'MEDIDOR ENERG FRONT 280V-2,5A-4F-3E-0,2S',
-    manufacturer: 'CENNATECH',
-    prefix: 'PREFIXO_4077',
-    equipmentType: 'Medidor',
-  },
-  {
-    material: '10010887',
-    oldCode: '90010887',
-    newCode: '17000003',
-    description: 'MEDIDOR ELETR DE FAT E QLD DE ENERGIA',
-    manufacturer: 'CENNATECH',
-    prefix: '4177',
-    equipmentType: 'Medidor',
-  },
-  {
-    material: '10010887',
-    oldCode: '90010888',
-    newCode: '17000004',
-    description: 'MEDIDOR ELETR DE FAT E QLD DE ENERGIA',
-    manufacturer: 'CENNATECH',
-    prefix: '4177',
-    equipmentType: 'Medidor',
-  },
-  {
-    material: '10010887',
-    oldCode: '90010889',
-    newCode: '17000005',
-    description: 'MEDIDOR ELETR DE FAT E QLD DE ENERGIA',
-    manufacturer: 'CENNATECH',
-    prefix: '4177',
-    equipmentType: 'Medidor',
-  },
-  {
-    material: '10010887',
-    oldCode: '90010890',
-    newCode: '17000006',
-    description: 'MEDIDOR ELETR DE FAT E QLD DE ENERGIA',
-    manufacturer: 'CENNATECH',
-    prefix: '4177',
-    equipmentType: 'Medidor',
-  },
-]
 
 type GeneratedPasswordResult = {
   meter: string
@@ -864,14 +588,14 @@ function HomePanel({
   const [meterNumbersInput, setMeterNumbersInput] = useState('')
   const [passwordDigitsInput, setPasswordDigitsInput] = useState('')
   const [passwordType, setPasswordType] = useState<PasswordTypeSelection>('')
-  const [manufacturers, setManufacturers] = useState(defaultManufacturers)
+  const [manufacturers, setManufacturers] = useState<string[]>([])
   const [selectedManufacturer, setSelectedManufacturer] = useState('')
   const [selectedMaterialType, setSelectedMaterialType] = useState('')
   const [orderNumber, setOrderNumber] = useState('')
   const [newManufacturer, setNewManufacturer] = useState('')
   const [generatedPasswords, setGeneratedPasswords] = useState<GeneratedPasswordResult[]>([])
   const [passwordRecords, setPasswordRecords] = useState<PasswordRecord[]>([])
-  const [materialRows, setMaterialRows] = useState<MaterialRecord[]>(initialMaterialRows)
+  const [materialRows, setMaterialRows] = useState<MaterialRecord[]>([])
   const [materialForm, setMaterialForm] = useState<MaterialRecord>({
     material: '',
     oldCode: '',
@@ -885,7 +609,7 @@ function HomePanel({
   const [materialOldCodeFilter, setMaterialOldCodeFilter] = useState('')
   const [materialDescriptionFilter, setMaterialDescriptionFilter] = useState('')
   const [materialEquipmentTypeFilter, setMaterialEquipmentTypeFilter] = useState('Todos')
-  const [hasLoadedDb, setHasLoadedDb] = useState(false)
+  const [_dataLoading, setDataLoading] = useState(true)
   const [filterMetersInput, setFilterMetersInput] = useState('')
   const [filterManufacturer, setFilterManufacturer] = useState('Todos')
   const [filterMaterialType, setFilterMaterialType] = useState('Todos')
@@ -989,97 +713,50 @@ function HomePanel({
   }
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(PASSWORD_DB_KEY)
+    let cancelled = false
 
-      if (!raw) {
-        setPasswordRecords([])
-        setManufacturers(defaultManufacturers)
-        setSelectedManufacturer('')
-        setGeneratedPasswords([])
-        setFilterMetersInput('')
-        setFilterManufacturer('Todos')
-        setFilterMaterialType('Todos')
-        setFilterStartDate('')
-        setFilterEndDate('')
-        setHasLoadedDb(true)
-        return
-      }
+    async function loadOperationalData() {
+      try {
+        const [passwordsResponse, manufacturersResponse, materialsResponse] = await Promise.all([
+          api.listPasswordRecords(),
+          api.listManufacturers(),
+          api.listMaterials(),
+        ])
 
-      const parsed = JSON.parse(raw) as unknown
-
-      let loadedRecords: PasswordRecord[] = []
-      let loadedManufacturers: string[] = defaultManufacturers
-
-      if (Array.isArray(parsed)) {
-        loadedRecords = parsed as PasswordRecord[]
-      } else if (parsed && typeof parsed === 'object') {
-        const db = parsed as {
-          records?: unknown
-          manufacturers?: unknown
+        if (cancelled) {
+          return
         }
 
-        if (Array.isArray(db.records)) {
-          loadedRecords = db.records as PasswordRecord[]
+        setPasswordRecords(passwordsResponse.records)
+        setManufacturers(manufacturersResponse.manufacturers)
+        setMaterialRows(materialsResponse.materials)
+      } catch {
+        if (!cancelled) {
+          setPasswordFeedback({
+            type: 'error',
+            message: 'Não foi possível carregar os dados do servidor.',
+          })
         }
-
-        if (Array.isArray(db.manufacturers) && db.manufacturers.length) {
-          loadedManufacturers = db.manufacturers
-            .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-            .map((item) => item.trim())
+      } finally {
+        if (!cancelled) {
+          setDataLoading(false)
         }
       }
+    }
 
-      const normalizedRecords = loadedRecords
-        .filter(
-          (record) =>
-            record &&
-            typeof record.meter === 'string' &&
-            /^\d+$/.test(record.meter.trim()) &&
-            typeof record.password === 'string' &&
-            typeof record.manufacturer === 'string' &&
-            typeof record.materialType === 'string',
-        )
-        .map((record, index) => ({
-          id: record.id ?? `legacy-${index}`,
-          meter: record.meter,
-          password: record.password,
-          manufacturer: record.manufacturer,
-          materialType: record.materialType,
-          orderNumber: typeof record.orderNumber === 'string' ? record.orderNumber : '',
-          passwordType: record.passwordType ?? 'alphanumeric',
-          digits: record.digits ?? record.password.length,
-          createdAt: record.createdAt ?? new Date().toISOString(),
-        }))
+    loadOperationalData()
 
-      const normalizedManufacturers = loadedManufacturers.length
-        ? loadedManufacturers
-        : defaultManufacturers
-
-      setPasswordRecords(normalizedRecords)
-      setManufacturers(normalizedManufacturers)
-    } catch {
-      setPasswordFeedback({
-        type: 'error',
-        message: 'Não foi possível carregar o banco local. Um novo será criado.',
-      })
-    } finally {
-      setHasLoadedDb(true)
+    return () => {
+      cancelled = true
     }
   }, [])
 
-  useEffect(() => {
-    if (!hasLoadedDb) {
-      return
-    }
-
-    const db = {
-      records: passwordRecords,
-      manufacturers,
-    }
-
-    localStorage.setItem(PASSWORD_DB_KEY, JSON.stringify(db))
-  }, [hasLoadedDb, passwordRecords, manufacturers])
+  const materialTypeOptions = useMemo(() => {
+    const codes = materialRows
+      .map((row) => row.newCode.trim())
+      .filter(Boolean)
+    return codes.length ? Array.from(new Set(codes)) : defaultMaterialTypes
+  }, [materialRows])
 
   useEffect(() => {
     if (selectedPasswordAction !== 'gerar') {
@@ -1222,7 +899,7 @@ function HomePanel({
     }
   }
 
-  const handleGeneratePassword = () => {
+  const handleGeneratePassword = async () => {
     const meters = meterNumbersInput
       .split(/[\n,;\t ]+/)
       .map((value) => value.trim())
@@ -1278,73 +955,39 @@ function HomePanel({
       return
     }
 
-    const charSets = {
-      alphanumeric: 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789',
-      letters: 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz',
-      numbers: '0123456789',
-    }
-    const selectedCharSet = charSets[passwordType]
+    try {
+      const response = await api.generatePasswords({
+        meters,
+        passwordDigits,
+        passwordType,
+        manufacturer: selectedManufacturer,
+        materialType: selectedMaterialType,
+        orderNumber: orderNumber.trim(),
+      })
 
-    const existingMeters = new Map(
-      passwordRecords.map((record) => [record.meter.trim().toLowerCase(), record]),
-    )
-    const processedMeters = new Set<string>()
+      const duplicateCount = response.results.filter((item) => item.status === 'duplicate').length
 
-    const newPasswords: GeneratedPasswordResult[] = meters.map((meter) => {
-      const normalizedMeter = meter.trim().toLowerCase()
-      const existingRecord = existingMeters.get(normalizedMeter)
-
-      if (existingRecord || processedMeters.has(normalizedMeter)) {
-        return {
-          meter,
-          password: 'Medidor já possui senha',
-          status: 'duplicate',
-          createdAt: existingRecord ? existingRecord.createdAt : new Date().toISOString(),
-        }
+      setGeneratedPasswords(response.results)
+      if (response.records.length) {
+        setPasswordRecords((prev) => [...response.records, ...prev])
       }
 
-      processedMeters.add(normalizedMeter)
-      const randomBlock = Array.from({ length: passwordDigits }, () =>
-        selectedCharSet[Math.floor(Math.random() * selectedCharSet.length)],
-      ).join('')
-      const createdAt = new Date().toISOString()
-
-      return {
-        meter,
-        password: randomBlock,
-        status: 'generated',
-        createdAt,
-      }
-    })
-
-    const newRecords: PasswordRecord[] = newPasswords
-      .filter((item) => item.status === 'generated')
-      .map((item, index) => ({
-      id: `${Date.now()}-${index}-${item.meter}`,
-      meter: item.meter,
-      password: item.password,
-      manufacturer: selectedManufacturer,
-      materialType: selectedMaterialType,
-      orderNumber: orderNumber.trim(),
-      passwordType,
-      digits: passwordDigits,
-      createdAt: new Date().toISOString(),
-      }))
-
-    const duplicateCount = newPasswords.filter((item) => item.status === 'duplicate').length
-
-    setGeneratedPasswords(newPasswords)
-    if (newRecords.length) {
-      setPasswordRecords((prev) => [...newRecords, ...prev])
+      setPasswordFeedback({
+        type: duplicateCount > 0 ? 'error' : 'success',
+        message:
+          duplicateCount > 0
+            ? `${response.records.length} senha(s) gerada(s) e ${duplicateCount} medidor(es) já possuíam senha.`
+            : `${response.records.length} senha(s) gerada(s) com sucesso para ${selectedManufacturer}.`,
+      })
+    } catch (error) {
+      setPasswordFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível gerar as senhas.',
+      })
     }
-
-    setPasswordFeedback({
-      type: duplicateCount > 0 ? 'error' : 'success',
-      message:
-        duplicateCount > 0
-          ? `${newRecords.length} senha(s) gerada(s) e ${duplicateCount} medidor(es) já possuíam senha.`
-          : `${newRecords.length} senha(s) gerada(s) com sucesso para ${selectedManufacturer}.`,
-    })
   }
 
   const handleCopyAllPasswords = async () => {
@@ -1383,7 +1026,7 @@ function HomePanel({
     }
   }
 
-  const handleAddManufacturer = () => {
+  const handleAddManufacturer = async () => {
     const manufacturerName = newManufacturer.trim()
 
     if (!manufacturerName) {
@@ -1394,26 +1037,26 @@ function HomePanel({
       return false
     }
 
-    const alreadyExists = manufacturers.some(
-      (manufacturer) => manufacturer.toLowerCase() === manufacturerName.toLowerCase(),
-    )
-
-    if (alreadyExists) {
+    try {
+      const { name } = await api.addManufacturer(manufacturerName)
+      setManufacturers((prev) => [...prev, name])
+      setSelectedManufacturer(name)
+      setNewManufacturer('')
+      setPasswordFeedback({
+        type: 'success',
+        message: `Fabricante ${name} cadastrado com sucesso.`,
+      })
+      return true
+    } catch (error) {
       setPasswordFeedback({
         type: 'error',
-        message: 'Este fabricante já está na lista.',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível cadastrar o fabricante.',
       })
       return false
     }
-
-    setManufacturers((prev) => [...prev, manufacturerName])
-    setSelectedManufacturer(manufacturerName)
-    setNewManufacturer('')
-    setPasswordFeedback({
-      type: 'success',
-      message: `Fabricante ${manufacturerName} cadastrado com sucesso.`,
-    })
-    return true
   }
 
   const resetMaterialForm = () => {
@@ -1428,7 +1071,7 @@ function HomePanel({
     })
   }
 
-  const handleCreateMaterial = () => {
+  const handleCreateMaterial = async () => {
     if (
       !materialForm.material.trim() ||
       !materialForm.oldCode.trim() ||
@@ -1450,13 +1093,24 @@ function HomePanel({
       return
     }
 
-    setMaterialRows((prev) => [materialForm, ...prev])
-    setPasswordFeedback({
-      type: 'success',
-      message: `Material ${materialForm.material} cadastrado com sucesso.`,
-    })
-    resetMaterialForm()
-    setSelectedCodeMaterialsAction(null)
+    try {
+      const { material } = await api.createMaterial(materialForm)
+      setMaterialRows((prev) => [material, ...prev])
+      setPasswordFeedback({
+        type: 'success',
+        message: `Material ${material.material} cadastrado com sucesso.`,
+      })
+      resetMaterialForm()
+      setSelectedCodeMaterialsAction(null)
+    } catch (error) {
+      setPasswordFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível salvar o material.',
+      })
+    }
   }
 
   const handleCopyFixedRequestLink = async () => {
@@ -1530,10 +1184,19 @@ function HomePanel({
                         className="primary-button compact-button"
                         type="button"
                         onClick={() => {
-                          onApproveUser(user.id)
-                          setPasswordFeedback({
-                            type: 'success',
-                            message: `Acesso de ${user.name} aprovado com sucesso.`,
+                          void onApproveUser(user.id).then(() => {
+                            setPasswordFeedback({
+                              type: 'success',
+                              message: `Acesso de ${user.name} aprovado com sucesso.`,
+                            })
+                          }).catch((error) => {
+                            setPasswordFeedback({
+                              type: 'error',
+                              message:
+                                error instanceof ApiError
+                                  ? error.message
+                                  : 'Não foi possível aprovar o usuário.',
+                            })
                           })
                         }}
                       >
@@ -1600,10 +1263,11 @@ function HomePanel({
                     className="primary-button"
                     type="button"
                     onClick={() => {
-                      const added = handleAddManufacturer()
-                      if (added) {
-                        setSelectedPasswordAction('gerar')
-                      }
+                      void handleAddManufacturer().then((added) => {
+                        if (added) {
+                          setSelectedPasswordAction('gerar')
+                        }
+                      })
                     }}
                   >
                     Salvar fabricante
@@ -1703,7 +1367,7 @@ function HomePanel({
                       <option value="" disabled>
                         Selecione
                       </option>
-                      {defaultMaterialTypes.map((material) => (
+                      {materialTypeOptions.map((material) => (
                         <option key={material} value={material}>
                           {material}
                         </option>
@@ -1810,7 +1474,7 @@ function HomePanel({
                       onChange={(event) => setFilterMaterialType(event.target.value)}
                     >
                       <option value="Todos">Todos</option>
-                      {defaultMaterialTypes.map((material) => (
+                      {materialTypeOptions.map((material) => (
                         <option key={material} value={material}>
                           {material}
                         </option>
@@ -2420,10 +2084,19 @@ type HomologationRequestPortalProps = {
   manufacturers: string[]
   materialCatalog: MaterialCatalogItem[]
   onCreateHomologationRequest: (
-    user: AppUser,
-    payload: Omit<HomologationRequest, 'id' | 'requesterUserId' | 'requesterName' | 'requesterRegistration' | 'requesterEmail' | 'requesterArea' | 'requestedAt' | 'status'>,
-  ) => void
-  onLogout: () => void
+    payload: Omit<
+      HomologationRequest,
+      | 'id'
+      | 'requesterUserId'
+      | 'requesterName'
+      | 'requesterRegistration'
+      | 'requesterEmail'
+      | 'requesterArea'
+      | 'requestedAt'
+      | 'status'
+    >,
+  ) => Promise<void>
+  onLogout: () => Promise<void>
 }
 
 type RequestGroupForm = {
@@ -2445,7 +2118,6 @@ function createEmptyRequestGroup(id: string): RequestGroupForm {
 }
 
 function HomologationRequestPortal({
-  currentUser,
   activeRoute,
   manufacturers,
   materialCatalog,
@@ -2520,7 +2192,7 @@ function HomologationRequestPortal({
     })
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     const parsedItems = requestGroups.map((group) => ({
@@ -2551,21 +2223,31 @@ function HomologationRequestPortal({
       return
     }
 
-    onCreateHomologationRequest(currentUser, {
-      orderNumber: orderNumber.trim(),
-      manufacturer: manufacturer.trim(),
-      items: parsedItems,
-      justification: justification.trim(),
-    })
+    try {
+      await onCreateHomologationRequest({
+        orderNumber: orderNumber.trim(),
+        manufacturer: manufacturer.trim(),
+        items: parsedItems,
+        justification: justification.trim(),
+      })
 
-    setOrderNumber('')
-    setManufacturer('')
-    setRequestGroups([createEmptyRequestGroup(`group-${Date.now()}-1`)])
-    setJustification('')
-    setFeedback({
-      type: 'success',
-      message: 'Pedido enviado com sucesso para análise da homologação.',
-    })
+      setOrderNumber('')
+      setManufacturer('')
+      setRequestGroups([createEmptyRequestGroup(`group-${Date.now()}-1`)])
+      setJustification('')
+      setFeedback({
+        type: 'success',
+        message: 'Pedido enviado com sucesso para análise da homologação.',
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível enviar o pedido.',
+      })
+    }
   }
 
   return (
@@ -2776,11 +2458,21 @@ function getAreaCardClassName(title: string) {
 
 type RegisterPanelProps = {
   activeRoute: AppRoute
-  users: AppUser[]
-  onRegister: (user: AppUser) => void
+  onRegister: (payload: {
+    name: string
+    registration: string
+    birthDate: string
+    email: string
+    jobTitle: string
+    cpf: string
+    password: string
+    personalDescription: string
+    hobby: string
+  }) => Promise<void>
+  onRegistered: () => void
 }
 
-function RegisterPanel({ activeRoute, users, onRegister }: RegisterPanelProps) {
+function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelProps) {
   const [name, setName] = useState('')
   const [registration, setRegistration] = useState('')
   const [birthDate, setBirthDate] = useState('')
@@ -2796,7 +2488,7 @@ function RegisterPanel({ activeRoute, users, onRegister }: RegisterPanelProps) {
     message: string
   } | null>(null)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     if (
@@ -2824,54 +2516,44 @@ function RegisterPanel({ activeRoute, users, onRegister }: RegisterPanelProps) {
       return
     }
 
-    const normalizedRegistration = registration.trim().toUpperCase()
-    const normalizedEmail = email.trim().toLowerCase()
-    const registrationAlreadyExists = users.some(
-      (user) => user.registration.trim().toUpperCase() === normalizedRegistration,
-    )
-    const emailAlreadyExists = users.some(
-      (user) => user.email.trim().toLowerCase() === normalizedEmail,
-    )
+    try {
+      await onRegister({
+        name: name.trim(),
+        registration: registration.trim(),
+        birthDate,
+        email: email.trim(),
+        jobTitle: jobTitle.trim(),
+        cpf: cpf.trim(),
+        password,
+        personalDescription: personalDescription.trim(),
+        hobby,
+      })
 
-    if (registrationAlreadyExists || emailAlreadyExists) {
+      setFeedback({
+        type: 'success',
+        message:
+          'Cadastro enviado para aprovação do ADM. Após a liberação, o perfil Compras poderá acessar somente o formulário fixo de Pedidos de Homologação.',
+      })
+      setName('')
+      setRegistration('')
+      setBirthDate('')
+      setEmail('')
+      setJobTitle('')
+      setCpf('')
+      setPassword('')
+      setConfirmPassword('')
+      setPersonalDescription('')
+      setHobby('')
+      onRegistered()
+    } catch (error) {
       setFeedback({
         type: 'error',
-        message: 'Já existe um cadastro com esta matrícula ou e-mail.',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível concluir o cadastro.',
       })
-      return
     }
-
-    onRegister({
-      id: `${Date.now()}-${normalizedRegistration}`,
-      name: name.trim(),
-      registration: normalizedRegistration,
-      password,
-      email: normalizedEmail,
-      role: 'compras',
-      approvalStatus: 'pending',
-      requestedAt: new Date().toISOString(),
-      birthDate,
-      jobTitle: jobTitle.trim(),
-      cpf: cpf.trim(),
-      personalDescription: personalDescription.trim(),
-      hobby,
-    })
-
-    setFeedback({
-      type: 'success',
-      message:
-        'Cadastro enviado para aprovação do ADM. Após a liberação, o perfil Compras poderá acessar somente o formulário fixo de Pedidos de Homologação.',
-    })
-    setName('')
-    setRegistration('')
-    setBirthDate('')
-    setEmail('')
-    setJobTitle('')
-    setCpf('')
-    setPassword('')
-    setConfirmPassword('')
-    setPersonalDescription('')
-    setHobby('')
   }
 
   return (
