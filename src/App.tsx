@@ -513,6 +513,8 @@ function ItemIcon({ title }: { title: string }) {
     'Pedidos de Homologação': 'archive',
     'Código de materiais': 'code',
     'Equipe de campo': 'truck',
+    Cadastrar: 'archive',
+    Consultar: 'search',
   }
 
   const icon = iconByTitle[title] ?? 'star'
@@ -586,6 +588,7 @@ function HomePanel({
     useState<string | null>(null)
   const [selectedHomologationSection, setSelectedHomologationSection] =
     useState<string | null>(null)
+  const [selectedFieldTeamSection, setSelectedFieldTeamSection] = useState<string | null>(null)
   const [selectedCodeMaterialsAction, setSelectedCodeMaterialsAction] = useState<
     'create' | null
   >(null)
@@ -661,6 +664,7 @@ function HomePanel({
     'Pedidos de Homologação',
     'Código de materiais',
   ]
+  const fieldTeamSections = ['Cadastrar', 'Consultar']
 
   const areas: Area[] = [
     {
@@ -1631,6 +1635,39 @@ function HomePanel({
     }
 
     if (
+      selectedArea.title === 'Equipe de campo' &&
+      selectedFieldTeamSection
+    ) {
+      return (
+        <main className="shell">
+          <section className="home-card area-screen-card">
+            <TopActionBar
+              onBack={() => setSelectedFieldTeamSection(null)}
+              onHome={() => {
+                setSelectedFieldTeamSection(null)
+                setSelectedArea(null)
+              }}
+              onLogout={onLogout}
+            />
+            <p className="section-tag">Equipe de campo</p>
+            <h2>{selectedFieldTeamSection}</h2>
+            {selectedFieldTeamSection === 'Cadastrar' ? (
+              <p>
+                Registre visitas técnicas, atividades externas e informações de
+                campo da operação de Medição.
+              </p>
+            ) : (
+              <p>
+                Consulte registros de visitas, atividades e informações de campo
+                já cadastradas pela equipe.
+              </p>
+            )}
+          </section>
+        </main>
+      )
+    }
+
+    if (
       selectedArea.title === 'Laboratório de Medição' &&
       selectedLabMeasurementSection
     ) {
@@ -2067,6 +2104,23 @@ function HomePanel({
                   className="measurement-item"
                   type="button"
                   onClick={() => setSelectedHomologationSection(section)}
+                >
+                  <span className="item-with-icon">
+                    <ItemIcon title={section} />
+                    <span>{section}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {selectedArea.title === 'Equipe de campo' ? (
+            <div className="measurement-sections" aria-label="Funções da equipe de campo">
+              {fieldTeamSections.map((section) => (
+                <button
+                  key={section}
+                  className="measurement-item"
+                  type="button"
+                  onClick={() => setSelectedFieldTeamSection(section)}
                 >
                   <span className="item-with-icon">
                     <ItemIcon title={section} />
