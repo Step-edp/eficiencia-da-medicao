@@ -288,15 +288,6 @@ button {
   background: rgba(5, 26, 44, 0.74);
 }
 
-.lab-trail-heading {
-  margin: 0 0 14px;
-  color: #39ff00;
-  font-size: 0.92rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
 .lab-trail-steps {
   display: flex;
   flex-wrap: wrap;

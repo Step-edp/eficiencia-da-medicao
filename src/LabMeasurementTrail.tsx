@@ -18,7 +18,6 @@ export function LabMeasurementTrail({
 
   return (
     <nav className="lab-trail" aria-label="Trilha operacional do laboratório">
-      <p className="lab-trail-heading">Trilha</p>
       <ul className="lab-trail-steps">
         {LAB_TRAIL_STEPS.map((step, index) => {
           const isActive = step.key === activeStep
