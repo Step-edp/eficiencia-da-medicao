@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { EnsaiarForm } from './EnsaiarForm'
+import { LabMeasurementTrail } from './LabMeasurementTrail'
 import {
   api,
   ApiError,
@@ -640,21 +641,15 @@ function HomePanel({
     'Geração de número de série',
     'Sap Hana',
   ]
-  const labMeasurementSections = [
+  const labOtherSections = [
     'Dashboard',
-    'Ensaiar',
-    'Agendar',
     'Consultar RATM',
-    'Entrada de medidores',
     'Criar Modelo',
-    'Aprovação de RATM',
     'Galeria',
     'Analisadores de tensão',
     'Padrões',
-    'Pesquisa de satisfação',
     'Auditoria',
     'Inventário',
-    'Sucata',
     'Apresentação',
     'Fornecedores',
     'Treinamentos',
@@ -1651,6 +1646,11 @@ function HomePanel({
             />
             <p className="section-tag">Laboratório de Medição</p>
             <h2>{selectedLabMeasurementSection}</h2>
+            <LabMeasurementTrail
+              activeStep={selectedLabMeasurementSection}
+              onSelect={setSelectedLabMeasurementSection}
+              renderIcon={(title) => <ItemIcon title={title} />}
+            />
             {selectedLabMeasurementSection === 'Agendar' ? (
               <>
                 <p>Preencha os dados abaixo para reservar a data de agendamento.</p>
@@ -2026,21 +2026,33 @@ function HomePanel({
             </div>
           ) : null}
           {selectedArea.title === 'Laboratório de Medição' ? (
-            <div className="measurement-sections" aria-label="Áreas do laboratório de medição">
-              {labMeasurementSections.map((section) => (
-                <button
-                  key={section}
-                  className="measurement-item"
-                  type="button"
-                  onClick={() => setSelectedLabMeasurementSection(section)}
+            <>
+              <LabMeasurementTrail
+                activeStep={null}
+                onSelect={setSelectedLabMeasurementSection}
+                renderIcon={(title) => <ItemIcon title={title} />}
+              />
+              {labOtherSections.length > 0 ? (
+                <div
+                  className="measurement-sections lab-other-sections"
+                  aria-label="Outras funcionalidades do laboratório"
                 >
-                  <span className="item-with-icon">
-                    <ItemIcon title={section} />
-                    <span>{section}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
+                  {labOtherSections.map((section) => (
+                    <button
+                      key={section}
+                      className="measurement-item"
+                      type="button"
+                      onClick={() => setSelectedLabMeasurementSection(section)}
+                    >
+                      <span className="item-with-icon">
+                        <ItemIcon title={section} />
+                        <span>{section}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </>
           ) : null}
           {selectedArea.title === 'Laboratório de Homologação' ? (
             <div className="measurement-sections" aria-label="Áreas de homologação">

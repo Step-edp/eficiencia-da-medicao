@@ -280,6 +280,138 @@ button {
   transform: translateY(-1px);
 }
 
+.lab-trail {
+  margin: 18px 0 22px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  background: rgba(5, 26, 44, 0.74);
+}
+
+.lab-trail-heading {
+  margin: 0 0 14px;
+  color: #39ff00;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lab-trail-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lab-trail-step-item {
+  display: flex;
+  align-items: center;
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+.lab-trail-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 8px;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  border-radius: 14px;
+  background: rgba(2, 18, 31, 0.55);
+  color: var(--text-main);
+  font: inherit;
+  text-align: center;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.lab-trail-step:hover,
+.lab-trail-step:focus-visible {
+  border-color: rgba(24, 216, 240, 0.55);
+  transform: translateY(-1px);
+}
+
+.lab-trail-step.is-active {
+  border-color: rgba(57, 255, 0, 0.65);
+  background: rgba(57, 255, 0, 0.12);
+  box-shadow: 0 0 0 1px rgba(57, 255, 0, 0.18);
+}
+
+.lab-trail-step.is-completed {
+  border-color: rgba(24, 216, 240, 0.35);
+}
+
+.lab-trail-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(24, 216, 240, 0.35);
+  background: rgba(8, 39, 66, 0.9);
+  color: #c8f4ff;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.lab-trail-step.is-active .lab-trail-step-index {
+  border-color: rgba(57, 255, 0, 0.75);
+  background: rgba(57, 255, 0, 0.22);
+  color: #eaffea;
+}
+
+.lab-trail-step-content {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  line-height: 1.2;
+}
+
+.lab-trail-connector {
+  flex: 0 0 18px;
+  height: 2px;
+  margin: 0 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(24, 216, 240, 0.15) 0%,
+    rgba(24, 216, 240, 0.55) 50%,
+    rgba(24, 216, 240, 0.15) 100%
+  );
+}
+
+.lab-other-sections {
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .lab-trail-step-item {
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  .lab-trail-connector {
+    display: none;
+  }
+
+  .lab-trail-steps {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .lab-trail-step-item {
+    flex: 1 1 100%;
+  }
+}
+
 .password-generator-grid {
   display: grid;
   gap: 14px;
