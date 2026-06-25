@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { EdpLogo } from './EdpLogo'
+import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import {
   api,
   ApiError,
@@ -508,6 +509,7 @@ function ItemIcon({ title }: { title: string }) {
     Ensaio: 'flask',
     'Pedidos de Homologação': 'archive',
     'Código de materiais': 'code',
+    'Equipe de campo': 'truck',
   }
 
   const icon = iconByTitle[title] ?? 'star'
@@ -698,6 +700,13 @@ function HomePanel({
         'Monitoramento remoto, coleta de dados em tempo real e gestão de alertas.',
       details:
         'Monitore ativos remotamente, acompanhe telemetria em tempo real e trate alertas críticos com agilidade.',
+    },
+    {
+      title: 'Equipe de campo',
+      description:
+        'Operações em campo, visitas técnicas e acompanhamento de atividades externas.',
+      details:
+        'Organize rotinas de campo, registre visitas técnicas e acompanhe a execução de serviços externos da operação de Medição.',
     },
   ]
 
@@ -1641,11 +1650,18 @@ function HomePanel({
             />
             <p className="section-tag">Laboratório de Medição</p>
             <h2>{selectedLabMeasurementSection}</h2>
-            <p>
-              Página dedicada da área {selectedLabMeasurementSection}. Aqui você
-              pode concentrar funcionalidades e informações específicas do
-              laboratório.
-            </p>
+            {selectedLabMeasurementSection === 'Agendar' ? (
+              <>
+                <p>Preencha os dados abaixo para reservar a data de agendamento.</p>
+                <ScheduleAgendarForm />
+              </>
+            ) : (
+              <p>
+                Página dedicada da área {selectedLabMeasurementSection}. Aqui você
+                pode concentrar funcionalidades e informações específicas do
+                laboratório.
+              </p>
+            )}
           </section>
         </main>
       )
@@ -2451,6 +2467,10 @@ function getAreaCardClassName(title: string) {
 
   if (title === 'Laboratório de Homologação') {
     return 'area-card-lab-homologacao'
+  }
+
+  if (title === 'Equipe de campo') {
+    return 'area-card-equipe-campo'
   }
 
   return ''

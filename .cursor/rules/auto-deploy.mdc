@@ -1,0 +1,17 @@
+---
+description: Commit e push automáticos após alterações no projeto
+alwaysApply: true
+---
+
+# Deploy automático via GitHub + Railway
+
+Este projeto publica automaticamente no Railway quando há push na branch `main`.
+
+Após concluir alterações de código neste repositório:
+
+1. Faça **commit** com mensagem clara em português ou inglês (1–2 frases focadas no porquê).
+2. Faça **push** para `origin main` sem pedir confirmação extra.
+3. Não inclua `.env`, credenciais ou segredos no commit.
+4. Se o push falhar, corrija e tente novamente; informe o usuário apenas se houver bloqueio.
+
+Não é necessário perguntar se o usuário quer publicar — considere isso parte do fluxo padrão de entrega.
