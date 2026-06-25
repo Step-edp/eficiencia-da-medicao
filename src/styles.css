@@ -89,10 +89,29 @@ button {
 .area-card {
   display: grid;
   gap: 10px;
+  width: 100%;
   padding: 18px;
   border-radius: 18px;
   border: 1px solid rgba(24, 216, 240, 0.22);
   background: rgba(5, 26, 44, 0.74);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 180ms ease, transform 180ms ease;
+}
+
+.area-card:hover,
+.area-card:focus-visible {
+  border-color: rgba(24, 216, 240, 0.55);
+  transform: translateY(-1px);
+}
+
+.area-card h3,
+.area-card-title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-main);
 }
 
 .area-card-gestao {
@@ -118,12 +137,6 @@ button {
 
 .area-card-equipe-campo {
   order: 6;
-}
-
-.area-card h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  color: var(--text-main);
 }
 
 .area-card-title {

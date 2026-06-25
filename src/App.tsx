@@ -2142,22 +2142,17 @@ function HomePanel({
         <h2>Bem-vindo ao portal, {currentUser.name}</h2>
         <div className="home-areas" aria-label="Áreas do portal">
           {areas.map((area) => (
-            <article
+            <button
               key={area.title}
               className={`area-card ${getAreaCardClassName(area.title)}`}
+              type="button"
+              onClick={() => setSelectedArea(area)}
             >
-              <h3 className="area-card-title">
+              <span className="area-card-title">
                 <ItemIcon title={area.title} />
                 <span>{area.title}</span>
-              </h3>
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => setSelectedArea(area)}
-              >
-                Acessar área
-              </button>
-            </article>
+              </span>
+            </button>
           ))}
         </div>
       </section>
