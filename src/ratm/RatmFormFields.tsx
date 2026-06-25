@@ -1,0 +1,429 @@
+import type { RatmFormData } from './types'
+import { IRREGULARITY_CODES, ITEM_LOOKUP_OPTIONS, TEST_BENCH_OPTIONS } from './types'
+
+type RatmFormFieldsProps = {
+  index: number
+  total: number
+  data: RatmFormData
+  onChange: (patch: Partial<RatmFormData>) => void
+  onScan: (field: string) => void
+}
+
+type RadioGroupProps = {
+  legend: string
+  name: string
+  value: string
+  options: string[]
+  onChange: (value: string) => void
+  onClear?: () => void
+  vertical?: boolean
+}
+
+function ClearableRadioGroup({
+  legend,
+  name,
+  value,
+  options,
+  onChange,
+  onClear,
+  vertical = false,
+}: RadioGroupProps) {
+  return (
+    <fieldset className="radio-fieldset full-width">
+      <div className="radio-fieldset-header">
+        <legend>{legend}</legend>
+        {onClear ? (
+          <button className="clear-field-button" type="button" onClick={onClear} title="Limpar">
+            Limpar
+          </button>
+        ) : null}
+      </div>
+      <div className={`radio-group ${vertical ? 'radio-group-vertical' : ''}`}>
+        {options.map((option) => (
+          <label key={option} className="radio-option">
+            <input
+              type="radio"
+              name={name}
+              value={option}
+              checked={value === option}
+              onChange={() => onChange(option)}
+            />
+            <span>{option}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
+export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFormFieldsProps) {
+  const irregularityDescription =
+    IRREGULARITY_CODES[data.irregularityCode] ?? 'Selecione um código válido.'
+
+  const handleMeterSearch = () => {
+    const meter = data.meterSearch.trim()
+    if (!meter) {
+      return
+    }
+
+    onChange({
+      meter,
+      meterStatus: 'Aprovado',
+    })
+  }
+
+  return (
+    <div className="ratm-form-panel">
+      <div className="ratm-form-header">
+        <span className="ratm-form-counter">
+          RATM {index + 1} de {total}
+        </span>
+      </div>
+
+      <div className="form-grid ratm-form-grid">
+        <label className="full-width">
+          Digite o Nº do medidor
+          <div className="search-input-row">
+            <input
+              type="text"
+              value={data.meterSearch}
+              onChange={(event) => onChange({ meterSearch: event.target.value })}
+              placeholder="Digite o Nº do medidor"
+            />
+            <button className="secondary-button search-button" type="button" onClick={handleMeterSearch}>
+              Buscar
+            </button>
+          </div>
+        </label>
+
+        <button className="scan-button align-right full-width" type="button" onClick={() => onScan('medidor')}>
+          Digitalizar
+        </button>
+
+        <label>
+          Medidor
+          <input
+            type="text"
+            value={data.meter}
+            onChange={(event) => onChange({ meter: event.target.value })}
+          />
+        </label>
+
+        {data.meterStatus ? (
+          <p className="ratm-status-line full-width">Status - {data.meterStatus}</p>
+        ) : null}
+
+        <label className="full-width">
+          Data de agendamento
+          <div className="datetime-row">
+            <input
+              type="date"
+              value={data.scheduleDate}
+              onChange={(event) => onChange({ scheduleDate: event.target.value })}
+            />
+            <select
+              value={data.scheduleHour}
+              onChange={(event) => onChange({ scheduleHour: event.target.value })}
+              aria-label="Hora"
+            >
+              {Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0')).map((hour) => (
+                <option key={hour} value={hour}>
+                  {hour}
+                </option>
+              ))}
+            </select>
+            <select
+              value={data.scheduleMinute}
+              onChange={(event) => onChange({ scheduleMinute: event.target.value })}
+              aria-label="Minuto"
+            >
+              {Array.from({ length: 60 }, (_, minute) => String(minute).padStart(2, '0')).map((minute) => (
+                <option key={minute} value={minute}>
+                  :{minute}
+                </option>
+              ))}
+            </select>
+          </div>
+        </label>
+
+        <label className="full-width">
+          Cliente
+          <input
+            type="text"
+            value={data.client}
+            onChange={(event) => onChange({ client: event.target.value })}
+            placeholder="Edifício Independence"
+          />
+        </label>
+
+        <ClearableRadioGroup
+          legend="Análise a pedido"
+          name={`analysis-${index}`}
+          value={data.analysisRequest}
+          options={['EDP', 'Cliente']}
+          onChange={(value) => onChange({ analysisRequest: value })}
+          onClear={() => onChange({ analysisRequest: '' })}
+        />
+
+        <ClearableRadioGroup
+          legend="Cliente acompanhou"
+          name={`accompanied-${index}`}
+          value={data.clientAccompanied}
+          options={['Sim', 'Não']}
+          onChange={(value) => onChange({ clientAccompanied: value })}
+          onClear={() => onChange({ clientAccompanied: '' })}
+        />
+
+        <ClearableRadioGroup
+          legend="Ensaio Visual"
+          name={`visual-${index}`}
+          value={data.visualTest}
+          options={['Aprovado', 'Reprovado']}
+          onChange={(value) => onChange({ visualTest: value })}
+          onClear={() => onChange({ visualTest: '' })}
+          vertical
+        />
+
+        <ClearableRadioGroup
+          legend="Dielétrico"
+          name={`dielectric-${index}`}
+          value={data.dielectric}
+          options={['Aprovado', 'Reprovado']}
+          onChange={(value) => onChange({ dielectric: value })}
+          onClear={() => onChange({ dielectric: '' })}
+          vertical
+        />
+
+        <label className="full-width">
+          Lacre do Involucro
+          <input
+            type="text"
+            value={data.enclosureSeal}
+            onChange={(event) => onChange({ enclosureSeal: event.target.value })}
+          />
+        </label>
+
+        <button className="scan-button align-right full-width" type="button" onClick={() => onScan('involucro')}>
+          Digitalizar
+        </button>
+
+        <ClearableRadioGroup
+          legend="Status invólucro"
+          name={`enclosure-status-${index}`}
+          value={data.enclosureStatus}
+          options={['Em ordem', 'Violado', 'Sem lacre']}
+          onChange={(value) => onChange({ enclosureStatus: value })}
+          onClear={() => onChange({ enclosureStatus: '' })}
+          vertical
+        />
+
+        <label className="full-width">
+          Lacre 1
+          <input type="text" value={data.seal1} onChange={(event) => onChange({ seal1: event.target.value })} />
+        </label>
+
+        <button className="scan-button align-right full-width" type="button" onClick={() => onScan('lacre1')}>
+          Digitalizar
+        </button>
+
+        <ClearableRadioGroup
+          legend="Status lacre 1"
+          name={`seal1-status-${index}`}
+          value={data.seal1Status}
+          options={['Violado', 'Sem lacre', 'Em ordem']}
+          onChange={(value) => onChange({ seal1Status: value })}
+          onClear={() => onChange({ seal1Status: '' })}
+          vertical
+        />
+
+        <label className="full-width">
+          Lacre 2
+          <input type="text" value={data.seal2} onChange={(event) => onChange({ seal2: event.target.value })} />
+        </label>
+
+        <button className="scan-button align-right full-width" type="button" onClick={() => onScan('lacre2')}>
+          Digitalizar
+        </button>
+
+        <ClearableRadioGroup
+          legend="Status lacre 2"
+          name={`seal2-status-${index}`}
+          value={data.seal2Status}
+          options={['Violado', 'Sem lacre', 'Em ordem', 'N/A']}
+          onChange={(value) => onChange({ seal2Status: value })}
+          onClear={() => onChange({ seal2Status: '' })}
+          vertical
+        />
+
+        <label className="full-width">
+          Leitura medidor
+          <input
+            type="text"
+            value={data.meterReading}
+            onChange={(event) => onChange({ meterReading: event.target.value })}
+          />
+        </label>
+
+        <ClearableRadioGroup
+          legend=""
+          name={`reading-preset-${index}`}
+          value={data.meterReadingPreset}
+          options={['N/A']}
+          onChange={(value) => onChange({ meterReadingPreset: value })}
+          onClear={() => onChange({ meterReadingPreset: '' })}
+        />
+
+        <ClearableRadioGroup
+          legend="Status leitura"
+          name={`reading-status-${index}`}
+          value={data.meterReadingStatus}
+          options={['Apagado', 'Sem leitura', 'Ilegível']}
+          onChange={(value) => onChange({ meterReadingStatus: value })}
+          onClear={() => onChange({ meterReadingStatus: '' })}
+          vertical
+        />
+
+        <ClearableRadioGroup
+          legend="Mesa de ensaio"
+          name={`bench-${index}`}
+          value={data.testBench}
+          options={TEST_BENCH_OPTIONS}
+          onChange={(value) => onChange({ testBench: value })}
+          onClear={() => onChange({ testBench: '' })}
+          vertical
+        />
+
+        {(['cn', 'ci', 'cp', 'cnRi', 'cnRc'] as const).map((fieldKey) => {
+          const labels: Record<typeof fieldKey, string> = {
+            cn: 'CN',
+            ci: 'CI',
+            cp: 'CP',
+            cnRi: 'CN_R_I',
+            cnRc: 'CN_R_C',
+          }
+          const presetKey = `${fieldKey}Preset` as keyof RatmFormData
+
+          return (
+            <div key={fieldKey} className="full-width numeric-field-block">
+              <label>
+                {labels[fieldKey]}
+                <input
+                  type="text"
+                  value={data[fieldKey]}
+                  onChange={(event) => onChange({ [fieldKey]: event.target.value })}
+                />
+              </label>
+              <ClearableRadioGroup
+                legend=""
+                name={`${fieldKey}-preset-${index}`}
+                value={String(data[presetKey])}
+                options={fieldKey === 'cnRc' ? ['-100', 'N/A'] : ['-100', 'N/A']}
+                onChange={(value) => onChange({ [presetKey]: value })}
+                onClear={() => onChange({ [presetKey]: '' })}
+              />
+            </div>
+          )
+        })}
+
+        <ClearableRadioGroup
+          legend="Marcha"
+          name={`march-${index}`}
+          value={data.march}
+          options={['Aprovado', 'Reprovado', 'NA']}
+          onChange={(value) => onChange({ march: value })}
+          onClear={() => onChange({ march: '' })}
+          vertical
+        />
+
+        <ClearableRadioGroup
+          legend="Registrador"
+          name={`recorder-${index}`}
+          value={data.recorder}
+          options={['Aprovado', 'Reprovado']}
+          onChange={(value) => onChange({ recorder: value })}
+          onClear={() => onChange({ recorder: '' })}
+          vertical
+        />
+
+        <label className="full-width">
+          Fase Interrompida
+          <input
+            type="text"
+            value={data.interruptedPhase}
+            onChange={(event) => onChange({ interruptedPhase: event.target.value })}
+          />
+        </label>
+
+        <ClearableRadioGroup
+          legend=""
+          name={`phase-option-${index}`}
+          value={data.interruptedPhaseOption}
+          options={['N/A', 'A', 'B', 'C']}
+          onChange={(value) => onChange({ interruptedPhaseOption: value })}
+          onClear={() => onChange({ interruptedPhaseOption: '' })}
+        />
+
+        <label className="full-width">
+          Cód. Irregularidade
+          <select
+            value={data.irregularityCode}
+            onChange={(event) => onChange({ irregularityCode: event.target.value })}
+          >
+            {Object.keys(IRREGULARITY_CODES).map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="full-width">
+          Descrição Irregularidade
+          <input type="text" value={irregularityDescription} readOnly />
+        </label>
+
+        <label className="full-width">
+          Observações de Irregularidade
+          <textarea
+            rows={4}
+            value={data.irregularityNotes}
+            onChange={(event) => onChange({ irregularityNotes: event.target.value })}
+          />
+        </label>
+
+        <label className="full-width">
+          Localizar itens
+          <select
+            value={data.itemLookup}
+            onChange={(event) => onChange({ itemLookup: event.target.value })}
+          >
+            <option value="">Localizar itens</option>
+            {ITEM_LOOKUP_OPTIONS.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <ClearableRadioGroup
+          legend="Laudo de campo está correto?"
+          name={`report-${index}`}
+          value={data.fieldReportCorrect}
+          options={['Sim', 'Não']}
+          onChange={(value) => onChange({ fieldReportCorrect: value })}
+          onClear={() => onChange({ fieldReportCorrect: '' })}
+        />
+
+        <label className="full-width">
+          Código da irregularidade em campo
+          <input
+            type="text"
+            value={data.fieldIrregularityCode}
+            onChange={(event) => onChange({ fieldIrregularityCode: event.target.value })}
+          />
+        </label>
+      </div>
+    </div>
+  )
+}

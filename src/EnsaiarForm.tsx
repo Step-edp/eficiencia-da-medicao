@@ -1,25 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
+import { RatmWorkflow } from './ratm/RatmWorkflow'
 
 const maxRatmCount = 10
 const ratmOptions = Array.from({ length: maxRatmCount }, (_, index) => index + 1)
 
 export function EnsaiarForm() {
   const [ratmCount, setRatmCount] = useState('')
+  const [startedCount, setStartedCount] = useState<number | null>(null)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
 
   const selectedCount = Number(ratmCount)
-  const ratmSlots = useMemo(() => {
-    if (!Number.isInteger(selectedCount) || selectedCount < 1 || selectedCount > maxRatmCount) {
-      return []
-    }
 
-    return Array.from({ length: selectedCount }, (_, index) => index + 1)
-  }, [selectedCount])
-
-  const handleConfirm = () => {
+  const handleStart = () => {
     if (!ratmCount) {
       setFeedback({
         type: 'error',
@@ -28,10 +23,20 @@ export function EnsaiarForm() {
       return
     }
 
-    setFeedback({
-      type: 'success',
-      message: `${selectedCount} RATM(s) selecionado(s) para ensaio simultâneo.`,
-    })
+    setFeedback(null)
+    setStartedCount(selectedCount)
+  }
+
+  if (startedCount) {
+    return (
+      <RatmWorkflow
+        count={startedCount}
+        onBack={() => {
+          setStartedCount(null)
+          setFeedback(null)
+        }}
+      />
+    )
   }
 
   return (
@@ -61,19 +66,8 @@ export function EnsaiarForm() {
           </select>
         </label>
 
-        {ratmSlots.length ? (
-          <div className="ratm-slots full-width" aria-label="RATMs selecionados">
-            {ratmSlots.map((slot) => (
-              <article key={slot} className="ratm-slot-card">
-                <strong>RATM {slot}</strong>
-                <span>Pronto para iniciar o ensaio {slot} de {ratmSlots.length}.</span>
-              </article>
-            ))}
-          </div>
-        ) : null}
-
-        <button className="primary-button full-width" type="button" onClick={handleConfirm}>
-          Confirmar quantidade
+        <button className="primary-button full-width" type="button" onClick={handleStart}>
+          Iniciar formulários
         </button>
       </div>
     </>
