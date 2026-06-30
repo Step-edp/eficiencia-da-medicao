@@ -3,6 +3,9 @@ import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
 import { EnsaiarForm } from './EnsaiarForm'
+import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
+import { createRatmLaudos, type RatmLaudo } from './ratm/laudos'
+import type { RatmFormData } from './ratm/types'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
 import { getLabTrailLabel, LAB_TRAIL_KEYS } from './labTrailSteps'
 import {
@@ -592,6 +595,7 @@ function HomePanel({
   const [selectedHomologationSection, setSelectedHomologationSection] =
     useState<string | null>(null)
   const [selectedFieldTeamSection, setSelectedFieldTeamSection] = useState<string | null>(null)
+  const [ratmLaudos, setRatmLaudos] = useState<RatmLaudo[]>([])
   const [selectedCodeMaterialsAction, setSelectedCodeMaterialsAction] = useState<
     'create' | null
   >(null)
@@ -715,6 +719,12 @@ function HomePanel({
         'Organize rotinas de campo, registre visitas técnicas e acompanhe a execução de serviços externos da operação de Medição.',
     },
   ]
+
+  const handleRatmFinish = (forms: RatmFormData[]) => {
+    const laudos = createRatmLaudos(forms)
+    setRatmLaudos((prev) => [...laudos, ...prev])
+    setSelectedLabMeasurementSection('Aprovação de RATM')
+  }
 
   const resetGeneratePasswordForm = () => {
     setMeterNumbersInput('')
@@ -1703,8 +1713,10 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Ensaiar' ? (
               <>
                 <p>Escolha quantos RATMs deseja realizar de uma vez (máximo 10).</p>
-                <EnsaiarForm />
+                <EnsaiarForm onFinish={handleRatmFinish} />
               </>
+            ) : selectedLabMeasurementSection === 'Aprovação de RATM' ? (
+              <RatmAprovacaoPanel laudos={ratmLaudos} />
             ) : (
               <p>
                 Página dedicada da área {selectedLabMeasurementSection}. Aqui você

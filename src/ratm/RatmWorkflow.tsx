@@ -5,9 +5,10 @@ import { createEmptyRatmForm, type RatmFormData } from './types'
 type RatmWorkflowProps = {
   count: number
   onBack: () => void
+  onFinish: (forms: RatmFormData[]) => void
 }
 
-export function RatmWorkflow({ count, onBack }: RatmWorkflowProps) {
+export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [forms, setForms] = useState<RatmFormData[]>(() =>
     Array.from({ length: count }, () => createEmptyRatmForm()),
@@ -68,10 +69,8 @@ export function RatmWorkflow({ count, onBack }: RatmWorkflowProps) {
       return
     }
 
-    setFeedback({
-      type: 'success',
-      message: `${count} RATM(s) finalizado(s) com sucesso.`,
-    })
+    setFeedback(null)
+    onFinish(forms)
   }
 
   return (
