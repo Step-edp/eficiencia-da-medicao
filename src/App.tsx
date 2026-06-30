@@ -5,6 +5,7 @@ import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
 import { EnsaiarForm } from './EnsaiarForm'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
 import { mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
+import { openRatmLaudoPdf } from './ratm/laudoPdf'
 import type { RatmFormData } from './ratm/types'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
 import { getLabTrailLabel, LAB_TRAIL_KEYS } from './labTrailSteps'
@@ -725,6 +726,10 @@ function HomePanel({
     const laudos = response.laudos.map(mapRatmLaudoFromApi)
     setRatmLaudos((prev) => [...laudos, ...prev.filter((item) => !laudos.some((created) => created.id === item.id))])
     setSelectedLabMeasurementSection('Aprovação de RATM')
+
+    for (const laudo of laudos) {
+      await openRatmLaudoPdf(laudo.id)
+    }
   }
 
   const resetGeneratePasswordForm = () => {

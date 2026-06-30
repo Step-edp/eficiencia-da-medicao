@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { requireAuth } from '../auth.js'
+import { generateRatmLaudoPdf } from '../ratm-laudo-pdf.js'
 
 type RatmLaudoRow = {
   id: string
@@ -69,7 +70,26 @@ export async function createRatmLaudos(req: Request, res: Response) {
   res.status(201).json({ laudos: createdLaudos })
 }
 
+export async function downloadRatmLaudoPdf(req: Request, res: Response) {
+  const { id } = req.params
+
+  const result = await query<RatmLaudoRow>('SELECT * FROM ratm_laudos WHERE id = $1', [id])
+
+  if (!result.rows[0]) {
+    res.status(404).json({ error: 'Laudo não encontrado.' })
+    return
+  }
+
+  const laudo = mapRatmLaudo(result.rows[0])
+  const filename = `laudo-ratm-${laudo.ratmNumber}-${laudo.meter}.pdf`
+
+  res.setHeader('Content-Type', 'application/pdf')
+  res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
+  generateRatmLaudoPdf(laudo, res)
+}
+
 export const ratmLaudoRoutes = {
   list: [requireAuth, listRatmLaudos],
   create: [requireAuth, createRatmLaudos],
+  pdf: [requireAuth, downloadRatmLaudoPdf],
 }

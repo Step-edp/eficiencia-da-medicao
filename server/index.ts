@@ -56,6 +56,7 @@ async function start() {
 
   app.get('/api/ratm-laudos', ...wrap(ratmLaudoRoutes.list))
   app.post('/api/ratm-laudos', ...wrap(ratmLaudoRoutes.create))
+  app.get('/api/ratm-laudos/:id/pdf', ...wrap(ratmLaudoRoutes.pdf))
 
   const distPath = path.resolve(__dirname, '../../dist')
   app.use(express.static(distPath))
