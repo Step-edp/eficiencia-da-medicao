@@ -299,7 +299,7 @@ button {
 
 .lab-trail-steps {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: stretch;
   gap: 0;
   margin: 0;
@@ -309,8 +309,8 @@ button {
 
 .lab-trail-step-item {
   display: flex;
-  align-items: center;
-  flex: 1 1 120px;
+  align-items: stretch;
+  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -319,7 +319,10 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  width: 100%;
+  min-height: 108px;
   min-width: 0;
   padding: 12px 8px;
   border: 1px solid rgba(24, 216, 240, 0.22);
@@ -348,12 +351,24 @@ button {
 }
 
 .lab-trail-step-content {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  font-size: 0.88rem;
-  line-height: 1.2;
+  width: 100%;
+  min-height: 100%;
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.lab-trail-step-content > span:last-child {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.5em;
+  text-align: center;
 }
 
 .lab-trail-connector {
@@ -406,22 +421,23 @@ button {
 }
 
 @media (max-width: 900px) {
+  .lab-trail-steps {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
   .lab-trail-step-item {
-    flex: 1 1 calc(50% - 8px);
+    flex: 1 1 calc(33.333% - 8px);
   }
 
   .lab-trail-connector {
     display: none;
   }
-
-  .lab-trail-steps {
-    gap: 10px;
-  }
 }
 
 @media (max-width: 520px) {
   .lab-trail-step-item {
-    flex: 1 1 100%;
+    flex: 1 1 calc(50% - 8px);
   }
 }
 
