@@ -83,7 +83,7 @@ button {
 .home-areas {
   display: grid;
   gap: 14px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .area-card {
@@ -248,7 +248,7 @@ button {
 .measurement-sections {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .measurement-item {
@@ -310,7 +310,8 @@ button {
 .lab-trail-step-item {
   display: flex;
   align-items: center;
-  flex: 1 1 120px;
+  flex: 0 1 150px;
+  max-width: 170px;
   min-width: 0;
 }
 
@@ -1257,6 +1258,14 @@ input[type='file'] {
 
   .brand-column {
     min-height: 320px;
+  }
+
+  .home-areas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .measurement-sections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
