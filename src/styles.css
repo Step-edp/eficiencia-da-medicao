@@ -368,8 +368,15 @@ button {
   );
 }
 
+.lab-other-heading {
+  margin: 4px 0 12px;
+  color: var(--text-main);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
 .lab-other-sections {
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 @media (max-width: 900px) {

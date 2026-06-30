@@ -2072,10 +2072,12 @@ function HomePanel({
                 renderIcon={(title) => <ItemIcon title={title} />}
               />
               {labOtherSections.length > 0 ? (
-                <div
-                  className="measurement-sections lab-other-sections"
-                  aria-label="Outras funcionalidades do laboratório"
-                >
+                <>
+                  <h3 className="lab-other-heading">Demais processos</h3>
+                  <div
+                    className="measurement-sections lab-other-sections"
+                    aria-label="Demais processos do laboratório"
+                  >
                   {labOtherSections.map((section) => (
                     <button
                       key={section}
@@ -2090,6 +2092,7 @@ function HomePanel({
                     </button>
                   ))}
                 </div>
+                </>
               ) : null}
             </>
           ) : null}
