@@ -309,13 +309,14 @@ button {
 
 .lab-trail-step-item {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   flex: 1 1 0;
   min-width: 0;
 }
 
 .lab-trail-step {
   flex: 1;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -373,6 +374,7 @@ button {
 
 .lab-trail-connector {
   flex: 0 0 18px;
+  align-self: center;
   height: 2px;
   margin: 0 4px;
   background: linear-gradient(
