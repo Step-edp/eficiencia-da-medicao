@@ -17,8 +17,13 @@ const IRREGULARITY_CODES: Record<string, string> = {
   '23': 'MANCAL FORA DE POSIÇÃO',
 }
 
-const PAGE_MARGIN = 48
+const LAB_LOCAL =
+  'Laboratório de Metrologia EDP SP - Av. Cassiano Ricardo, 1973 - Jardim Alvorada, São José dos Campos - SP'
+
+const PAGE_MARGIN = 40
 const CONTENT_WIDTH = 595.28 - PAGE_MARGIN * 2
+const COLUMN_GAP = 18
+const COLUMN_WIDTH = (CONTENT_WIDTH - COLUMN_GAP) / 2
 
 function textValue(value: unknown) {
   if (value === null || value === undefined) {
@@ -29,20 +34,17 @@ function textValue(value: unknown) {
   return normalized || '—'
 }
 
-function formatDateTime(isoDate: string) {
-  return new Date(isoDate).toLocaleString('pt-BR')
-}
-
-function formatScheduleDate(form: Record<string, unknown>) {
-  const date = textValue(form.scheduleDate)
-  if (date === '—') {
-    return '—'
+function yesNo(value: unknown) {
+  const normalized = textValue(value)
+  if (normalized === '—') {
+    return 'Não'
   }
 
-  const [year, month, day] = date.split('-')
-  const hour = textValue(form.scheduleHour)
-  const minute = textValue(form.scheduleMinute)
-  return `${day}/${month}/${year} ${hour}:${minute}`
+  return normalized
+}
+
+function formatDate(isoDate: string) {
+  return new Date(isoDate).toLocaleDateString('pt-BR')
 }
 
 function dataUrlToBuffer(dataUrl: string) {
@@ -54,83 +56,132 @@ function dataUrlToBuffer(dataUrl: string) {
   return Buffer.from(match[1], 'base64')
 }
 
-function drawSectionTitle(doc: PdfDocument, title: string) {
-  doc.moveDown(0.8)
+function ensureSpace(doc: PdfDocument, height = 60) {
+  if (doc.y + height > 780) {
+    doc.addPage()
+  }
+}
+
+function drawMainTitle(doc: PdfDocument, ratmId: string) {
   doc
-    .fillColor('#0B3D2E')
     .font('Helvetica-Bold')
-    .fontSize(11)
-    .text(title.toUpperCase(), PAGE_MARGIN, doc.y, {
+    .fontSize(13)
+    .fillColor('#111111')
+    .text('Relatório de Avaliação Técnica de Medidor RATM N°', PAGE_MARGIN, PAGE_MARGIN, {
+      width: CONTENT_WIDTH,
+      align: 'center',
+    })
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(12)
+    .text(ratmId, PAGE_MARGIN, doc.y + 4, {
+      width: CONTENT_WIDTH,
+      align: 'center',
+    })
+
+  doc.moveDown(0.8)
+}
+
+function drawSectionHeader(doc: PdfDocument, title: string) {
+  ensureSpace(doc, 40)
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(10.5)
+    .fillColor('#111111')
+    .text(title, PAGE_MARGIN, doc.y, {
       width: CONTENT_WIDTH,
       underline: true,
     })
-  doc.moveDown(0.4)
-  doc.fillColor('#111111').font('Helvetica').fontSize(10)
+
+  doc.moveDown(0.35)
 }
 
-function drawFieldRow(doc: PdfDocument, label: string, value: string) {
-  const y = doc.y
-
-  if (y > 740) {
-    doc.addPage()
-    drawPageFooter(doc)
-  }
+function drawField(doc: PdfDocument, label: string, value: string) {
+  ensureSpace(doc, 24)
 
   doc
     .font('Helvetica-Bold')
-    .fillColor('#333333')
-    .text(`${label}:`, PAGE_MARGIN, doc.y, { continued: true, width: CONTENT_WIDTH })
-  doc.font('Helvetica').fillColor('#111111').text(` ${value}`, {
-    width: CONTENT_WIDTH,
-  })
-  doc.moveDown(0.15)
+    .fontSize(9)
+    .fillColor('#222222')
+    .text(label, PAGE_MARGIN, doc.y, { width: CONTENT_WIDTH, continued: true })
+
+  doc.font('Helvetica').fillColor('#111111').text(` ${value}`, { width: CONTENT_WIDTH })
+  doc.moveDown(0.2)
 }
 
-function drawPageFooter(doc: PdfDocument) {
-  const footerY = 805
-  doc
-    .strokeColor('#18D8F0')
-    .lineWidth(0.5)
-    .moveTo(PAGE_MARGIN, footerY)
-    .lineTo(PAGE_MARGIN + CONTENT_WIDTH, footerY)
-    .stroke()
+function drawTwoColumnFields(
+  doc: PdfDocument,
+  rows: Array<[string, string, string, string]>,
+) {
+  rows.forEach(([leftLabel, leftValue, rightLabel, rightValue]) => {
+    ensureSpace(doc, 28)
+    const rowY = doc.y
 
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor('#222222')
+      .text(`${leftLabel} `, PAGE_MARGIN, rowY, { continued: true, width: COLUMN_WIDTH })
+    doc.font('Helvetica').fillColor('#111111').text(leftValue, { width: COLUMN_WIDTH })
+
+    const rightX = PAGE_MARGIN + COLUMN_WIDTH + COLUMN_GAP
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor('#222222')
+      .text(`${rightLabel} `, rightX, rowY, { continued: true, width: COLUMN_WIDTH })
+    doc.font('Helvetica').fillColor('#111111').text(rightValue, { width: COLUMN_WIDTH })
+
+    doc.y = rowY + 14
+    doc.moveDown(0.15)
+  })
+}
+
+function drawYesNoBlock(doc: PdfDocument, label: string, value: unknown) {
+  ensureSpace(doc, 18)
   doc
     .font('Helvetica')
-    .fontSize(8)
-    .fillColor('#666666')
-    .text(
-      'Documento gerado eletronicamente pelo Sistema Eficiência da Medição — EDP. Laudo técnico de perícia metrológica.',
-      PAGE_MARGIN,
-      footerY + 8,
-      { width: CONTENT_WIDTH, align: 'center' },
-    )
+    .fontSize(9)
+    .fillColor('#111111')
+    .text(`${label}: ${yesNo(value)}`, PAGE_MARGIN, doc.y, { width: CONTENT_WIDTH })
+  doc.moveDown(0.12)
 }
 
-function buildConclusion(form: Record<string, unknown>) {
-  const reproaches = [
-    form.visualTest === 'Reprovado' ? 'ensaio visual reprovado' : null,
-    form.dielectric === 'Reprovado' ? 'ensaio dielétrico reprovado' : null,
-    form.march === 'Reprovado' ? 'marcha reprovada' : null,
-    form.recorder === 'Reprovado' ? 'registrador reprovado' : null,
-    form.dielectricFailed === 'Sim' ? 'reprovação no teste dielétrico' : null,
-    form.brokenMeter === 'Sim' ? 'medidor quebrado ou furado' : null,
-    form.damagedCoil === 'Sim' ? 'bobina danificada' : null,
-  ].filter(Boolean)
-
-  if (reproaches.length > 0) {
-    return `Com base nos ensaios realizados, constatou-se situação técnica incompatível com operação regular, destacando-se: ${reproaches.join(', ')}. Recomenda-se análise complementar conforme normas internas da EDP e procedimentos do Laboratório de Medição.`
-  }
-
+function buildTechnicalReport(form: Record<string, unknown>) {
   if (form.apparentlyInOrder === 'Sim') {
-    return 'Os ensaios realizados indicam que o equipamento encontra-se aparentemente em ordem, sem indícios relevantes de comprometimento metrológico nos testes executados.'
+    return 'MEDIDOR EM ORDEM'
   }
 
-  return 'Os ensaios laboratoriais foram concluídos e registrados neste laudo técnico de perícia metrológica, para fins de rastreabilidade, auditoria e deliberação da área responsável.'
+  if (form.visualTest === 'Reprovado' || form.dielectric === 'Reprovado' || form.march === 'Reprovado') {
+    return 'MEDIDOR REPROVADO NOS ENSAIOS'
+  }
+
+  if (
+    form.brokenMeter === 'Sim' ||
+    form.damagedCoil === 'Sim' ||
+    form.dielectricFailed === 'Sim'
+  ) {
+    return 'MEDIDOR COM NÃO CONFORMIDADE IDENTIFICADA'
+  }
+
+  return 'MEDIDOR EM ORDEM'
+}
+
+function buildRatmNumber(laudo: RatmLaudoPdfInput) {
+  const year = new Date(laudo.createdAt).getFullYear()
+  return `${laudo.ratmNumber}_${laudo.meter}_${year}`
 }
 
 export function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Response) {
   const form = laudo.formData
+  const irregularityCode = textValue(form.irregularityCode)
+  const fieldIrregularityCode = textValue(form.fieldIrregularityCode)
+  const irregularityDescription =
+    IRREGULARITY_CODES[fieldIrregularityCode !== '—' ? fieldIrregularityCode : irregularityCode] ??
+    'Não especificada'
+
   const doc = new PDFDocument({
     size: 'A4',
     margins: {
@@ -140,129 +191,146 @@ export function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Response) {
       right: PAGE_MARGIN,
     },
     info: {
-      Title: `Laudo RATM ${laudo.ratmNumber} - Medidor ${laudo.meter}`,
+      Title: `RATM ${buildRatmNumber(laudo)} - Medidor ${laudo.meter}`,
       Author: 'EDP - Laboratório de Medição',
-      Subject: 'Laudo Técnico de Perícia Metrológica',
+      Subject: 'Relatório de Avaliação Técnica de Medidor RATM',
     },
   })
 
   doc.pipe(res)
 
-  doc
-    .rect(PAGE_MARGIN, 40, CONTENT_WIDTH, 78)
-    .fillAndStroke('#0A2A44', '#18D8F0')
+  drawMainTitle(doc, buildRatmNumber(laudo))
 
+  drawSectionHeader(doc, 'Dados da Instalação')
+  drawTwoColumnFields(doc, [
+    ['Cliente', laudo.client, 'Instalação', '—'],
+    ['Medidor', textValue(form.meter), 'Leitura', textValue(form.meterReading)],
+    ['Nota/TOI', '—', 'Status medidor', textValue(form.meterStatus)],
+  ])
+
+  drawSectionHeader(doc, 'Dados do Padrão')
+  drawTwoColumnFields(doc, [
+    ['Patrimônio/Serial', textValue(form.testBench), 'Modelo', textValue(form.itemLookup)],
+    ['Fabricante', '—', 'Classe de exatidão', '—'],
+    ['Validade certificado', '—', 'Certificado de calibração', '—'],
+  ])
+  drawField(doc, 'Local', LAB_LOCAL)
+
+  drawSectionHeader(doc, 'Dados do Medidor')
+  drawTwoColumnFields(doc, [
+    ['1° lacre tampa', textValue(form.seal1), 'Status lacre 1', textValue(form.seal1Status)],
+    ['2° lacre tampa', textValue(form.seal2), 'Status lacre 2', textValue(form.seal2Status)],
+    ['N° medidor', textValue(form.meter), 'Lacre do invólucro', textValue(form.enclosureSeal)],
+    ['Tipo', textValue(form.itemLookup), 'Status invólucro', textValue(form.enclosureStatus)],
+    ['Fabricante', '—', 'Modelo', '—'],
+  ])
+
+  drawSectionHeader(doc, 'Resultados de ensaio')
+  drawYesNoBlock(doc, 'Medidor quebrado/ Furado', form.brokenMeter)
+  drawYesNoBlock(doc, 'Display apagado/ Não liga', form.displayOff)
+  drawYesNoBlock(doc, 'Facilidade de acesso ao interior do medidor', form.meterInteriorAccess)
+  drawYesNoBlock(doc, 'Bobina danificada', form.damagedCoil)
+  drawYesNoBlock(doc, 'Aparentemente em ordem', form.apparentlyInOrder)
+  drawYesNoBlock(doc, 'Reprovado no Dielétrico', form.dielectricFailed)
+  drawYesNoBlock(doc, 'Corpo estranho no interior do medidor', form.foreignBodyInMeter)
+  drawYesNoBlock(doc, 'Inspeção Geral', form.visualTest)
+  drawYesNoBlock(doc, 'Borne queimado', form.interruptedPhase)
+
+  drawSectionHeader(doc, 'Resultados de ensaio de Exatidão')
+  drawTwoColumnFields(doc, [
+    ['Exatidão Carga Pequena Ativa FP1:', textValue(form.cp), 'Exatidão Carga Nominal Ativa FP1:', textValue(form.cn)],
+    [
+      'Exatidão Carga Nominal Ativa FP 0,5 Ind:',
+      textValue(form.ci),
+      'Exatidão Carga Nominal Reativa FP 0,5 Ind:',
+      textValue(form.cnRi),
+    ],
+    [
+      'Exatidão Carga Nominal Reativa FP 0,8 Cap:',
+      textValue(form.cnRc),
+      'Registro de energia sem carga:',
+      textValue(form.meterReadingPreset),
+    ],
+    ['Registrador/Mostrador:', textValue(form.recorder), 'Marcha:', textValue(form.march)],
+    ['Ensaio visual:', textValue(form.visualTest), 'Dielétrico:', textValue(form.dielectric)],
+  ])
+
+  drawSectionHeader(doc, 'Relatório Técnico')
   doc
-    .fillColor('#FFFFFF')
     .font('Helvetica-Bold')
-    .fontSize(22)
-    .text('EDP', PAGE_MARGIN + 16, 54)
+    .fontSize(10)
+    .fillColor('#111111')
+    .text(buildTechnicalReport(form), PAGE_MARGIN, doc.y, { width: CONTENT_WIDTH })
+  doc.moveDown(0.4)
 
   doc
-    .font('Helvetica-Bold')
-    .fontSize(13)
-    .text('LAUDO TÉCNICO DE PERÍCIA METROLÓGICA', PAGE_MARGIN + 70, 52, {
-      width: CONTENT_WIDTH - 86,
-      align: 'right',
-    })
+    .font('Helvetica')
+    .fontSize(8.5)
+    .fillColor('#222222')
+    .text(
+      'Análise realizada conforme procedimentos estabelecidos pela Portaria nº 493 de 10/12/2021, emitida pelo órgão metrológico oficial INMETRO, admitindo erros máximos para medidores em serviço de ±4,0% (diferente nos eletrônicos).',
+      PAGE_MARGIN,
+      doc.y,
+      { width: CONTENT_WIDTH, align: 'justify', lineGap: 2 },
+    )
+  doc.moveDown(0.25)
+  doc.text(
+    'O Cliente deverá comparecer a uma loja de atendimento ou interpor recurso no prazo de 15 dias (ART.253 da resolução 1000 da ANEEL).',
+    PAGE_MARGIN,
+    doc.y,
+    { width: CONTENT_WIDTH, align: 'justify', lineGap: 2 },
+  )
+  doc.moveDown(0.5)
 
+  drawSectionHeader(doc, 'Irregularidades')
+  drawField(doc, 'Descrição da Irregularidade', irregularityDescription)
+  drawField(doc, 'Observações da Irregularidade', textValue(form.irregularityNotes))
+  drawField(doc, 'Observações para Laboratório', textValue(form.laboratoryNotes))
+  drawField(doc, 'Laudo de campo correto', textValue(form.fieldReportCorrect))
+  drawField(doc, 'Tipo NS', textValue(form.nsType))
+
+  drawSectionHeader(doc, 'Dados da Realização da Avaliação Técnica')
+  drawTwoColumnFields(doc, [
+    ['Realizado por:', textValue(form.fieldInspectionBy), 'Aprovado por:', '—'],
+    ['Data:', formatDate(laudo.createdAt), 'Análise a Pedido:', textValue(form.analysisRequest)],
+    [
+      'Cliente compareceu a calibração?',
+      textValue(form.clientAccompanied),
+      'Status leitura:',
+      textValue(form.meterReadingStatus),
+    ],
+    ['CN preset', textValue(form.cnPreset), 'CI preset', textValue(form.ciPreset)],
+    ['CP preset', textValue(form.cpPreset), 'Fase interrompida', textValue(form.interruptedPhaseOption)],
+  ])
+
+  ensureSpace(doc, 70)
+  doc.moveDown(0.6)
   doc
     .font('Helvetica')
     .fontSize(9)
-    .text('Laboratório de Medição | Eficiência da Medição', PAGE_MARGIN + 70, 72, {
-      width: CONTENT_WIDTH - 86,
-      align: 'right',
-    })
-
-  doc
-    .fontSize(8.5)
-    .text('Documento oficial para registro, rastreabilidade e aprovação de RATM', PAGE_MARGIN + 70, 88, {
-      width: CONTENT_WIDTH - 86,
-      align: 'right',
-    })
-
-  doc.y = 130
-  doc.fillColor('#111111')
-
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(10)
-    .text(`Laudo nº ${laudo.id}`, PAGE_MARGIN, doc.y)
-  doc
-    .font('Helvetica')
-    .text(`RATM ${laudo.ratmNumber} | Status: ${laudo.status}`, PAGE_MARGIN, doc.y + 14)
-  doc.text(`Emitido em: ${formatDateTime(laudo.createdAt)}`, PAGE_MARGIN, doc.y + 14)
-
-  drawSectionTitle(doc, '1. Identificação do objeto periciado')
-  drawFieldRow(doc, 'Nº do medidor', textValue(form.meter))
-  drawFieldRow(doc, 'Status do medidor', textValue(form.meterStatus))
-  drawFieldRow(doc, 'Cliente / instalação', laudo.client)
-  drawFieldRow(doc, 'Data de agendamento', formatScheduleDate(form))
-  drawFieldRow(doc, 'Análise a pedido de', textValue(form.analysisRequest))
-  drawFieldRow(doc, 'Cliente acompanhou ensaio', textValue(form.clientAccompanied))
-  drawFieldRow(doc, 'Mesa de ensaio', textValue(form.testBench))
-  drawFieldRow(doc, 'Item verificado', textValue(form.itemLookup))
-
-  drawSectionTitle(doc, '2. Inspeção de lacres e invólucro')
-  drawFieldRow(doc, 'Lacre do invólucro', textValue(form.enclosureSeal))
-  drawFieldRow(doc, 'Status do invólucro', textValue(form.enclosureStatus))
-  drawFieldRow(doc, 'Lacre 1', textValue(form.seal1))
-  drawFieldRow(doc, 'Status lacre 1', textValue(form.seal1Status))
-  drawFieldRow(doc, 'Lacre 2', textValue(form.seal2))
-  drawFieldRow(doc, 'Status lacre 2', textValue(form.seal2Status))
-  drawFieldRow(doc, 'Leitura do medidor', textValue(form.meterReading))
-  drawFieldRow(doc, 'Status da leitura', textValue(form.meterReadingStatus))
-
-  drawSectionTitle(doc, '3. Ensaios metrológicos realizados')
-  drawFieldRow(doc, 'Ensaio visual', textValue(form.visualTest))
-  drawFieldRow(doc, 'Ensaio dielétrico', textValue(form.dielectric))
-  drawFieldRow(doc, 'CN', textValue(form.cn))
-  drawFieldRow(doc, 'CI', textValue(form.ci))
-  drawFieldRow(doc, 'CP', textValue(form.cp))
-  drawFieldRow(doc, 'CN_R_I', textValue(form.cnRi))
-  drawFieldRow(doc, 'CN_R_C', textValue(form.cnRc))
-  drawFieldRow(doc, 'Marcha', textValue(form.march))
-  drawFieldRow(doc, 'Registrador', textValue(form.recorder))
-  drawFieldRow(doc, 'Fase interrompida', textValue(form.interruptedPhase))
-  drawFieldRow(doc, 'Opção de fase', textValue(form.interruptedPhaseOption))
-
-  drawSectionTitle(doc, '4. Resultados de ensaio em campo e laboratório')
-  drawFieldRow(doc, 'Medidor quebrado/furado', textValue(form.brokenMeter))
-  drawFieldRow(doc, 'Display apagado/não liga', textValue(form.displayOff))
-  drawFieldRow(doc, 'Facilidade de acesso ao interior', textValue(form.meterInteriorAccess))
-  drawFieldRow(doc, 'Bobina danificada', textValue(form.damagedCoil))
-  drawFieldRow(doc, 'Aparentemente em ordem', textValue(form.apparentlyInOrder))
-  drawFieldRow(doc, 'Reprovado dielétrico', textValue(form.dielectricFailed))
-  drawFieldRow(doc, 'Corpo estranho no interior', textValue(form.foreignBodyInMeter))
-  drawFieldRow(doc, 'Tipo NS', textValue(form.nsType))
-
-  drawSectionTitle(doc, '5. Irregularidades e observações')
-  const irregularityCode = textValue(form.irregularityCode)
-  const irregularityDescription =
-    IRREGULARITY_CODES[irregularityCode] ?? 'Não especificada'
-  drawFieldRow(doc, 'Código de irregularidade', `${irregularityCode} - ${irregularityDescription}`)
-  drawFieldRow(doc, 'Observações de irregularidade', textValue(form.irregularityNotes))
-  drawFieldRow(doc, 'Laudo de campo correto', textValue(form.fieldReportCorrect))
-  const fieldCode = textValue(form.fieldIrregularityCode)
-  const fieldDescription = IRREGULARITY_CODES[fieldCode] ?? 'Não especificada'
-  drawFieldRow(
-    doc,
-    'Irregularidade constatada em campo',
-    `${fieldCode} - ${fieldDescription}`,
-  )
-  drawFieldRow(doc, 'Observações para laboratório', textValue(form.laboratoryNotes))
-  drawFieldRow(doc, 'Inspeção de campo realizada por', textValue(form.fieldInspectionBy))
-
-  drawSectionTitle(doc, '6. Parecer técnico conclusivo')
-  doc
-    .font('Helvetica')
-    .fontSize(10)
     .fillColor('#111111')
-    .text(buildConclusion(form), PAGE_MARGIN, doc.y, {
-      width: CONTENT_WIDTH,
-      align: 'justify',
-      lineGap: 3,
-    })
+    .text('Assinatura do Cliente:', PAGE_MARGIN, doc.y)
+
+  const signatureY = doc.y + 28
+  doc
+    .moveTo(PAGE_MARGIN, signatureY)
+    .lineTo(PAGE_MARGIN + 220, signatureY)
+    .strokeColor('#333333')
+    .stroke()
+
+  doc
+    .moveTo(PAGE_MARGIN + 260, signatureY)
+    .lineTo(PAGE_MARGIN + CONTENT_WIDTH, signatureY)
+    .stroke()
+
+  doc
+    .fontSize(8)
+    .fillColor('#666666')
+    .text('Realizado por', PAGE_MARGIN, signatureY + 6, { width: 220, align: 'center' })
+  doc.text('Aprovado por', PAGE_MARGIN + 260, signatureY + 6, {
+    width: CONTENT_WIDTH - 260,
+    align: 'center',
+  })
 
   const photos = Array.isArray(form.photos)
     ? form.photos.filter((photo): photo is string => typeof photo === 'string' && photo.length > 0)
@@ -270,8 +338,7 @@ export function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Response) {
 
   if (photos.length > 0) {
     doc.addPage()
-    drawPageFooter(doc)
-    drawSectionTitle(doc, '7. Registro fotográfico da perícia')
+    drawSectionHeader(doc, 'Registro Fotográfico')
 
     photos.forEach((photo, index) => {
       const buffer = dataUrlToBuffer(photo)
@@ -279,54 +346,33 @@ export function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Response) {
         return
       }
 
-      if (doc.y > 620) {
-        doc.addPage()
-        drawPageFooter(doc)
-      }
-
+      ensureSpace(doc, 250)
       doc
         .font('Helvetica-Bold')
-        .fontSize(10)
+        .fontSize(9)
         .fillColor('#333333')
         .text(`Foto ${index + 1}`, PAGE_MARGIN, doc.y)
-      doc.moveDown(0.3)
+      doc.moveDown(0.2)
 
       const imageY = doc.y
       doc.image(buffer, PAGE_MARGIN, imageY, {
-        fit: [CONTENT_WIDTH, 220],
+        fit: [CONTENT_WIDTH, 200],
         align: 'center',
       })
-      doc.y = imageY + 230
+      doc.y = imageY + 210
     })
   }
 
-  if (doc.y > 680) {
-    doc.addPage()
-  }
-
-  drawSectionTitle(doc, '8. Responsáveis técnicos')
-  doc.moveDown(0.5)
-  const signatureY = doc.y + 40
-  doc
-    .moveTo(PAGE_MARGIN, signatureY)
-    .lineTo(PAGE_MARGIN + 220, signatureY)
-    .strokeColor('#333333')
-    .stroke()
   doc
     .font('Helvetica')
-    .fontSize(9)
-    .fillColor('#333333')
-    .text('Perito responsável pelo ensaio', PAGE_MARGIN, signatureY + 6, { width: 220, align: 'center' })
+    .fontSize(7.5)
+    .fillColor('#666666')
+    .text(
+      `Documento gerado eletronicamente — Eficiência da Medição | Laudo ${laudo.id} | Emitido em ${formatDate(laudo.createdAt)}`,
+      PAGE_MARGIN,
+      805,
+      { width: CONTENT_WIDTH, align: 'center' },
+    )
 
-  doc
-    .moveTo(PAGE_MARGIN + 260, signatureY)
-    .lineTo(PAGE_MARGIN + CONTENT_WIDTH, signatureY)
-    .stroke()
-  doc.text('Responsável pela aprovação', PAGE_MARGIN + 260, signatureY + 6, {
-    width: CONTENT_WIDTH - 260,
-    align: 'center',
-  })
-
-  drawPageFooter(doc)
   doc.end()
 }
