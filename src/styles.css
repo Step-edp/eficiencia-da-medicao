@@ -591,6 +591,98 @@ button {
   color: var(--text-soft);
 }
 
+.approval-item-actions {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.laudo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2, 12, 22, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.laudo-modal {
+  width: min(920px, 100%);
+  max-height: min(88vh, 900px);
+  overflow: auto;
+  padding: 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  background: rgba(5, 26, 44, 0.96);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.laudo-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.laudo-modal-header h3 {
+  margin: 6px 0 0;
+}
+
+.laudo-detail-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.laudo-detail-field {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(24, 216, 240, 0.12);
+  background: rgba(2, 18, 31, 0.42);
+}
+
+.laudo-detail-field span {
+  color: var(--text-soft);
+  font-size: 0.86rem;
+}
+
+.laudo-detail-field strong {
+  color: var(--text-main);
+  font-size: 0.95rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.laudo-photo-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.laudo-photo-item {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.laudo-photo-item figcaption {
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.laudo-photo-item img {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(24, 216, 240, 0.18);
+  object-fit: cover;
+}
+
 .request-items-list {
   display: grid;
   gap: 8px;
@@ -1310,6 +1402,19 @@ input[type='file'] {
 
   .measurement-sections {
     grid-template-columns: 1fr;
+  }
+
+  .laudo-detail-grid,
+  .laudo-photo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .approval-item {
+    grid-template-columns: 1fr;
+  }
+
+  .approval-item-actions {
+    justify-items: start;
   }
 
   .password-generator-grid {

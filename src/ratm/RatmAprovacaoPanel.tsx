@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { RatmLaudoDetail } from './RatmLaudoDetail'
 import type { RatmLaudo } from './laudos'
 
 type RatmAprovacaoPanelProps = {
@@ -5,6 +7,7 @@ type RatmAprovacaoPanelProps = {
 }
 
 export function RatmAprovacaoPanel({ laudos }: RatmAprovacaoPanelProps) {
+  const [viewingLaudo, setViewingLaudo] = useState<RatmLaudo | null>(null)
   const pendingLaudos = laudos.filter((laudo) => laudo.status === 'Pendente')
 
   return (
@@ -23,7 +26,16 @@ export function RatmAprovacaoPanel({ laudos }: RatmAprovacaoPanelProps) {
                   Gerado em {new Date(laudo.createdAt).toLocaleString('pt-BR')}
                 </span>
               </div>
-              <span className="status-badge">{laudo.status}</span>
+              <div className="approval-item-actions">
+                <button
+                  className="secondary-button compact-button"
+                  type="button"
+                  onClick={() => setViewingLaudo(laudo)}
+                >
+                  Visualizar laudo
+                </button>
+                <span className="status-badge">{laudo.status}</span>
+              </div>
             </article>
           ))
         ) : (
@@ -32,6 +44,10 @@ export function RatmAprovacaoPanel({ laudos }: RatmAprovacaoPanelProps) {
           </p>
         )}
       </div>
+
+      {viewingLaudo ? (
+        <RatmLaudoDetail laudo={viewingLaudo} onClose={() => setViewingLaudo(null)} />
+      ) : null}
     </>
   )
 }
