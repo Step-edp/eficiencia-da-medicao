@@ -727,8 +727,27 @@ function HomePanel({
     setRatmLaudos((prev) => [...laudos, ...prev.filter((item) => !laudos.some((created) => created.id === item.id))])
     setSelectedLabMeasurementSection('Aprovação de RATM')
 
-    for (const laudo of laudos) {
-      await openRatmLaudoPdf(laudo.id)
+    try {
+      for (const laudo of laudos) {
+        await openRatmLaudoPdf(laudo.id)
+      }
+    } catch {
+      setPasswordFeedback({
+        type: 'error',
+        message: 'Laudos salvos, mas não foi possível abrir o PDF automaticamente.',
+      })
+    }
+  }
+
+  const loadRatmLaudos = async () => {
+    try {
+      const response = await api.listRatmLaudos()
+      setRatmLaudos(response.laudos.map(mapRatmLaudoFromApi))
+    } catch {
+      setPasswordFeedback({
+        type: 'error',
+        message: 'Não foi possível carregar os laudos de RATM.',
+      })
     }
   }
 
@@ -748,24 +767,44 @@ function HomePanel({
 
     async function loadOperationalData() {
       try {
-        const [passwordsResponse, manufacturersResponse, materialsResponse, ratmLaudosResponse] =
-          await Promise.all([
-          api.listPasswordRecords(),
-          api.listManufacturers(),
-          api.listMaterials(),
-          api.listRatmLaudos(),
-        ])
+        const [passwordsResult, manufacturersResult, materialsResult, ratmLaudosResult] =
+          await Promise.allSettled([
+            api.listPasswordRecords(),
+            api.listManufacturers(),
+            api.listMaterials(),
+            api.listRatmLaudos(),
+          ])
 
         if (cancelled) {
           return
         }
 
-        setPasswordRecords(passwordsResponse.records)
-        setManufacturers(manufacturersResponse.manufacturers)
-        setMaterialRows(materialsResponse.materials)
-        setRatmLaudos(ratmLaudosResponse.laudos.map(mapRatmLaudoFromApi))
-      } catch {
-        if (!cancelled) {
+        if (passwordsResult.status === 'fulfilled') {
+          setPasswordRecords(passwordsResult.value.records)
+        }
+
+        if (manufacturersResult.status === 'fulfilled') {
+          setManufacturers(manufacturersResult.value.manufacturers)
+        }
+
+        if (materialsResult.status === 'fulfilled') {
+          setMaterialRows(materialsResult.value.materials)
+        }
+
+        if (ratmLaudosResult.status === 'fulfilled') {
+          setRatmLaudos(ratmLaudosResult.value.laudos.map(mapRatmLaudoFromApi))
+        } else {
+          setPasswordFeedback({
+            type: 'error',
+            message: 'Não foi possível carregar os laudos de RATM.',
+          })
+        }
+
+        if (
+          passwordsResult.status === 'rejected' &&
+          manufacturersResult.status === 'rejected' &&
+          materialsResult.status === 'rejected'
+        ) {
           setPasswordFeedback({
             type: 'error',
             message: 'Não foi possível carregar os dados do servidor.',
@@ -784,6 +823,12 @@ function HomePanel({
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (selectedLabMeasurementSection === 'Aprovação de RATM') {
+      void loadRatmLaudos()
+    }
+  }, [selectedLabMeasurementSection])
 
   const materialTypeOptions = useMemo(() => {
     const codes = materialRows

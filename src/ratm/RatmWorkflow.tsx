@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { RatmFormFields } from './RatmFormFields'
+import { clearRatmDraft, loadRatmDraft, saveRatmDraft } from './ratmDraft'
 import { createEmptyRatmForm, type RatmFormData } from './types'
 
 type RatmWorkflowProps = {
@@ -9,15 +10,36 @@ type RatmWorkflowProps = {
 }
 
 export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
-  const [activeIndex, setActiveIndex] = useState(0)
-  const [forms, setForms] = useState<RatmFormData[]>(() =>
-    Array.from({ length: count }, () => createEmptyRatmForm()),
-  )
+  const [activeIndex, setActiveIndex] = useState(() => {
+    const draft = loadRatmDraft()
+    return draft?.count === count ? draft.activeIndex : 0
+  })
+  const [forms, setForms] = useState<RatmFormData[]>(() => {
+    const draft = loadRatmDraft()
+    if (draft?.count === count) {
+      return draft.forms
+    }
+
+    return Array.from({ length: count }, () => createEmptyRatmForm())
+  })
+  const restoredDraft = (() => {
+    const draft = loadRatmDraft()
+    return draft?.count === count
+  })()
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
   const [scanMessage, setScanMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    saveRatmDraft({
+      count,
+      activeIndex,
+      forms,
+      updatedAt: new Date().toISOString(),
+    })
+  }, [count, activeIndex, forms])
 
   const updateForm = (index: number, patch: Partial<RatmFormData>) => {
     setForms((prev) =>
@@ -73,6 +95,7 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
 
     try {
       await onFinish(forms)
+      clearRatmDraft()
     } catch {
       setFeedback({
         type: 'error',
@@ -83,6 +106,12 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
 
   return (
     <div className="ratm-workflow">
+      {restoredDraft ? (
+        <div className="login-feedback success" role="status">
+          Rascunho do RATM restaurado automaticamente.
+        </div>
+      ) : null}
+
       {feedback ? (
         <div className={`login-feedback ${feedback.type}`} role="status">
           {feedback.message}
@@ -126,7 +155,10 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
       />
 
       <div className="ratm-workflow-actions">
-        <button className="secondary-button" type="button" onClick={onBack}>
+        <button className="secondary-button" type="button" onClick={() => {
+          clearRatmDraft()
+          onBack()
+        }}>
           Alterar quantidade
         </button>
         {activeIndex < count - 1 ? (

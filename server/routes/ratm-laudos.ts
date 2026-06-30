@@ -59,9 +59,9 @@ export async function createRatmLaudos(req: Request, res: Response) {
     const result = await query<RatmLaudoRow>(
       `INSERT INTO ratm_laudos (
         id, ratm_number, meter, client, status, form_data, created_by_user_id
-      ) VALUES ($1, $2, $3, $4, 'Pendente', $5, $6)
+      ) VALUES ($1, $2, $3, $4, 'Pendente', $5::jsonb, $6)
       RETURNING *`,
-      [id, index + 1, meter, client, forms[index], req.user?.id ?? null],
+      [id, index + 1, meter, client, JSON.stringify(forms[index]), req.user?.id ?? null],
     )
 
     createdLaudos.push(mapRatmLaudo(result.rows[0]))

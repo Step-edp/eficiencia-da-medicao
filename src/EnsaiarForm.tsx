@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { RatmWorkflow } from './ratm/RatmWorkflow'
+import { loadRatmDraft } from './ratm/ratmDraft'
 import type { RatmFormData } from './ratm/types'
 
 const maxRatmCount = 10
@@ -10,8 +11,9 @@ type EnsaiarFormProps = {
 }
 
 export function EnsaiarForm({ onFinish }: EnsaiarFormProps) {
-  const [ratmCount, setRatmCount] = useState('')
-  const [startedCount, setStartedCount] = useState<number | null>(null)
+  const draft = loadRatmDraft()
+  const [ratmCount, setRatmCount] = useState(draft ? String(draft.count) : '')
+  const [startedCount, setStartedCount] = useState<number | null>(draft?.count ?? null)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
