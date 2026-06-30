@@ -64,6 +64,16 @@ export type MaterialRecord = {
   equipmentType: string
 }
 
+export type RatmLaudoRecord = {
+  id: string
+  ratmNumber: number
+  meter: string
+  client: string
+  createdAt: string
+  status: 'Pendente' | 'Aprovado' | 'Reprovado'
+  formData: Record<string, unknown>
+}
+
 class ApiError extends Error {
   status: number
 
@@ -169,6 +179,12 @@ export const api = {
     request<{ material: MaterialRecord }>('/api/materials', {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+  listRatmLaudos: () => request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos'),
+  createRatmLaudos: (forms: Record<string, unknown>[]) =>
+    request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos', {
+      method: 'POST',
+      body: JSON.stringify({ forms }),
     }),
 }
 

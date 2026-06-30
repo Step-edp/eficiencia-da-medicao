@@ -8,6 +8,7 @@ import { authRoutes } from './routes/users.js'
 import { homologationRoutes } from './routes/homologation.js'
 import { passwordRoutes } from './routes/passwords.js'
 import { materialRoutes } from './routes/materials.js'
+import { ratmLaudoRoutes } from './routes/ratm-laudos.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT ?? 3000)
@@ -52,6 +53,9 @@ async function start() {
 
   app.get('/api/materials', ...wrap(materialRoutes.list))
   app.post('/api/materials', ...wrap(materialRoutes.create))
+
+  app.get('/api/ratm-laudos', ...wrap(ratmLaudoRoutes.list))
+  app.post('/api/ratm-laudos', ...wrap(ratmLaudoRoutes.create))
 
   const distPath = path.resolve(__dirname, '../../dist')
   app.use(express.static(distPath))

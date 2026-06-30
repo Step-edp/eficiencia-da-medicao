@@ -69,5 +69,17 @@ export async function migrate() {
       prefix TEXT NOT NULL DEFAULT '',
       equipment_type TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS ratm_laudos (
+      id TEXT PRIMARY KEY,
+      ratm_number INTEGER NOT NULL,
+      meter TEXT NOT NULL,
+      client TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      status TEXT NOT NULL DEFAULT 'Pendente'
+        CHECK (status IN ('Pendente', 'Aprovado', 'Reprovado')),
+      form_data JSONB NOT NULL,
+      created_by_user_id TEXT REFERENCES users(id)
+    );
   `)
 }

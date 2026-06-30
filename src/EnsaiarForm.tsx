@@ -6,7 +6,7 @@ const maxRatmCount = 10
 const ratmOptions = Array.from({ length: maxRatmCount }, (_, index) => index + 1)
 
 type EnsaiarFormProps = {
-  onFinish: (forms: RatmFormData[]) => void
+  onFinish: (forms: RatmFormData[]) => void | Promise<void>
 }
 
 export function EnsaiarForm({ onFinish }: EnsaiarFormProps) {

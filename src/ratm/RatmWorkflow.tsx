@@ -5,7 +5,7 @@ import { createEmptyRatmForm, type RatmFormData } from './types'
 type RatmWorkflowProps = {
   count: number
   onBack: () => void
-  onFinish: (forms: RatmFormData[]) => void
+  onFinish: (forms: RatmFormData[]) => void | Promise<void>
 }
 
 export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
@@ -57,7 +57,7 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
     setActiveIndex((prev) => Math.min(prev + 1, count - 1))
   }
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     const invalidIndex = forms.findIndex((form) => !form.meter.trim())
 
     if (invalidIndex >= 0) {
@@ -70,7 +70,15 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
     }
 
     setFeedback(null)
-    onFinish(forms)
+
+    try {
+      await onFinish(forms)
+    } catch {
+      setFeedback({
+        type: 'error',
+        message: 'Não foi possível salvar os laudos. Tente novamente.',
+      })
+    }
   }
 
   return (

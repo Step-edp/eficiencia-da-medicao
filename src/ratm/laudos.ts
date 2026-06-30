@@ -12,6 +12,26 @@ export type RatmLaudo = {
   formData: RatmFormData
 }
 
+export function mapRatmLaudoFromApi(record: {
+  id: string
+  ratmNumber: number
+  meter: string
+  client: string
+  createdAt: string
+  status: RatmLaudoStatus
+  formData: Record<string, unknown>
+}): RatmLaudo {
+  return {
+    id: record.id,
+    ratmNumber: record.ratmNumber,
+    meter: record.meter,
+    client: record.client,
+    createdAt: record.createdAt,
+    status: record.status,
+    formData: record.formData as RatmFormData,
+  }
+}
+
 export function createRatmLaudos(forms: RatmFormData[]): RatmLaudo[] {
   const createdAt = new Date().toISOString()
   const batchId = Date.now()

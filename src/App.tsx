@@ -4,7 +4,7 @@ import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
 import { EnsaiarForm } from './EnsaiarForm'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
-import { createRatmLaudos, type RatmLaudo } from './ratm/laudos'
+import { mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
 import type { RatmFormData } from './ratm/types'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
 import { getLabTrailLabel, LAB_TRAIL_KEYS } from './labTrailSteps'
@@ -720,9 +720,10 @@ function HomePanel({
     },
   ]
 
-  const handleRatmFinish = (forms: RatmFormData[]) => {
-    const laudos = createRatmLaudos(forms)
-    setRatmLaudos((prev) => [...laudos, ...prev])
+  const handleRatmFinish = async (forms: RatmFormData[]) => {
+    const response = await api.createRatmLaudos(forms)
+    const laudos = response.laudos.map(mapRatmLaudoFromApi)
+    setRatmLaudos((prev) => [...laudos, ...prev.filter((item) => !laudos.some((created) => created.id === item.id))])
     setSelectedLabMeasurementSection('Aprovação de RATM')
   }
 
@@ -742,10 +743,12 @@ function HomePanel({
 
     async function loadOperationalData() {
       try {
-        const [passwordsResponse, manufacturersResponse, materialsResponse] = await Promise.all([
+        const [passwordsResponse, manufacturersResponse, materialsResponse, ratmLaudosResponse] =
+          await Promise.all([
           api.listPasswordRecords(),
           api.listManufacturers(),
           api.listMaterials(),
+          api.listRatmLaudos(),
         ])
 
         if (cancelled) {
@@ -755,6 +758,7 @@ function HomePanel({
         setPasswordRecords(passwordsResponse.records)
         setManufacturers(manufacturersResponse.manufacturers)
         setMaterialRows(materialsResponse.materials)
+        setRatmLaudos(ratmLaudosResponse.laudos.map(mapRatmLaudoFromApi))
       } catch {
         if (!cancelled) {
           setPasswordFeedback({
