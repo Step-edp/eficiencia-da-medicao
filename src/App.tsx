@@ -488,7 +488,9 @@ function ItemIcon({ title }: { title: string }) {
     'Criar Modelo': 'cube',
     'Aprovação de RATM': 'check',
     Galeria: 'image',
-    'Analisadores de tensão': 'bolt',
+    'Analisadores de Tensão': 'bolt',
+    'Aferição de Padrões BT': 'ruler',
+    'Grandes Clientes': 'building',
     'Padrões': 'ruler',
     'Pesquisa de satisfação': 'smile',
     Auditoria: 'shield',
@@ -646,15 +648,18 @@ function HomePanel({
     'Geração de número de série',
     'Sap Hana',
   ]
+  const labHighlightedSections = [
+    'Auditoria',
+    'Analisadores de Tensão',
+    'Inventário',
+    'Aferição de Padrões BT',
+    'Grandes Clientes',
+  ]
   const labOtherSections = [
     'Dashboard',
     'Consultar RATM',
     'Criar Modelo',
     'Galeria',
-    'Analisadores de tensão',
-    'Padrões',
-    'Auditoria',
-    'Inventário',
     'Apresentação',
     'Fornecedores',
     'Treinamentos',
@@ -2071,6 +2076,26 @@ function HomePanel({
                 onSelect={setSelectedLabMeasurementSection}
                 renderIcon={(title) => <ItemIcon title={title} />}
               />
+              {labHighlightedSections.length > 0 ? (
+                <div
+                  className="measurement-sections lab-highlighted-sections"
+                  aria-label="Processos em evidência do laboratório"
+                >
+                  {labHighlightedSections.map((section) => (
+                    <button
+                      key={section}
+                      className="measurement-item measurement-item-highlighted"
+                      type="button"
+                      onClick={() => setSelectedLabMeasurementSection(section)}
+                    >
+                      <span className="item-with-icon">
+                        <ItemIcon title={section} />
+                        <span>{section}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               {labOtherSections.length > 0 ? (
                 <>
                   <h3 className="lab-other-heading">Demais processos</h3>

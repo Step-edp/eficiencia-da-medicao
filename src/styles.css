@@ -375,6 +375,30 @@ button {
   font-weight: 700;
 }
 
+.lab-highlighted-sections {
+  margin: 18px 0 22px;
+}
+
+.measurement-item-highlighted {
+  border-color: rgba(57, 255, 0, 0.5);
+  background: rgba(57, 255, 0, 0.1);
+  box-shadow: 0 0 0 1px rgba(57, 255, 0, 0.16);
+  font-weight: 600;
+}
+
+.measurement-item-highlighted:hover,
+.measurement-item-highlighted:focus-visible {
+  border-color: rgba(57, 255, 0, 0.78);
+  background: rgba(57, 255, 0, 0.16);
+  box-shadow: 0 0 18px rgba(57, 255, 0, 0.14);
+}
+
+.measurement-item-highlighted .item-icon {
+  border-color: rgba(57, 255, 0, 0.55);
+  background: rgba(57, 255, 0, 0.14);
+  color: #eaffea;
+}
+
 .lab-other-sections {
   margin-top: 0;
 }
