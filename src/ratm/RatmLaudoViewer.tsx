@@ -136,13 +136,12 @@ export function RatmLaudoViewer({
   }
 
   return createPortal(
-    <div className="laudo-modal-overlay" role="presentation" onClick={onClose}>
+    <div className="laudo-modal-overlay" role="presentation">
       <section
         className="laudo-viewer-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="laudo-viewer-title"
-        onClick={(event) => event.stopPropagation()}
       >
         <header className="laudo-viewer-header">
           <div>

@@ -20,10 +20,14 @@ type PdfInlineViewerProps = {
 async function renderPdfPages(buffer: ArrayBuffer) {
   const pdf = await pdfjs.getDocument({ data: buffer }).promise
   const pages: string[] = []
+  const firstPage = await pdf.getPage(1)
+  const baseViewport = firstPage.getViewport({ scale: 1 })
+  const availableWidth = Math.max(window.innerWidth - 64, 640)
+  const scale = availableWidth / baseViewport.width
 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber)
-    const viewport = page.getViewport({ scale: 1.35 })
+    const viewport = page.getViewport({ scale })
     const canvas = document.createElement('canvas')
     const context = canvas.getContext('2d')
 
