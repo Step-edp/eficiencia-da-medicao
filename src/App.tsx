@@ -5,7 +5,6 @@ import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
 import { EnsaiarForm } from './EnsaiarForm'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
 import { mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
-import { openRatmLaudoPdf } from './ratm/laudoPdf'
 import type { RatmFormData } from './ratm/types'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
 import { getLabTrailLabel, LAB_TRAIL_KEYS } from './labTrailSteps'
@@ -726,17 +725,6 @@ function HomePanel({
     const laudos = response.laudos.map(mapRatmLaudoFromApi)
     setRatmLaudos((prev) => [...laudos, ...prev.filter((item) => !laudos.some((created) => created.id === item.id))])
     setSelectedLabMeasurementSection('Aprovação de RATM')
-
-    try {
-      for (const laudo of laudos) {
-        await openRatmLaudoPdf(laudo.id)
-      }
-    } catch {
-      setPasswordFeedback({
-        type: 'error',
-        message: 'Laudos salvos, mas não foi possível abrir o PDF automaticamente.',
-      })
-    }
   }
 
   const loadRatmLaudos = async () => {
@@ -1770,7 +1758,23 @@ function HomePanel({
                 <EnsaiarForm onFinish={handleRatmFinish} />
               </>
             ) : selectedLabMeasurementSection === 'Aprovação de RATM' ? (
-              <RatmAprovacaoPanel laudos={ratmLaudos} />
+              <RatmAprovacaoPanel
+                laudos={ratmLaudos}
+                onLaudoUpdated={(laudo) => {
+                  setRatmLaudos((prev) =>
+                    prev.map((item) => (item.id === laudo.id ? laudo : item)),
+                  )
+                }}
+                onLaudoApproved={(laudo) => {
+                  setRatmLaudos((prev) =>
+                    prev.map((item) => (item.id === laudo.id ? laudo : item)),
+                  )
+                  setPasswordFeedback({
+                    type: 'success',
+                    message: `Laudo RATM ${laudo.ratmNumber} aprovado com sucesso.`,
+                  })
+                }}
+              />
             ) : (
               <p>
                 Página dedicada da área {selectedLabMeasurementSection}. Aqui você

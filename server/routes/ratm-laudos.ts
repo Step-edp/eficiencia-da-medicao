@@ -70,26 +70,109 @@ export async function createRatmLaudos(req: Request, res: Response) {
   res.status(201).json({ laudos: createdLaudos })
 }
 
-export async function downloadRatmLaudoPdf(req: Request, res: Response) {
+export async function updateRatmLaudo(req: Request, res: Response) {
   const { id } = req.params
+  const form = req.body?.formData as { meter?: string; client?: string } | undefined
 
-  const result = await query<RatmLaudoRow>('SELECT * FROM ratm_laudos WHERE id = $1', [id])
-
-  if (!result.rows[0]) {
-    res.status(404).json({ error: 'Laudo não encontrado.' })
+  if (!form || typeof form !== 'object') {
+    res.status(400).json({ error: 'Informe os dados do laudo para edição.' })
     return
   }
 
-  const laudo = mapRatmLaudo(result.rows[0])
-  const filename = `laudo-ratm-${laudo.ratmNumber}-${laudo.meter}.pdf`
+  if (!form.meter?.trim()) {
+    res.status(400).json({ error: 'Informe o medidor antes de salvar.' })
+    return
+  }
 
-  res.setHeader('Content-Type', 'application/pdf')
-  res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
-  generateRatmLaudoPdf(laudo, res)
+  const result = await query<RatmLaudoRow>(
+    `UPDATE ratm_laudos
+     SET form_data = $1::jsonb,
+         meter = $2,
+         client = $3
+     WHERE id = $4 AND status = 'Pendente'
+     RETURNING *`,
+    [
+      JSON.stringify(form),
+      form.meter.trim(),
+      form.client?.trim() || 'Não informado',
+      id,
+    ],
+  )
+
+  if (!result.rows[0]) {
+    res.status(404).json({ error: 'Laudo pendente não encontrado para edição.' })
+    return
+  }
+
+  res.json({ laudo: mapRatmLaudo(result.rows[0]) })
+}
+
+export async function approveRatmLaudo(req: Request, res: Response) {
+  const { id } = req.params
+  const clientPresent = req.body?.clientPresent
+
+  if (clientPresent !== 'Sim' && clientPresent !== 'Não') {
+    res.status(400).json({ error: 'Informe se o cliente está presente (Sim ou Não).' })
+    return
+  }
+
+  const existing = await query<RatmLaudoRow>(
+    'SELECT * FROM ratm_laudos WHERE id = $1 AND status = $2',
+    [id, 'Pendente'],
+  )
+
+  if (!existing.rows[0]) {
+    res.status(404).json({ error: 'Laudo pendente não encontrado para aprovação.' })
+    return
+  }
+
+  const formData = {
+    ...existing.rows[0].form_data,
+    clientAccompanied: clientPresent,
+  }
+
+  const result = await query<RatmLaudoRow>(
+    `UPDATE ratm_laudos
+     SET status = 'Aprovado',
+         form_data = $1::jsonb
+     WHERE id = $2 AND status = 'Pendente'
+     RETURNING *`,
+    [JSON.stringify(formData), id],
+  )
+
+  res.json({ laudo: mapRatmLaudo(result.rows[0]) })
+}
+
+export async function downloadRatmLaudoPdf(req: Request, res: Response) {
+  const { id } = req.params
+
+  try {
+    const result = await query<RatmLaudoRow>('SELECT * FROM ratm_laudos WHERE id = $1', [id])
+
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'Laudo não encontrado.' })
+      return
+    }
+
+    const laudo = mapRatmLaudo(result.rows[0])
+    const filename = `laudo-ratm-${laudo.ratmNumber}-${laudo.meter}.pdf`
+
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
+    generateRatmLaudoPdf(laudo, res)
+  } catch (error) {
+    console.error('Erro ao gerar PDF do laudo:', error)
+
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Não foi possível gerar o laudo em PDF.' })
+    }
+  }
 }
 
 export const ratmLaudoRoutes = {
   list: [requireAuth, listRatmLaudos],
   create: [requireAuth, createRatmLaudos],
+  update: [requireAuth, updateRatmLaudo],
+  approve: [requireAuth, approveRatmLaudo],
   pdf: [requireAuth, downloadRatmLaudoPdf],
 }

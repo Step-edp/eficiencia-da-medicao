@@ -186,6 +186,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ forms }),
     }),
+  updateRatmLaudo: (id: string, formData: Record<string, unknown>) =>
+    request<{ laudo: RatmLaudoRecord }>(`/api/ratm-laudos/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ formData }),
+    }),
+  approveRatmLaudo: (id: string, clientPresent: 'Sim' | 'Não') =>
+    request<{ laudo: RatmLaudoRecord }>(`/api/ratm-laudos/${id}/approve`, {
+      method: 'PATCH',
+      body: JSON.stringify({ clientPresent }),
+    }),
 }
 
 export { ApiError }
