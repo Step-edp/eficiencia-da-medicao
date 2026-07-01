@@ -110,10 +110,26 @@ export async function updateRatmLaudo(req: Request, res: Response) {
 export async function approveRatmLaudo(req: Request, res: Response) {
   const { id } = req.params
   const clientPresent = req.body?.clientPresent
+  const satisfactionWhatsapp =
+    typeof req.body?.satisfactionWhatsapp === 'string'
+      ? req.body.satisfactionWhatsapp.replace(/\D/g, '')
+      : ''
 
   if (clientPresent !== 'Sim' && clientPresent !== 'Não') {
     res.status(400).json({ error: 'Informe se o cliente está presente (Sim ou Não).' })
     return
+  }
+
+  if (clientPresent === 'Sim') {
+    const normalizedWhatsapp =
+      satisfactionWhatsapp.length === 10 || satisfactionWhatsapp.length === 11
+        ? `55${satisfactionWhatsapp}`
+        : satisfactionWhatsapp
+
+    if (normalizedWhatsapp.length < 12 || normalizedWhatsapp.length > 13) {
+      res.status(400).json({ error: 'Informe um número de WhatsApp válido para enviar a pesquisa.' })
+      return
+    }
   }
 
   const existing = await query<RatmLaudoRow>(
@@ -129,6 +145,12 @@ export async function approveRatmLaudo(req: Request, res: Response) {
   const formData = {
     ...existing.rows[0].form_data,
     clientAccompanied: clientPresent,
+    satisfactionWhatsapp:
+      clientPresent === 'Sim'
+        ? satisfactionWhatsapp.length === 10 || satisfactionWhatsapp.length === 11
+          ? `55${satisfactionWhatsapp}`
+          : satisfactionWhatsapp
+        : '',
   }
 
   const result = await query<RatmLaudoRow>(

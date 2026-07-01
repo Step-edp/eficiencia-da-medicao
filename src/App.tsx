@@ -4,6 +4,7 @@ import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
 import { EnsaiarForm } from './EnsaiarForm'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
+import { SatisfactionSurveyPage } from './ratm/SatisfactionSurveyPage'
 import { mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
 import type { RatmFormData } from './ratm/types'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
@@ -30,16 +31,32 @@ const hobbyOptions = [
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
 
 type Panel = 'login' | 'cadastro'
-type AppRoute = 'default' | 'compras-homologacao'
+type AppRoute = 'default' | 'compras-homologacao' | 'pesquisa-satisfacao'
+
+function parseAppRoute(hash: string): { route: AppRoute; surveyLaudoId?: string } {
+  if (hash === FIXED_PURCHASE_REQUEST_HASH) {
+    return { route: 'compras-homologacao' }
+  }
+
+  const surveyMatch = hash.match(/^#\/pesquisa\/([^/?#]+)/)
+  if (surveyMatch?.[1]) {
+    return { route: 'pesquisa-satisfacao', surveyLaudoId: surveyMatch[1] }
+  }
+
+  return { route: 'default' }
+}
 
 function getRouteFromHash(hash: string): AppRoute {
-  return hash === FIXED_PURCHASE_REQUEST_HASH ? 'compras-homologacao' : 'default'
+  return parseAppRoute(hash).route
 }
 
 export default function App() {
   const [activePanel, setActivePanel] = useState<Panel>('login')
   const [activeRoute, setActiveRoute] = useState<AppRoute>(() =>
     getRouteFromHash(window.location.hash),
+  )
+  const [surveyLaudoId, setSurveyLaudoId] = useState<string | undefined>(() =>
+    parseAppRoute(window.location.hash).surveyLaudoId,
   )
   const [bootstrapping, setBootstrapping] = useState(true)
   const [registeredUsers, setRegisteredUsers] = useState<AppUser[]>([])
@@ -57,7 +74,9 @@ export default function App() {
 
   useEffect(() => {
     const handleHashChange = () => {
-      setActiveRoute(getRouteFromHash(window.location.hash))
+      const parsedRoute = parseAppRoute(window.location.hash)
+      setActiveRoute(parsedRoute.route)
+      setSurveyLaudoId(parsedRoute.surveyLaudoId)
     }
 
     handleHashChange()
@@ -145,6 +164,20 @@ export default function App() {
       setRegisteredUsers([])
       setHomologationRequests([])
     }
+  }
+
+  if (bootstrapping && activeRoute !== 'pesquisa-satisfacao') {
+    return (
+      <main className="shell">
+        <section className="home-card">
+          <p>Carregando portal...</p>
+        </section>
+      </main>
+    )
+  }
+
+  if (activeRoute === 'pesquisa-satisfacao' && surveyLaudoId) {
+    return <SatisfactionSurveyPage laudoId={surveyLaudoId} />
   }
 
   if (bootstrapping) {

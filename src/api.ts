@@ -191,10 +191,10 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ formData }),
     }),
-  approveRatmLaudo: (id: string, clientPresent: 'Sim' | 'Não') =>
+  approveRatmLaudo: (id: string, clientPresent: 'Sim' | 'Não', satisfactionWhatsapp?: string) =>
     request<{ laudo: RatmLaudoRecord }>(`/api/ratm-laudos/${id}/approve`, {
       method: 'PATCH',
-      body: JSON.stringify({ clientPresent }),
+      body: JSON.stringify({ clientPresent, satisfactionWhatsapp }),
     }),
 }
 

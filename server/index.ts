@@ -9,6 +9,10 @@ import { homologationRoutes } from './routes/homologation.js'
 import { passwordRoutes } from './routes/passwords.js'
 import { materialRoutes } from './routes/materials.js'
 import { ratmLaudoRoutes } from './routes/ratm-laudos.js'
+import {
+  getSatisfactionSurvey,
+  submitSatisfactionSurvey,
+} from './routes/satisfaction-survey.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT ?? 3000)
@@ -59,6 +63,9 @@ async function start() {
   app.patch('/api/ratm-laudos/:id', ...wrap(ratmLaudoRoutes.update))
   app.patch('/api/ratm-laudos/:id/approve', ...wrap(ratmLaudoRoutes.approve))
   app.get('/api/ratm-laudos/:id/pdf', ...wrap(ratmLaudoRoutes.pdf))
+
+  app.get('/api/public/pesquisa/:laudoId', getSatisfactionSurvey)
+  app.post('/api/public/pesquisa/:laudoId', submitSatisfactionSurvey)
 
   const distPath = path.resolve(__dirname, '../../dist')
   app.use(express.static(distPath))

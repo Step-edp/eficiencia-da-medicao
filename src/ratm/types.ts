@@ -8,6 +8,7 @@ export type RatmFormData = {
   client: string
   analysisRequest: string
   clientAccompanied: string
+  satisfactionWhatsapp: string
   visualTest: string
   dielectric: string
   enclosureSeal: string
@@ -76,6 +77,7 @@ export function createEmptyRatmForm(): RatmFormData {
     client: '',
     analysisRequest: '',
     clientAccompanied: '',
+    satisfactionWhatsapp: '',
     visualTest: '',
     dielectric: '',
     enclosureSeal: '',
