@@ -50,6 +50,11 @@ function getRouteFromHash(hash: string): AppRoute {
   return parseAppRoute(hash).route
 }
 
+function extractSsoTokenFromHash(hash: string): string | null {
+  const match = hash.match(/(?:^#|[#&])sso=([^&]+)/)
+  return match?.[1] ? decodeURIComponent(match[1]) : null
+}
+
 export default function App() {
   const [activePanel, setActivePanel] = useState<Panel>('login')
   const [activeRoute, setActiveRoute] = useState<AppRoute>(() =>
@@ -92,6 +97,12 @@ export default function App() {
 
     async function bootstrap() {
       try {
+        const ssoToken = extractSsoTokenFromHash(window.location.hash)
+        if (ssoToken) {
+          await api.exchangeSsoToken(ssoToken)
+          window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+        }
+
         const { user } = await api.me()
         if (cancelled) {
           return
@@ -520,6 +531,7 @@ function ItemIcon({ title }: { title: string }) {
     Ensaiar: 'flask',
     Agendar: 'calendar',
     'Consultar RATM': 'search',
+    'Calendário de ensaios': 'calendar',
     'Entrada de medidores': 'inbox',
     'Criar Modelo': 'cube',
     'Aprovação de RATM': 'check',
@@ -534,6 +546,7 @@ function ItemIcon({ title }: { title: string }) {
     Sucata: 'trash',
     Apresentação: 'presentation',
     Fornecedores: 'truck',
+    CSDs: 'building',
     Treinamentos: 'book',
     Softwares: 'code',
     'Faturamento de clientes livres': 'chart',
@@ -552,7 +565,6 @@ function ItemIcon({ title }: { title: string }) {
     'Pedidos de Homologação': 'archive',
     'Código de materiais': 'code',
     'Equipe de campo': 'truck',
-    Cadastrar: 'archive',
     Consultar: 'search',
   }
 
@@ -695,10 +707,12 @@ function HomePanel({
   const labOtherSections = [
     'Dashboard',
     'Consultar RATM',
+    'Calendário de ensaios',
     'Criar Modelo',
     'Galeria',
     'Apresentação',
     'Fornecedores',
+    'CSDs',
     'Treinamentos',
     'Softwares',
   ]
@@ -707,7 +721,7 @@ function HomePanel({
     'Pedidos de Homologação',
     'Código de materiais',
   ]
-  const fieldTeamSections = ['Cadastrar', 'Consultar']
+  const fieldTeamSections = ['Agendar', 'Consultar']
 
   const areas: Area[] = [
     {
@@ -1741,7 +1755,7 @@ function HomePanel({
             />
             <p className="section-tag">Equipe de campo</p>
             <h2>{selectedFieldTeamSection}</h2>
-            {selectedFieldTeamSection === 'Cadastrar' ? (
+            {selectedFieldTeamSection === 'Agendar' ? (
               <FieldTeamCadastrarForm />
             ) : (
               <p>
