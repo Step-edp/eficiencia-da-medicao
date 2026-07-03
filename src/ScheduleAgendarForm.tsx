@@ -1,6 +1,8 @@
 import { FormEvent, useState } from 'react'
+import { FormFieldError } from './FormFieldError'
 import {
   NUMERIC_FIELD_LIMITS,
+  NumericFieldKey,
   sanitizeNumericInput,
   validateNumericField,
   validateNumericFieldOptional,
@@ -14,6 +16,10 @@ const minuteOptions = Array.from({ length: 60 }, (_, index) =>
   String(index).padStart(2, '0'),
 )
 
+type ScheduleFieldErrors = Partial<
+  Record<NumericFieldKey | 'csmDate' | 'csmSigned', string>
+>
+
 export function ScheduleAgendarForm() {
   const { options: csdOptions, loading: csdLoading } = useCsdsOptions()
   const [csmDate, setCsmDate] = useState('')
@@ -26,20 +32,29 @@ export function ScheduleAgendarForm() {
   const [csd, setCsd] = useState('')
   const [csmSigned, setCsmSigned] = useState<'sim' | 'nao' | ''>('')
   const [schedulingNotes, setSchedulingNotes] = useState('Medidor não agendado em Campo')
+  const [fieldErrors, setFieldErrors] = useState<ScheduleFieldErrors>({})
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
 
+  const clearFieldError = (field: keyof ScheduleFieldErrors) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setFeedback(null)
+
+    const nextErrors: ScheduleFieldErrors = {}
 
     if (!csmDate) {
-      setFeedback({
-        type: 'error',
-        message: 'Informe a data escrita no CSM.',
-      })
-      return
+      nextErrors.csmDate = 'Informe a data escrita no CSM.'
     }
 
     for (const [value, field, optional] of [
@@ -49,21 +64,21 @@ export function ScheduleAgendarForm() {
       [note, 'nota', true],
     ] as const) {
       const error = optional
-        ? validateNumericFieldOptional(value, field)
-        : validateNumericField(value, field)
-      if (error) {
-        setFeedback({ type: 'error', message: error })
-        return
-      }
+        ? validateNumericFieldOptional(value, field, true)
+        : validateNumericField(value, field, true)
+      if (error) nextErrors[field] = error
     }
 
     if (!csmSigned) {
-      setFeedback({
-        type: 'error',
-        message: 'Selecione se o CSM está assinado.',
-      })
+      nextErrors.csmSigned = 'Selecione se o CSM está assinado.'
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors)
       return
     }
+
+    setFieldErrors({})
 
     setFeedback({
       type: 'success',
@@ -73,20 +88,25 @@ export function ScheduleAgendarForm() {
 
   return (
     <>
-      {feedback ? (
+      {feedback?.type === 'success' ? (
         <div className={`login-feedback ${feedback.type}`} role="status">
           {feedback.message}
         </div>
       ) : null}
 
       <form className="form-grid schedule-form-grid" onSubmit={handleSubmit}>
-        <label className="full-width">
+        <label className={`full-width${fieldErrors.csmDate ? ' has-field-error' : ''}`}>
           Data escrita no CSM
           <div className="datetime-row">
             <input
               type="date"
               value={csmDate}
-              onChange={(event) => setCsmDate(event.target.value)}
+              onChange={(event) => {
+                setCsmDate(event.target.value)
+                clearFieldError('csmDate')
+              }}
+              aria-invalid={Boolean(fieldErrors.csmDate)}
+              aria-describedby={fieldErrors.csmDate ? 'schedule-csm-date-error' : undefined}
             />
             <select
               value={csmHour}
@@ -111,9 +131,10 @@ export function ScheduleAgendarForm() {
               ))}
             </select>
           </div>
+          <FormFieldError id="schedule-csm-date-error" message={fieldErrors.csmDate} />
         </label>
 
-        <label>
+        <label className={fieldErrors.medidor ? 'has-field-error' : undefined}>
           <span className="required-label">
             <span className="required-mark" aria-hidden="true">
               *
@@ -125,56 +146,74 @@ export function ScheduleAgendarForm() {
             inputMode="numeric"
             autoComplete="off"
             value={meter}
-            onChange={(event) =>
+            onChange={(event) => {
               setMeter(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.medidor))
-            }
+              clearFieldError('medidor')
+            }}
             maxLength={NUMERIC_FIELD_LIMITS.medidor}
+            aria-invalid={Boolean(fieldErrors.medidor)}
+            aria-describedby={fieldErrors.medidor ? 'schedule-medidor-error' : undefined}
             required
           />
+          <FormFieldError id="schedule-medidor-error" message={fieldErrors.medidor} />
         </label>
 
-        <label>
+        <label className={fieldErrors.instalacao ? 'has-field-error' : undefined}>
           Instalação
           <input
             type="text"
             inputMode="numeric"
             autoComplete="off"
             value={installation}
-            onChange={(event) =>
+            onChange={(event) => {
               setInstallation(
                 sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.instalacao),
               )
-            }
+              clearFieldError('instalacao')
+            }}
             maxLength={NUMERIC_FIELD_LIMITS.instalacao}
+            aria-invalid={Boolean(fieldErrors.instalacao)}
+            aria-describedby={
+              fieldErrors.instalacao ? 'schedule-instalacao-error' : undefined
+            }
           />
+          <FormFieldError id="schedule-instalacao-error" message={fieldErrors.instalacao} />
         </label>
 
-        <label>
+        <label className={fieldErrors.toi ? 'has-field-error' : undefined}>
           TOI
           <input
             type="text"
             inputMode="numeric"
             autoComplete="off"
             value={toi}
-            onChange={(event) =>
+            onChange={(event) => {
               setToi(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.toi))
-            }
+              clearFieldError('toi')
+            }}
             maxLength={NUMERIC_FIELD_LIMITS.toi}
+            aria-invalid={Boolean(fieldErrors.toi)}
+            aria-describedby={fieldErrors.toi ? 'schedule-toi-error' : undefined}
           />
+          <FormFieldError id="schedule-toi-error" message={fieldErrors.toi} />
         </label>
 
-        <label>
+        <label className={fieldErrors.nota ? 'has-field-error' : undefined}>
           Nota
           <input
             type="text"
             inputMode="numeric"
             autoComplete="off"
             value={note}
-            onChange={(event) =>
+            onChange={(event) => {
               setNote(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.nota))
-            }
+              clearFieldError('nota')
+            }}
             maxLength={NUMERIC_FIELD_LIMITS.nota}
+            aria-invalid={Boolean(fieldErrors.nota)}
+            aria-describedby={fieldErrors.nota ? 'schedule-nota-error' : undefined}
           />
+          <FormFieldError id="schedule-nota-error" message={fieldErrors.nota} />
         </label>
 
         <label className="full-width">
@@ -189,7 +228,9 @@ export function ScheduleAgendarForm() {
           </select>
         </label>
 
-        <fieldset className="radio-fieldset full-width">
+        <fieldset
+          className={`radio-fieldset full-width${fieldErrors.csmSigned ? ' has-field-error' : ''}`}
+        >
           <legend>CSM Assinado?</legend>
           <div className="radio-group">
             <label className="radio-option">
@@ -198,7 +239,10 @@ export function ScheduleAgendarForm() {
                 name="csm-signed"
                 value="sim"
                 checked={csmSigned === 'sim'}
-                onChange={() => setCsmSigned('sim')}
+                onChange={() => {
+                  setCsmSigned('sim')
+                  clearFieldError('csmSigned')
+                }}
               />
               <span>Sim</span>
             </label>
@@ -208,11 +252,15 @@ export function ScheduleAgendarForm() {
                 name="csm-signed"
                 value="nao"
                 checked={csmSigned === 'nao'}
-                onChange={() => setCsmSigned('nao')}
+                onChange={() => {
+                  setCsmSigned('nao')
+                  clearFieldError('csmSigned')
+                }}
               />
               <span>Não</span>
             </label>
           </div>
+          <FormFieldError id="schedule-csm-signed-error" message={fieldErrors.csmSigned} />
         </fieldset>
 
         <label className="full-width">

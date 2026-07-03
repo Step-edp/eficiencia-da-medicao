@@ -40,32 +40,43 @@ export function sanitizeNumericInput(value: string, maxDigits: number): string {
 export function validateNumericField(
   value: string,
   field: NumericFieldKey,
+  inline = false,
 ): string | null {
   const label = FIELD_LABELS[field]
   const maxDigits = NUMERIC_FIELD_LIMITS[field]
 
   if (!value) {
-    return `O campo ${label} é obrigatório.`
+    return inline ? 'Campo obrigatório.' : `O campo ${label} é obrigatório.`
   }
 
   if (!/^\d+$/.test(value)) {
-    return `O campo ${label} deve conter apenas números (máximo ${maxDigits} dígitos).`
+    return inline
+      ? `Somente números (máximo ${maxDigits} dígitos).`
+      : `O campo ${label} deve conter apenas números (máximo ${maxDigits} dígitos).`
   }
 
   if (value.length > maxDigits) {
-    return `O campo ${label} deve ter no máximo ${maxDigits} dígitos.`
+    return inline
+      ? `Máximo de ${maxDigits} dígitos.`
+      : `O campo ${label} deve ter no máximo ${maxDigits} dígitos.`
   }
 
   if (/^0+$/.test(value)) {
-    return `O campo ${label} não pode ser composto apenas por zeros.`
+    return inline
+      ? 'Não pode ser composto apenas por zeros.'
+      : `O campo ${label} não pode ser composto apenas por zeros.`
   }
 
   if (isRepeatedDigit(value)) {
-    return `O campo ${label} não pode ter todos os dígitos iguais.`
+    return inline
+      ? 'Não pode ter todos os dígitos iguais.'
+      : `O campo ${label} não pode ter todos os dígitos iguais.`
   }
 
   if (isSequential(value)) {
-    return `O campo ${label} não pode ser uma sequência numérica.`
+    return inline
+      ? 'Não pode ser uma sequência numérica.'
+      : `O campo ${label} não pode ser uma sequência numérica.`
   }
 
   return null
@@ -74,7 +85,8 @@ export function validateNumericField(
 export function validateNumericFieldOptional(
   value: string,
   field: NumericFieldKey,
+  inline = false,
 ): string | null {
   if (!value) return null
-  return validateNumericField(value, field)
+  return validateNumericField(value, field, inline)
 }

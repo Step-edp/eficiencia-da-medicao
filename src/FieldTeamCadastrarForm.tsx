@@ -1,8 +1,10 @@
 import { FormEvent, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, ApiError } from './api'
+import { FormFieldError } from './FormFieldError'
 import {
   NUMERIC_FIELD_LIMITS,
+  NumericFieldKey,
   sanitizeNumericInput,
   validateNumericField,
 } from './numericFieldValidation'
@@ -27,6 +29,10 @@ function RequiredLabel({ children }: RequiredLabelProps) {
   )
 }
 
+type FieldTeamFieldErrors = Partial<
+  Record<NumericFieldKey | 'csd' | 'clientPresent', string>
+>
+
 export function FieldTeamCadastrarForm() {
   const { options: csdOptions, loading: csdLoading } = useCsdsOptions()
   const [meter, setMeter] = useState('')
@@ -42,15 +48,27 @@ export function FieldTeamCadastrarForm() {
     slot: string
   } | null>(null)
   const [copiedSlot, setCopiedSlot] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<FieldTeamFieldErrors>({})
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
 
+  const clearFieldError = (field: keyof FieldTeamFieldErrors) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFeedback(null)
     setSlotModal(null)
+
+    const nextErrors: FieldTeamFieldErrors = {}
 
     for (const [value, field] of [
       [meter, 'medidor'],
@@ -58,28 +76,24 @@ export function FieldTeamCadastrarForm() {
       [toi, 'toi'],
       [note, 'nota'],
     ] as const) {
-      const error = validateNumericField(value, field)
-      if (error) {
-        setFeedback({ type: 'error', message: error })
-        return
-      }
+      const error = validateNumericField(value, field, true)
+      if (error) nextErrors[field] = error
     }
 
     if (!csd) {
-      setFeedback({
-        type: 'error',
-        message: 'Selecione um CSD.',
-      })
-      return
+      nextErrors.csd = 'Selecione um CSD.'
     }
 
     if (!clientPresent) {
-      setFeedback({
-        type: 'error',
-        message: 'Informe se o cliente está presente.',
-      })
+      nextErrors.clientPresent = 'Informe se o cliente está presente.'
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors)
       return
     }
+
+    setFieldErrors({})
 
     setSubmitting(true)
 
@@ -150,71 +164,98 @@ export function FieldTeamCadastrarForm() {
       ) : null}
 
       <form className="form-grid schedule-form-grid" onSubmit={(event) => void handleSubmit(event)}>
-        <label>
+        <label className={fieldErrors.medidor ? 'has-field-error' : undefined}>
           <RequiredLabel>Medidor</RequiredLabel>
           <input
             type="text"
             inputMode="numeric"
             autoComplete="off"
             value={meter}
-            onChange={(event) =>
+            onChange={(event) => {
               setMeter(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.medidor))
-            }
+              clearFieldError('medidor')
+            }}
             maxLength={NUMERIC_FIELD_LIMITS.medidor}
+            aria-invalid={Boolean(fieldErrors.medidor)}
+            aria-describedby={fieldErrors.medidor ? 'field-team-medidor-error' : undefined}
             required
           />
+          <FormFieldError id="field-team-medidor-error" message={fieldErrors.medidor} />
         </label>
 
-        <label>
+        <label className={fieldErrors.instalacao ? 'has-field-error' : undefined}>
           <RequiredLabel>Instalação</RequiredLabel>
           <input
             type="text"
             inputMode="numeric"
             autoComplete="off"
             value={installation}
-            onChange={(event) =>
+            onChange={(event) => {
               setInstallation(
                 sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.instalacao),
               )
-            }
+              clearFieldError('instalacao')
+            }}
             maxLength={NUMERIC_FIELD_LIMITS.instalacao}
+            aria-invalid={Boolean(fieldErrors.instalacao)}
+            aria-describedby={
+              fieldErrors.instalacao ? 'field-team-instalacao-error' : undefined
+            }
             required
           />
+          <FormFieldError id="field-team-instalacao-error" message={fieldErrors.instalacao} />
         </label>
 
-        <label>
+        <label className={fieldErrors.toi ? 'has-field-error' : undefined}>
           <RequiredLabel>TOI</RequiredLabel>
           <input
             type="text"
             inputMode="numeric"
             autoComplete="off"
             value={toi}
-            onChange={(event) =>
+            onChange={(event) => {
               setToi(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.toi))
-            }
+              clearFieldError('toi')
+            }}
             maxLength={NUMERIC_FIELD_LIMITS.toi}
+            aria-invalid={Boolean(fieldErrors.toi)}
+            aria-describedby={fieldErrors.toi ? 'field-team-toi-error' : undefined}
             required
           />
+          <FormFieldError id="field-team-toi-error" message={fieldErrors.toi} />
         </label>
 
-        <label>
+        <label className={fieldErrors.nota ? 'has-field-error' : undefined}>
           <RequiredLabel>Nota</RequiredLabel>
           <input
             type="text"
             inputMode="numeric"
             autoComplete="off"
             value={note}
-            onChange={(event) =>
+            onChange={(event) => {
               setNote(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.nota))
-            }
+              clearFieldError('nota')
+            }}
             maxLength={NUMERIC_FIELD_LIMITS.nota}
+            aria-invalid={Boolean(fieldErrors.nota)}
+            aria-describedby={fieldErrors.nota ? 'field-team-nota-error' : undefined}
             required
           />
+          <FormFieldError id="field-team-nota-error" message={fieldErrors.nota} />
         </label>
 
-        <label className="full-width">
+        <label className={`full-width${fieldErrors.csd ? ' has-field-error' : ''}`}>
           <RequiredLabel>CSD</RequiredLabel>
-          <select value={csd} onChange={(event) => setCsd(event.target.value)} required>
+          <select
+            value={csd}
+            onChange={(event) => {
+              setCsd(event.target.value)
+              clearFieldError('csd')
+            }}
+            aria-invalid={Boolean(fieldErrors.csd)}
+            aria-describedby={fieldErrors.csd ? 'field-team-csd-error' : undefined}
+            required
+          >
             <option value="">{csdLoading ? 'Carregando CSDs...' : 'Localizar itens'}</option>
             {csdOptions.map((option) => (
               <option key={option.id} value={option.label}>
@@ -222,9 +263,12 @@ export function FieldTeamCadastrarForm() {
               </option>
             ))}
           </select>
+          <FormFieldError id="field-team-csd-error" message={fieldErrors.csd} />
         </label>
 
-        <fieldset className="radio-fieldset full-width">
+        <fieldset
+          className={`radio-fieldset full-width${fieldErrors.clientPresent ? ' has-field-error' : ''}`}
+        >
           <legend>
             <RequiredLabel>Cliente presente?</RequiredLabel>
           </legend>
@@ -235,7 +279,10 @@ export function FieldTeamCadastrarForm() {
                 name="client-present"
                 value="sim"
                 checked={clientPresent === 'sim'}
-                onChange={() => setClientPresent('sim')}
+                onChange={() => {
+                  setClientPresent('sim')
+                  clearFieldError('clientPresent')
+                }}
               />
               <span>Sim</span>
             </label>
@@ -245,11 +292,18 @@ export function FieldTeamCadastrarForm() {
                 name="client-present"
                 value="nao"
                 checked={clientPresent === 'nao'}
-                onChange={() => setClientPresent('nao')}
+                onChange={() => {
+                  setClientPresent('nao')
+                  clearFieldError('clientPresent')
+                }}
               />
               <span>Não</span>
             </label>
           </div>
+          <FormFieldError
+            id="field-team-client-present-error"
+            message={fieldErrors.clientPresent}
+          />
         </fieldset>
 
         <label className="full-width">
