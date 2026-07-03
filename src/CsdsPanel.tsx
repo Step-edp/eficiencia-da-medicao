@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { api, ApiError, type CsdRecord, type FieldTeamUserOption } from './api'
+import { CSD_CITY_OPTIONS } from './csdCities'
 
 export function CsdsPanel() {
   const [csds, setCsds] = useState<CsdRecord[]>([])
@@ -8,6 +9,7 @@ export function CsdsPanel() {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
+  const [selectedCities, setSelectedCities] = useState<string[]>([])
   const [responsibleUserId, setResponsibleUserId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -42,11 +44,29 @@ export function CsdsPanel() {
   const resetForm = () => {
     setName('')
     setAddress('')
+    setSelectedCities([])
     setResponsibleUserId('')
+  }
+
+  const toggleCity = (city: string) => {
+    setSelectedCities((current) =>
+      current.includes(city)
+        ? current.filter((item) => item !== city)
+        : [...current, city].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    )
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+
+    if (selectedCities.length === 0) {
+      setFeedback({
+        type: 'error',
+        message: 'Selecione ao menos uma cidade.',
+      })
+      return
+    }
+
     setSubmitting(true)
     setFeedback(null)
 
@@ -54,6 +74,7 @@ export function CsdsPanel() {
       const { csd } = await api.createCsd({
         name: name.trim(),
         address: address.trim(),
+        cities: selectedCities,
         responsibleUserId,
       })
       setCsds((prev) => [...prev, csd].sort((a, b) => a.name.localeCompare(b.name)))
@@ -142,10 +163,29 @@ export function CsdsPanel() {
               type="text"
               value={address}
               onChange={(event) => setAddress(event.target.value)}
-              placeholder="Rua, número, bairro, cidade"
+              placeholder="Rua, número, bairro"
               required
             />
           </label>
+
+          <fieldset className="csds-cities-fieldset full-width">
+            <legend>Cidades</legend>
+            <p className="csds-form-hint">
+              Selecione uma ou mais cidades atendidas por este CSD.
+            </p>
+            <div className="csds-cities-grid">
+              {CSD_CITY_OPTIONS.map((city) => (
+                <label key={city} className="csds-city-option">
+                  <input
+                    type="checkbox"
+                    checked={selectedCities.includes(city)}
+                    onChange={() => toggleCity(city)}
+                  />
+                  <span>{city}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
           <label className="full-width">
             Responsável
@@ -182,6 +222,7 @@ export function CsdsPanel() {
             <tr>
               <th>Nome</th>
               <th>Endereço</th>
+              <th>Cidades</th>
               <th>Responsável</th>
               <th>Ações</th>
             </tr>
@@ -189,17 +230,18 @@ export function CsdsPanel() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4}>Carregando CSDs...</td>
+                <td colSpan={5}>Carregando CSDs...</td>
               </tr>
             ) : csds.length === 0 ? (
               <tr>
-                <td colSpan={4}>Nenhum CSD cadastrado.</td>
+                <td colSpan={5}>Nenhum CSD cadastrado.</td>
               </tr>
             ) : (
               csds.map((csd) => (
                 <tr key={csd.id}>
                   <td>{csd.name}</td>
                   <td>{csd.address}</td>
+                  <td>{csd.cities.length > 0 ? csd.cities.join(', ') : '—'}</td>
                   <td>
                     {csd.responsibleName}
                     <span className="csds-responsible-registration">

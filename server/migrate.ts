@@ -93,6 +93,7 @@ export async function migrate() {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
       address TEXT NOT NULL,
+      cities JSONB NOT NULL DEFAULT '[]'::jsonb,
       responsible_user_id TEXT NOT NULL REFERENCES users(id),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -102,5 +103,6 @@ export async function migrate() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS work_area TEXT NOT NULL DEFAULT '';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS work_subtype TEXT NOT NULL DEFAULT '';
     ALTER TABLE ensaios_manual_blocks ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT '';
+    ALTER TABLE csds ADD COLUMN IF NOT EXISTS cities JSONB NOT NULL DEFAULT '[]'::jsonb;
   `)
 }

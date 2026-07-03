@@ -1,10 +1,12 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
+import { normalizeCsdCities } from '../csd-cities.js'
 
 type CsdRow = {
   id: string
   name: string
   address: string
+  cities: string[] | null
   responsible_user_id: string
   created_at: Date
   responsible_name: string
@@ -16,6 +18,7 @@ function mapCsd(row: CsdRow) {
     id: row.id,
     name: row.name,
     address: row.address,
+    cities: normalizeCsdCities(row.cities ?? []),
     responsibleUserId: row.responsible_user_id,
     responsibleName: row.responsible_name,
     responsibleRegistration: row.responsible_registration,
@@ -25,7 +28,7 @@ function mapCsd(row: CsdRow) {
 
 export async function listCsds(_req: Request, res: Response) {
   const result = await query<CsdRow>(
-    `SELECT c.id, c.name, c.address, c.responsible_user_id, c.created_at,
+    `SELECT c.id, c.name, c.address, c.cities, c.responsible_user_id, c.created_at,
             u.name AS responsible_name, u.registration AS responsible_registration
      FROM csds c
      JOIN users u ON u.id = c.responsible_user_id
@@ -35,14 +38,22 @@ export async function listCsds(_req: Request, res: Response) {
 }
 
 export async function createCsd(req: Request, res: Response) {
-  const { name, address, responsibleUserId } = req.body as {
+  const { name, address, responsibleUserId, cities } = req.body as {
     name?: string
     address?: string
     responsibleUserId?: string
+    cities?: unknown
   }
+
+  const normalizedCities = normalizeCsdCities(cities)
 
   if (!name?.trim() || !address?.trim() || !responsibleUserId?.trim()) {
     res.status(400).json({ error: 'Nome, endereço e responsável são obrigatórios.' })
+    return
+  }
+
+  if (normalizedCities.length === 0) {
+    res.status(400).json({ error: 'Selecione ao menos uma cidade.' })
     return
   }
 
@@ -66,12 +77,18 @@ export async function createCsd(req: Request, res: Response) {
 
   try {
     const insert = await query<CsdRow>(
-      `INSERT INTO csds (id, name, address, responsible_user_id)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, name, address, responsible_user_id, created_at,
-                 (SELECT name FROM users WHERE id = $4) AS responsible_name,
-                 (SELECT registration FROM users WHERE id = $4) AS responsible_registration`,
-      [id, name.trim(), address.trim(), responsibleUserId.trim()],
+      `INSERT INTO csds (id, name, address, cities, responsible_user_id)
+       VALUES ($1, $2, $3, $4::jsonb, $5)
+       RETURNING id, name, address, cities, responsible_user_id, created_at,
+                 (SELECT name FROM users WHERE id = $5) AS responsible_name,
+                 (SELECT registration FROM users WHERE id = $5) AS responsible_registration`,
+      [
+        id,
+        name.trim(),
+        address.trim(),
+        JSON.stringify(normalizedCities),
+        responsibleUserId.trim(),
+      ],
     )
     res.status(201).json({ csd: mapCsd(insert.rows[0]) })
   } catch (error) {

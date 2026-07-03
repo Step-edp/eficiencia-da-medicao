@@ -115,31 +115,36 @@ const initialCsds = [
   {
     id: 'csd-001',
     name: 'CSD-001 - Região Norte',
-    address: 'Av. Norte, 1200 - Manaus/AM',
+    address: 'Av. Norte, 1200',
+    cities: ['Manaus', 'Belém', 'Macapá', 'Boa Vista', 'Rio Branco', 'Porto Velho', 'Palmas'],
     responsibleUserId: 'field-inspection-1',
   },
   {
     id: 'csd-002',
     name: 'CSD-002 - Região Sul',
-    address: 'Rua Sul, 450 - Porto Alegre/RS',
+    address: 'Rua Sul, 450',
+    cities: ['Porto Alegre', 'Florianópolis', 'Curitiba'],
     responsibleUserId: 'field-inspection-2',
   },
   {
     id: 'csd-003',
     name: 'CSD-003 - Região Leste',
-    address: 'Av. Leste, 890 - Recife/PE',
+    address: 'Av. Leste, 890',
+    cities: ['Recife', 'Salvador', 'Fortaleza', 'São Luís', 'Maceió', 'Natal', 'João Pessoa', 'Aracaju', 'Teresina'],
     responsibleUserId: 'field-inspection-1',
   },
   {
     id: 'csd-004',
     name: 'CSD-004 - Região Oeste',
-    address: 'Rua Oeste, 320 - Campo Grande/MS',
+    address: 'Rua Oeste, 320',
+    cities: ['Campo Grande', 'Cuiabá'],
     responsibleUserId: 'field-inspection-2',
   },
   {
     id: 'csd-005',
     name: 'CSD-005 - Região Centro',
-    address: 'Av. Central, 1500 - Brasília/DF',
+    address: 'Av. Central, 1500',
+    cities: ['Brasília', 'Goiânia', 'Belo Horizonte', 'Vitória', 'São Paulo', 'Rio de Janeiro'],
     responsibleUserId: 'field-inspection-1',
   },
 ]
@@ -206,10 +211,10 @@ export async function seed() {
   if (Number(csdsCount.rows[0]?.count ?? 0) === 0) {
     for (const csd of initialCsds) {
       await query(
-        `INSERT INTO csds (id, name, address, responsible_user_id)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO csds (id, name, address, cities, responsible_user_id)
+         VALUES ($1, $2, $3, $4::jsonb, $5)
          ON CONFLICT (id) DO NOTHING`,
-        [csd.id, csd.name, csd.address, csd.responsibleUserId],
+        [csd.id, csd.name, csd.address, JSON.stringify(csd.cities), csd.responsibleUserId],
       )
     }
   }

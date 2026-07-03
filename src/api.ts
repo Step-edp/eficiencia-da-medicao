@@ -78,6 +78,7 @@ export type CsdRecord = {
   id: string
   name: string
   address: string
+  cities: string[]
   responsibleUserId: string
   responsibleName: string
   responsibleRegistration: string
@@ -236,6 +237,7 @@ export const api = {
   createCsd: (payload: {
     name: string
     address: string
+    cities: string[]
     responsibleUserId: string
   }) =>
     request<{ csd: CsdRecord }>('/api/csds', {
