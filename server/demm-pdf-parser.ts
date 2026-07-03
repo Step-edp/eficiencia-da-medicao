@@ -1,31 +1,36 @@
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 
-const METER_LENGTH = 8
-const METER_PATTERN = new RegExp(`\\b(\\d{${METER_LENGTH}})\\b`, 'g')
-const LABELED_METER_PATTERN = /medidor\s*[:\-]?\s*(\d{8})/gi
+const PATRIMONIO_LABEL_PATTERN = /patrim[oô]nio[\s.:]+/gi
+const PATRIMONIO_METER_PATTERN = /\b00(\d{8})\b/g
 
 type TextItem = {
   str?: string
 }
 
+function addPatrimonioMeters(text: string, found: Set<string>, ordered: string[]) {
+  for (const match of text.matchAll(PATRIMONIO_METER_PATTERN)) {
+    const meter = match[1]
+    if (found.has(meter)) continue
+    found.add(meter)
+    ordered.push(meter)
+  }
+}
+
 export function extractMetersFromText(text: string): string[] {
   const found = new Set<string>()
   const ordered: string[] = []
+  const normalized = text.replace(/\r\n/g, '\n')
 
-  const addMeter = (value: string) => {
-    if (!/^\d{8}$/.test(value) || found.has(value)) return
-    found.add(value)
-    ordered.push(value)
+  const sections = normalized.split(PATRIMONIO_LABEL_PATTERN)
+  for (let index = 1; index < sections.length; index += 1) {
+    addPatrimonioMeters(sections[index] ?? '', found, ordered)
   }
 
-  for (const match of text.matchAll(LABELED_METER_PATTERN)) {
-    addMeter(match[1])
+  if (ordered.length > 0) {
+    return ordered
   }
 
-  for (const match of text.matchAll(METER_PATTERN)) {
-    addMeter(match[1])
-  }
-
+  addPatrimonioMeters(normalized, found, ordered)
   return ordered
 }
 

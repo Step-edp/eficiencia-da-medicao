@@ -468,10 +468,6 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
                 </button>
 
                 <h3 id="demm-modal-title">Nova DEMM</h3>
-                <p className="demm-modal-intro">
-                  Envie o PDF da DEMM. O aplicativo vai ler o documento e listar todos os medidores
-                  encontrados, indicando se cada um já está agendado.
-                </p>
 
                 <form className="form-grid demm-form-grid" onSubmit={(event) => void handleDemmSubmit(event)}>
                   <label className="full-width photo-upload-field">
