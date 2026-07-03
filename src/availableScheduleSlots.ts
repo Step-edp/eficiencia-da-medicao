@@ -1,6 +1,7 @@
 import { isAutoBlocked, toDateKey } from './brazilianHolidays'
 
 const SLOT_INTERVAL_MINUTES = 10
+const MINIMUM_DAYS_AHEAD = 30
 
 const TIME_WINDOWS = [
   { start: 8 * 60 + 30, end: 11 * 60 + 30 },
@@ -36,23 +37,18 @@ export function findNextAvailableSlot(
   from: Date = new Date(),
 ): Date | null {
   const daySlots = getDaySlots()
+  const searchFrom = new Date(from)
+  searchFrom.setDate(searchFrom.getDate() + MINIMUM_DAYS_AHEAD)
+  searchFrom.setHours(0, 0, 0, 0)
 
   for (let dayOffset = 0; dayOffset < 366; dayOffset += 1) {
-    const day = new Date(from)
-    day.setDate(from.getDate() + dayOffset)
+    const day = new Date(searchFrom)
+    day.setDate(searchFrom.getDate() + dayOffset)
     day.setHours(0, 0, 0, 0)
 
     if (isScheduleDayBlocked(day, manualBlocks)) continue
 
-    const minMinutes =
-      dayOffset === 0
-        ? Math.ceil((from.getHours() * 60 + from.getMinutes()) / SLOT_INTERVAL_MINUTES) *
-          SLOT_INTERVAL_MINUTES
-        : daySlots[0]
-
     for (const slotMinutes of daySlots) {
-      if (slotMinutes < minMinutes) continue
-
       const slot = new Date(day)
       slot.setHours(Math.floor(slotMinutes / 60), slotMinutes % 60, 0, 0)
       return slot

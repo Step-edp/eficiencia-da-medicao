@@ -248,8 +248,9 @@ export function FieldTeamCadastrarForm() {
                 <p className="available-slot-title">Próxima data disponível</p>
                 <p className="available-slot-value">{slotModal.slot}</p>
                 <p className="available-slot-rules">
-                  Horários de 10 em 10 minutos, das 8:30 às 11:30 e das 14:00 às 16:30,
-                  respeitando dias bloqueados no calendário de ensaios.
+                  A data é calculada com no mínimo 30 dias de antecedência, em horários de
+                  10 em 10 minutos, das 8:30 às 11:30 e das 14:00 às 16:30, respeitando dias
+                  bloqueados no calendário de ensaios.
                 </p>
                 <div className="ensaios-block-modal-actions">
                   <button
