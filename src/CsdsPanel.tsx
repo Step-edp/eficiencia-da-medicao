@@ -95,11 +95,6 @@ export function CsdsPanel() {
   }
 
   const handleDelete = async (csd: CsdRecord) => {
-    const confirmed = window.confirm(
-      `Excluir o CSD "${csd.name}"? Esta ação não pode ser desfeita.`,
-    )
-    if (!confirmed) return
-
     setDeletingId(csd.id)
     setFeedback(null)
 
