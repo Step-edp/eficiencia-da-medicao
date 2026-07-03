@@ -28,6 +28,11 @@ function isSequential(digits: string): boolean {
   return true
 }
 
+function isRepeatedDigit(digits: string): boolean {
+  if (digits.length < 2) return false
+  return digits.split('').every((digit) => digit === digits[0])
+}
+
 export function sanitizeNumericInput(value: string, maxDigits: number): string {
   return value.replace(/\D/g, '').slice(0, maxDigits)
 }
@@ -53,6 +58,10 @@ export function validateNumericField(
 
   if (/^0+$/.test(value)) {
     return `O campo ${label} não pode ser composto apenas por zeros.`
+  }
+
+  if (isRepeatedDigit(value)) {
+    return `O campo ${label} não pode ter todos os dígitos iguais.`
   }
 
   if (isSequential(value)) {
