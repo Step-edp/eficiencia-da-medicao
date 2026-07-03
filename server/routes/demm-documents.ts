@@ -200,8 +200,8 @@ export async function createDemmDocument(req: Request, res: Response) {
 export async function getDemmDocumentAnalysis(req: Request, res: Response) {
   const { id } = req.params
 
-  const result = await query<Pick<DemmDocumentRow, 'id' | 'file_name' | 'extracted_meters'>>(
-    `SELECT id, file_name, extracted_meters FROM demm_documents WHERE id = $1`,
+  const result = await query<Pick<DemmDocumentRow, 'id' | 'file_name' | 'file_data'>>(
+    `SELECT id, file_name, file_data FROM demm_documents WHERE id = $1`,
     [id],
   )
 
@@ -210,32 +210,17 @@ export async function getDemmDocumentAnalysis(req: Request, res: Response) {
     return
   }
 
-  let meters = result.rows[0].extracted_meters ?? []
+  let meters: DemmMeterAnalysis[] = []
 
-  if (!meters.length) {
-    const file = await query<Pick<DemmDocumentRow, 'file_data'>>(
-      `SELECT file_data FROM demm_documents WHERE id = $1`,
-      [id],
-    )
-
-    if (file.rows[0]) {
-      try {
-        meters = await parseAndAnalyzeDemm(file.rows[0].file_data)
-        await query(`UPDATE demm_documents SET extracted_meters = $1::jsonb WHERE id = $2`, [
-          JSON.stringify(meters),
-          id,
-        ])
-      } catch {
-        res.status(400).json({ error: 'Não foi possível analisar o PDF da DEMM.' })
-        return
-      }
-    }
-  } else {
-    meters = await analyzeDemmMeters(meters.map((item) => item.meter))
+  try {
+    meters = await parseAndAnalyzeDemm(result.rows[0].file_data)
     await query(`UPDATE demm_documents SET extracted_meters = $1::jsonb WHERE id = $2`, [
       JSON.stringify(meters),
       id,
     ])
+  } catch {
+    res.status(400).json({ error: 'Não foi possível analisar o PDF da DEMM.' })
+    return
   }
 
   res.json({

@@ -190,6 +190,7 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
         loading: false,
         showSources: false,
       })
+      await loadData()
     } catch (error) {
       setAnalysisModal(null)
       setFeedback({
