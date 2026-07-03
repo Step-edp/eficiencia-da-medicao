@@ -239,7 +239,9 @@ export function EnsaiosCalendar() {
           let title = ''
           if (autoReason) {
             title =
-              autoReason.startsWith('Feriado') || autoReason === 'Recebimento de Medidores'
+              autoReason.startsWith('Feriado') ||
+              autoReason === 'Recebimento de Medidores' ||
+              autoReason === 'Fim de Semana'
                 ? autoReason
                 : `Indisponível (${autoReason})`
           } else if (isManual) {
@@ -268,8 +270,9 @@ export function EnsaiosCalendar() {
               onClick={() => handleDayClick(date)}
             >
               <span className="ensaios-calendar-day-number">{date.getDate()}</span>
-              {autoReason === 'Recebimento de Medidores' ? (
-                <span className="ensaios-calendar-day-reason">Recebimento de Medidores</span>
+              {autoReason === 'Recebimento de Medidores' ||
+              autoReason === 'Fim de Semana' ? (
+                <span className="ensaios-calendar-day-reason">{autoReason}</span>
               ) : autoReason?.startsWith('Feriado') ? (
                 <span className="ensaios-calendar-day-tag">Feriado</span>
               ) : null}
@@ -291,7 +294,7 @@ export function EnsaiosCalendar() {
         </li>
         <li>
           <span className="ensaios-calendar-swatch is-auto-blocked" /> Sexta
-          (Recebimento de Medidores), fim de semana ou feriado
+          (Recebimento de Medidores), sábado e domingo (Fim de Semana) ou feriado
         </li>
       </ul>
 

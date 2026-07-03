@@ -72,9 +72,7 @@ export function isWeekendBlocked(date: Date) {
 export function getAutoBlockReason(date: Date): string | null {
   const day = date.getDay()
   if (day === 5) return 'Recebimento de Medidores'
-  if (day === 0 || day === 6) {
-    return day === 0 ? 'domingo' : 'sábado'
-  }
+  if (day === 0 || day === 6) return 'Fim de Semana'
 
   const holiday = getNationalHolidays(date.getFullYear()).get(toDateKey(date))
   return holiday ? `Feriado: ${holiday}` : null
