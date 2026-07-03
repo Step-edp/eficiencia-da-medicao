@@ -36,6 +36,7 @@ export function FieldTeamCadastrarForm() {
     meter: string
     slot: string
   } | null>(null)
+  const [copiedSlot, setCopiedSlot] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -124,6 +125,26 @@ export function FieldTeamCadastrarForm() {
       })
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const closeSlotModal = () => {
+    setSlotModal(null)
+    setCopiedSlot(false)
+  }
+
+  const copySlotDate = async () => {
+    if (!slotModal) return
+
+    try {
+      await navigator.clipboard.writeText(slotModal.slot)
+      setCopiedSlot(true)
+      window.setTimeout(() => setCopiedSlot(false), 2000)
+    } catch {
+      setFeedback({
+        type: 'error',
+        message: 'Não foi possível copiar a data.',
+      })
     }
   }
 
@@ -232,7 +253,7 @@ export function FieldTeamCadastrarForm() {
             <div
               className="ensaios-block-modal-overlay"
               role="presentation"
-              onClick={() => setSlotModal(null)}
+              onClick={closeSlotModal}
             >
               <div
                 className="ensaios-block-modal schedule-slot-modal"
@@ -246,18 +267,18 @@ export function FieldTeamCadastrarForm() {
                   Medidor {slotModal.meter} reservado com sucesso.
                 </p>
                 <p className="available-slot-title">Próxima data disponível</p>
-                <p className="available-slot-value">{slotModal.slot}</p>
-                <p className="available-slot-rules">
-                  A data é calculada com no mínimo 30 dias de antecedência, em horários de
-                  10 em 10 minutos, das 8:30 às 11:30 e das 14:00 às 16:30, respeitando dias
-                  bloqueados no calendário de ensaios.
-                </p>
-                <div className="ensaios-block-modal-actions">
+                <div className="schedule-slot-date-row">
+                  <p className="available-slot-value">{slotModal.slot}</p>
                   <button
                     type="button"
-                    className="primary-button"
-                    onClick={() => setSlotModal(null)}
+                    className="secondary-button schedule-slot-copy-button"
+                    onClick={() => void copySlotDate()}
                   >
+                    {copiedSlot ? 'Copiado!' : 'Copiar data'}
+                  </button>
+                </div>
+                <div className="ensaios-block-modal-actions">
+                  <button type="button" className="primary-button" onClick={closeSlotModal}>
                     Fechar
                   </button>
                 </div>

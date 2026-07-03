@@ -1599,11 +1599,19 @@ input[type='file'] {
 }
 
 .schedule-slot-modal .available-slot-value {
-  margin-bottom: 12px;
+  margin: 0;
 }
 
-.schedule-slot-modal .available-slot-rules {
-  text-align: left;
+.schedule-slot-date-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.schedule-slot-copy-button {
+  min-width: 140px;
 }
 
 .schedule-slot-modal .ensaios-block-modal-actions {
