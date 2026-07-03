@@ -91,11 +91,6 @@ export type FieldTeamUserOption = {
   registration: string
 }
 
-export type EnsaiosManualBlock = {
-  date: string
-  reason: string
-}
-
 export type AuditLogRecord = {
   id: string
   occurredAt: string
@@ -111,6 +106,29 @@ export type AuditLogRecord = {
   oldData: Record<string, unknown> | null
   newData: Record<string, unknown> | null
   metadata: Record<string, unknown>
+}
+
+export type EnsaiosManualBlock = {
+  date: string
+  reason: string
+}
+
+export type MeterScheduleRecord = {
+  id: string
+  meter: string
+  installation: string
+  toi: string
+  note: string
+  csd: string
+  clientPresent: 'sim' | 'nao'
+  schedulingNotes: string
+  scheduledAt: string
+  scheduledAtLabel: string
+  trailStep: string
+  source: string
+  createdAt: string
+  createdByUserId: string | null
+  createdByRegistration: string | null
 }
 
 class ApiError extends Error {
@@ -278,6 +296,35 @@ export const api = {
       `/api/audit-logs${queryString ? `?${queryString}` : ''}`,
     )
   },
+  listMeterSchedules: (trailStep?: string) => {
+    const search = new URLSearchParams()
+    if (trailStep) search.set('trailStep', trailStep)
+    const queryString = search.toString()
+    return request<{ schedules: MeterScheduleRecord[]; total: number }>(
+      `/api/meter-schedules${queryString ? `?${queryString}` : ''}`,
+    )
+  },
+  countMeterSchedules: (trailStep?: string) => {
+    const search = new URLSearchParams()
+    if (trailStep) search.set('trailStep', trailStep)
+    const queryString = search.toString()
+    return request<{ total: number; trailStep: string }>(
+      `/api/meter-schedules/count${queryString ? `?${queryString}` : ''}`,
+    )
+  },
+  createMeterSchedule: (payload: {
+    meter: string
+    installation: string
+    toi: string
+    note: string
+    csd: string
+    clientPresent: 'sim' | 'nao'
+    schedulingNotes?: string
+  }) =>
+    request<{ schedule: MeterScheduleRecord }>('/api/meter-schedules', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 }
 
 export { ApiError }

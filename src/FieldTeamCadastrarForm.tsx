@@ -8,10 +8,6 @@ import {
   sanitizeNumericInput,
   validateNumericField,
 } from './numericFieldValidation'
-import {
-  findNextAvailableSlot,
-  formatAvailableSlot,
-} from './availableScheduleSlots'
 import { useCsdsOptions } from './useCsdsOptions'
 
 type RequiredLabelProps = {
@@ -98,23 +94,27 @@ export function FieldTeamCadastrarForm() {
     setSubmitting(true)
 
     try {
-      const { blocks } = await api.listEnsaiosManualBlocks()
-      const manualBlocks = new Set(blocks.map((block) => block.date))
-      const nextSlot = findNextAvailableSlot(manualBlocks)
-
-      if (!nextSlot) {
-        setFeedback({
-          type: 'error',
-          message: 'Não há datas disponíveis no calendário nos próximos meses.',
-        })
-        return
-      }
-
-      const slotLabel = formatAvailableSlot(nextSlot)
-      setSlotModal({
-        meter: meter,
-        slot: slotLabel,
+      const { schedule } = await api.createMeterSchedule({
+        meter,
+        installation,
+        toi,
+        note,
+        csd,
+        clientPresent: clientPresent as 'sim' | 'nao',
+        schedulingNotes,
       })
+
+      setSlotModal({
+        meter: schedule.meter,
+        slot: schedule.scheduledAtLabel,
+      })
+      setMeter('')
+      setInstallation('')
+      setToi('')
+      setNote('')
+      setCsd('')
+      setClientPresent('')
+      setSchedulingNotes('')
     } catch (error) {
       setFeedback({
         type: 'error',

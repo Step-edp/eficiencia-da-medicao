@@ -5,12 +5,14 @@ type LabMeasurementTrailProps = {
   activeStep: string | null
   onSelect: (section: string) => void
   renderIcon: (title: string) => ReactNode
+  stepCounts?: Record<string, number>
 }
 
 export function LabMeasurementTrail({
   activeStep,
   onSelect,
   renderIcon,
+  stepCounts,
 }: LabMeasurementTrailProps) {
   const activeIndex = activeStep
     ? LAB_TRAIL_STEPS.findIndex((step) => step.key === activeStep)
@@ -22,6 +24,7 @@ export function LabMeasurementTrail({
         {LAB_TRAIL_STEPS.map((step, index) => {
           const isActive = step.key === activeStep
           const isCompleted = activeIndex >= 0 && index < activeIndex
+          const count = stepCounts?.[step.key] ?? 0
 
           return (
             <li key={step.key} className="lab-trail-step-item">
@@ -33,7 +36,12 @@ export function LabMeasurementTrail({
               >
                 <span className="lab-trail-step-content">
                   {renderIcon(step.key)}
-                  <span>{step.label}</span>
+                  <span className="lab-trail-step-label">{step.label}</span>
+                  {count > 0 ? (
+                    <span className="lab-trail-step-badge" aria-label={`${count} pendente(s)`}>
+                      {count}
+                    </span>
+                  ) : null}
                 </span>
               </button>
               {index < LAB_TRAIL_STEPS.length - 1 ? (

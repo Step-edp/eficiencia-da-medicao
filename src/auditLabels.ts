@@ -18,6 +18,7 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   ensaios_manual_block: 'Calendário de ensaios',
   csd: 'CSD',
   satisfaction_survey: 'Pesquisa de satisfação',
+  meter_schedule: 'Agendamento de medidor',
 }
 
 export function formatAuditAction(action: string) {

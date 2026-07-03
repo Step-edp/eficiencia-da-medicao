@@ -11,7 +11,8 @@ import { LabMeasurementTrail } from './LabMeasurementTrail'
 import { EnsaiosCalendar } from './EnsaiosCalendar'
 import { CsdsPanel } from './CsdsPanel'
 import { AuditPanel } from './AuditPanel'
-import { getLabTrailLabel, LAB_TRAIL_KEYS } from './labTrailSteps'
+import { EntradaPanel } from './EntradaPanel'
+import { ENTRADA_TRAIL_STEP, getLabTrailLabel, LAB_TRAIL_KEYS } from './labTrailSteps'
 import {
   api,
   ApiError,
@@ -643,6 +644,7 @@ function HomePanel({
   const [selectedHomologationSection, setSelectedHomologationSection] =
     useState<string | null>(null)
   const [selectedFieldTeamSection, setSelectedFieldTeamSection] = useState<string | null>(null)
+  const [entradaCount, setEntradaCount] = useState(0)
   const [ratmLaudos, setRatmLaudos] = useState<RatmLaudo[]>([])
   const [selectedCodeMaterialsAction, setSelectedCodeMaterialsAction] = useState<
     'create' | null
@@ -789,6 +791,15 @@ function HomePanel({
     }
   }
 
+  const loadEntradaCount = useCallback(async () => {
+    try {
+      const response = await api.countMeterSchedules(ENTRADA_TRAIL_STEP)
+      setEntradaCount(response.total)
+    } catch {
+      setEntradaCount(0)
+    }
+  }, [])
+
   const resetGeneratePasswordForm = () => {
     setMeterNumbersInput('')
     setPasswordDigitsInput('')
@@ -867,6 +878,12 @@ function HomePanel({
       void loadRatmLaudos()
     }
   }, [selectedLabMeasurementSection])
+
+  useEffect(() => {
+    if (selectedArea?.title === 'Laboratório de Medição') {
+      void loadEntradaCount()
+    }
+  }, [selectedArea?.title, selectedLabMeasurementSection, loadEntradaCount])
 
   const materialTypeOptions = useMemo(() => {
     const codes = materialRows
@@ -1799,6 +1816,7 @@ function HomePanel({
                 activeStep={selectedLabMeasurementSection}
                 onSelect={setSelectedLabMeasurementSection}
                 renderIcon={(title) => <ItemIcon title={title} />}
+                stepCounts={{ [ENTRADA_TRAIL_STEP]: entradaCount }}
               />
             ) : null}
             {selectedLabMeasurementSection === 'Calendário de ensaios' ? (
@@ -1807,6 +1825,8 @@ function HomePanel({
               <CsdsPanel />
             ) : selectedLabMeasurementSection === 'Auditoria' ? (
               <AuditPanel />
+            ) : selectedLabMeasurementSection === ENTRADA_TRAIL_STEP ? (
+              <EntradaPanel onCountChange={setEntradaCount} />
             ) : selectedLabMeasurementSection === 'Agendar' ? (
               <>
                 <p>Preencha os dados abaixo para reservar a data de agendamento.</p>

@@ -24,6 +24,11 @@ import {
   listInspectionUsers,
 } from './routes/csds.js'
 import { listAuditLogs } from './routes/audit-logs.js'
+import {
+  countMeterSchedules,
+  createMeterSchedule,
+  listMeterSchedules,
+} from './routes/meter-schedules.js'
 import { requireAuth } from './auth.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -111,6 +116,10 @@ async function start() {
   app.get('/api/field-team/inspection-users', requireAuth, listInspectionUsers)
 
   app.get('/api/audit-logs', requireAuth, listAuditLogs)
+
+  app.get('/api/meter-schedules', requireAuth, listMeterSchedules)
+  app.get('/api/meter-schedules/count', requireAuth, countMeterSchedules)
+  app.post('/api/meter-schedules', requireAuth, createMeterSchedule)
 
   const distPath = path.resolve(__dirname, '../../dist')
   app.use(express.static(distPath))

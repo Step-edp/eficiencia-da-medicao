@@ -363,13 +363,56 @@ button {
   line-height: 1.25;
 }
 
-.lab-trail-step-content > span:last-child {
+.lab-trail-step-label {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   min-height: 2.5em;
   text-align: center;
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.lab-trail-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 124, 124, 0.22);
+  color: #ffd7d7;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.entrada-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.entrada-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.entrada-panel-intro,
+.entrada-panel-empty {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.entrada-table-wrap {
+  overflow-x: auto;
+}
+
+.entrada-table td,
+.entrada-table th {
+  white-space: nowrap;
 }
 
 .lab-trail-connector {

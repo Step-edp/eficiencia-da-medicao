@@ -20,6 +20,7 @@ export type AuditEntityType =
   | 'ensaios_manual_block'
   | 'csd'
   | 'satisfaction_survey'
+  | 'meter_schedule'
 
 export type AuditLogEntry = {
   action: AuditAction

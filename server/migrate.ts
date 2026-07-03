@@ -117,6 +117,25 @@ export async function migrate() {
 
     CREATE INDEX IF NOT EXISTS idx_audit_logs_occurred_at ON audit_logs (occurred_at DESC);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs (entity_type, entity_id);
+
+    CREATE TABLE IF NOT EXISTS meter_schedules (
+      id TEXT PRIMARY KEY,
+      meter TEXT NOT NULL,
+      installation TEXT NOT NULL,
+      toi TEXT NOT NULL,
+      note TEXT NOT NULL,
+      csd TEXT NOT NULL,
+      client_present TEXT NOT NULL CHECK (client_present IN ('sim', 'nao')),
+      scheduling_notes TEXT NOT NULL DEFAULT '',
+      scheduled_at TIMESTAMPTZ NOT NULL,
+      trail_step TEXT NOT NULL DEFAULT 'Entrada de medidores',
+      source TEXT NOT NULL DEFAULT 'field_team',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_by_user_id TEXT REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_meter_schedules_trail_step ON meter_schedules (trail_step);
+    CREATE INDEX IF NOT EXISTS idx_meter_schedules_meter ON meter_schedules (meter);
   `)
 
   await query(`

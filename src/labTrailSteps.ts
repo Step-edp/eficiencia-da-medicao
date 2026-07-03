@@ -14,6 +14,8 @@ export const LAB_TRAIL_STEPS: LabTrailStep[] = [
 
 export const LAB_TRAIL_KEYS = new Set(LAB_TRAIL_STEPS.map((step) => step.key))
 
+export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
+
 export function getLabTrailLabel(section: string) {
   return LAB_TRAIL_STEPS.find((step) => step.key === section)?.label ?? section
 }
