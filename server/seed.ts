@@ -11,6 +11,8 @@ const demoUsers = [
     role: 'admin',
     approvalStatus: 'approved',
     jobTitle: 'Administrador do Portal',
+    workArea: '',
+    workSubtype: '',
   },
   {
     id: 'compras-demo-user',
@@ -21,6 +23,32 @@ const demoUsers = [
     role: 'compras',
     approvalStatus: 'approved',
     jobTitle: 'Analista de Compras',
+    workArea: '',
+    workSubtype: '',
+  },
+  {
+    id: 'field-inspection-1',
+    registration: 'F700001',
+    password: 'Campo@241',
+    name: 'Ana Paula Inspeção',
+    email: 'ana.inspecao@edp.com',
+    role: 'compras',
+    approvalStatus: 'approved',
+    jobTitle: 'Inspetora de Campo',
+    workArea: 'Equipe de Campo',
+    workSubtype: 'Inspeção',
+  },
+  {
+    id: 'field-inspection-2',
+    registration: 'F700002',
+    password: 'Campo@241',
+    name: 'Carlos Mendes Inspeção',
+    email: 'carlos.inspecao@edp.com',
+    role: 'compras',
+    approvalStatus: 'approved',
+    jobTitle: 'Inspetor de Campo',
+    workArea: 'Equipe de Campo',
+    workSubtype: 'Inspeção',
   },
 ]
 
@@ -83,18 +111,54 @@ const initialMaterials = [
 
 const defaultManufacturers = ['Eletra', 'Nansen']
 
+const initialCsds = [
+  {
+    id: 'csd-001',
+    name: 'CSD-001 - Região Norte',
+    address: 'Av. Norte, 1200 - Manaus/AM',
+    responsibleUserId: 'field-inspection-1',
+  },
+  {
+    id: 'csd-002',
+    name: 'CSD-002 - Região Sul',
+    address: 'Rua Sul, 450 - Porto Alegre/RS',
+    responsibleUserId: 'field-inspection-2',
+  },
+  {
+    id: 'csd-003',
+    name: 'CSD-003 - Região Leste',
+    address: 'Av. Leste, 890 - Recife/PE',
+    responsibleUserId: 'field-inspection-1',
+  },
+  {
+    id: 'csd-004',
+    name: 'CSD-004 - Região Oeste',
+    address: 'Rua Oeste, 320 - Campo Grande/MS',
+    responsibleUserId: 'field-inspection-2',
+  },
+  {
+    id: 'csd-005',
+    name: 'CSD-005 - Região Centro',
+    address: 'Av. Central, 1500 - Brasília/DF',
+    responsibleUserId: 'field-inspection-1',
+  },
+]
+
 export async function seed() {
   for (const user of demoUsers) {
     const hash = await bcrypt.hash(user.password, 10)
     await query(
       `INSERT INTO users (
         id, name, registration, password_hash, email, role, approval_status,
-        requested_at, approved_at, job_title
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        requested_at, approved_at, job_title, work_area, work_subtype
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       ON CONFLICT (id) DO UPDATE SET
         password_hash = EXCLUDED.password_hash,
         approval_status = EXCLUDED.approval_status,
-        approved_at = EXCLUDED.approved_at`,
+        approved_at = EXCLUDED.approved_at,
+        job_title = EXCLUDED.job_title,
+        work_area = EXCLUDED.work_area,
+        work_subtype = EXCLUDED.work_subtype`,
       [
         user.id,
         user.name,
@@ -106,6 +170,8 @@ export async function seed() {
         '2026-04-08T00:00:00.000Z',
         '2026-04-08T00:00:00.000Z',
         user.jobTitle,
+        user.workArea,
+        user.workSubtype,
       ],
     )
   }
@@ -134,5 +200,17 @@ export async function seed() {
       `INSERT INTO manufacturers (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`,
       [name],
     )
+  }
+
+  const csdsCount = await query<{ count: string }>('SELECT COUNT(*)::text AS count FROM csds')
+  if (Number(csdsCount.rows[0]?.count ?? 0) === 0) {
+    for (const csd of initialCsds) {
+      await query(
+        `INSERT INTO csds (id, name, address, responsible_user_id)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (id) DO NOTHING`,
+        [csd.id, csd.name, csd.address, csd.responsibleUserId],
+      )
+    }
   }
 }

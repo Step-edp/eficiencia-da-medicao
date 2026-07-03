@@ -422,6 +422,217 @@ button {
   margin-top: 0;
 }
 
+.ensaios-calendar {
+  margin-top: 8px;
+}
+
+.ensaios-calendar-intro {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.ensaios-calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ensaios-calendar-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ensaios-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ensaios-calendar-grid.is-loading {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.ensaios-calendar-weekday {
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ensaios-calendar-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 72px;
+  padding: 8px 6px;
+  border: 1px solid rgba(24, 216, 240, 0.18);
+  border-radius: 12px;
+  background: rgba(2, 18, 31, 0.55);
+  color: var(--text-main);
+  font: inherit;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.ensaios-calendar-day.is-outside {
+  opacity: 0.35;
+}
+
+.ensaios-calendar-day.is-available:hover:not(:disabled),
+.ensaios-calendar-day.is-available:focus-visible:not(:disabled) {
+  border-color: rgba(57, 255, 0, 0.55);
+  background: rgba(57, 255, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.ensaios-calendar-day.is-manual-blocked {
+  border-color: rgba(255, 170, 0, 0.55);
+  background: rgba(255, 170, 0, 0.12);
+}
+
+.ensaios-calendar-day.is-manual-blocked:hover:not(:disabled),
+.ensaios-calendar-day.is-manual-blocked:focus-visible:not(:disabled) {
+  border-color: rgba(255, 170, 0, 0.78);
+  background: rgba(255, 170, 0, 0.18);
+}
+
+.ensaios-calendar-day.is-auto-blocked {
+  border-color: rgba(255, 92, 92, 0.35);
+  background: rgba(255, 92, 92, 0.1);
+  cursor: not-allowed;
+}
+
+.ensaios-calendar-day.is-today {
+  box-shadow: 0 0 0 1px rgba(24, 216, 240, 0.45);
+}
+
+.ensaios-calendar-day.is-busy {
+  opacity: 0.6;
+}
+
+.ensaios-calendar-day-number {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.ensaios-calendar-day-tag {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #ffb4b4;
+}
+
+.ensaios-calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.ensaios-calendar-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  border-radius: 4px;
+  vertical-align: -2px;
+}
+
+.ensaios-calendar-swatch.is-available {
+  border: 1px solid rgba(57, 255, 0, 0.55);
+  background: rgba(57, 255, 0, 0.12);
+}
+
+.ensaios-calendar-swatch.is-manual-blocked {
+  border: 1px solid rgba(255, 170, 0, 0.55);
+  background: rgba(255, 170, 0, 0.18);
+}
+
+.ensaios-calendar-swatch.is-auto-blocked {
+  border: 1px solid rgba(255, 92, 92, 0.45);
+  background: rgba(255, 92, 92, 0.14);
+}
+
+@media (max-width: 720px) {
+  .ensaios-calendar-toolbar {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .ensaios-calendar-day {
+    min-height: 56px;
+    padding: 6px 4px;
+  }
+
+  .ensaios-calendar-day-tag {
+    display: none;
+  }
+}
+
+.csds-panel {
+  margin-top: 8px;
+}
+
+.csds-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.csds-panel-intro {
+  margin: 0;
+  flex: 1;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.csds-form-grid {
+  margin-bottom: 20px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  background: rgba(5, 26, 44, 0.74);
+}
+
+.csds-form-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.csds-table {
+  min-width: 680px;
+}
+
+.csds-responsible-registration {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 720px) {
+  .csds-panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 @media (max-width: 900px) {
   .lab-trail-steps {
     flex-wrap: wrap;

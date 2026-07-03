@@ -74,6 +74,22 @@ export type RatmLaudoRecord = {
   formData: Record<string, unknown>
 }
 
+export type CsdRecord = {
+  id: string
+  name: string
+  address: string
+  responsibleUserId: string
+  responsibleName: string
+  responsibleRegistration: string
+  createdAt: string
+}
+
+export type FieldTeamUserOption = {
+  id: string
+  name: string
+  registration: string
+}
+
 class ApiError extends Error {
   status: number
 
@@ -107,9 +123,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   me: () => request<{ user: AppUser }>('/api/auth/me'),
   login: (registration: string, password: string) =>
-    request<{ user: AppUser }>('/api/auth/login', {
+    request<{ user: AppUser; token?: string }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ registration, password }),
+    }),
+  exchangeSsoToken: (ssoToken: string) =>
+    request<{ user: AppUser }>('/api/auth/sso-exchange', {
+      method: 'POST',
+      body: JSON.stringify({ ssoToken }),
     }),
   register: (payload: {
     name: string
@@ -196,6 +217,28 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ clientPresent, satisfactionWhatsapp }),
     }),
+  listEnsaiosManualBlocks: () =>
+    request<{ dates: string[] }>('/api/ensaios-calendar/manual-blocks'),
+  toggleEnsaiosManualBlock: (date: string) =>
+    request<{ dates: string[]; blocked: boolean }>(
+      '/api/ensaios-calendar/manual-blocks',
+      {
+        method: 'POST',
+        body: JSON.stringify({ date }),
+      },
+    ),
+  listCsds: () => request<{ csds: CsdRecord[] }>('/api/csds'),
+  createCsd: (payload: {
+    name: string
+    address: string
+    responsibleUserId: string
+  }) =>
+    request<{ csd: CsdRecord }>('/api/csds', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  listFieldTeamInspectionUsers: () =>
+    request<{ users: FieldTeamUserOption[] }>('/api/field-team/inspection-users'),
 }
 
 export { ApiError }

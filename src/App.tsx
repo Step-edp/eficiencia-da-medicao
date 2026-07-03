@@ -8,6 +8,8 @@ import { SatisfactionSurveyPage } from './ratm/SatisfactionSurveyPage'
 import { mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
 import type { RatmFormData } from './ratm/types'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
+import { EnsaiosCalendar } from './EnsaiosCalendar'
+import { CsdsPanel } from './CsdsPanel'
 import { getLabTrailLabel, LAB_TRAIL_KEYS } from './labTrailSteps'
 import {
   api,
@@ -1789,12 +1791,19 @@ function HomePanel({
                 ? getLabTrailLabel(selectedLabMeasurementSection)
                 : selectedLabMeasurementSection}
             </h2>
-            <LabMeasurementTrail
-              activeStep={selectedLabMeasurementSection}
-              onSelect={setSelectedLabMeasurementSection}
-              renderIcon={(title) => <ItemIcon title={title} />}
-            />
-            {selectedLabMeasurementSection === 'Agendar' ? (
+            {selectedLabMeasurementSection !== 'Calendário de ensaios' &&
+            selectedLabMeasurementSection !== 'CSDs' ? (
+              <LabMeasurementTrail
+                activeStep={selectedLabMeasurementSection}
+                onSelect={setSelectedLabMeasurementSection}
+                renderIcon={(title) => <ItemIcon title={title} />}
+              />
+            ) : null}
+            {selectedLabMeasurementSection === 'Calendário de ensaios' ? (
+              <EnsaiosCalendar />
+            ) : selectedLabMeasurementSection === 'CSDs' ? (
+              <CsdsPanel />
+            ) : selectedLabMeasurementSection === 'Agendar' ? (
               <>
                 <p>Preencha os dados abaixo para reservar a data de agendamento.</p>
                 <ScheduleAgendarForm />

@@ -81,5 +81,24 @@ export async function migrate() {
       form_data JSONB NOT NULL,
       created_by_user_id TEXT REFERENCES users(id)
     );
+
+    CREATE TABLE IF NOT EXISTS ensaios_manual_blocks (
+      blocked_date DATE PRIMARY KEY,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_by_user_id TEXT REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS csds (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      address TEXT NOT NULL,
+      responsible_user_id TEXT NOT NULL REFERENCES users(id),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `)
+
+  await query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS work_area TEXT NOT NULL DEFAULT '';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS work_subtype TEXT NOT NULL DEFAULT '';
   `)
 }

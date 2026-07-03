@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { query } from '../db.js'
-import { clearAuthCookie, requireAdmin, requireAuth, setAuthCookie, signToken } from '../auth.js'
+import { clearAuthCookie, requireAdmin, requireAuth, setAuthCookie, signSsoToken, signToken, verifySsoToken } from '../auth.js'
 
 type UserRow = {
   id: string
@@ -74,7 +74,7 @@ export async function login(req: Request, res: Response) {
 
   const token = signToken({ id: user.id, registration: user.registration, role: user.role })
   setAuthCookie(res, token)
-  res.json({ user: mapUser(user) })
+  res.json({ user: mapUser(user), token })
 }
 
 export async function register(req: Request, res: Response) {
@@ -155,6 +155,41 @@ export function logout(_req: Request, res: Response) {
   res.json({ ok: true })
 }
 
+export async function createEmbedToken(req: Request, res: Response) {
+  const ssoToken = signSsoToken(req.user!.id)
+  res.json({ ssoToken })
+}
+
+export async function exchangeSsoToken(req: Request, res: Response) {
+  const { ssoToken } = req.body as { ssoToken?: string }
+
+  if (!ssoToken?.trim()) {
+    res.status(400).json({ error: 'Token SSO ausente.' })
+    return
+  }
+
+  const userId = verifySsoToken(ssoToken.trim())
+  if (!userId) {
+    res.status(401).json({ error: 'Token SSO inválido ou expirado.' })
+    return
+  }
+
+  const user = await findUserById(userId)
+  if (!user) {
+    res.status(401).json({ error: 'Usuário não encontrado.' })
+    return
+  }
+
+  if (user.approval_status !== 'approved') {
+    res.status(403).json({ error: 'Seu cadastro ainda está pendente de aprovação do ADM.' })
+    return
+  }
+
+  const token = signToken({ id: user.id, registration: user.registration, role: user.role })
+  setAuthCookie(res, token)
+  res.json({ user: mapUser(user) })
+}
+
 export async function listUsers(_req: Request, res: Response) {
   const result = await query<UserRow>('SELECT * FROM users ORDER BY requested_at DESC')
   res.json({ users: result.rows.map(mapUser) })
@@ -182,6 +217,8 @@ export const authRoutes = {
   register,
   me: [requireAuth, me],
   logout: [requireAuth, logout],
+  createEmbedToken: [requireAuth, createEmbedToken],
+  exchangeSsoToken,
   listUsers: [requireAuth, requireAdmin, listUsers],
   approveUser: [requireAuth, requireAdmin, approveUser],
 }

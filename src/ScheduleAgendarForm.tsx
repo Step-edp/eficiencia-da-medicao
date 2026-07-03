@@ -1,12 +1,5 @@
 import { FormEvent, useState } from 'react'
-
-const csdOptions = [
-  'CSD-001 - Região Norte',
-  'CSD-002 - Região Sul',
-  'CSD-003 - Região Leste',
-  'CSD-004 - Região Oeste',
-  'CSD-005 - Região Centro',
-]
+import { useCsdsOptions } from './useCsdsOptions'
 
 const hourOptions = Array.from({ length: 24 }, (_, index) =>
   String(index).padStart(2, '0'),
@@ -16,6 +9,7 @@ const minuteOptions = Array.from({ length: 60 }, (_, index) =>
 )
 
 export function ScheduleAgendarForm() {
+  const { options: csdOptions, loading: csdLoading } = useCsdsOptions()
   const [csmDate, setCsmDate] = useState('')
   const [csmHour, setCsmHour] = useState('00')
   const [csmMinute, setCsmMinute] = useState('00')
@@ -143,10 +137,10 @@ export function ScheduleAgendarForm() {
         <label className="full-width">
           CSD
           <select value={csd} onChange={(event) => setCsd(event.target.value)}>
-            <option value="">Localizar itens</option>
+            <option value="">{csdLoading ? 'Carregando CSDs...' : 'Localizar itens'}</option>
             {csdOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
+              <option key={option.id} value={option.label}>
+                {option.label}
               </option>
             ))}
           </select>

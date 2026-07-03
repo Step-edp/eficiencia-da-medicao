@@ -1,12 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react'
-
-const csdOptions = [
-  'CSD-001 - Região Norte',
-  'CSD-002 - Região Sul',
-  'CSD-003 - Região Leste',
-  'CSD-004 - Região Oeste',
-  'CSD-005 - Região Centro',
-]
+import { useCsdsOptions } from './useCsdsOptions'
 
 const hourOptions = Array.from({ length: 24 }, (_, index) =>
   String(index).padStart(2, '0'),
@@ -40,6 +33,7 @@ function RequiredLabel({ children }: RequiredLabelProps) {
 }
 
 export function FieldTeamCadastrarForm() {
+  const { options: csdOptions, loading: csdLoading } = useCsdsOptions()
   const [scheduleDate, setScheduleDate] = useState('')
   const [scheduleHour, setScheduleHour] = useState('15')
   const [scheduleMinute, setScheduleMinute] = useState('10')
@@ -214,10 +208,10 @@ export function FieldTeamCadastrarForm() {
         <label className="full-width">
           <RequiredLabel>CSD</RequiredLabel>
           <select value={csd} onChange={(event) => setCsd(event.target.value)} required>
-            <option value="">Localizar itens</option>
+            <option value="">{csdLoading ? 'Carregando CSDs...' : 'Localizar itens'}</option>
             {csdOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
+              <option key={option.id} value={option.label}>
+                {option.label}
               </option>
             ))}
           </select>

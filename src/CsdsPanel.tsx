@@ -1,0 +1,190 @@
+import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { api, ApiError, type CsdRecord, type FieldTeamUserOption } from './api'
+
+export function CsdsPanel() {
+  const [csds, setCsds] = useState<CsdRecord[]>([])
+  const [inspectors, setInspectors] = useState<FieldTeamUserOption[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [name, setName] = useState('')
+  const [address, setAddress] = useState('')
+  const [responsibleUserId, setResponsibleUserId] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [{ csds: rows }, { users }] = await Promise.all([
+        api.listCsds(),
+        api.listFieldTeamInspectionUsers(),
+      ])
+      setCsds(rows)
+      setInspectors(users)
+    } catch {
+      setFeedback({
+        type: 'error',
+        message: 'Não foi possível carregar os CSDs.',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadData()
+  }, [loadData])
+
+  const resetForm = () => {
+    setName('')
+    setAddress('')
+    setResponsibleUserId('')
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSubmitting(true)
+    setFeedback(null)
+
+    try {
+      const { csd } = await api.createCsd({
+        name: name.trim(),
+        address: address.trim(),
+        responsibleUserId,
+      })
+      setCsds((prev) => [...prev, csd].sort((a, b) => a.name.localeCompare(b.name)))
+      setFeedback({ type: 'success', message: `CSD "${csd.name}" cadastrado com sucesso.` })
+      resetForm()
+      setShowForm(false)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível cadastrar o CSD.',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="csds-panel">
+      <div className="csds-panel-header">
+        <p className="csds-panel-intro">
+          Cadastre e consulte os Centros de Serviço de Distribuição (CSDs) do laboratório.
+        </p>
+        <button
+          type="button"
+          className="primary-button"
+          onClick={() => {
+            setShowForm((open) => !open)
+            setFeedback(null)
+          }}
+        >
+          {showForm ? 'Fechar formulário' : 'Adicionar CSD'}
+        </button>
+      </div>
+
+      {feedback ? (
+        <div className={`login-feedback ${feedback.type}`} role="status">
+          {feedback.message}
+        </div>
+      ) : null}
+
+      {showForm ? (
+        <form className="form-grid csds-form-grid" onSubmit={(event) => void handleSubmit(event)}>
+          <label className="full-width">
+            Nome
+            <input
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Ex.: CSD-006 - Região Metropolitana"
+              required
+            />
+          </label>
+
+          <label className="full-width">
+            Endereço
+            <input
+              type="text"
+              value={address}
+              onChange={(event) => setAddress(event.target.value)}
+              placeholder="Rua, número, bairro, cidade"
+              required
+            />
+          </label>
+
+          <label className="full-width">
+            Responsável
+            <select
+              value={responsibleUserId}
+              onChange={(event) => setResponsibleUserId(event.target.value)}
+              required
+            >
+              <option value="">Selecione um inspetor</option>
+              {inspectors.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} ({user.registration})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {inspectors.length === 0 ? (
+            <p className="csds-form-hint full-width">
+              Nenhum usuário da Equipe de Campo (subtipo Inspeção) encontrado. Cadastre
+              inspetores com essa classificação para vincular responsáveis.
+            </p>
+          ) : null}
+
+          <button className="primary-button full-width" type="submit" disabled={submitting}>
+            {submitting ? 'Salvando...' : 'Salvar CSD'}
+          </button>
+        </form>
+      ) : null}
+
+      <div className="table-wrap" aria-label="Lista de CSDs">
+        <table className="data-table csds-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Endereço</th>
+              <th>Responsável</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={3}>Carregando CSDs...</td>
+              </tr>
+            ) : csds.length === 0 ? (
+              <tr>
+                <td colSpan={3}>Nenhum CSD cadastrado.</td>
+              </tr>
+            ) : (
+              csds.map((csd) => (
+                <tr key={csd.id}>
+                  <td>{csd.name}</td>
+                  <td>{csd.address}</td>
+                  <td>
+                    {csd.responsibleName}
+                    <span className="csds-responsible-registration">
+                      {' '}
+                      ({csd.responsibleRegistration})
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}

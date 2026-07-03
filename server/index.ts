@@ -13,6 +13,16 @@ import {
   getSatisfactionSurvey,
   submitSatisfactionSurvey,
 } from './routes/satisfaction-survey.js'
+import {
+  listManualBlocks,
+  toggleManualBlock,
+} from './routes/ensaios-calendar.js'
+import {
+  createCsd,
+  listCsds,
+  listInspectionUsers,
+} from './routes/csds.js'
+import { requireAuth } from './auth.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT ?? 3000)
@@ -33,6 +43,27 @@ async function start() {
   await seed()
 
   const app = express()
+
+  const allowedOrigins = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean)
+
+  app.use((req, res, next) => {
+    const origin = req.headers.origin
+    if (origin && (allowedOrigins.length === 0 || allowedOrigins.includes(origin))) {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+      res.setHeader('Access-Control-Allow-Credentials', 'true')
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(204)
+      return
+    }
+    next()
+  })
+
   app.use(express.json({ limit: '25mb' }))
   app.use(cookieParser())
 
@@ -44,6 +75,8 @@ async function start() {
   app.post('/api/auth/register', wrap(authRoutes.register))
   app.get('/api/auth/me', ...wrap(authRoutes.me))
   app.post('/api/auth/logout', ...wrap(authRoutes.logout))
+  app.post('/api/auth/embed-token', ...wrap(authRoutes.createEmbedToken))
+  app.post('/api/auth/sso-exchange', wrap(authRoutes.exchangeSsoToken))
   app.get('/api/users', ...wrap(authRoutes.listUsers))
   app.patch('/api/users/:id/approve', ...wrap(authRoutes.approveUser))
 
@@ -66,6 +99,13 @@ async function start() {
 
   app.get('/api/public/pesquisa/:laudoId', getSatisfactionSurvey)
   app.post('/api/public/pesquisa/:laudoId', submitSatisfactionSurvey)
+
+  app.get('/api/ensaios-calendar/manual-blocks', requireAuth, listManualBlocks)
+  app.post('/api/ensaios-calendar/manual-blocks', requireAuth, toggleManualBlock)
+
+  app.get('/api/csds', requireAuth, listCsds)
+  app.post('/api/csds', requireAuth, createCsd)
+  app.get('/api/field-team/inspection-users', requireAuth, listInspectionUsers)
 
   const distPath = path.resolve(__dirname, '../../dist')
   app.use(express.static(distPath))

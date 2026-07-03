@@ -10,6 +10,40 @@ export type AuthUser = {
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-in-production'
 const COOKIE_NAME = 'eficiencia_session'
 
+export function getCookieName() {
+  return COOKIE_NAME
+}
+
+export function extractAuthToken(req: Request): string | null {
+  const authHeader = req.headers.authorization
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7)
+  }
+  return req.cookies?.[COOKIE_NAME] ?? null
+}
+
+export function verifyAuthToken(token: string): AuthUser | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as AuthUser
+  } catch {
+    return null
+  }
+}
+
+export function signSsoToken(userId: string) {
+  return jwt.sign({ sub: userId, purpose: 'sso' }, JWT_SECRET, { expiresIn: '2m' })
+}
+
+export function verifySsoToken(token: string): string | null {
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { sub?: string; purpose?: string }
+    if (payload.purpose !== 'sso' || !payload.sub) return null
+    return payload.sub
+  } catch {
+    return null
+  }
+}
+
 export function signToken(user: AuthUser) {
   return jwt.sign(user, JWT_SECRET, { expiresIn: '7d' })
 }
@@ -28,19 +62,21 @@ export function clearAuthCookie(res: Response) {
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const token = req.cookies?.[COOKIE_NAME]
+  const token = extractAuthToken(req)
 
   if (!token) {
     res.status(401).json({ error: 'Não autenticado.' })
     return
   }
 
-  try {
-    req.user = jwt.verify(token, JWT_SECRET) as AuthUser
-    next()
-  } catch {
+  const user = verifyAuthToken(token)
+  if (!user) {
     res.status(401).json({ error: 'Sessão inválida ou expirada.' })
+    return
   }
+
+  req.user = user
+  next()
 }
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
