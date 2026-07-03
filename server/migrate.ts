@@ -143,6 +143,7 @@ export async function migrate() {
       meter TEXT NOT NULL,
       file_name TEXT NOT NULL,
       file_data BYTEA NOT NULL,
+      extracted_meters JSONB NOT NULL DEFAULT '[]'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       created_by_user_id TEXT REFERENCES users(id)
     );
@@ -156,5 +157,6 @@ export async function migrate() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS work_subtype TEXT NOT NULL DEFAULT '';
     ALTER TABLE ensaios_manual_blocks ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT '';
     ALTER TABLE csds ADD COLUMN IF NOT EXISTS cities JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS extracted_meters JSONB NOT NULL DEFAULT '[]'::jsonb;
   `)
 }

@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, ApiError } from './api'
+import { api, ApiError, type DemmMeterAnalysisRecord } from './api'
 import { ENTRADA_TRAIL_STEP } from './labTrailSteps'
 
 function formatDateTime(isoDate: string) {
@@ -19,6 +19,96 @@ function readFileAsBase64(file: File): Promise<string> {
   })
 }
 
+type DemmAnalysisModalProps = {
+  title: string
+  fileName?: string
+  meters: DemmMeterAnalysisRecord[]
+  loading?: boolean
+  onClose: () => void
+}
+
+function DemmAnalysisModal({
+  title,
+  fileName,
+  meters,
+  loading = false,
+  onClose,
+}: DemmAnalysisModalProps) {
+  const scheduledCount = meters.filter((item) => item.scheduled).length
+
+  return createPortal(
+    <div className="ensaios-block-modal-overlay" role="presentation" onClick={onClose}>
+      <div
+        className="ensaios-block-modal demm-analysis-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="demm-analysis-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="icon-button schedule-slot-modal-close"
+          onClick={onClose}
+          aria-label="Fechar"
+          title="Fechar"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6 6l12 12M18 6L6 18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+
+        <h3 id="demm-analysis-title">{title}</h3>
+        {fileName ? <p className="demm-modal-intro">{fileName}</p> : null}
+        <p className="demm-analysis-summary">
+          {loading
+            ? 'Lendo medidores do PDF...'
+            : `${meters.length} medidor(es) encontrado(s) · ${scheduledCount} agendado(s) no aplicativo`}
+        </p>
+
+        {loading ? (
+          <p className="entrada-panel-empty">Analisando PDF...</p>
+        ) : meters.length === 0 ? (
+          <p className="entrada-panel-empty">Nenhum medidor de 8 dígitos foi identificado no PDF.</p>
+        ) : (
+          <div className="entrada-table-wrap">
+            <table className="data-table demm-analysis-table">
+              <thead>
+                <tr>
+                  <th>Medidor</th>
+                  <th>Status no aplicativo</th>
+                  <th>Data agendada</th>
+                </tr>
+              </thead>
+              <tbody>
+                {meters.map((item) => (
+                  <tr key={item.meter}>
+                    <td>{item.meter}</td>
+                    <td>
+                      <span
+                        className={`demm-status-badge ${item.scheduled ? 'is-scheduled' : 'is-not-scheduled'}`}
+                      >
+                        {item.scheduled ? 'Agendado' : 'Não agendado'}
+                      </span>
+                    </td>
+                    <td>{item.scheduledAtLabel ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 type EntradaPanelProps = {
   onCountChange?: (count: number) => void
 }
@@ -27,9 +117,14 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
   const [schedules, setSchedules] = useState<Awaited<ReturnType<typeof api.listMeterSchedules>>['schedules']>([])
   const [loading, setLoading] = useState(true)
   const [showDemmModal, setShowDemmModal] = useState(false)
-  const [selectedScheduleId, setSelectedScheduleId] = useState('')
   const [demmFile, setDemmFile] = useState<File | null>(null)
   const [submittingDemm, setSubmittingDemm] = useState(false)
+  const [analysisModal, setAnalysisModal] = useState<{
+    title: string
+    fileName?: string
+    meters: DemmMeterAnalysisRecord[]
+    loading?: boolean
+  } | null>(null)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -62,17 +157,39 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
 
   const closeDemmModal = () => {
     setShowDemmModal(false)
-    setSelectedScheduleId('')
     setDemmFile(null)
+  }
+
+  const openDemmAnalysis = async (demmId: string, fileName?: string) => {
+    setAnalysisModal({
+      title: 'Medidores da DEMM',
+      fileName,
+      meters: [],
+      loading: true,
+    })
+
+    try {
+      const response = await api.getDemmDocumentAnalysis(demmId)
+      setAnalysisModal({
+        title: 'Medidores da DEMM',
+        fileName: response.fileName,
+        meters: response.analysis.meters,
+        loading: false,
+      })
+    } catch (error) {
+      setAnalysisModal(null)
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível analisar os medidores da DEMM.',
+      })
+    }
   }
 
   const handleDemmSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
-    if (!selectedScheduleId) {
-      setFeedback({ type: 'error', message: 'Selecione o medidor.' })
-      return
-    }
 
     if (!demmFile) {
       setFeedback({ type: 'error', message: 'Envie o arquivo PDF da DEMM.' })
@@ -89,14 +206,22 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
 
     try {
       const fileBase64 = await readFileAsBase64(demmFile)
-      await api.createDemmDocument({
-        meterScheduleId: selectedScheduleId,
+      const response = await api.createDemmDocument({
         fileName: demmFile.name,
         fileBase64,
       })
 
       closeDemmModal()
-      setFeedback({ type: 'success', message: 'DEMM registrada com sucesso.' })
+      setFeedback({
+        type: 'success',
+        message: `DEMM registrada. ${response.analysis.total} medidor(es) identificado(s).`,
+      })
+      setAnalysisModal({
+        title: 'Medidores identificados na DEMM',
+        fileName: response.document.fileName,
+        meters: response.analysis.meters,
+        loading: false,
+      })
       await loadSchedules()
     } catch (error) {
       setFeedback({
@@ -114,14 +239,15 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
       <div className="entrada-panel">
         <div className="entrada-panel-header">
           <p className="entrada-panel-intro">
-            Medidores agendados pela equipe de campo aguardando entrada no laboratório.
+            Medidores agendados pela equipe de campo aguardando entrada no laboratório. A DEMM é
+            lida automaticamente para listar os medidores e cruzar com os agendamentos.
           </p>
           <div className="entrada-panel-actions">
             <button
               type="button"
               className="primary-button"
               onClick={() => setShowDemmModal(true)}
-              disabled={loading || schedules.length === 0}
+              disabled={loading}
             >
               Nova DEMM
             </button>
@@ -175,14 +301,29 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
                     <td>{schedule.scheduledAtLabel}</td>
                     <td>
                       {schedule.demmDocumentId ? (
-                        <a
-                          className="entrada-demm-link"
-                          href={api.getDemmDocumentFileUrl(schedule.demmDocumentId)}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {schedule.demmFileName ?? 'Ver PDF'}
-                        </a>
+                        <div className="entrada-demm-actions">
+                          <a
+                            className="entrada-demm-link"
+                            href={api.getDemmDocumentFileUrl(schedule.demmDocumentId)}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            PDF
+                          </a>
+                          <button
+                            type="button"
+                            className="secondary-button entrada-demm-meters-button"
+                            onClick={() =>
+                              void openDemmAnalysis(
+                                schedule.demmDocumentId!,
+                                schedule.demmFileName ?? undefined,
+                              )
+                            }
+                          >
+                            Medidores
+                            {schedule.demmMeterCount > 0 ? ` (${schedule.demmMeterCount})` : ''}
+                          </button>
+                        </div>
                       ) : (
                         '—'
                       )}
@@ -230,25 +371,12 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
                 </button>
 
                 <h3 id="demm-modal-title">Nova DEMM</h3>
-                <p className="demm-modal-intro">Selecione o medidor e envie o PDF da DEMM.</p>
+                <p className="demm-modal-intro">
+                  Envie o PDF da DEMM. O aplicativo vai ler o documento e listar todos os medidores
+                  encontrados, indicando se cada um já está agendado.
+                </p>
 
                 <form className="form-grid demm-form-grid" onSubmit={(event) => void handleDemmSubmit(event)}>
-                  <label className="full-width">
-                    Medidor
-                    <select
-                      value={selectedScheduleId}
-                      onChange={(event) => setSelectedScheduleId(event.target.value)}
-                      required
-                    >
-                      <option value="">Selecione o medidor</option>
-                      {schedules.map((schedule) => (
-                        <option key={schedule.id} value={schedule.id}>
-                          {schedule.meter} — {schedule.scheduledAtLabel}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
                   <label className="full-width photo-upload-field">
                     PDF da DEMM
                     <div className="photo-upload-area demm-upload-area">
@@ -269,7 +397,7 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
                       Cancelar
                     </button>
                     <button type="submit" className="primary-button" disabled={submittingDemm}>
-                      {submittingDemm ? 'Enviando...' : 'Salvar DEMM'}
+                      {submittingDemm ? 'Lendo PDF...' : 'Enviar DEMM'}
                     </button>
                   </div>
                 </form>
@@ -278,6 +406,16 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
             document.body,
           )
         : null}
+
+      {analysisModal ? (
+        <DemmAnalysisModal
+          title={analysisModal.title}
+          fileName={analysisModal.fileName}
+          meters={analysisModal.meters}
+          loading={analysisModal.loading}
+          onClose={() => setAnalysisModal(null)}
+        />
+      ) : null}
     </>
   )
 }

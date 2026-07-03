@@ -131,6 +131,7 @@ export type MeterScheduleRecord = {
   createdByRegistration: string | null
   demmDocumentId: string | null
   demmFileName: string | null
+  demmMeterCount: number
 }
 
 export type DemmDocumentRecord = {
@@ -138,9 +139,27 @@ export type DemmDocumentRecord = {
   meterScheduleId: string | null
   meter: string
   fileName: string
+  extractedMeters: DemmMeterAnalysisRecord[]
   createdAt: string
   createdByUserId: string | null
   createdByRegistration: string | null
+}
+
+export type DemmMeterAnalysisRecord = {
+  meter: string
+  scheduled: boolean
+  scheduleId: string | null
+  scheduledAtLabel: string | null
+}
+
+export type DemmAnalysisResponse = {
+  id: string
+  fileName: string
+  analysis: {
+    meters: DemmMeterAnalysisRecord[]
+    total: number
+    scheduledCount: number
+  }
 }
 
 class ApiError extends Error {
@@ -338,14 +357,19 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   createDemmDocument: (payload: {
-    meterScheduleId: string
+    meterScheduleId?: string
     fileName: string
     fileBase64: string
   }) =>
-    request<{ document: DemmDocumentRecord }>('/api/demm-documents', {
+    request<{
+      document: DemmDocumentRecord
+      analysis: DemmAnalysisResponse['analysis']
+    }>('/api/demm-documents', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  getDemmDocumentAnalysis: (id: string) =>
+    request<DemmAnalysisResponse>(`/api/demm-documents/${id}/analysis`),
   getDemmDocumentFileUrl: (id: string) => `/api/demm-documents/${id}/file`,
 }
 

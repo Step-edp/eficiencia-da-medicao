@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
+import { extractMetersFromPdf } from '../demm-pdf-parser.js'
+import { analyzeDemmMeters, type DemmMeterAnalysis } from '../demm-meter-analysis.js'
 
 const MAX_PDF_BYTES = 15 * 1024 * 1024
 
@@ -10,6 +12,7 @@ type DemmDocumentRow = {
   meter: string
   file_name: string
   file_data: Buffer
+  extracted_meters: DemmMeterAnalysis[] | null
   created_at: Date
   created_by_user_id: string | null
   created_by_registration: string | null
@@ -21,6 +24,7 @@ function mapDemmDocument(row: DemmDocumentRow) {
     meterScheduleId: row.meter_schedule_id,
     meter: row.meter,
     fileName: row.file_name,
+    extractedMeters: row.extracted_meters ?? [],
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
     createdByRegistration: row.created_by_registration,
@@ -41,16 +45,10 @@ function decodePdfBase64(fileBase64: string): Buffer | null {
   }
 }
 
-export async function listDemmDocuments(_req: Request, res: Response) {
-  const result = await query<Omit<DemmDocumentRow, 'file_data'>>(
-    `SELECT d.id, d.meter_schedule_id, d.meter, d.file_name, d.created_at, d.created_by_user_id,
-            u.registration AS created_by_registration
-     FROM demm_documents d
-     LEFT JOIN users u ON u.id = d.created_by_user_id
-     ORDER BY d.created_at DESC`,
-  )
-
-  res.json({ documents: result.rows.map((row) => mapDemmDocument({ ...row, file_data: Buffer.alloc(0) })) })
+async function parseAndAnalyzeDemm(fileBuffer: Buffer) {
+  const meters = await extractMetersFromPdf(fileBuffer)
+  const extractedMeters = await analyzeDemmMeters(meters)
+  return extractedMeters
 }
 
 export async function createDemmDocument(req: Request, res: Response) {
@@ -58,11 +56,6 @@ export async function createDemmDocument(req: Request, res: Response) {
     meterScheduleId?: string
     fileName?: string
     fileBase64?: string
-  }
-
-  if (!meterScheduleId?.trim()) {
-    res.status(400).json({ error: 'Selecione o medidor para vincular a DEMM.' })
-    return
   }
 
   if (!fileName?.trim() || !fileBase64?.trim()) {
@@ -81,28 +74,48 @@ export async function createDemmDocument(req: Request, res: Response) {
     return
   }
 
-  const schedule = await query<{ id: string; meter: string; trail_step: string }>(
-    `SELECT id, meter, trail_step FROM meter_schedules WHERE id = $1`,
-    [meterScheduleId.trim()],
-  )
+  let linkedMeter = 'DEMM'
+  let linkedScheduleId: string | null = null
 
-  if (!schedule.rows[0]) {
-    res.status(404).json({ error: 'Medidor agendado não encontrado.' })
+  if (meterScheduleId?.trim()) {
+    const schedule = await query<{ id: string; meter: string }>(
+      `SELECT id, meter FROM meter_schedules WHERE id = $1`,
+      [meterScheduleId.trim()],
+    )
+
+    if (!schedule.rows[0]) {
+      res.status(404).json({ error: 'Medidor agendado não encontrado.' })
+      return
+    }
+
+    linkedMeter = schedule.rows[0].meter
+    linkedScheduleId = schedule.rows[0].id
+  }
+
+  let extractedMeters: DemmMeterAnalysis[] = []
+
+  try {
+    extractedMeters = await parseAndAnalyzeDemm(fileBuffer)
+  } catch (error) {
+    console.error('Erro ao ler PDF da DEMM:', error)
+    res.status(400).json({ error: 'Não foi possível ler o conteúdo do PDF da DEMM.' })
     return
   }
 
-  const id = `demm-${Date.now()}-${schedule.rows[0].meter}`
+  const id = `demm-${Date.now()}-${linkedMeter}`
 
   const insert = await query<Omit<DemmDocumentRow, 'created_by_registration'>>(
-    `INSERT INTO demm_documents (id, meter_schedule_id, meter, file_name, file_data, created_by_user_id)
-     VALUES ($1,$2,$3,$4,$5,$6)
-     RETURNING id, meter_schedule_id, meter, file_name, file_data, created_at, created_by_user_id`,
+    `INSERT INTO demm_documents (
+      id, meter_schedule_id, meter, file_name, file_data, extracted_meters, created_by_user_id
+    ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7)
+    RETURNING id, meter_schedule_id, meter, file_name, file_data, extracted_meters, created_at, created_by_user_id`,
     [
       id,
-      schedule.rows[0].id,
-      schedule.rows[0].meter,
+      linkedScheduleId,
+      linkedMeter,
       fileName.trim(),
       fileBuffer,
+      JSON.stringify(extractedMeters),
       req.user?.id ?? null,
     ],
   )
@@ -116,11 +129,73 @@ export async function createDemmDocument(req: Request, res: Response) {
     action: 'create',
     entityType: 'demm_document',
     entityId: document.id,
-    summary: `DEMM do medidor ${document.meter}`,
-    newData: document,
+    summary: `DEMM com ${extractedMeters.length} medidor(es) identificado(s)`,
+    newData: {
+      ...document,
+      scheduledCount: extractedMeters.filter((item) => item.scheduled).length,
+    },
   })
 
-  res.status(201).json({ document })
+  res.status(201).json({
+    document,
+    analysis: {
+      meters: extractedMeters,
+      total: extractedMeters.length,
+      scheduledCount: extractedMeters.filter((item) => item.scheduled).length,
+    },
+  })
+}
+
+export async function getDemmDocumentAnalysis(req: Request, res: Response) {
+  const { id } = req.params
+
+  const result = await query<Pick<DemmDocumentRow, 'id' | 'file_name' | 'extracted_meters'>>(
+    `SELECT id, file_name, extracted_meters FROM demm_documents WHERE id = $1`,
+    [id],
+  )
+
+  if (!result.rows[0]) {
+    res.status(404).json({ error: 'DEMM não encontrada.' })
+    return
+  }
+
+  let meters = result.rows[0].extracted_meters ?? []
+
+  if (!meters.length) {
+    const file = await query<Pick<DemmDocumentRow, 'file_data'>>(
+      `SELECT file_data FROM demm_documents WHERE id = $1`,
+      [id],
+    )
+
+    if (file.rows[0]) {
+      try {
+        meters = await parseAndAnalyzeDemm(file.rows[0].file_data)
+        await query(`UPDATE demm_documents SET extracted_meters = $1::jsonb WHERE id = $2`, [
+          JSON.stringify(meters),
+          id,
+        ])
+      } catch {
+        res.status(400).json({ error: 'Não foi possível analisar o PDF da DEMM.' })
+        return
+      }
+    }
+  } else {
+    meters = await analyzeDemmMeters(meters.map((item) => item.meter))
+    await query(`UPDATE demm_documents SET extracted_meters = $1::jsonb WHERE id = $2`, [
+      JSON.stringify(meters),
+      id,
+    ])
+  }
+
+  res.json({
+    id: result.rows[0].id,
+    fileName: result.rows[0].file_name,
+    analysis: {
+      meters,
+      total: meters.length,
+      scheduledCount: meters.filter((item) => item.scheduled).length,
+    },
+  })
 }
 
 export async function downloadDemmDocument(req: Request, res: Response) {

@@ -429,6 +429,52 @@ button {
   min-height: 110px;
 }
 
+.demm-analysis-modal {
+  width: min(720px, 100%);
+}
+
+.demm-analysis-summary {
+  margin: 0 0 16px;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
+.demm-analysis-table td,
+.demm-analysis-table th {
+  white-space: nowrap;
+}
+
+.demm-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.demm-status-badge.is-scheduled {
+  background: rgba(85, 219, 136, 0.16);
+  color: #d6ffe7;
+}
+
+.demm-status-badge.is-not-scheduled {
+  background: rgba(255, 124, 124, 0.16);
+  color: #ffd7d7;
+}
+
+.entrada-demm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.entrada-demm-meters-button {
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
 .entrada-panel-intro,
 .entrada-panel-empty {
   margin: 0;
