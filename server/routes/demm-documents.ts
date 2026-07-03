@@ -3,6 +3,7 @@ import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 import { parseDemmPdf } from '../demm-pdf-parser.js'
 import { analyzeDemmMeters, type DemmMeterAnalysis } from '../demm-meter-analysis.js'
+import { validateDemmUploadMeters } from '../demm-upload-validation.js'
 
 const MAX_PDF_BYTES = 15 * 1024 * 1024
 
@@ -164,6 +165,15 @@ export async function createDemmDocument(req: Request, res: Response) {
   } catch (error) {
     console.error('Erro ao ler PDF da DEMM:', error)
     res.status(400).json({ error: 'Não foi possível ler o conteúdo do PDF da DEMM.' })
+    return
+  }
+
+  const validation = await validateDemmUploadMeters(extractedMeters.map((item) => item.meter))
+  if (!validation.ok) {
+    res.status(409).json({
+      error: validation.error,
+      conflicts: validation.conflicts,
+    })
     return
   }
 
