@@ -99,3 +99,19 @@ export async function listInspectionUsers(_req: Request, res: Response) {
   )
   res.json({ users: result.rows })
 }
+
+export async function deleteCsd(req: Request, res: Response) {
+  const { id } = req.params
+
+  const result = await query<{ id: string; name: string }>(
+    `DELETE FROM csds WHERE id = $1 RETURNING id, name`,
+    [id],
+  )
+
+  if (!result.rows[0]) {
+    res.status(404).json({ error: 'CSD não encontrado.' })
+    return
+  }
+
+  res.json({ ok: true, id: result.rows[0].id, name: result.rows[0].name })
+}

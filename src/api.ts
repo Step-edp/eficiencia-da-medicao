@@ -242,6 +242,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  deleteCsd: (id: string) =>
+    request<{ ok: boolean; id: string; name: string }>(`/api/csds/${id}`, {
+      method: 'DELETE',
+    }),
   listFieldTeamInspectionUsers: () =>
     request<{ users: FieldTeamUserOption[] }>('/api/field-team/inspection-users'),
 }

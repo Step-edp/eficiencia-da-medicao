@@ -679,6 +679,29 @@ button {
   font-size: 0.88rem;
 }
 
+.csds-delete-button {
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 92, 92, 0.45);
+  border-radius: 10px;
+  background: rgba(255, 92, 92, 0.1);
+  color: #ffb4b4;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.csds-delete-button:hover:not(:disabled),
+.csds-delete-button:focus-visible:not(:disabled) {
+  border-color: rgba(255, 92, 92, 0.75);
+  background: rgba(255, 92, 92, 0.18);
+}
+
+.csds-delete-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @media (max-width: 720px) {
   .csds-panel-header {
     flex-direction: column;

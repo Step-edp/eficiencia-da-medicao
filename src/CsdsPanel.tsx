@@ -10,6 +10,7 @@ export function CsdsPanel() {
   const [address, setAddress] = useState('')
   const [responsibleUserId, setResponsibleUserId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -69,6 +70,32 @@ export function CsdsPanel() {
       })
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async (csd: CsdRecord) => {
+    const confirmed = window.confirm(
+      `Excluir o CSD "${csd.name}"? Esta ação não pode ser desfeita.`,
+    )
+    if (!confirmed) return
+
+    setDeletingId(csd.id)
+    setFeedback(null)
+
+    try {
+      await api.deleteCsd(csd.id)
+      setCsds((prev) => prev.filter((item) => item.id !== csd.id))
+      setFeedback({ type: 'success', message: `CSD "${csd.name}" excluído.` })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível excluir o CSD.',
+      })
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -156,16 +183,17 @@ export function CsdsPanel() {
               <th>Nome</th>
               <th>Endereço</th>
               <th>Responsável</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={3}>Carregando CSDs...</td>
+                <td colSpan={4}>Carregando CSDs...</td>
               </tr>
             ) : csds.length === 0 ? (
               <tr>
-                <td colSpan={3}>Nenhum CSD cadastrado.</td>
+                <td colSpan={4}>Nenhum CSD cadastrado.</td>
               </tr>
             ) : (
               csds.map((csd) => (
@@ -178,6 +206,16 @@ export function CsdsPanel() {
                       {' '}
                       ({csd.responsibleRegistration})
                     </span>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="csds-delete-button"
+                      disabled={deletingId === csd.id}
+                      onClick={() => void handleDelete(csd)}
+                    >
+                      {deletingId === csd.id ? 'Excluindo...' : 'Excluir'}
+                    </button>
                   </td>
                 </tr>
               ))

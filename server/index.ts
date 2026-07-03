@@ -19,6 +19,7 @@ import {
 } from './routes/ensaios-calendar.js'
 import {
   createCsd,
+  deleteCsd,
   listCsds,
   listInspectionUsers,
 } from './routes/csds.js'
@@ -55,7 +56,7 @@ async function start() {
       res.setHeader('Access-Control-Allow-Origin', origin)
       res.setHeader('Access-Control-Allow-Credentials', 'true')
     }
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS')
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
     if (req.method === 'OPTIONS') {
       res.sendStatus(204)
@@ -105,6 +106,7 @@ async function start() {
 
   app.get('/api/csds', requireAuth, listCsds)
   app.post('/api/csds', requireAuth, createCsd)
+  app.delete('/api/csds/:id', requireAuth, deleteCsd)
   app.get('/api/field-team/inspection-users', requireAuth, listInspectionUsers)
 
   const distPath = path.resolve(__dirname, '../../dist')
