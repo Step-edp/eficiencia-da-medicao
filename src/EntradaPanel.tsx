@@ -238,10 +238,6 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
     <>
       <div className="entrada-panel">
         <div className="entrada-panel-header">
-          <p className="entrada-panel-intro">
-            Medidores agendados pela equipe de campo aguardando entrada no laboratório. A DEMM é
-            lida automaticamente para listar os medidores e cruzar com os agendamentos.
-          </p>
           <div className="entrada-panel-actions">
             <button
               type="button"

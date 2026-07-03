@@ -396,7 +396,7 @@ button {
 .entrada-panel-header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
 }
 
