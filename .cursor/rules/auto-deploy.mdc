@@ -15,3 +15,5 @@ Após concluir alterações de código neste repositório:
 4. Se o push falhar, corrija e tente novamente; informe o usuário apenas se houver bloqueio.
 
 Não é necessário perguntar se o usuário quer publicar — considere isso parte do fluxo padrão de entrega.
+
+Sempre que o usuário pedir alterações ou confirmar uma entrega, execute commit + push automaticamente ao finalizar, sem aguardar confirmação explícita.

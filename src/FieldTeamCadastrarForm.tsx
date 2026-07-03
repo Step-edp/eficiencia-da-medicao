@@ -2,6 +2,11 @@ import { FormEvent, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, ApiError } from './api'
 import {
+  NUMERIC_FIELD_LIMITS,
+  sanitizeNumericInput,
+  validateNumericField,
+} from './numericFieldValidation'
+import {
   findNextAvailableSlot,
   formatAvailableSlot,
 } from './availableScheduleSlots'
@@ -47,36 +52,17 @@ export function FieldTeamCadastrarForm() {
     setFeedback(null)
     setSlotModal(null)
 
-    if (!meter.trim()) {
-      setFeedback({
-        type: 'error',
-        message: 'O campo Medidor é obrigatório.',
-      })
-      return
-    }
-
-    if (!installation.trim()) {
-      setFeedback({
-        type: 'error',
-        message: 'O campo Instalação é obrigatório.',
-      })
-      return
-    }
-
-    if (!toi.trim()) {
-      setFeedback({
-        type: 'error',
-        message: 'O campo TOI é obrigatório.',
-      })
-      return
-    }
-
-    if (!note.trim()) {
-      setFeedback({
-        type: 'error',
-        message: 'O campo Nota é obrigatório.',
-      })
-      return
+    for (const [value, field] of [
+      [meter, 'medidor'],
+      [installation, 'instalacao'],
+      [toi, 'toi'],
+      [note, 'nota'],
+    ] as const) {
+      const error = validateNumericField(value, field)
+      if (error) {
+        setFeedback({ type: 'error', message: error })
+        return
+      }
     }
 
     if (!csd) {
@@ -112,7 +98,7 @@ export function FieldTeamCadastrarForm() {
 
       const slotLabel = formatAvailableSlot(nextSlot)
       setSlotModal({
-        meter: meter.trim(),
+        meter: meter,
         slot: slotLabel,
       })
     } catch (error) {
@@ -168,8 +154,13 @@ export function FieldTeamCadastrarForm() {
           <RequiredLabel>Medidor</RequiredLabel>
           <input
             type="text"
+            inputMode="numeric"
+            autoComplete="off"
             value={meter}
-            onChange={(event) => setMeter(event.target.value)}
+            onChange={(event) =>
+              setMeter(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.medidor))
+            }
+            maxLength={NUMERIC_FIELD_LIMITS.medidor}
             required
           />
         </label>
@@ -178,20 +169,47 @@ export function FieldTeamCadastrarForm() {
           <RequiredLabel>Instalação</RequiredLabel>
           <input
             type="text"
+            inputMode="numeric"
+            autoComplete="off"
             value={installation}
-            onChange={(event) => setInstallation(event.target.value)}
+            onChange={(event) =>
+              setInstallation(
+                sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.instalacao),
+              )
+            }
+            maxLength={NUMERIC_FIELD_LIMITS.instalacao}
             required
           />
         </label>
 
         <label>
           <RequiredLabel>TOI</RequiredLabel>
-          <input type="text" value={toi} onChange={(event) => setToi(event.target.value)} required />
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={toi}
+            onChange={(event) =>
+              setToi(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.toi))
+            }
+            maxLength={NUMERIC_FIELD_LIMITS.toi}
+            required
+          />
         </label>
 
         <label>
           <RequiredLabel>Nota</RequiredLabel>
-          <input type="text" value={note} onChange={(event) => setNote(event.target.value)} required />
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={note}
+            onChange={(event) =>
+              setNote(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.nota))
+            }
+            maxLength={NUMERIC_FIELD_LIMITS.nota}
+            required
+          />
         </label>
 
         <label className="full-width">

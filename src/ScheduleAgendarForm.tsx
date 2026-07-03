@@ -1,4 +1,10 @@
 import { FormEvent, useState } from 'react'
+import {
+  NUMERIC_FIELD_LIMITS,
+  sanitizeNumericInput,
+  validateNumericField,
+  validateNumericFieldOptional,
+} from './numericFieldValidation'
 import { useCsdsOptions } from './useCsdsOptions'
 
 const hourOptions = Array.from({ length: 24 }, (_, index) =>
@@ -36,12 +42,19 @@ export function ScheduleAgendarForm() {
       return
     }
 
-    if (!meter.trim()) {
-      setFeedback({
-        type: 'error',
-        message: 'O campo Medidor é obrigatório.',
-      })
-      return
+    for (const [value, field, optional] of [
+      [meter, 'medidor', false],
+      [installation, 'instalacao', true],
+      [toi, 'toi', true],
+      [note, 'nota', true],
+    ] as const) {
+      const error = optional
+        ? validateNumericFieldOptional(value, field)
+        : validateNumericField(value, field)
+      if (error) {
+        setFeedback({ type: 'error', message: error })
+        return
+      }
     }
 
     if (!csmSigned) {
@@ -54,7 +67,7 @@ export function ScheduleAgendarForm() {
 
     setFeedback({
       type: 'success',
-      message: `Data reservada para o medidor ${meter.trim()} em ${csmDate} às ${csmHour}:${csmMinute}.`,
+      message: `Data reservada para o medidor ${meter} em ${csmDate} às ${csmHour}:${csmMinute}.`,
     })
   }
 
@@ -109,8 +122,13 @@ export function ScheduleAgendarForm() {
           </span>
           <input
             type="text"
+            inputMode="numeric"
+            autoComplete="off"
             value={meter}
-            onChange={(event) => setMeter(event.target.value)}
+            onChange={(event) =>
+              setMeter(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.medidor))
+            }
+            maxLength={NUMERIC_FIELD_LIMITS.medidor}
             required
           />
         </label>
@@ -119,19 +137,44 @@ export function ScheduleAgendarForm() {
           Instalação
           <input
             type="text"
+            inputMode="numeric"
+            autoComplete="off"
             value={installation}
-            onChange={(event) => setInstallation(event.target.value)}
+            onChange={(event) =>
+              setInstallation(
+                sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.instalacao),
+              )
+            }
+            maxLength={NUMERIC_FIELD_LIMITS.instalacao}
           />
         </label>
 
         <label>
           TOI
-          <input type="text" value={toi} onChange={(event) => setToi(event.target.value)} />
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={toi}
+            onChange={(event) =>
+              setToi(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.toi))
+            }
+            maxLength={NUMERIC_FIELD_LIMITS.toi}
+          />
         </label>
 
         <label>
           Nota
-          <input type="text" value={note} onChange={(event) => setNote(event.target.value)} />
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={note}
+            onChange={(event) =>
+              setNote(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.nota))
+            }
+            maxLength={NUMERIC_FIELD_LIMITS.nota}
+          />
         </label>
 
         <label className="full-width">
