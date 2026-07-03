@@ -1625,14 +1625,23 @@ input[type='file'] {
 
 .schedule-slot-date-row {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  gap: 10px;
   margin-bottom: 8px;
 }
 
 .schedule-slot-copy-button {
-  min-width: 140px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.schedule-slot-copy-button svg {
+  width: 16px;
+  height: 16px;
 }
 
 .available-slot-card {

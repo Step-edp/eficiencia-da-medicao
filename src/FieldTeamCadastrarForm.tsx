@@ -282,17 +282,49 @@ export function FieldTeamCadastrarForm() {
                 <p className="schedule-slot-modal-message">
                   Medidor {slotModal.meter} reservado com sucesso.
                 </p>
-                <p id="schedule-slot-date-label" className="available-slot-title">
-                  Próxima data disponível
-                </p>
                 <div className="schedule-slot-date-row">
-                  <p className="available-slot-value">{slotModal.slot}</p>
+                  <p id="schedule-slot-date-label" className="available-slot-value">
+                    {slotModal.slot}
+                  </p>
                   <button
                     type="button"
-                    className="secondary-button schedule-slot-copy-button"
+                    className="icon-button schedule-slot-copy-button"
                     onClick={() => void copySlotDate()}
+                    aria-label={copiedSlot ? 'Copiado' : 'Copiar data'}
+                    title={copiedSlot ? 'Copiado!' : 'Copiar data'}
                   >
-                    {copiedSlot ? 'Copiado!' : 'Copiar data'}
+                    {copiedSlot ? (
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M5 12l4 4L19 6"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect
+                          x="9"
+                          y="9"
+                          width="11"
+                          height="11"
+                          rx="2"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        />
+                        <path
+                          d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    )}
                   </button>
                 </div>
               </div>
