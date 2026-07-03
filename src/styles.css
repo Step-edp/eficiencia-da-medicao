@@ -723,6 +723,17 @@ button {
   accent-color: #39ff00;
 }
 
+.csds-city-option.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: rgba(255, 92, 92, 0.22);
+  background: rgba(255, 92, 92, 0.08);
+}
+
+.csds-city-option.is-disabled span {
+  color: var(--text-muted);
+}
+
 .csds-table {
   min-width: 860px;
 }

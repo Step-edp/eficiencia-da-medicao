@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type CsdRecord, type FieldTeamUserOption } from './api'
 import { CSD_CITY_OPTIONS } from './csdCities'
 
@@ -41,6 +41,16 @@ export function CsdsPanel() {
     void loadData()
   }, [loadData])
 
+  const assignedCities = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const csd of csds) {
+      for (const city of csd.cities) {
+        map.set(city, csd.name)
+      }
+    }
+    return map
+  }, [csds])
+
   const resetForm = () => {
     setName('')
     setAddress('')
@@ -49,6 +59,8 @@ export function CsdsPanel() {
   }
 
   const toggleCity = (city: string) => {
+    if (assignedCities.has(city)) return
+
     setSelectedCities((current) =>
       current.includes(city)
         ? current.filter((item) => item !== city)
@@ -166,19 +178,32 @@ export function CsdsPanel() {
           <fieldset className="csds-cities-fieldset full-width">
             <legend>Cidades</legend>
             <p className="csds-form-hint">
-              Selecione uma ou mais cidades atendidas por este CSD.
+              Selecione uma ou mais cidades atendidas por este CSD. Cidades já
+              vinculadas a outro CSD aparecem desabilitadas.
             </p>
             <div className="csds-cities-grid">
-              {CSD_CITY_OPTIONS.map((city) => (
-                <label key={city} className="csds-city-option">
-                  <input
-                    type="checkbox"
-                    checked={selectedCities.includes(city)}
-                    onChange={() => toggleCity(city)}
-                  />
-                  <span>{city}</span>
-                </label>
-              ))}
+              {CSD_CITY_OPTIONS.map((city) => {
+                const assignedTo = assignedCities.get(city)
+                const isDisabled = Boolean(assignedTo)
+
+                return (
+                  <label
+                    key={city}
+                    className={`csds-city-option${isDisabled ? ' is-disabled' : ''}`}
+                    title={
+                      isDisabled ? `Já vinculada ao ${assignedTo}` : undefined
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedCities.includes(city)}
+                      disabled={isDisabled}
+                      onChange={() => toggleCity(city)}
+                    />
+                    <span>{city}</span>
+                  </label>
+                )
+              })}
             </div>
           </fieldset>
 

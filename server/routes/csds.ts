@@ -73,6 +73,21 @@ export async function createCsd(req: Request, res: Response) {
     return
   }
 
+  const conflicts = await query<{ city: string; csd_name: string }>(
+    `SELECT city.value AS city, c.name AS csd_name
+     FROM csds c
+     CROSS JOIN LATERAL jsonb_array_elements_text(c.cities) AS city(value)
+     WHERE city.value = ANY($1::text[])`,
+    [normalizedCities],
+  )
+
+  if (conflicts.rows[0]) {
+    res.status(409).json({
+      error: `A cidade ${conflicts.rows[0].city} já está vinculada ao CSD ${conflicts.rows[0].csd_name}.`,
+    })
+    return
+  }
+
   const id = `csd-${Date.now()}`
 
   try {
