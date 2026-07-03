@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { api, ApiError } from './api'
 import {
   findNextAvailableSlot,
@@ -31,7 +32,10 @@ export function FieldTeamCadastrarForm() {
   const [clientPresent, setClientPresent] = useState<'sim' | 'nao' | ''>('')
   const [schedulingNotes, setSchedulingNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [availableSlot, setAvailableSlot] = useState<string | null>(null)
+  const [slotModal, setSlotModal] = useState<{
+    meter: string
+    slot: string
+  } | null>(null)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -40,7 +44,7 @@ export function FieldTeamCadastrarForm() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFeedback(null)
-    setAvailableSlot(null)
+    setSlotModal(null)
 
     if (!meter.trim()) {
       setFeedback({
@@ -106,10 +110,9 @@ export function FieldTeamCadastrarForm() {
       }
 
       const slotLabel = formatAvailableSlot(nextSlot)
-      setAvailableSlot(slotLabel)
-      setFeedback({
-        type: 'success',
-        message: `Agendamento registrado para o medidor ${meter.trim()}.`,
+      setSlotModal({
+        meter: meter.trim(),
+        slot: slotLabel,
       })
     } catch (error) {
       setFeedback({
@@ -136,17 +139,6 @@ export function FieldTeamCadastrarForm() {
       {feedback ? (
         <div className={`login-feedback ${feedback.type}`} role="status">
           {feedback.message}
-        </div>
-      ) : null}
-
-      {availableSlot ? (
-        <div className="available-slot-card" role="status">
-          <p className="available-slot-title">Próxima data disponível</p>
-          <p className="available-slot-value">{availableSlot}</p>
-          <p className="available-slot-rules">
-            Horários de 10 em 10 minutos, das 8:30 às 11:30 e das 14:00 às 16:30,
-            respeitando dias bloqueados no calendário de ensaios.
-          </p>
         </div>
       ) : null}
 
@@ -234,6 +226,45 @@ export function FieldTeamCadastrarForm() {
           {submitting ? 'Salvando...' : 'Salvar agendamento'}
         </button>
       </form>
+
+      {slotModal
+        ? createPortal(
+            <div
+              className="ensaios-block-modal-overlay"
+              role="presentation"
+              onClick={() => setSlotModal(null)}
+            >
+              <div
+                className="ensaios-block-modal schedule-slot-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="schedule-slot-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="schedule-slot-title">Agendamento registrado</h3>
+                <p className="schedule-slot-modal-message">
+                  Medidor {slotModal.meter} reservado com sucesso.
+                </p>
+                <p className="available-slot-title">Próxima data disponível</p>
+                <p className="available-slot-value">{slotModal.slot}</p>
+                <p className="available-slot-rules">
+                  Horários de 10 em 10 minutos, das 8:30 às 11:30 e das 14:00 às 16:30,
+                  respeitando dias bloqueados no calendário de ensaios.
+                </p>
+                <div className="ensaios-block-modal-actions">
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => setSlotModal(null)}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   )
 }

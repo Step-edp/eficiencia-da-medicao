@@ -1584,6 +1584,33 @@ input[type='file'] {
   font-size: 0.92rem;
 }
 
+.schedule-slot-modal {
+  text-align: center;
+}
+
+.schedule-slot-modal-message {
+  margin: 0 0 16px;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.schedule-slot-modal .available-slot-title {
+  margin-bottom: 6px;
+}
+
+.schedule-slot-modal .available-slot-value {
+  margin-bottom: 12px;
+}
+
+.schedule-slot-modal .available-slot-rules {
+  text-align: left;
+}
+
+.schedule-slot-modal .ensaios-block-modal-actions {
+  justify-content: center;
+  margin-top: 8px;
+}
+
 .available-slot-card {
   margin: 0 0 18px;
   padding: 18px;
