@@ -448,6 +448,54 @@ button {
   width: min(520px, 100%);
 }
 
+.demm-modal-with-conflicts {
+  width: min(760px, 100%);
+}
+
+.demm-modal-feedback {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+}
+
+.demm-modal-feedback.error {
+  border: 1px solid rgba(255, 92, 92, 0.45);
+  background: rgba(255, 92, 92, 0.1);
+  color: #ffd7d7;
+}
+
+.demm-modal-feedback p {
+  margin: 0 0 12px;
+}
+
+.demm-modal-feedback p:last-child {
+  margin-bottom: 0;
+}
+
+.demm-modal-conflicts {
+  display: grid;
+  gap: 14px;
+}
+
+.demm-modal-conflict-group h4 {
+  margin: 0 0 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #ffe3e3;
+}
+
+.demm-modal-conflicts-table-wrap {
+  max-height: 220px;
+  overflow: auto;
+}
+
+.demm-modal-conflicts-table td,
+.demm-modal-conflicts-table th {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
 .demm-modal-intro {
   margin: 0 0 16px;
   color: var(--text-soft);

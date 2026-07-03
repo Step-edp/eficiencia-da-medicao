@@ -157,6 +157,12 @@ export type DemmMeterAnalysisRecord = {
   sourceFiles?: string[]
 }
 
+export type DemmUploadConflictRecord = {
+  meter: string
+  reason: 'demm_registered' | 'entrada_given'
+  detail: string
+}
+
 export type DemmAnalysisResponse = {
   id: string
   fileName: string
@@ -169,10 +175,12 @@ export type DemmAnalysisResponse = {
 
 class ApiError extends Error {
   status: number
+  conflicts?: DemmUploadConflictRecord[]
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, conflicts?: DemmUploadConflictRecord[]) {
     super(message)
     this.status = status
+    this.conflicts = conflicts
   }
 }
 
@@ -188,10 +196,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const payload = (await response.json().catch(() => ({}))) as {
     error?: string
+    conflicts?: DemmUploadConflictRecord[]
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, payload.error ?? 'Erro ao comunicar com o servidor.')
+    throw new ApiError(
+      response.status,
+      payload.error ?? 'Erro ao comunicar com o servidor.',
+      payload.conflicts,
+    )
   }
 
   return payload as T

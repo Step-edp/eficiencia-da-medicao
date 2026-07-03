@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, ApiError, type DemmDocumentRecord, type DemmMeterAnalysisRecord } from './api'
+import { api, ApiError, type DemmDocumentRecord, type DemmMeterAnalysisRecord, type DemmUploadConflictRecord } from './api'
 import { ENTRADA_TRAIL_STEP } from './labTrailSteps'
 
 function formatDateTime(isoDate: string) {
@@ -115,6 +115,68 @@ function DemmAnalysisModal({
   )
 }
 
+type DemmModalFeedback = {
+  message: string
+  conflicts?: DemmUploadConflictRecord[]
+}
+
+function DemmUploadConflicts({ conflicts }: { conflicts: DemmUploadConflictRecord[] }) {
+  const inDemm = conflicts.filter((item) => item.reason === 'demm_registered')
+  const withEntrada = conflicts.filter((item) => item.reason === 'entrada_given')
+
+  return (
+    <div className="demm-modal-conflicts">
+      {inDemm.length ? (
+        <section className="demm-modal-conflict-group">
+          <h4>Já consta em outra DEMM ({inDemm.length})</h4>
+          <div className="entrada-table-wrap demm-modal-conflicts-table-wrap">
+            <table className="data-table demm-modal-conflicts-table">
+              <thead>
+                <tr>
+                  <th>Medidor</th>
+                  <th>DEMM / documento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inDemm.map((item) => (
+                  <tr key={`demm-${item.meter}`}>
+                    <td>{item.meter}</td>
+                    <td>{item.detail}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
+      {withEntrada.length ? (
+        <section className="demm-modal-conflict-group">
+          <h4>Já teve entrada no laboratório ({withEntrada.length})</h4>
+          <div className="entrada-table-wrap demm-modal-conflicts-table-wrap">
+            <table className="data-table demm-modal-conflicts-table">
+              <thead>
+                <tr>
+                  <th>Medidor</th>
+                  <th>Referência</th>
+                </tr>
+              </thead>
+              <tbody>
+                {withEntrada.map((item) => (
+                  <tr key={`entrada-${item.meter}`}>
+                    <td>{item.meter}</td>
+                    <td>{item.detail}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+    </div>
+  )
+}
+
 type EntradaPanelProps = {
   onCountChange?: (count: number) => void
 }
@@ -125,6 +187,7 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
   const [loading, setLoading] = useState(true)
   const [showDemmModal, setShowDemmModal] = useState(false)
   const [demmFile, setDemmFile] = useState<File | null>(null)
+  const [demmModalFeedback, setDemmModalFeedback] = useState<DemmModalFeedback | null>(null)
   const [submittingDemm, setSubmittingDemm] = useState(false)
   const [deletingDemmId, setDeletingDemmId] = useState<string | null>(null)
   const [analysisModal, setAnalysisModal] = useState<{
@@ -171,6 +234,12 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
   const closeDemmModal = () => {
     setShowDemmModal(false)
     setDemmFile(null)
+    setDemmModalFeedback(null)
+  }
+
+  const openDemmModal = () => {
+    setDemmModalFeedback(null)
+    setShowDemmModal(true)
   }
 
   const openDemmAnalysis = async (demmId: string, fileName?: string) => {
@@ -236,16 +305,17 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
     event.preventDefault()
 
     if (!demmFile) {
-      setFeedback({ type: 'error', message: 'Envie o arquivo PDF da DEMM.' })
+      setDemmModalFeedback({ message: 'Envie o arquivo PDF da DEMM.' })
       return
     }
 
     if (demmFile.type !== 'application/pdf' && !demmFile.name.toLowerCase().endsWith('.pdf')) {
-      setFeedback({ type: 'error', message: 'A DEMM deve ser um arquivo PDF.' })
+      setDemmModalFeedback({ message: 'A DEMM deve ser um arquivo PDF.' })
       return
     }
 
     setSubmittingDemm(true)
+    setDemmModalFeedback(null)
     setFeedback(null)
 
     try {
@@ -269,11 +339,17 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
       })
       await loadData()
     } catch (error) {
-      setFeedback({
-        type: 'error',
-        message:
-          error instanceof ApiError ? error.message : 'Não foi possível registrar a DEMM.',
-      })
+      if (error instanceof ApiError) {
+        setDemmModalFeedback({
+          message:
+            error.conflicts?.length
+              ? `A DEMM não pode ser cadastrada. ${error.conflicts.length} medidor(es) com pendência.`
+              : error.message,
+          conflicts: error.conflicts,
+        })
+      } else {
+        setDemmModalFeedback({ message: 'Não foi possível registrar a DEMM.' })
+      }
     } finally {
       setSubmittingDemm(false)
     }
@@ -317,7 +393,7 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
             <button
               type="button"
               className="primary-button"
-              onClick={() => setShowDemmModal(true)}
+              onClick={() => openDemmModal()}
               disabled={loading}
             >
               Nova DEMM
@@ -495,7 +571,7 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
               onClick={closeDemmModal}
             >
               <div
-                className="ensaios-block-modal demm-modal"
+                className={`ensaios-block-modal demm-modal ${demmModalFeedback?.conflicts?.length ? 'demm-modal-with-conflicts' : ''}`}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="demm-modal-title"
@@ -521,6 +597,15 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
 
                 <h3 id="demm-modal-title">Nova DEMM</h3>
 
+                {demmModalFeedback ? (
+                  <div className="demm-modal-feedback error" role="alert">
+                    <p>{demmModalFeedback.message}</p>
+                    {demmModalFeedback.conflicts?.length ? (
+                      <DemmUploadConflicts conflicts={demmModalFeedback.conflicts} />
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <form className="form-grid demm-form-grid" onSubmit={(event) => void handleDemmSubmit(event)}>
                   <label className="full-width photo-upload-field">
                     PDF da DEMM
@@ -528,7 +613,10 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
                       <input
                         type="file"
                         accept="application/pdf,.pdf"
-                        onChange={(event) => setDemmFile(event.target.files?.[0] ?? null)}
+                        onChange={(event) => {
+                          setDemmFile(event.target.files?.[0] ?? null)
+                          setDemmModalFeedback(null)
+                        }}
                         required
                       />
                       <span className="photo-upload-hint">
