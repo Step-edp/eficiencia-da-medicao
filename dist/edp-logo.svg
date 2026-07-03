@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 72" role="img" aria-label="EDP">
+  <defs>
+    <linearGradient id="edp-arc-a" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6D3EF2"/>
+      <stop offset="55%" stop-color="#2E97FF"/>
+      <stop offset="100%" stop-color="#16D8F0"/>
+    </linearGradient>
+    <linearGradient id="edp-arc-b" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#39FF00"/>
+      <stop offset="100%" stop-color="#18D8F0"/>
+    </linearGradient>
+    <linearGradient id="edp-arc-c" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#18D8F0"/>
+      <stop offset="100%" stop-color="#34DF9A"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(8 8) rotate(-18 28 28)">
+    <path
+      d="M 52 10 A 30 30 0 1 1 10 42"
+      fill="none"
+      stroke="url(#edp-arc-a)"
+      stroke-width="14"
+      stroke-linecap="round"
+    />
+    <path
+      d="M 44 20 A 20 20 0 1 1 20 46"
+      fill="none"
+      stroke="url(#edp-arc-b)"
+      stroke-width="12"
+      stroke-linecap="round"
+    />
+    <path
+      d="M 38 30 A 12 12 0 1 1 30 46"
+      fill="none"
+      stroke="url(#edp-arc-c)"
+      stroke-width="10"
+      stroke-linecap="round"
+    />
+    <circle cx="34" cy="38" r="5.5" fill="#031424" stroke="#18D8F0" stroke-width="7"/>
+  </g>
+  <text
+    x="84"
+    y="49"
+    fill="#EBF5FF"
+    font-family="Segoe UI, Arial, sans-serif"
+    font-size="42"
+    font-weight="600"
+    letter-spacing="-0.5"
+  >
+    edp
+  </text>
+</svg>

@@ -11,6 +11,7 @@
     "dev:client": "vite",
     "dev:server": "tsx watch server/index.ts",
     "build": "tsc -b && vite build && tsc -p tsconfig.server.json",
+    "build:server": "tsc -p tsconfig.server.json",
     "preview": "vite preview",
     "start": "node server/dist/index.js"
   },
