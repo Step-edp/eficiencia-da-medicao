@@ -507,6 +507,29 @@ button {
   font-size: 0.82rem;
 }
 
+.entrada-demm-delete-button {
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 92, 92, 0.45);
+  border-radius: 10px;
+  background: rgba(255, 92, 92, 0.1);
+  color: #ffb4b4;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.entrada-demm-delete-button:hover:not(:disabled),
+.entrada-demm-delete-button:focus-visible:not(:disabled) {
+  border-color: rgba(255, 92, 92, 0.75);
+  background: rgba(255, 92, 92, 0.18);
+}
+
+.entrada-demm-delete-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .entrada-panel-intro,
 .entrada-panel-empty {
   margin: 0;

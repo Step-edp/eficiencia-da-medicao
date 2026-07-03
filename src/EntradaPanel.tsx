@@ -126,6 +126,7 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
   const [showDemmModal, setShowDemmModal] = useState(false)
   const [demmFile, setDemmFile] = useState<File | null>(null)
   const [submittingDemm, setSubmittingDemm] = useState(false)
+  const [deletingDemmId, setDeletingDemmId] = useState<string | null>(null)
   const [analysisModal, setAnalysisModal] = useState<{
     title: string
     fileName?: string
@@ -278,6 +279,30 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
     }
   }
 
+  const handleDeleteDemm = async (document: DemmDocumentRecord) => {
+    const confirmed = window.confirm(`Excluir a DEMM "${document.fileName}"?`)
+    if (!confirmed) return
+
+    setDeletingDemmId(document.id)
+    setFeedback(null)
+
+    try {
+      await api.deleteDemmDocument(document.id)
+      setDemmDocuments((prev) => prev.filter((item) => item.id !== document.id))
+      setFeedback({ type: 'success', message: `DEMM "${document.fileName}" excluída.` })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível excluir a DEMM.',
+      })
+    } finally {
+      setDeletingDemmId(null)
+    }
+  }
+
   const totalDemmMeters = demmDocuments.reduce((sum, document) => sum + document.meterCount, 0)
   const totalDemmScheduled = demmDocuments.reduce(
     (sum, document) => sum + document.scheduledCount,
@@ -374,6 +399,14 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
                           >
                             Medidores
                             {document.meterCount > 0 ? ` (${document.meterCount})` : ''}
+                          </button>
+                          <button
+                            type="button"
+                            className="entrada-demm-delete-button"
+                            disabled={deletingDemmId === document.id}
+                            onClick={() => void handleDeleteDemm(document)}
+                          >
+                            {deletingDemmId === document.id ? 'Excluindo...' : 'Excluir'}
                           </button>
                         </div>
                       </td>

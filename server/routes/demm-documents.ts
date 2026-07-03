@@ -254,3 +254,35 @@ export async function downloadDemmDocument(req: Request, res: Response) {
   res.setHeader('Content-Disposition', `inline; filename="demm-${meter}-${safeName}"`)
   res.send(file_data)
 }
+
+export async function deleteDemmDocument(req: Request, res: Response) {
+  const { id } = req.params
+
+  const existing = await query<Omit<DemmDocumentRow, 'file_data'> & { created_by_registration: string | null }>(
+    `SELECT d.id, d.meter_schedule_id, d.meter, d.file_name, d.extracted_meters, d.created_at,
+            d.created_by_user_id, u.registration AS created_by_registration
+     FROM demm_documents d
+     LEFT JOIN users u ON u.id = d.created_by_user_id
+     WHERE d.id = $1`,
+    [id],
+  )
+
+  if (!existing.rows[0]) {
+    res.status(404).json({ error: 'DEMM não encontrada.' })
+    return
+  }
+
+  const removed = mapDemmDocument({ ...existing.rows[0], file_data: Buffer.alloc(0) })
+
+  await query(`DELETE FROM demm_documents WHERE id = $1`, [id])
+
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'demm_document',
+    entityId: removed.id,
+    summary: `DEMM ${removed.fileName} excluída`,
+    oldData: removed,
+  })
+
+  res.json({ ok: true, id: removed.id, fileName: removed.fileName })
+}

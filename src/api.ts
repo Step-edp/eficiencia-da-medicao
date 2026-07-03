@@ -378,6 +378,10 @@ export const api = {
     ),
   getDemmDocumentAnalysis: (id: string) =>
     request<DemmAnalysisResponse>(`/api/demm-documents/${id}/analysis`),
+  deleteDemmDocument: (id: string) =>
+    request<{ ok: true; id: string; fileName: string }>(`/api/demm-documents/${id}`, {
+      method: 'DELETE',
+    }),
   getDemmDocumentFileUrl: (id: string) => `/api/demm-documents/${id}/file`,
 }
 
