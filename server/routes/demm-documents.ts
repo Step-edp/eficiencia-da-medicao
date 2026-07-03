@@ -4,6 +4,10 @@ import { writeAuditLog } from '../audit.js'
 import { parseDemmPdf } from '../demm-pdf-parser.js'
 import { analyzeDemmMeters, type DemmMeterAnalysis } from '../demm-meter-analysis.js'
 import { validateDemmUploadMeters } from '../demm-upload-validation.js'
+import {
+  ENSAIAR_TRAIL_STEP,
+  getNextStatusAfterEntrada,
+} from '../lab-trail-status.js'
 
 const MAX_PDF_BYTES = 15 * 1024 * 1024
 
@@ -214,6 +218,16 @@ export async function createDemmDocument(req: Request, res: Response) {
       scheduledCount: extractedMeters.filter((item) => item.scheduled).length,
     },
   })
+
+  const meterNumbers = extractedMeters.map((item) => item.meter)
+  if (meterNumbers.length) {
+    await query(
+      `UPDATE meter_registry
+       SET status = $1, trail_step = $2
+       WHERE meter = ANY($3::text[]) AND status = 'Agendado'`,
+      [getNextStatusAfterEntrada(), ENSAIAR_TRAIL_STEP, meterNumbers],
+    )
+  }
 
   res.status(201).json({
     document,

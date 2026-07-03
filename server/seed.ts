@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { query } from './db.js'
 import { ensureMeterRegistryImported } from './import-meter-registry.js'
+import { syncMeterRegistryTrailSteps } from './routes/meter-registry.js'
 
 const demoUsers = [
   {
@@ -224,6 +225,10 @@ export async function seed() {
     const imported = await ensureMeterRegistryImported()
     if (imported > 0) {
       console.log(`Base de medidores importada: ${imported} registro(s).`)
+    }
+    const synced = await syncMeterRegistryTrailSteps()
+    if (synced > 0) {
+      console.log(`Trilha da base de medidores sincronizada: ${synced} registro(s).`)
     }
   } catch (error) {
     console.error('Falha ao importar base de medidores:', error)

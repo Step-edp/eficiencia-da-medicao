@@ -644,7 +644,7 @@ function HomePanel({
   const [selectedHomologationSection, setSelectedHomologationSection] =
     useState<string | null>(null)
   const [selectedFieldTeamSection, setSelectedFieldTeamSection] = useState<string | null>(null)
-  const [entradaCount, setEntradaCount] = useState(0)
+  const [trailStepCounts, setTrailStepCounts] = useState<Record<string, number>>({})
   const [ratmLaudos, setRatmLaudos] = useState<RatmLaudo[]>([])
   const [selectedCodeMaterialsAction, setSelectedCodeMaterialsAction] = useState<
     'create' | null
@@ -791,14 +791,18 @@ function HomePanel({
     }
   }
 
-  const loadEntradaCount = useCallback(async () => {
+  const loadTrailStepCounts = useCallback(async () => {
     try {
-      const response = await api.countMeterSchedules(ENTRADA_TRAIL_STEP)
-      setEntradaCount(response.total)
+      const response = await api.getMeterRegistryTrailCounts()
+      setTrailStepCounts(response.counts)
     } catch {
-      setEntradaCount(0)
+      setTrailStepCounts({})
     }
   }, [])
+
+  const loadEntradaCount = useCallback(async () => {
+    await loadTrailStepCounts()
+  }, [loadTrailStepCounts])
 
   const resetGeneratePasswordForm = () => {
     setMeterNumbersInput('')
@@ -1816,7 +1820,7 @@ function HomePanel({
                 activeStep={selectedLabMeasurementSection}
                 onSelect={setSelectedLabMeasurementSection}
                 renderIcon={(title) => <ItemIcon title={title} />}
-                stepCounts={{ [ENTRADA_TRAIL_STEP]: entradaCount }}
+                stepCounts={trailStepCounts}
               />
             ) : null}
             {selectedLabMeasurementSection === 'Calendário de ensaios' ? (
@@ -1826,7 +1830,7 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Auditoria' ? (
               <AuditPanel />
             ) : selectedLabMeasurementSection === ENTRADA_TRAIL_STEP ? (
-              <EntradaPanel onCountChange={setEntradaCount} />
+              <EntradaPanel onCountChange={() => void loadTrailStepCounts()} />
             ) : selectedLabMeasurementSection === 'Agendar' ? (
               <>
                 <p>Preencha os dados abaixo para reservar a data de agendamento.</p>

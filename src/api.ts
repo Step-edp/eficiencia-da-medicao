@@ -361,6 +361,8 @@ export const api = {
       `/api/meter-schedules/count${queryString ? `?${queryString}` : ''}`,
     )
   },
+  getMeterRegistryTrailCounts: () =>
+    request<{ counts: Record<string, number> }>('/api/meter-registry/trail-counts'),
   createMeterSchedule: (payload: {
     meter: string
     installation: string

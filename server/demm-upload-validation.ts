@@ -1,6 +1,5 @@
 import { query } from './db.js'
-
-const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
+import { ENTRADA_TRAIL_STEP, getStatusAvailabilityLabel, hasMeterEntradaGiven } from './lab-trail-status.js'
 
 export type DemmUploadConflict = {
   meter: string
@@ -99,11 +98,11 @@ export async function validateDemmUploadMeters(
   )
 
   for (const row of registeredMeters.rows) {
-    if (conflicts.has(row.meter)) continue
+    if (conflicts.has(row.meter) || !hasMeterEntradaGiven(row.status)) continue
     conflicts.set(row.meter, {
       meter: row.meter,
       reason: 'entrada_given',
-      detail: row.status || 'Base do aplicativo',
+      detail: getStatusAvailabilityLabel(row.status),
     })
   }
 

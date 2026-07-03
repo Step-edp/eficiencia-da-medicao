@@ -3,6 +3,7 @@ import { pathToFileURL } from 'node:url'
 import { readFileSync } from 'node:fs'
 import * as XLSX from 'xlsx'
 import { query } from './db.js'
+import { mapMeterStatusToTrailStep } from './lab-trail-status.js'
 
 const REGISTRY_FILE = path.resolve(process.cwd(), 'data/base-medidores-comentada.xlsx')
 
@@ -24,13 +25,6 @@ const COL = {
   note: 52,
   schedulingNotes: 56,
 } as const
-
-const STATUS_TRAIL_MAP: Record<string, string> = {
-  Agendado: 'Entrada de medidores',
-  Recebido: 'Entrada de medidores',
-  Ensaiado: 'Ensaiar',
-  Aprovado: 'Aprovação de RATM',
-}
 
 type ParsedRegistryRow = {
   legacyId: number
@@ -108,7 +102,7 @@ function parseExcelDate(value: unknown): string | null {
 }
 
 function mapTrailStep(status: string): string {
-  return STATUS_TRAIL_MAP[status] ?? 'Entrada de medidores'
+  return mapMeterStatusToTrailStep(status)
 }
 
 function parseWorksheetRows(rows: unknown[][]): ParsedRegistryRow[] {
