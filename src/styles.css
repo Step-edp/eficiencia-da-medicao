@@ -508,15 +508,24 @@ button {
 }
 
 .entrada-demm-delete-button {
-  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   border: 1px solid rgba(255, 92, 92, 0.45);
   border-radius: 10px;
   background: rgba(255, 92, 92, 0.1);
   color: #ffb4b4;
   font: inherit;
-  font-size: 0.82rem;
   cursor: pointer;
   transition: border-color 180ms ease, background 180ms ease;
+}
+
+.entrada-demm-delete-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .entrada-demm-delete-button:hover:not(:disabled),

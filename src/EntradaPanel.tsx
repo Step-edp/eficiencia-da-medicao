@@ -409,8 +409,22 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
                             className="entrada-demm-delete-button"
                             disabled={deletingDemmId === document.id}
                             onClick={() => void handleDeleteDemm(document)}
+                            aria-label={
+                              deletingDemmId === document.id ? 'Excluindo DEMM' : 'Excluir DEMM'
+                            }
+                            title={
+                              deletingDemmId === document.id ? 'Excluindo...' : 'Excluir DEMM'
+                            }
                           >
-                            {deletingDemmId === document.id ? 'Excluindo...' : 'Excluir'}
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path
+                                d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                              />
+                            </svg>
                           </button>
                         </div>
                       </td>
