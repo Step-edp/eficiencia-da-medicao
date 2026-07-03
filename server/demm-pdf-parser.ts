@@ -2,9 +2,20 @@ import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 
 const PATRIMONIO_LABEL_PATTERN = /patrim[oô]nio[\s.:]+/gi
 const PATRIMONIO_METER_PATTERN = /\b00(\d{8})\b/g
+const DOCUMENT_NUMBER_PATTERN = /n[uú]mero\s+documento\s*:?\s*(\d+)/i
+const EMISSION_DATE_PATTERN = /data\s+de\s+emiss[aã]o\s*:?\s*(\d{2}[./]\d{2}[./]\d{4})/i
 
 type TextItem = {
   str?: string
+}
+
+export type DemmPdfMetadata = {
+  documentNumber: string | null
+  emissionDate: string | null
+}
+
+export type DemmPdfParseResult = DemmPdfMetadata & {
+  meters: string[]
 }
 
 function addPatrimonioMeters(text: string, found: Set<string>, ordered: string[]) {
@@ -13,6 +24,17 @@ function addPatrimonioMeters(text: string, found: Set<string>, ordered: string[]
     if (found.has(meter)) continue
     found.add(meter)
     ordered.push(meter)
+  }
+}
+
+export function extractDemmMetadataFromText(text: string): DemmPdfMetadata {
+  const normalized = text.replace(/\s+/g, ' ')
+  const documentMatch = normalized.match(DOCUMENT_NUMBER_PATTERN)
+  const emissionMatch = normalized.match(EMISSION_DATE_PATTERN)
+
+  return {
+    documentNumber: documentMatch?.[1] ?? null,
+    emissionDate: emissionMatch?.[1]?.replace(/\//g, '.') ?? null,
   }
 }
 
@@ -34,7 +56,14 @@ export function extractMetersFromText(text: string): string[] {
   return ordered
 }
 
-export async function extractMetersFromPdf(buffer: Buffer): Promise<string[]> {
+export function parseDemmText(text: string): DemmPdfParseResult {
+  return {
+    ...extractDemmMetadataFromText(text),
+    meters: extractMetersFromText(text),
+  }
+}
+
+async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   const pdf = await getDocument({
     data: new Uint8Array(buffer),
     useSystemFonts: true,
@@ -52,5 +81,15 @@ export async function extractMetersFromPdf(buffer: Buffer): Promise<string[]> {
     parts.push(pageText)
   }
 
-  return extractMetersFromText(parts.join('\n'))
+  return parts.join('\n')
+}
+
+export async function extractMetersFromPdf(buffer: Buffer): Promise<string[]> {
+  const text = await extractTextFromPdf(buffer)
+  return extractMetersFromText(text)
+}
+
+export async function parseDemmPdf(buffer: Buffer): Promise<DemmPdfParseResult> {
+  const text = await extractTextFromPdf(buffer)
+  return parseDemmText(text)
 }

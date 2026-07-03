@@ -366,17 +366,21 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
               <table className="data-table entrada-table">
                 <thead>
                   <tr>
+                    <th>Nº documento</th>
+                    <th>Data emissão</th>
                     <th>Arquivo</th>
                     <th>Medidores</th>
                     <th>Agendados</th>
                     <th>Cadastrado por</th>
-                    <th>Data</th>
+                    <th>Cadastrado em</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {demmDocuments.map((document) => (
                     <tr key={document.id}>
+                      <td>{document.documentNumber ?? '—'}</td>
+                      <td>{document.emissionDate ?? '—'}</td>
                       <td>{document.fileName}</td>
                       <td>{document.meterCount}</td>
                       <td>{document.scheduledCount}</td>
@@ -415,7 +419,7 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
                 </tbody>
                 <tfoot>
                   <tr className="entrada-table-total-row">
-                    <td>Total</td>
+                    <td colSpan={3}>Total</td>
                     <td>{totalDemmMeters}</td>
                     <td>{totalDemmScheduled}</td>
                     <td colSpan={3} />

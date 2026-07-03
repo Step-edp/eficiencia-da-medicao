@@ -139,6 +139,8 @@ export type DemmDocumentRecord = {
   meterScheduleId: string | null
   meter: string
   fileName: string
+  documentNumber: string | null
+  emissionDate: string | null
   extractedMeters: DemmMeterAnalysisRecord[]
   meterCount: number
   scheduledCount: number
