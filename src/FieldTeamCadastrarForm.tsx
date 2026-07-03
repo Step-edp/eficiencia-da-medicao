@@ -262,6 +262,23 @@ export function FieldTeamCadastrarForm() {
                 aria-labelledby="schedule-slot-date-label"
                 onClick={(event) => event.stopPropagation()}
               >
+                <button
+                  type="button"
+                  className="icon-button schedule-slot-modal-close"
+                  onClick={closeSlotModal}
+                  aria-label="Fechar"
+                  title="Fechar"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M6 6l12 12M18 6L6 18"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
                 <p className="schedule-slot-modal-message">
                   Medidor {slotModal.meter} reservado com sucesso.
                 </p>
@@ -276,11 +293,6 @@ export function FieldTeamCadastrarForm() {
                     onClick={() => void copySlotDate()}
                   >
                     {copiedSlot ? 'Copiado!' : 'Copiar data'}
-                  </button>
-                </div>
-                <div className="ensaios-block-modal-actions">
-                  <button type="button" className="primary-button" onClick={closeSlotModal}>
-                    Fechar
                   </button>
                 </div>
               </div>

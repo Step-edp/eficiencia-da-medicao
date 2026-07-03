@@ -1585,7 +1585,17 @@ input[type='file'] {
 }
 
 .schedule-slot-modal {
+  position: relative;
   text-align: center;
+}
+
+.schedule-slot-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
 }
 
 .schedule-slot-modal-message {
@@ -1612,11 +1622,6 @@ input[type='file'] {
 
 .schedule-slot-copy-button {
   min-width: 140px;
-}
-
-.schedule-slot-modal .ensaios-block-modal-actions {
-  justify-content: center;
-  margin-top: 8px;
 }
 
 .available-slot-card {
