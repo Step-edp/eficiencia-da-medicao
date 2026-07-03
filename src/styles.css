@@ -580,6 +580,21 @@ button {
   font-size: 0.95rem;
 }
 
+.ensaios-unblock-reason,
+.ensaios-unblock-message {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.ensaios-unblock-reason {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 170, 0, 0.35);
+  background: rgba(255, 170, 0, 0.1);
+  color: #ffd699;
+}
+
 .ensaios-block-modal-actions {
   display: flex;
   justify-content: flex-end;

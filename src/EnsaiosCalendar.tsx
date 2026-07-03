@@ -65,8 +65,10 @@ export function EnsaiosCalendar() {
     message: string
   } | null>(null)
   const [pendingBlockDate, setPendingBlockDate] = useState<string | null>(null)
+  const [pendingUnblockDate, setPendingUnblockDate] = useState<string | null>(null)
   const [blockReason, setBlockReason] = useState('')
   const [submittingBlock, setSubmittingBlock] = useState(false)
+  const [submittingUnblock, setSubmittingUnblock] = useState(false)
 
   const loadBlocks = useCallback(async () => {
     setLoading(true)
@@ -116,6 +118,11 @@ export function EnsaiosCalendar() {
     setSubmittingBlock(false)
   }
 
+  const closeUnblockModal = () => {
+    setPendingUnblockDate(null)
+    setSubmittingUnblock(false)
+  }
+
   const handleDayClick = (date: Date) => {
     if (isAutoBlocked(date)) return
 
@@ -123,7 +130,8 @@ export function EnsaiosCalendar() {
     const manualReason = manualBlocks.get(key)
 
     if (manualReason) {
-      void unblockDate(key)
+      setPendingUnblockDate(key)
+      setFeedback(null)
       return
     }
 
@@ -132,17 +140,20 @@ export function EnsaiosCalendar() {
     setFeedback(null)
   }
 
-  const unblockDate = async (key: string) => {
-    setBusyDate(key)
+  const confirmUnblock = async () => {
+    if (!pendingUnblockDate) return
+
+    setSubmittingUnblock(true)
     setFeedback(null)
 
     try {
-      const { blocks } = await api.toggleEnsaiosManualBlock(key)
+      const { blocks } = await api.toggleEnsaiosManualBlock(pendingUnblockDate)
       setManualBlocks(blocksToMap(blocks))
       setFeedback({
         type: 'success',
-        message: `Data ${formatDisplayDate(key)} liberada.`,
+        message: `Data ${formatDisplayDate(pendingUnblockDate)} liberada.`,
       })
+      closeUnblockModal()
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -151,6 +162,7 @@ export function EnsaiosCalendar() {
             ? error.message
             : 'Não foi possível liberar a data.',
       })
+      setSubmittingUnblock(false)
     } finally {
       setBusyDate(null)
     }
@@ -297,6 +309,57 @@ export function EnsaiosCalendar() {
           (Recebimento de Medidores), sábado e domingo (Fim de Semana) ou feriado
         </li>
       </ul>
+
+      {pendingUnblockDate
+        ? createPortal(
+            <div
+              className="ensaios-block-modal-overlay"
+              role="presentation"
+              onClick={closeUnblockModal}
+            >
+              <div
+                className="ensaios-block-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="ensaios-unblock-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="ensaios-unblock-title">Liberar data</h3>
+                <p className="ensaios-block-modal-date">
+                  {formatDisplayDate(pendingUnblockDate)}
+                </p>
+                {manualBlocks.get(pendingUnblockDate) ? (
+                  <p className="ensaios-unblock-reason">
+                    Motivo atual: {manualBlocks.get(pendingUnblockDate)}
+                  </p>
+                ) : null}
+                <p className="ensaios-unblock-message">
+                  Deseja liberar esta data e remover o bloqueio manual?
+                </p>
+
+                <div className="ensaios-block-modal-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={closeUnblockModal}
+                    disabled={submittingUnblock}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={submittingUnblock}
+                    onClick={() => void confirmUnblock()}
+                  >
+                    {submittingUnblock ? 'Liberando...' : 'Confirmar liberação'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {pendingBlockDate
         ? createPortal(
