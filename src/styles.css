@@ -533,6 +533,59 @@ button {
   color: #ffb4b4;
 }
 
+.ensaios-calendar-day-reason {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.62rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #ffd699;
+}
+
+.ensaios-block-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2, 10, 18, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+.ensaios-block-modal {
+  width: min(480px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 18px;
+  border: 1px solid rgba(24, 216, 240, 0.28);
+  background: rgba(5, 26, 44, 0.96);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.ensaios-block-modal h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.ensaios-block-modal-date {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.ensaios-block-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .ensaios-calendar-legend {
   display: flex;
   flex-wrap: wrap;

@@ -90,6 +90,11 @@ export type FieldTeamUserOption = {
   registration: string
 }
 
+export type EnsaiosManualBlock = {
+  date: string
+  reason: string
+}
+
 class ApiError extends Error {
   status: number
 
@@ -218,13 +223,13 @@ export const api = {
       body: JSON.stringify({ clientPresent, satisfactionWhatsapp }),
     }),
   listEnsaiosManualBlocks: () =>
-    request<{ dates: string[] }>('/api/ensaios-calendar/manual-blocks'),
-  toggleEnsaiosManualBlock: (date: string) =>
-    request<{ dates: string[]; blocked: boolean }>(
+    request<{ blocks: EnsaiosManualBlock[] }>('/api/ensaios-calendar/manual-blocks'),
+  toggleEnsaiosManualBlock: (date: string, reason?: string) =>
+    request<{ blocks: EnsaiosManualBlock[]; blocked: boolean }>(
       '/api/ensaios-calendar/manual-blocks',
       {
         method: 'POST',
-        body: JSON.stringify({ date }),
+        body: JSON.stringify({ date, reason }),
       },
     ),
   listCsds: () => request<{ csds: CsdRecord[] }>('/api/csds'),

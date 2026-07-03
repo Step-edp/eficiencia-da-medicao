@@ -84,6 +84,7 @@ export async function migrate() {
 
     CREATE TABLE IF NOT EXISTS ensaios_manual_blocks (
       blocked_date DATE PRIMARY KEY,
+      reason TEXT NOT NULL DEFAULT '',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       created_by_user_id TEXT REFERENCES users(id)
     );
@@ -100,5 +101,6 @@ export async function migrate() {
   await query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS work_area TEXT NOT NULL DEFAULT '';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS work_subtype TEXT NOT NULL DEFAULT '';
+    ALTER TABLE ensaios_manual_blocks ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT '';
   `)
 }

@@ -3,15 +3,30 @@ import { query } from '../db.js'
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
+type ManualBlockRow = {
+  blocked_date: string
+  reason: string
+}
+
+function mapBlock(row: ManualBlockRow) {
+  return {
+    date: row.blocked_date.slice(0, 10),
+    reason: row.reason,
+  }
+}
+
 export async function listManualBlocks(_req: Request, res: Response) {
-  const result = await query<{ blocked_date: string }>(
-    `SELECT blocked_date::text FROM ensaios_manual_blocks ORDER BY blocked_date`,
+  const result = await query<ManualBlockRow>(
+    `SELECT blocked_date::text, reason
+     FROM ensaios_manual_blocks
+     ORDER BY blocked_date`,
   )
-  res.json({ dates: result.rows.map((row) => row.blocked_date.slice(0, 10)) })
+  res.json({ blocks: result.rows.map(mapBlock) })
 }
 
 export async function toggleManualBlock(req: Request, res: Response) {
   const date = String(req.body?.date ?? '')
+  const reason = String(req.body?.reason ?? '').trim()
 
   if (!DATE_PATTERN.test(date)) {
     res.status(400).json({ error: 'Data inválida. Use o formato YYYY-MM-DD.' })
@@ -32,19 +47,26 @@ export async function toggleManualBlock(req: Request, res: Response) {
   if (existing.rowCount) {
     await query(`DELETE FROM ensaios_manual_blocks WHERE blocked_date = $1::date`, [date])
   } else {
+    if (!reason) {
+      res.status(400).json({ error: 'Informe o motivo do bloqueio manual.' })
+      return
+    }
+
     await query(
-      `INSERT INTO ensaios_manual_blocks (blocked_date, created_by_user_id)
-       VALUES ($1::date, $2)`,
-      [date, req.user?.id ?? null],
+      `INSERT INTO ensaios_manual_blocks (blocked_date, reason, created_by_user_id)
+       VALUES ($1::date, $2, $3)`,
+      [date, reason, req.user?.id ?? null],
     )
   }
 
-  const all = await query<{ blocked_date: string }>(
-    `SELECT blocked_date::text FROM ensaios_manual_blocks ORDER BY blocked_date`,
+  const all = await query<ManualBlockRow>(
+    `SELECT blocked_date::text, reason
+     FROM ensaios_manual_blocks
+     ORDER BY blocked_date`,
   )
 
   res.json({
-    dates: all.rows.map((row) => row.blocked_date.slice(0, 10)),
+    blocks: all.rows.map(mapBlock),
     blocked: !existing.rowCount,
   })
 }
