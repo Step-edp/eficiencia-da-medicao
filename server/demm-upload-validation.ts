@@ -93,6 +93,20 @@ export async function validateDemmUploadMeters(
     })
   }
 
+  const registeredMeters = await query<{ meter: string; status: string }>(
+    `SELECT meter, status FROM meter_registry WHERE meter = ANY($1::text[])`,
+    [uniqueMeters],
+  )
+
+  for (const row of registeredMeters.rows) {
+    if (conflicts.has(row.meter)) continue
+    conflicts.set(row.meter, {
+      meter: row.meter,
+      reason: 'entrada_given',
+      detail: row.status || 'Base do aplicativo',
+    })
+  }
+
   if (!conflicts.size) {
     return { ok: true }
   }

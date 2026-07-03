@@ -150,6 +150,32 @@ export async function migrate() {
 
     CREATE INDEX IF NOT EXISTS idx_demm_documents_meter ON demm_documents (meter);
     CREATE INDEX IF NOT EXISTS idx_demm_documents_schedule ON demm_documents (meter_schedule_id);
+
+    CREATE TABLE IF NOT EXISTS meter_registry (
+      id TEXT PRIMARY KEY,
+      legacy_id INTEGER NOT NULL,
+      meter TEXT NOT NULL UNIQUE,
+      installation TEXT NOT NULL DEFAULT '',
+      toi TEXT NOT NULL DEFAULT '',
+      note TEXT NOT NULL DEFAULT '',
+      csd TEXT NOT NULL DEFAULT '',
+      client TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT '',
+      trail_step TEXT NOT NULL DEFAULT 'Entrada de medidores',
+      manufacturer TEXT NOT NULL DEFAULT '',
+      model TEXT NOT NULL DEFAULT '',
+      ratm_number TEXT,
+      delivered_by TEXT,
+      scheduling_notes TEXT NOT NULL DEFAULT '',
+      available_at TIMESTAMPTZ,
+      scheduled_at TIMESTAMPTZ,
+      received_at TIMESTAMPTZ,
+      imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_meter_registry_meter ON meter_registry (meter);
+    CREATE INDEX IF NOT EXISTS idx_meter_registry_status ON meter_registry (status);
+    CREATE INDEX IF NOT EXISTS idx_meter_registry_trail_step ON meter_registry (trail_step);
   `)
 
   await query(`

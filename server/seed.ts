@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { query } from './db.js'
+import { ensureMeterRegistryImported } from './import-meter-registry.js'
 
 const demoUsers = [
   {
@@ -217,5 +218,14 @@ export async function seed() {
         [csd.id, csd.name, csd.address, JSON.stringify(csd.cities), csd.responsibleUserId],
       )
     }
+  }
+
+  try {
+    const imported = await ensureMeterRegistryImported()
+    if (imported > 0) {
+      console.log(`Base de medidores importada: ${imported} registro(s).`)
+    }
+  } catch (error) {
+    console.error('Falha ao importar base de medidores:', error)
   }
 }
