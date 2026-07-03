@@ -19,12 +19,15 @@ type DemmDocumentRow = {
 }
 
 function mapDemmDocument(row: DemmDocumentRow) {
+  const extractedMeters = row.extracted_meters ?? []
   return {
     id: row.id,
     meterScheduleId: row.meter_schedule_id,
     meter: row.meter,
     fileName: row.file_name,
-    extractedMeters: row.extracted_meters ?? [],
+    extractedMeters,
+    meterCount: extractedMeters.length,
+    scheduledCount: extractedMeters.filter((item) => item.scheduled).length,
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
     createdByRegistration: row.created_by_registration,
@@ -49,6 +52,54 @@ async function parseAndAnalyzeDemm(fileBuffer: Buffer) {
   const meters = await extractMetersFromPdf(fileBuffer)
   const extractedMeters = await analyzeDemmMeters(meters)
   return extractedMeters
+}
+
+export async function listDemmDocuments(_req: Request, res: Response) {
+  const result = await query<Omit<DemmDocumentRow, 'file_data'> & { created_by_registration: string | null }>(
+    `SELECT d.id, d.meter_schedule_id, d.meter, d.file_name, d.extracted_meters, d.created_at,
+            d.created_by_user_id, u.registration AS created_by_registration
+     FROM demm_documents d
+     LEFT JOIN users u ON u.id = d.created_by_user_id
+     ORDER BY d.created_at DESC`,
+  )
+
+  res.json({
+    documents: result.rows.map((row) =>
+      mapDemmDocument({ ...row, file_data: Buffer.alloc(0) }),
+    ),
+  })
+}
+
+export async function getDemmMetersBase(_req: Request, res: Response) {
+  const result = await query<Pick<DemmDocumentRow, 'id' | 'file_name' | 'extracted_meters'>>(
+    `SELECT id, file_name, extracted_meters FROM demm_documents ORDER BY created_at DESC`,
+  )
+
+  const meterSources = new Map<string, string[]>()
+
+  for (const row of result.rows) {
+    for (const item of row.extracted_meters ?? []) {
+      const sources = meterSources.get(item.meter) ?? []
+      if (!sources.includes(row.file_name)) {
+        sources.push(row.file_name)
+      }
+      meterSources.set(item.meter, sources)
+    }
+  }
+
+  const uniqueMeters = [...meterSources.keys()]
+  const analyzed = await analyzeDemmMeters(uniqueMeters)
+
+  const meters = analyzed.map((item) => ({
+    ...item,
+    sourceFiles: meterSources.get(item.meter) ?? [],
+  }))
+
+  res.json({
+    meters,
+    total: meters.length,
+    scheduledCount: meters.filter((item) => item.scheduled).length,
+  })
 }
 
 export async function createDemmDocument(req: Request, res: Response) {

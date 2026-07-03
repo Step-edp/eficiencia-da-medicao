@@ -406,6 +406,18 @@ button {
   gap: 8px;
 }
 
+.entrada-section {
+  display: grid;
+  gap: 12px;
+}
+
+.entrada-section-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
 .entrada-demm-link {
   color: #9eeaff;
   text-decoration: underline;

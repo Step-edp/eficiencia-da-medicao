@@ -33,6 +33,8 @@ import {
   createDemmDocument,
   downloadDemmDocument,
   getDemmDocumentAnalysis,
+  getDemmMetersBase,
+  listDemmDocuments,
 } from './routes/demm-documents.js'
 import { requireAuth } from './auth.js'
 
@@ -127,6 +129,8 @@ async function start() {
   app.post('/api/meter-schedules', requireAuth, createMeterSchedule)
 
   app.post('/api/demm-documents', requireAuth, createDemmDocument)
+  app.get('/api/demm-documents', requireAuth, listDemmDocuments)
+  app.get('/api/demm-documents/meters-base', requireAuth, getDemmMetersBase)
   app.get('/api/demm-documents/:id/analysis', requireAuth, getDemmDocumentAnalysis)
   app.get('/api/demm-documents/:id/file', requireAuth, downloadDemmDocument)
 

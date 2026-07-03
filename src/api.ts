@@ -140,6 +140,8 @@ export type DemmDocumentRecord = {
   meter: string
   fileName: string
   extractedMeters: DemmMeterAnalysisRecord[]
+  meterCount: number
+  scheduledCount: number
   createdAt: string
   createdByUserId: string | null
   createdByRegistration: string | null
@@ -150,6 +152,7 @@ export type DemmMeterAnalysisRecord = {
   scheduled: boolean
   scheduleId: string | null
   scheduledAtLabel: string | null
+  sourceFiles?: string[]
 }
 
 export type DemmAnalysisResponse = {
@@ -368,6 +371,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  listDemmDocuments: () => request<{ documents: DemmDocumentRecord[] }>('/api/demm-documents'),
+  getDemmMetersBase: () =>
+    request<{ meters: DemmMeterAnalysisRecord[]; total: number; scheduledCount: number }>(
+      '/api/demm-documents/meters-base',
+    ),
   getDemmDocumentAnalysis: (id: string) =>
     request<DemmAnalysisResponse>(`/api/demm-documents/${id}/analysis`),
   getDemmDocumentFileUrl: (id: string) => `/api/demm-documents/${id}/file`,
