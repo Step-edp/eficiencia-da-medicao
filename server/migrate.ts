@@ -136,6 +136,19 @@ export async function migrate() {
 
     CREATE INDEX IF NOT EXISTS idx_meter_schedules_trail_step ON meter_schedules (trail_step);
     CREATE INDEX IF NOT EXISTS idx_meter_schedules_meter ON meter_schedules (meter);
+
+    CREATE TABLE IF NOT EXISTS demm_documents (
+      id TEXT PRIMARY KEY,
+      meter_schedule_id TEXT REFERENCES meter_schedules(id) ON DELETE SET NULL,
+      meter TEXT NOT NULL,
+      file_name TEXT NOT NULL,
+      file_data BYTEA NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_by_user_id TEXT REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_demm_documents_meter ON demm_documents (meter);
+    CREATE INDEX IF NOT EXISTS idx_demm_documents_schedule ON demm_documents (meter_schedule_id);
   `)
 
   await query(`

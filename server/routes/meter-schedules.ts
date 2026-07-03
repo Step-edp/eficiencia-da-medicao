@@ -24,6 +24,8 @@ type MeterScheduleRow = {
   created_at: Date
   created_by_user_id: string | null
   created_by_registration: string | null
+  demm_document_id?: string | null
+  demm_file_name?: string | null
 }
 
 function mapMeterSchedule(row: MeterScheduleRow) {
@@ -43,6 +45,8 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
     createdByRegistration: row.created_by_registration,
+    demmDocumentId: row.demm_document_id ?? null,
+    demmFileName: row.demm_file_name ?? null,
   }
 }
 
@@ -53,9 +57,17 @@ export async function listMeterSchedules(req: Request, res: Response) {
       : ENTRADA_TRAIL_STEP
 
   const result = await query<MeterScheduleRow>(
-    `SELECT ms.*, u.registration AS created_by_registration
+    `SELECT ms.*, u.registration AS created_by_registration,
+            d.id AS demm_document_id, d.file_name AS demm_file_name
      FROM meter_schedules ms
      LEFT JOIN users u ON u.id = ms.created_by_user_id
+     LEFT JOIN LATERAL (
+       SELECT id, file_name
+       FROM demm_documents
+       WHERE meter_schedule_id = ms.id
+       ORDER BY created_at DESC
+       LIMIT 1
+     ) d ON true
      WHERE ms.trail_step = $1
      ORDER BY ms.scheduled_at ASC, ms.created_at DESC`,
     [trailStep],

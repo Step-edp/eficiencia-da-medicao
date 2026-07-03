@@ -400,6 +400,35 @@ button {
   gap: 16px;
 }
 
+.entrada-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.entrada-demm-link {
+  color: #9eeaff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.demm-modal {
+  width: min(520px, 100%);
+}
+
+.demm-modal-intro {
+  margin: 0 0 16px;
+  color: var(--text-soft);
+}
+
+.demm-form-grid {
+  gap: 14px;
+}
+
+.demm-upload-area {
+  min-height: 110px;
+}
+
 .entrada-panel-intro,
 .entrada-panel-empty {
   margin: 0;

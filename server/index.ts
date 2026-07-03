@@ -29,6 +29,10 @@ import {
   createMeterSchedule,
   listMeterSchedules,
 } from './routes/meter-schedules.js'
+import {
+  createDemmDocument,
+  downloadDemmDocument,
+} from './routes/demm-documents.js'
 import { requireAuth } from './auth.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -120,6 +124,9 @@ async function start() {
   app.get('/api/meter-schedules', requireAuth, listMeterSchedules)
   app.get('/api/meter-schedules/count', requireAuth, countMeterSchedules)
   app.post('/api/meter-schedules', requireAuth, createMeterSchedule)
+
+  app.post('/api/demm-documents', requireAuth, createDemmDocument)
+  app.get('/api/demm-documents/:id/file', requireAuth, downloadDemmDocument)
 
   const distPath = path.resolve(__dirname, '../../dist')
   app.use(express.static(distPath))

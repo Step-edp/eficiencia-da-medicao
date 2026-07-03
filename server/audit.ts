@@ -21,6 +21,7 @@ export type AuditEntityType =
   | 'csd'
   | 'satisfaction_survey'
   | 'meter_schedule'
+  | 'demm_document'
 
 export type AuditLogEntry = {
   action: AuditAction

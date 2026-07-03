@@ -129,6 +129,18 @@ export type MeterScheduleRecord = {
   createdAt: string
   createdByUserId: string | null
   createdByRegistration: string | null
+  demmDocumentId: string | null
+  demmFileName: string | null
+}
+
+export type DemmDocumentRecord = {
+  id: string
+  meterScheduleId: string | null
+  meter: string
+  fileName: string
+  createdAt: string
+  createdByUserId: string | null
+  createdByRegistration: string | null
 }
 
 class ApiError extends Error {
@@ -325,6 +337,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  createDemmDocument: (payload: {
+    meterScheduleId: string
+    fileName: string
+    fileBase64: string
+  }) =>
+    request<{ document: DemmDocumentRecord }>('/api/demm-documents', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getDemmDocumentFileUrl: (id: string) => `/api/demm-documents/${id}/file`,
 }
 
 export { ApiError }
