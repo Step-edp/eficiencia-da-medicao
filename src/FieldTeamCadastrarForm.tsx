@@ -1,21 +1,10 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useState } from 'react'
+import { api, ApiError } from './api'
+import {
+  findNextAvailableSlot,
+  formatAvailableSlot,
+} from './availableScheduleSlots'
 import { useCsdsOptions } from './useCsdsOptions'
-
-const hourOptions = Array.from({ length: 24 }, (_, index) =>
-  String(index).padStart(2, '0'),
-)
-const minuteOptions = Array.from({ length: 60 }, (_, index) =>
-  String(index).padStart(2, '0'),
-)
-
-function formatDisplayDate(dateValue: string) {
-  if (!dateValue) {
-    return ''
-  }
-
-  const [year, month, day] = dateValue.split('-')
-  return `${day}/${month}/${year}`
-}
 
 type RequiredLabelProps = {
   children: string
@@ -34,9 +23,6 @@ function RequiredLabel({ children }: RequiredLabelProps) {
 
 export function FieldTeamCadastrarForm() {
   const { options: csdOptions, loading: csdLoading } = useCsdsOptions()
-  const [scheduleDate, setScheduleDate] = useState('')
-  const [scheduleHour, setScheduleHour] = useState('15')
-  const [scheduleMinute, setScheduleMinute] = useState('10')
   const [meter, setMeter] = useState('')
   const [installation, setInstallation] = useState('')
   const [toi, setToi] = useState('')
@@ -44,29 +30,17 @@ export function FieldTeamCadastrarForm() {
   const [csd, setCsd] = useState('')
   const [clientPresent, setClientPresent] = useState<'sim' | 'nao' | ''>('')
   const [schedulingNotes, setSchedulingNotes] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [availableSlot, setAvailableSlot] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
 
-  const schedulePreview = useMemo(() => {
-    if (!scheduleDate) {
-      return ''
-    }
-
-    return `${formatDisplayDate(scheduleDate)} ${scheduleHour}:${scheduleMinute}`
-  }, [scheduleDate, scheduleHour, scheduleMinute])
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
-    if (!scheduleDate) {
-      setFeedback({
-        type: 'error',
-        message: 'Informe a próxima data disponível.',
-      })
-      return
-    }
+    setFeedback(null)
+    setAvailableSlot(null)
 
     if (!meter.trim()) {
       setFeedback({
@@ -116,10 +90,38 @@ export function FieldTeamCadastrarForm() {
       return
     }
 
-    setFeedback({
-      type: 'success',
-      message: `Agendamento registrado para o medidor ${meter.trim()} em ${schedulePreview}.`,
-    })
+    setSubmitting(true)
+
+    try {
+      const { blocks } = await api.listEnsaiosManualBlocks()
+      const manualBlocks = new Set(blocks.map((block) => block.date))
+      const nextSlot = findNextAvailableSlot(manualBlocks)
+
+      if (!nextSlot) {
+        setFeedback({
+          type: 'error',
+          message: 'Não há datas disponíveis no calendário nos próximos meses.',
+        })
+        return
+      }
+
+      const slotLabel = formatAvailableSlot(nextSlot)
+      setAvailableSlot(slotLabel)
+      setFeedback({
+        type: 'success',
+        message: `Agendamento registrado para o medidor ${meter.trim()}.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível calcular a próxima data disponível.',
+      })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -128,9 +130,6 @@ export function FieldTeamCadastrarForm() {
         <div>
           <p className="schedule-form-kicker">Agendamento</p>
           <p className="schedule-form-subtitle">Laboratório de Medição</p>
-          {schedulePreview ? (
-            <p className="schedule-form-datetime">{schedulePreview}</p>
-          ) : null}
         </div>
       </div>
 
@@ -140,41 +139,18 @@ export function FieldTeamCadastrarForm() {
         </div>
       ) : null}
 
-      <form className="form-grid schedule-form-grid" onSubmit={handleSubmit}>
-        <label className="full-width">
-          Próxima data disponível
-          <div className="datetime-row">
-            <input
-              type="date"
-              value={scheduleDate}
-              onChange={(event) => setScheduleDate(event.target.value)}
-              required
-            />
-            <select
-              value={scheduleHour}
-              onChange={(event) => setScheduleHour(event.target.value)}
-              aria-label="Hora"
-            >
-              {hourOptions.map((hour) => (
-                <option key={hour} value={hour}>
-                  {hour}
-                </option>
-              ))}
-            </select>
-            <select
-              value={scheduleMinute}
-              onChange={(event) => setScheduleMinute(event.target.value)}
-              aria-label="Minuto"
-            >
-              {minuteOptions.map((minute) => (
-                <option key={minute} value={minute}>
-                  {minute}
-                </option>
-              ))}
-            </select>
-          </div>
-        </label>
+      {availableSlot ? (
+        <div className="available-slot-card" role="status">
+          <p className="available-slot-title">Próxima data disponível</p>
+          <p className="available-slot-value">{availableSlot}</p>
+          <p className="available-slot-rules">
+            Horários de 10 em 10 minutos, das 8:30 às 11:30 e das 14:00 às 16:30,
+            respeitando dias bloqueados no calendário de ensaios.
+          </p>
+        </div>
+      ) : null}
 
+      <form className="form-grid schedule-form-grid" onSubmit={(event) => void handleSubmit(event)}>
         <label>
           <RequiredLabel>Medidor</RequiredLabel>
           <input
@@ -254,8 +230,8 @@ export function FieldTeamCadastrarForm() {
           />
         </label>
 
-        <button className="reserve-button full-width" type="submit">
-          Reservar Data
+        <button className="reserve-button full-width" type="submit" disabled={submitting}>
+          {submitting ? 'Salvando...' : 'Salvar agendamento'}
         </button>
       </form>
     </>
