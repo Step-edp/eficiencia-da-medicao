@@ -277,6 +277,12 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
     }
   }
 
+  const totalDemmMeters = demmDocuments.reduce((sum, document) => sum + document.meterCount, 0)
+  const totalDemmScheduled = demmDocuments.reduce(
+    (sum, document) => sum + document.scheduledCount,
+    0,
+  )
+
   return (
     <>
       <div className="entrada-panel">
@@ -316,7 +322,15 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
         ) : null}
 
         <section className="entrada-section">
-          <h3 className="entrada-section-title">DEMMs cadastradas</h3>
+          <div className="entrada-section-heading">
+            <h3 className="entrada-section-title">DEMMs cadastradas</h3>
+            {demmDocuments.length > 0 ? (
+              <span className="entrada-section-total">
+                Total: {totalDemmMeters} medidor(es)
+                {totalDemmScheduled > 0 ? ` · ${totalDemmScheduled} agendado(s)` : ''}
+              </span>
+            ) : null}
+          </div>
           {loading && demmDocuments.length === 0 ? (
             <p className="entrada-panel-empty">Carregando DEMMs...</p>
           ) : demmDocuments.length === 0 ? (
@@ -365,6 +379,14 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr className="entrada-table-total-row">
+                    <td>Total</td>
+                    <td>{totalDemmMeters}</td>
+                    <td>{totalDemmScheduled}</td>
+                    <td colSpan={3} />
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}
