@@ -1565,6 +1565,82 @@ input[type='file'] {
   margin-top: 8px;
 }
 
+.audit-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.audit-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.audit-panel-intro {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.audit-panel-empty {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.audit-table-wrap {
+  overflow-x: auto;
+}
+
+.audit-table td:last-child {
+  min-width: 220px;
+}
+
+.audit-action {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: rgba(24, 216, 240, 0.12);
+  color: #b8efff;
+}
+
+.audit-action-create,
+.audit-action-register {
+  background: rgba(91, 240, 0, 0.12);
+  color: #d8f6c7;
+}
+
+.audit-action-update {
+  background: rgba(255, 196, 86, 0.14);
+  color: #ffe3a8;
+}
+
+.audit-action-delete {
+  background: rgba(255, 124, 124, 0.16);
+  color: #ffd7d7;
+}
+
+.audit-action-approve {
+  background: rgba(85, 219, 136, 0.16);
+  color: #d6ffe7;
+}
+
+.audit-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
+.audit-pagination-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .field-error {
   margin: 0;
   font-size: 0.82rem;

@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
+import { writeAuditLog } from '../audit.js'
 
 type RatmLaudoRow = {
   id: string
@@ -88,6 +89,18 @@ export async function submitSatisfactionSurvey(req: Request, res: Response) {
      WHERE id = $2`,
     [JSON.stringify(formData), laudoId],
   )
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'satisfaction_survey',
+    entityId: String(laudoId),
+    summary: `Pesquisa de satisfação respondida (nota ${rating})`,
+    newData: {
+      laudoId,
+      rating,
+      comment: comment || null,
+    },
+  })
 
   res.status(201).json({ message: 'Pesquisa enviada com sucesso. Obrigado!' })
 }

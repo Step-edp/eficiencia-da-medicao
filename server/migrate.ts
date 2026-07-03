@@ -97,6 +97,26 @@ export async function migrate() {
       responsible_user_id TEXT NOT NULL REFERENCES users(id),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id BIGSERIAL PRIMARY KEY,
+      occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      user_id TEXT REFERENCES users(id),
+      user_registration TEXT,
+      user_role TEXT,
+      action TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT,
+      summary TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      old_data JSONB,
+      new_data JSONB,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_occurred_at ON audit_logs (occurred_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs (entity_type, entity_id);
   `)
 
   await query(`

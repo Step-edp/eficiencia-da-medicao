@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { requireAuth } from '../auth.js'
+import { writeAuditLog } from '../audit.js'
 
 type MaterialRow = {
   id: number
@@ -62,7 +63,17 @@ export async function createMaterial(req: Request, res: Response) {
     ],
   )
 
-  res.status(201).json({ material: mapMaterial(result.rows[0]) })
+  const createdMaterial = mapMaterial(result.rows[0])
+
+  await writeAuditLog(req, {
+    action: 'create',
+    entityType: 'material',
+    entityId: String(createdMaterial.id),
+    summary: `Material ${createdMaterial.material}`,
+    newData: createdMaterial,
+  })
+
+  res.status(201).json({ material: createdMaterial })
 }
 
 export const materialRoutes = {

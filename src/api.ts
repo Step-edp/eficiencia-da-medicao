@@ -96,6 +96,23 @@ export type EnsaiosManualBlock = {
   reason: string
 }
 
+export type AuditLogRecord = {
+  id: string
+  occurredAt: string
+  userId: string | null
+  userRegistration: string | null
+  userRole: string | null
+  action: string
+  entityType: string
+  entityId: string | null
+  summary: string | null
+  ipAddress: string | null
+  userAgent: string | null
+  oldData: Record<string, unknown> | null
+  newData: Record<string, unknown> | null
+  metadata: Record<string, unknown>
+}
+
 class ApiError extends Error {
   status: number
 
@@ -250,6 +267,17 @@ export const api = {
     }),
   listFieldTeamInspectionUsers: () =>
     request<{ users: FieldTeamUserOption[] }>('/api/field-team/inspection-users'),
+  listAuditLogs: (params?: { limit?: number; offset?: number; entityType?: string; action?: string }) => {
+    const search = new URLSearchParams()
+    if (params?.limit) search.set('limit', String(params.limit))
+    if (params?.offset) search.set('offset', String(params.offset))
+    if (params?.entityType) search.set('entityType', params.entityType)
+    if (params?.action) search.set('action', params.action)
+    const queryString = search.toString()
+    return request<{ logs: AuditLogRecord[]; total: number; limit: number; offset: number }>(
+      `/api/audit-logs${queryString ? `?${queryString}` : ''}`,
+    )
+  },
 }
 
 export { ApiError }

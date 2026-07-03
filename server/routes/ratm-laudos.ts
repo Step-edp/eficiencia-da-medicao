@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { requireAuth } from '../auth.js'
 import { generateRatmLaudoPdf } from '../ratm-laudo-pdf.js'
+import { writeAuditLog } from '../audit.js'
 
 type RatmLaudoRow = {
   id: string
@@ -67,6 +68,20 @@ export async function createRatmLaudos(req: Request, res: Response) {
     createdLaudos.push(mapRatmLaudo(result.rows[0]))
   }
 
+  await writeAuditLog(req, {
+    action: 'create',
+    entityType: 'ratm_laudo',
+    summary: `${createdLaudos.length} laudo(s) RATM criado(s)`,
+    newData: {
+      laudos: createdLaudos.map((laudo) => ({
+        id: laudo.id,
+        ratmNumber: laudo.ratmNumber,
+        meter: laudo.meter,
+        client: laudo.client,
+      })),
+    },
+  })
+
   res.status(201).json({ laudos: createdLaudos })
 }
 
@@ -81,6 +96,16 @@ export async function updateRatmLaudo(req: Request, res: Response) {
 
   if (!form.meter?.trim()) {
     res.status(400).json({ error: 'Informe o medidor antes de salvar.' })
+    return
+  }
+
+  const previous = await query<RatmLaudoRow>(
+    'SELECT * FROM ratm_laudos WHERE id = $1 AND status = $2',
+    [id, 'Pendente'],
+  )
+
+  if (!previous.rows[0]) {
+    res.status(404).json({ error: 'Laudo pendente não encontrado para edição.' })
     return
   }
 
@@ -104,7 +129,18 @@ export async function updateRatmLaudo(req: Request, res: Response) {
     return
   }
 
-  res.json({ laudo: mapRatmLaudo(result.rows[0]) })
+  const laudo = mapRatmLaudo(result.rows[0])
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'ratm_laudo',
+    entityId: laudo.id,
+    summary: `Laudo RATM ${laudo.ratmNumber} editado (medidor ${laudo.meter})`,
+    oldData: mapRatmLaudo(previous.rows[0]),
+    newData: laudo,
+  })
+
+  res.json({ laudo })
 }
 
 export async function approveRatmLaudo(req: Request, res: Response) {
@@ -162,7 +198,19 @@ export async function approveRatmLaudo(req: Request, res: Response) {
     [JSON.stringify(formData), id],
   )
 
-  res.json({ laudo: mapRatmLaudo(result.rows[0]) })
+  const laudo = mapRatmLaudo(result.rows[0])
+
+  await writeAuditLog(req, {
+    action: 'approve',
+    entityType: 'ratm_laudo',
+    entityId: laudo.id,
+    summary: `Laudo RATM ${laudo.ratmNumber} aprovado`,
+    oldData: mapRatmLaudo(existing.rows[0]),
+    newData: laudo,
+    metadata: { clientPresent },
+  })
+
+  res.json({ laudo })
 }
 
 export async function downloadRatmLaudoPdf(req: Request, res: Response) {

@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { requireAuth } from '../auth.js'
+import { writeAuditLog } from '../audit.js'
 
 type PasswordRow = {
   id: string
@@ -51,6 +52,15 @@ export async function addManufacturer(req: Request, res: Response) {
 
   try {
     await query('INSERT INTO manufacturers (name) VALUES ($1)', [trimmed])
+
+    await writeAuditLog(req, {
+      action: 'create',
+      entityType: 'manufacturer',
+      entityId: trimmed,
+      summary: `Fabricante ${trimmed}`,
+      newData: { name: trimmed },
+    })
+
     res.status(201).json({ name: trimmed })
   } catch (error) {
     const pgError = error as { code?: string }
@@ -181,6 +191,24 @@ export async function generatePasswords(req: Request, res: Response) {
       password: randomBlock,
       status: 'generated',
       createdAt: createdAt.toISOString(),
+    })
+  }
+
+  if (newRecords.length) {
+    await writeAuditLog(req, {
+      action: 'create',
+      entityType: 'password_record',
+      summary: `${newRecords.length} senha(s) gerada(s)`,
+      newData: {
+        meters: newRecords.map((record) => record.meter),
+        manufacturer: manufacturer.trim(),
+        materialType: materialType.trim(),
+        orderNumber: orderNumber.trim(),
+        passwordType,
+        digits: passwordDigits,
+        generatedCount: newRecords.length,
+        duplicateCount: results.filter((item) => item.status === 'duplicate').length,
+      },
     })
   }
 

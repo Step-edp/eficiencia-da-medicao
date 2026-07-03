@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { requireAdmin, requireAuth } from '../auth.js'
+import { writeAuditLog } from '../audit.js'
 
 type RequestRow = {
   id: string
@@ -145,9 +146,17 @@ export async function createHomologationRequest(req: Request, res: Response) {
     [id],
   )
 
-  res.status(201).json({
-    request: mapRequest(created.rows[0], createdItems.rows),
+  const request = mapRequest(created.rows[0], createdItems.rows)
+
+  await writeAuditLog(req, {
+    action: 'create',
+    entityType: 'homologation_request',
+    entityId: request.id,
+    summary: `Pedido de homologação ${request.orderNumber}`,
+    newData: request,
   })
+
+  res.status(201).json({ request })
 }
 
 export const homologationRoutes = {

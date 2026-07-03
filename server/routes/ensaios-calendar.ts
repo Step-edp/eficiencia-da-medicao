@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
+import { writeAuditLog } from '../audit.js'
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
@@ -39,13 +40,25 @@ export async function toggleManualBlock(req: Request, res: Response) {
     return
   }
 
-  const existing = await query<{ blocked_date: string }>(
-    `SELECT blocked_date::text FROM ensaios_manual_blocks WHERE blocked_date = $1::date`,
+  const existing = await query<ManualBlockRow>(
+    `SELECT blocked_date::text, reason
+     FROM ensaios_manual_blocks
+     WHERE blocked_date = $1::date`,
     [date],
   )
 
   if (existing.rowCount) {
+    const previous = mapBlock(existing.rows[0])
+
     await query(`DELETE FROM ensaios_manual_blocks WHERE blocked_date = $1::date`, [date])
+
+    await writeAuditLog(req, {
+      action: 'unblock',
+      entityType: 'ensaios_manual_block',
+      entityId: date,
+      summary: `Desbloqueio manual: ${date}`,
+      oldData: previous,
+    })
   } else {
     if (!reason) {
       res.status(400).json({ error: 'Informe o motivo do bloqueio manual.' })
@@ -57,6 +70,14 @@ export async function toggleManualBlock(req: Request, res: Response) {
        VALUES ($1::date, $2, $3)`,
       [date, reason, req.user?.id ?? null],
     )
+
+    await writeAuditLog(req, {
+      action: 'block',
+      entityType: 'ensaios_manual_block',
+      entityId: date,
+      summary: `Bloqueio manual: ${date}`,
+      newData: { date, reason },
+    })
   }
 
   const all = await query<ManualBlockRow>(

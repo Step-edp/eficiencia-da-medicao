@@ -10,6 +10,7 @@ import type { RatmFormData } from './ratm/types'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
 import { EnsaiosCalendar } from './EnsaiosCalendar'
 import { CsdsPanel } from './CsdsPanel'
+import { AuditPanel } from './AuditPanel'
 import { getLabTrailLabel, LAB_TRAIL_KEYS } from './labTrailSteps'
 import {
   api,
@@ -1792,7 +1793,8 @@ function HomePanel({
                 : selectedLabMeasurementSection}
             </h2>
             {selectedLabMeasurementSection !== 'Calendário de ensaios' &&
-            selectedLabMeasurementSection !== 'CSDs' ? (
+            selectedLabMeasurementSection !== 'CSDs' &&
+            selectedLabMeasurementSection !== 'Auditoria' ? (
               <LabMeasurementTrail
                 activeStep={selectedLabMeasurementSection}
                 onSelect={setSelectedLabMeasurementSection}
@@ -1803,6 +1805,8 @@ function HomePanel({
               <EnsaiosCalendar />
             ) : selectedLabMeasurementSection === 'CSDs' ? (
               <CsdsPanel />
+            ) : selectedLabMeasurementSection === 'Auditoria' ? (
+              <AuditPanel />
             ) : selectedLabMeasurementSection === 'Agendar' ? (
               <>
                 <p>Preencha os dados abaixo para reservar a data de agendamento.</p>

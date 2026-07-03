@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { normalizeCsdCities } from '../csd-cities.js'
+import { writeAuditLog } from '../audit.js'
 
 type CsdRow = {
   id: string
@@ -105,7 +106,17 @@ export async function createCsd(req: Request, res: Response) {
         responsibleUserId.trim(),
       ],
     )
-    res.status(201).json({ csd: mapCsd(insert.rows[0]) })
+    const csd = mapCsd(insert.rows[0])
+
+    await writeAuditLog(req, {
+      action: 'create',
+      entityType: 'csd',
+      entityId: csd.id,
+      summary: `CSD ${csd.name}`,
+      newData: csd,
+    })
+
+    res.status(201).json({ csd })
   } catch (error) {
     const pgError = error as { code?: string }
     if (pgError.code === '23505') {
@@ -135,15 +146,34 @@ export async function listInspectionUsers(_req: Request, res: Response) {
 export async function deleteCsd(req: Request, res: Response) {
   const { id } = req.params
 
+  const existing = await query<CsdRow>(
+    `SELECT c.id, c.name, c.address, c.cities, c.responsible_user_id, c.created_at,
+            u.name AS responsible_name, u.registration AS responsible_registration
+     FROM csds c
+     JOIN users u ON u.id = c.responsible_user_id
+     WHERE c.id = $1`,
+    [id],
+  )
+
+  if (!existing.rows[0]) {
+    res.status(404).json({ error: 'CSD não encontrado.' })
+    return
+  }
+
   const result = await query<{ id: string; name: string }>(
     `DELETE FROM csds WHERE id = $1 RETURNING id, name`,
     [id],
   )
 
-  if (!result.rows[0]) {
-    res.status(404).json({ error: 'CSD não encontrado.' })
-    return
-  }
+  const removed = mapCsd(existing.rows[0])
+
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'csd',
+    entityId: removed.id,
+    summary: `CSD ${removed.name} excluído`,
+    oldData: removed,
+  })
 
   res.json({ ok: true, id: result.rows[0].id, name: result.rows[0].name })
 }

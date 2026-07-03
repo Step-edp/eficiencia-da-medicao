@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { query } from '../db.js'
 import { clearAuthCookie, requireAdmin, requireAuth, setAuthCookie, signSsoToken, signToken, verifySsoToken } from '../auth.js'
+import { writeAuditLog } from '../audit.js'
 
 type UserRow = {
   id: string
@@ -129,6 +130,14 @@ export async function register(req: Request, res: Response) {
       ],
     )
 
+    await writeAuditLog(req, {
+      action: 'register',
+      entityType: 'user',
+      entityId: insert.rows[0].id,
+      summary: `Cadastro solicitado: ${insert.rows[0].registration}`,
+      newData: mapUser(insert.rows[0]),
+    })
+
     res.status(201).json({ user: mapUser(insert.rows[0]) })
   } catch (error) {
     const pgError = error as { code?: string }
@@ -197,6 +206,17 @@ export async function listUsers(_req: Request, res: Response) {
 
 export async function approveUser(req: Request, res: Response) {
   const { id } = req.params
+
+  const previous = await query<UserRow>(
+    `SELECT * FROM users WHERE id = $1 AND role = 'compras'`,
+    [id],
+  )
+
+  if (!previous.rows[0]) {
+    res.status(404).json({ error: 'Usuário não encontrado.' })
+    return
+  }
+
   const result = await query<UserRow>(
     `UPDATE users SET approval_status = 'approved', approved_at = NOW()
      WHERE id = $1 AND role = 'compras'
@@ -204,12 +224,18 @@ export async function approveUser(req: Request, res: Response) {
     [id],
   )
 
-  if (!result.rows[0]) {
-    res.status(404).json({ error: 'Usuário não encontrado.' })
-    return
-  }
+  const user = mapUser(result.rows[0])
 
-  res.json({ user: mapUser(result.rows[0]) })
+  await writeAuditLog(req, {
+    action: 'approve',
+    entityType: 'user',
+    entityId: user.id,
+    summary: `Usuário aprovado: ${user.registration}`,
+    oldData: mapUser(previous.rows[0]),
+    newData: user,
+  })
+
+  res.json({ user })
 }
 
 export const authRoutes = {
