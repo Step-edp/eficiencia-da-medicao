@@ -259,14 +259,15 @@ export function FieldTeamCadastrarForm() {
                 className="ensaios-block-modal schedule-slot-modal"
                 role="dialog"
                 aria-modal="true"
-                aria-labelledby="schedule-slot-title"
+                aria-labelledby="schedule-slot-date-label"
                 onClick={(event) => event.stopPropagation()}
               >
-                <h3 id="schedule-slot-title">Agendamento registrado</h3>
                 <p className="schedule-slot-modal-message">
                   Medidor {slotModal.meter} reservado com sucesso.
                 </p>
-                <p className="available-slot-title">Próxima data disponível</p>
+                <p id="schedule-slot-date-label" className="available-slot-title">
+                  Próxima data disponível
+                </p>
                 <div className="schedule-slot-date-row">
                   <p className="available-slot-value">{slotModal.slot}</p>
                   <button
