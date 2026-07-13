@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, ApiError, type DemmDocumentRecord, type DemmMeterAnalysisRecord, type DemmUploadConflictRecord } from './api'
 import { ENTRADA_TRAIL_STEP } from './labTrailSteps'
@@ -178,10 +178,10 @@ function DemmUploadConflicts({ conflicts }: { conflicts: DemmUploadConflictRecor
 }
 
 type EntradaPanelProps = {
-  onCountChange?: (count: number) => void
+  onTrailCountsChange?: () => void
 }
 
-export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
+export function EntradaPanel({ onTrailCountsChange }: EntradaPanelProps) {
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
   const [schedules, setSchedules] = useState<Awaited<ReturnType<typeof api.listMeterSchedules>>['schedules']>([])
   const [loading, setLoading] = useState(true)
@@ -202,9 +202,17 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
     message: string
   } | null>(null)
 
+  const onTrailCountsChangeRef = useRef(onTrailCountsChange)
+  useEffect(() => {
+    onTrailCountsChangeRef.current = onTrailCountsChange
+  }, [onTrailCountsChange])
+
+  const refreshTrailCounts = useCallback(() => {
+    onTrailCountsChangeRef.current?.()
+  }, [])
+
   const loadData = useCallback(async () => {
     setLoading(true)
-    setFeedback(null)
 
     try {
       const [demmResponse, scheduleResponse] = await Promise.all([
@@ -213,7 +221,6 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
       ])
       setDemmDocuments(demmResponse.documents)
       setSchedules(scheduleResponse.schedules)
-      onCountChange?.(scheduleResponse.total)
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -225,7 +232,12 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
     } finally {
       setLoading(false)
     }
-  }, [onCountChange])
+  }, [])
+
+  const reloadEntradaData = useCallback(async () => {
+    await loadData()
+    refreshTrailCounts()
+  }, [loadData, refreshTrailCounts])
 
   useEffect(() => {
     void loadData()
@@ -260,7 +272,7 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
         loading: false,
         showSources: false,
       })
-      await loadData()
+      await reloadEntradaData()
     } catch (error) {
       setAnalysisModal(null)
       setFeedback({
@@ -337,7 +349,7 @@ export function EntradaPanel({ onCountChange }: EntradaPanelProps) {
         loading: false,
         showSources: false,
       })
-      await loadData()
+      await reloadEntradaData()
     } catch (error) {
       if (error instanceof ApiError) {
         setDemmModalFeedback({

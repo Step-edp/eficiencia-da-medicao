@@ -791,7 +791,7 @@ function HomePanel({
     }
   }
 
-  const loadTrailStepCounts = useCallback(async () => {
+  const refreshTrailStepCounts = useCallback(async () => {
     try {
       const response = await api.getMeterRegistryTrailCounts()
       setTrailStepCounts(response.counts)
@@ -801,8 +801,8 @@ function HomePanel({
   }, [])
 
   const loadEntradaCount = useCallback(async () => {
-    await loadTrailStepCounts()
-  }, [loadTrailStepCounts])
+    await refreshTrailStepCounts()
+  }, [refreshTrailStepCounts])
 
   const resetGeneratePasswordForm = () => {
     setMeterNumbersInput('')
@@ -1830,7 +1830,7 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Auditoria' ? (
               <AuditPanel />
             ) : selectedLabMeasurementSection === ENTRADA_TRAIL_STEP ? (
-              <EntradaPanel onCountChange={() => void loadTrailStepCounts()} />
+              <EntradaPanel onTrailCountsChange={refreshTrailStepCounts} />
             ) : selectedLabMeasurementSection === 'Agendar' ? (
               <>
                 <p>Preencha os dados abaixo para reservar a data de agendamento.</p>
