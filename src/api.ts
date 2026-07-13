@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'compras'
+export type UserRole = 'admin' | 'compras' | 'field'
 export type ApprovalStatus = 'approved' | 'pending'
 
 export type AppUser = {
@@ -221,6 +221,10 @@ export const api = {
     request<{ user: AppUser }>('/api/auth/sso-exchange', {
       method: 'POST',
       body: JSON.stringify({ ssoToken }),
+    }),
+  createEmbedToken: () =>
+    request<{ ssoToken: string }>('/api/auth/embed-token', {
+      method: 'POST',
     }),
   register: (payload: {
     name: string

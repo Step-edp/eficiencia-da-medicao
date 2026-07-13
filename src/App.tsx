@@ -1,7 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
-import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
 import { EnsaiarForm } from './EnsaiarForm'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
 import { SatisfactionSurveyPage } from './ratm/SatisfactionSurveyPage'
@@ -33,6 +32,9 @@ const hobbyOptions = [
 ]
 
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
+const FIELD_APP_URL =
+  (import.meta.env.VITE_FIELD_APP_URL as string | undefined)?.trim() ||
+  'https://agendamento-lab-med-production.up.railway.app'
 
 type Panel = 'login' | 'cadastro'
 type AppRoute = 'default' | 'compras-homologacao' | 'pesquisa-satisfacao'
@@ -643,7 +645,7 @@ function HomePanel({
     useState<string | null>(null)
   const [selectedHomologationSection, setSelectedHomologationSection] =
     useState<string | null>(null)
-  const [selectedFieldTeamSection, setSelectedFieldTeamSection] = useState<string | null>(null)
+  const [openingFieldApp, setOpeningFieldApp] = useState(false)
   const [trailStepCounts, setTrailStepCounts] = useState<Record<string, number>>({})
   const [ratmLaudos, setRatmLaudos] = useState<RatmLaudo[]>([])
   const [selectedCodeMaterialsAction, setSelectedCodeMaterialsAction] = useState<
@@ -728,6 +730,26 @@ function HomePanel({
   ]
   const fieldTeamSections = ['Agendar', 'Consultar']
 
+  const openFieldApp = async (section: string) => {
+    setOpeningFieldApp(true)
+    setPasswordFeedback(null)
+    try {
+      const { ssoToken } = await api.createEmbedToken()
+      const url = new URL(FIELD_APP_URL)
+      url.hash = `sso=${encodeURIComponent(ssoToken)}&section=${encodeURIComponent(section)}`
+      window.location.assign(url.toString())
+    } catch (error) {
+      setOpeningFieldApp(false)
+      setPasswordFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível abrir o Agendamento Lab Med.',
+      })
+    }
+  }
+
   const areas: Area[] = [
     {
       title: 'Gestão',
@@ -766,9 +788,9 @@ function HomePanel({
     {
       title: 'Equipe de campo',
       description:
-        'Operações em campo, visitas técnicas e acompanhamento de atividades externas.',
+        'Agendar e consultar medidores no Agendamento Lab Med (mesmo banco do laboratório).',
       details:
-        'Organize rotinas de campo, registre visitas técnicas e acompanhe a execução de serviços externos da operação de Medição.',
+        'Abre o aplicativo Agendamento Lab Med com login automático. Os agendamentos entram direto na trilha Entrada de medidores.',
     },
   ]
 
@@ -1764,29 +1786,14 @@ function HomePanel({
 
     if (
       selectedArea.title === 'Equipe de campo' &&
-      selectedFieldTeamSection
+      openingFieldApp
     ) {
       return (
         <main className="shell">
           <section className="home-card area-screen-card">
-            <TopActionBar
-              onBack={() => setSelectedFieldTeamSection(null)}
-              onHome={() => {
-                setSelectedFieldTeamSection(null)
-                setSelectedArea(null)
-              }}
-              onLogout={onLogout}
-            />
             <p className="section-tag">Equipe de campo</p>
-            <h2>{selectedFieldTeamSection}</h2>
-            {selectedFieldTeamSection === 'Agendar' ? (
-              <FieldTeamCadastrarForm />
-            ) : (
-              <p>
-                Consulte registros de visitas, atividades e informações de campo
-                já cadastradas pela equipe.
-              </p>
-            )}
+            <h2>Abrindo Agendamento Lab Med...</h2>
+            <p>Você será redirecionado para o aplicativo de agendamento.</p>
           </section>
         </main>
       )
@@ -2294,16 +2301,27 @@ function HomePanel({
           ) : null}
           {selectedArea.title === 'Equipe de campo' ? (
             <div className="measurement-sections" aria-label="Funções da equipe de campo">
+              {passwordFeedback ? (
+                <div className={`login-feedback ${passwordFeedback.type}`} role="status">
+                  {passwordFeedback.message}
+                </div>
+              ) : null}
+              <p>
+                Agendar e consultar abrem o aplicativo{' '}
+                <strong>Agendamento Lab Med</strong>, integrado ao mesmo banco do
+                laboratório.
+              </p>
               {fieldTeamSections.map((section) => (
                 <button
                   key={section}
                   className="measurement-item"
                   type="button"
-                  onClick={() => setSelectedFieldTeamSection(section)}
+                  disabled={openingFieldApp}
+                  onClick={() => void openFieldApp(section)}
                 >
                   <span className="item-with-icon">
                     <ItemIcon title={section} />
-                    <span>{section}</span>
+                    <span>{openingFieldApp ? 'Abrindo...' : section}</span>
                   </span>
                 </button>
               ))}

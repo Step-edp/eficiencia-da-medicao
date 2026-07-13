@@ -9,7 +9,7 @@ type UserRow = {
   name: string
   registration: string
   email: string
-  role: 'admin' | 'compras'
+  role: 'admin' | 'compras' | 'field'
   approval_status: 'approved' | 'pending'
   requested_at: Date
   approved_at: Date | null

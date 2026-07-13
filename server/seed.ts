@@ -34,7 +34,7 @@ const demoUsers = [
     password: 'Campo@241',
     name: 'Ana Paula Inspeção',
     email: 'ana.inspecao@edp.com',
-    role: 'compras',
+    role: 'field',
     approvalStatus: 'approved',
     jobTitle: 'Inspetora de Campo',
     workArea: 'Equipe de Campo',
@@ -46,7 +46,7 @@ const demoUsers = [
     password: 'Campo@241',
     name: 'Carlos Mendes Inspeção',
     email: 'carlos.inspecao@edp.com',
-    role: 'compras',
+    role: 'field',
     approvalStatus: 'approved',
     jobTitle: 'Inspetor de Campo',
     workArea: 'Equipe de Campo',
@@ -161,6 +161,7 @@ export async function seed() {
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       ON CONFLICT (id) DO UPDATE SET
         password_hash = EXCLUDED.password_hash,
+        role = EXCLUDED.role,
         approval_status = EXCLUDED.approval_status,
         approved_at = EXCLUDED.approved_at,
         job_title = EXCLUDED.job_title,

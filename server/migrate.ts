@@ -8,7 +8,7 @@ export async function migrate() {
       registration TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
-      role TEXT NOT NULL CHECK (role IN ('admin', 'compras')),
+      role TEXT NOT NULL CHECK (role IN ('admin', 'compras', 'field')),
       approval_status TEXT NOT NULL CHECK (approval_status IN ('approved', 'pending')),
       requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       approved_at TIMESTAMPTZ,
@@ -186,5 +186,21 @@ export async function migrate() {
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS extracted_meters JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS document_number TEXT;
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS emission_date TEXT;
+  `)
+
+  // Integração com Agendamento Lab Med: perfil field + compartilhamento do mesmo Postgres
+  await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'users_role_check' AND conrelid = 'users'::regclass
+      ) THEN
+        ALTER TABLE users DROP CONSTRAINT users_role_check;
+      END IF;
+      ALTER TABLE users
+        ADD CONSTRAINT users_role_check
+        CHECK (role IN ('admin', 'compras', 'field'));
+    END $$;
   `)
 }

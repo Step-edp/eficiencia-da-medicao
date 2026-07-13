@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken'
 export type AuthUser = {
   id: string
   registration: string
-  role: 'admin' | 'compras'
+  role: 'admin' | 'compras' | 'field'
 }
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-in-production'
