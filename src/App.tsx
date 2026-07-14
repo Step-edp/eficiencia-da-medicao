@@ -6,7 +6,7 @@ import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
 import { UsersDashboard } from './UsersDashboard'
-import { GestaoDashboard } from './GestaoDashboard'
+import { GestaoDashboard, CellResponsibleEditor } from './GestaoDashboard'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
   CADASTRO_PROFILES,
@@ -47,7 +47,7 @@ import {
   parseAccessProcess,
   subtypesForCargo,
 } from './registrationOptions'
-import { getOrgCell, ORG_STRUCTURE } from './orgStructure'
+import { buildOrgCellsFromRecords, getOrgCell, ORG_STRUCTURE } from './orgStructure'
 
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
 const FIELD_APP_URL =
@@ -1208,6 +1208,9 @@ function HomePanel({
   const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(null)
   const [, setSelectedOrgSubcell] = useState<string | null>(null)
+  const [orgCells, setOrgCells] = useState(() => [...ORG_STRUCTURE.cells])
+  const [orgCellsBusy, setOrgCellsBusy] = useState(false)
+  const [orgCellsError, setOrgCellsError] = useState<string | null>(null)
 
   useEffect(() => {
     void api
@@ -1220,6 +1223,28 @@ function HomePanel({
       })
       .catch(() => {
         // Mantém fallback local.
+      })
+  }, [])
+
+  useEffect(() => {
+    void api
+      .listOrgCells()
+      .then(({ cells }) => {
+        setOrgCells(
+          buildOrgCellsFromRecords(
+            cells.map((cell) => ({
+              id: cell.id,
+              label: cell.label,
+              description: cell.description,
+              responsibleUserId: cell.responsibleUserId,
+              responsibleName: cell.responsibleName,
+              status: cell.status,
+            })),
+          ),
+        )
+      })
+      .catch(() => {
+        setOrgCells([...ORG_STRUCTURE.cells])
       })
   }, [])
   const [trailStepCounts, setTrailStepCounts] = useState<Record<string, number>>({})
@@ -1463,30 +1488,90 @@ function HomePanel({
     clearAreaSections()
   }
 
-  const visibleOrgCells = ORG_STRUCTURE.cells.filter((cell) => {
-    if (cell.subcells.length === 0) {
-      return (
-        isAdmin ||
-        accessiblePortals.includes('Telemedição') ||
-        accessiblePortals.includes('Gestão')
-      )
-    }
-    return cell.subcells.some(
-      (sub) =>
-        isAdmin ||
-        accessiblePortals.includes(sub.portalKey) ||
-        accessiblePortals.includes('Gestão'),
+  const canManageOrgCells =
+    isAdmin || (!isAdmin && currentUser.jobTitle === 'Gestor')
+
+  const applyOrgCellDtos = (
+    cells: Array<{
+      id: string
+      label: string
+      description: string
+      responsibleUserId: string | null
+      responsibleName: string | null
+      status: 'pendente' | 'ativa'
+    }>,
+  ) => {
+    setOrgCells(
+      buildOrgCellsFromRecords(
+        cells.map((cell) => ({
+          id: cell.id,
+          label: cell.label,
+          description: cell.description,
+          responsibleUserId: cell.responsibleUserId,
+          responsibleName: cell.responsibleName,
+          status: cell.status,
+        })),
+      ),
     )
+  }
+
+  const handleCreateOrgCell = async (payload: {
+    label: string
+    description: string
+    responsibleUserId: string | null
+  }) => {
+    setOrgCellsBusy(true)
+    setOrgCellsError(null)
+    try {
+      const response = await api.createOrgCell(payload)
+      applyOrgCellDtos(response.cells)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Não foi possível criar a célula.'
+      setOrgCellsError(message)
+      throw new Error(message)
+    } finally {
+      setOrgCellsBusy(false)
+    }
+  }
+
+  const handleAssignOrgCellResponsible = async (
+    cellId: string,
+    responsibleUserId: string | null,
+  ) => {
+    setOrgCellsBusy(true)
+    setOrgCellsError(null)
+    try {
+      const response = await api.updateOrgCell(cellId, { responsibleUserId })
+      applyOrgCellDtos(response.cells)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Não foi possível atribuir o responsável.'
+      setOrgCellsError(message)
+      throw new Error(message)
+    } finally {
+      setOrgCellsBusy(false)
+    }
+  }
+
+  const hasPortalAccess = (portalKey: string) =>
+    (accessiblePortals as readonly string[]).includes(portalKey)
+
+  const visibleOrgCells = orgCells.filter((cell) => {
+    if (isGestorView || isAdmin || hasPortalAccess('Gestão')) {
+      return true
+    }
+    if (cell.subcells.length === 0) {
+      return hasPortalAccess(cell.id)
+    }
+    return cell.subcells.some((sub) => hasPortalAccess(sub.portalKey))
   })
 
   const visibleSubcellsForCell = (cellId: string) => {
-    const cell = getOrgCell(cellId)
+    const cell = getOrgCell(cellId, orgCells)
     if (!cell) return []
     return cell.subcells.filter(
-      (sub) =>
-        isAdmin ||
-        accessiblePortals.includes(sub.portalKey) ||
-        accessiblePortals.includes('Gestão'),
+      (sub) => isAdmin || hasPortalAccess(sub.portalKey) || hasPortalAccess('Gestão'),
     )
   }
 
@@ -2032,7 +2117,7 @@ function HomePanel({
 
   if (selectedArea) {
     if (selectedArea.title === 'Gestão') {
-      const activeCell = selectedOrgCell ? getOrgCell(selectedOrgCell) : null
+      const activeCell = selectedOrgCell ? getOrgCell(selectedOrgCell, orgCells) : null
       const cellSubcells = selectedOrgCell ? visibleSubcellsForCell(selectedOrgCell) : []
 
       return (
@@ -2061,7 +2146,14 @@ function HomePanel({
 
             {!selectedOrgCell ? (
               <>
-                <GestaoDashboard />
+                <GestaoDashboard
+                  cells={orgCells}
+                  candidateUsers={registeredUsers}
+                  canManage={canManageOrgCells}
+                  busy={orgCellsBusy}
+                  error={orgCellsError}
+                  onCreateCell={handleCreateOrgCell}
+                />
 
                 <h3 className="lab-other-heading">Células</h3>
                 <div className="home-areas" aria-label="Células da área Gestão">
@@ -2079,6 +2171,18 @@ function HomePanel({
                         <ItemIcon title={cell.id} />
                         <span>{cell.label}</span>
                       </span>
+                      <span
+                        className={`gestao-cell-status-badge ${
+                          cell.status === 'ativa' ? 'is-ativa' : 'is-pendente'
+                        }`}
+                      >
+                        {cell.status === 'ativa' ? 'Ativa' : 'Pendente'}
+                      </span>
+                      {cell.responsibleName ? (
+                        <span className="gestao-cell-card-owner">{cell.responsibleName}</span>
+                      ) : (
+                        <span className="gestao-cell-card-owner is-empty">Sem responsável</span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -2094,6 +2198,18 @@ function HomePanel({
                   Célula <strong>{activeCell?.label}</strong> · {activeCell?.ownerRoleLabel}
                 </p>
                 <p>{activeCell?.description}</p>
+                {activeCell ? (
+                  <CellResponsibleEditor
+                    key={`${activeCell.id}:${activeCell.responsibleUserId ?? 'none'}`}
+                    cell={activeCell}
+                    candidateUsers={registeredUsers}
+                    canManage={canManageOrgCells}
+                    busy={orgCellsBusy}
+                    onAssign={(responsibleUserId) =>
+                      handleAssignOrgCellResponsible(activeCell.id, responsibleUserId)
+                    }
+                  />
+                ) : null}
                 <h3 className="lab-other-heading">Subcélulas</h3>
                 {cellSubcells.length ? (
                   <div
@@ -2116,8 +2232,7 @@ function HomePanel({
                   </div>
                 ) : (
                   <p className="generated-password-empty">
-                    Esta célula ainda não possui subcélulas. A Telemedição ficará vazia
-                    por enquanto até a definição das subcélulas e processos.
+                    Esta célula ainda não possui subcélulas cadastradas.
                   </p>
                 )}
               </>

@@ -3,6 +3,7 @@ import { query } from './db.js'
 import { ensureMeterRegistryImported } from './import-meter-registry.js'
 import { syncMeterRegistryTrailSteps } from './routes/meter-registry.js'
 import { ensureCatalogOptionsSeeded } from './routes/catalog-options.js'
+import { ensureOrgCellsSeeded } from './routes/org-cells.js'
 
 const adminUser = {
   id: 'admin-demo-user',
@@ -93,6 +94,7 @@ export async function seed() {
   )
 
   await ensureCatalogOptionsSeeded()
+  await ensureOrgCellsSeeded()
 
   try {
     const imported = await ensureMeterRegistryImported()

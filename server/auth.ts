@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
+import { query } from './db.js'
 
 export type AuthUser = {
   id: string
@@ -85,6 +86,39 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
     return
   }
   next()
+}
+
+/** Gestor aprovado (cargo Gestor) ou administrador. */
+export async function requireGestorOrAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  if (!req.user) {
+    res.status(401).json({ error: 'Não autenticado.' })
+    return
+  }
+  if (req.user.role === 'admin') {
+    next()
+    return
+  }
+
+  try {
+    const result = await query<{ job_title: string; approval_status: string }>(
+      `SELECT job_title, approval_status FROM users WHERE id = $1`,
+      [req.user.id],
+    )
+    const user = result.rows[0]
+    if (user?.approval_status === 'approved' && user.job_title === 'Gestor') {
+      next()
+      return
+    }
+  } catch {
+    res.status(500).json({ error: 'Falha ao validar permissão.' })
+    return
+  }
+
+  res.status(403).json({ error: 'Acesso restrito ao gestor ou administrador.' })
 }
 
 declare global {

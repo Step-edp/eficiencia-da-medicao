@@ -25,6 +25,7 @@ import {
 } from './routes/csds.js'
 import { catalogOptionRoutes } from './routes/catalog-options.js'
 import { processAssignmentRoutes } from './routes/process-assignments.js'
+import { orgCellRoutes } from './routes/org-cells.js'
 import { listAuditLogs } from './routes/audit-logs.js'
 import {
   countMeterSchedules,
@@ -137,6 +138,10 @@ async function start() {
 
   app.get('/api/process-assignments', ...wrap(processAssignmentRoutes.list))
   app.put('/api/process-assignments', ...wrap(processAssignmentRoutes.upsert))
+
+  app.get('/api/org-cells', ...wrap(orgCellRoutes.list))
+  app.post('/api/org-cells', ...wrap(orgCellRoutes.create))
+  app.patch('/api/org-cells/:id', ...wrap(orgCellRoutes.update))
 
   app.get('/api/audit-logs', requireAuth, listAuditLogs)
 

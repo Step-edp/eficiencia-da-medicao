@@ -1,11 +1,14 @@
 /**
  * Hierarquia operacional:
- * Área (gestor) → Células (engenheiro dono) → Subcélulas (engenheiro responsável)
+ * Área (gestor) → Células (engenheiro dono / responsável) → Subcélulas
  * → Processos (responsável + executor).
+ *
+ * Células padrão vêm de ORG_STRUCTURE; células criadas pelo gestor
+ * são persistidas em org_cells e mescladas em tempo de execução.
  */
 
 export type OrgAreaId = 'Gestão'
-export type OrgCellId = 'Medição' | 'Telemedição'
+export type OrgCellId = string
 export type OrgSubcellId =
   | 'Medição'
   | 'Laboratório de Medição'
@@ -15,20 +18,26 @@ export type OrgSubcellId =
   | 'Cadastros'
 
 export type OrgSubcell = {
-  id: OrgSubcellId
+  id: OrgSubcellId | string
   label: string
   /** Chave do portal / tela existente no App. */
-  portalKey: OrgSubcellId
+  portalKey: string
   description: string
 }
+
+export type OrgCellStatus = 'pendente' | 'ativa'
 
 export type OrgCell = {
   id: OrgCellId
   label: string
   description: string
-  /** Engenheiro Dono da Área (célula). */
+  /** Engenheiro Dono / responsável da célula. */
   ownerRoleLabel: 'Engenheiro Dono de Área'
   subcells: readonly OrgSubcell[]
+  responsibleUserId?: string | null
+  responsibleName?: string | null
+  /** Sem responsável = pendente. */
+  status?: OrgCellStatus
 }
 
 export type OrgArea = {
@@ -38,6 +47,51 @@ export type OrgArea = {
   /** Um gestor por área. */
   managerRoleLabel: 'Gestor'
   cells: readonly OrgCell[]
+}
+
+const MEDICAO_SUBCELLS: readonly OrgSubcell[] = [
+  {
+    id: 'Medição',
+    label: 'Medição',
+    portalKey: 'Medição',
+    description: 'Processos de faturamento, massa, migração e ferramentas de medição.',
+  },
+  {
+    id: 'Laboratório de Medição',
+    label: 'Laboratório de Medição',
+    portalKey: 'Laboratório de Medição',
+    description: 'Trilha laboratorial, ensaios, auditoria e inventário.',
+  },
+  {
+    id: 'Laboratório de Homologação',
+    label: 'Laboratório de Homologação',
+    portalKey: 'Laboratório de Homologação',
+    description: 'Ensaios, pedidos de homologação e código de materiais.',
+  },
+  {
+    id: 'Equipe de campo',
+    label: 'Equipe de campo',
+    portalKey: 'Equipe de campo',
+    description: 'Agendamento e consulta de medidores em campo.',
+  },
+  {
+    id: 'Usuários',
+    label: 'Usuários',
+    portalKey: 'Usuários',
+    description: 'Gestão de cadastros, aprovações e perfis de acesso.',
+  },
+  {
+    id: 'Cadastros',
+    label: 'Cadastros',
+    portalKey: 'Cadastros',
+    description: 'Listas suspensas, perfis e dados de apoio do portal.',
+  },
+]
+
+/** Subcélulas pré-definidas por id de célula conhecida. */
+export const DEFAULT_SUBCELLS_BY_CELL: Record<string, readonly OrgSubcell[]> = {
+  Medição: MEDICAO_SUBCELLS,
+  Telemedição: [],
 }
 
 export const ORG_STRUCTURE: OrgArea = {
@@ -53,66 +107,64 @@ export const ORG_STRUCTURE: OrgArea = {
       description:
         'Célula liderada por um Engenheiro Dono de Área, com subcélulas e processos sob engenheiros responsáveis.',
       ownerRoleLabel: 'Engenheiro Dono de Área',
-      subcells: [
-        {
-          id: 'Medição',
-          label: 'Medição',
-          portalKey: 'Medição',
-          description: 'Processos de faturamento, massa, migração e ferramentas de medição.',
-        },
-        {
-          id: 'Laboratório de Medição',
-          label: 'Laboratório de Medição',
-          portalKey: 'Laboratório de Medição',
-          description: 'Trilha laboratorial, ensaios, auditoria e inventário.',
-        },
-        {
-          id: 'Laboratório de Homologação',
-          label: 'Laboratório de Homologação',
-          portalKey: 'Laboratório de Homologação',
-          description: 'Ensaios, pedidos de homologação e código de materiais.',
-        },
-        {
-          id: 'Equipe de campo',
-          label: 'Equipe de campo',
-          portalKey: 'Equipe de campo',
-          description: 'Agendamento e consulta de medidores em campo.',
-        },
-        {
-          id: 'Usuários',
-          label: 'Usuários',
-          portalKey: 'Usuários',
-          description: 'Gestão de cadastros, aprovações e perfis de acesso.',
-        },
-        {
-          id: 'Cadastros',
-          label: 'Cadastros',
-          portalKey: 'Cadastros',
-          description: 'Listas suspensas, perfis e dados de apoio do portal.',
-        },
-      ],
+      subcells: MEDICAO_SUBCELLS,
+      status: 'pendente',
     },
     {
       id: 'Telemedição',
       label: 'Telemedição',
-      description:
-        'Célula de Telemedição. Subcélulas ainda em definição.',
+      description: 'Célula de Telemedição. Subcélulas ainda em definição.',
       ownerRoleLabel: 'Engenheiro Dono de Área',
       subcells: [],
+      status: 'pendente',
     },
   ],
 }
 
-export function getOrgCell(cellId: string): OrgCell | undefined {
-  return ORG_STRUCTURE.cells.find((cell) => cell.id === cellId)
+export type OrgCellRecord = {
+  id: string
+  label: string
+  description: string
+  responsibleUserId: string | null
+  responsibleName: string | null
+  status: OrgCellStatus
 }
 
-export function getOrgSubcell(cellId: string, subcellId: string): OrgSubcell | undefined {
-  return getOrgCell(cellId)?.subcells.find((item) => item.id === subcellId)
+/** Mescla células do banco com o template de subcélulas conhecidas. */
+export function buildOrgCellsFromRecords(records: OrgCellRecord[]): OrgCell[] {
+  if (!records.length) {
+    return ORG_STRUCTURE.cells.map((cell) => ({ ...cell }))
+  }
+  return records.map((record) => ({
+    id: record.id,
+    label: record.label,
+    description: record.description,
+    ownerRoleLabel: 'Engenheiro Dono de Área',
+    subcells: DEFAULT_SUBCELLS_BY_CELL[record.id] ?? [],
+    responsibleUserId: record.responsibleUserId,
+    responsibleName: record.responsibleName,
+    status: record.status,
+  }))
+}
+
+export function getOrgCell(
+  cellId: string,
+  cells: readonly OrgCell[] = ORG_STRUCTURE.cells,
+): OrgCell | undefined {
+  return cells.find((cell) => cell.id === cellId)
+}
+
+export function getOrgSubcell(
+  cellId: string,
+  subcellId: string,
+  cells: readonly OrgCell[] = ORG_STRUCTURE.cells,
+): OrgSubcell | undefined {
+  return getOrgCell(cellId, cells)?.subcells.find((item) => item.id === subcellId)
 }
 
 export type GestaoDashboardStats = {
   cellCount: number
+  pendingCellCount: number
   subcellCount: number
   processCount: number
   processesBySubcell: Array<{
@@ -125,12 +177,13 @@ export type GestaoDashboardStats = {
 }
 
 /** Indicadores do dashboard gerencial da área Gestão. */
-export function getGestaoDashboardStats(): GestaoDashboardStats {
+export function getGestaoDashboardStats(
+  cells: readonly OrgCell[] = ORG_STRUCTURE.cells,
+): GestaoDashboardStats {
   const processesBySubcell: GestaoDashboardStats['processesBySubcell'] = []
 
-  for (const cell of ORG_STRUCTURE.cells) {
+  for (const cell of cells) {
     if (cell.subcells.length === 0) {
-      // Célula sem subcélulas: processos da própria chave da célula, se houver.
       const processes =
         PROCESSES_BY_HOME_SUBAREA[cell.id as EngineerHomeSubarea] ?? []
       if (processes.length > 0) {
@@ -159,11 +212,9 @@ export function getGestaoDashboardStats(): GestaoDashboardStats {
   }
 
   return {
-    cellCount: ORG_STRUCTURE.cells.length,
-    subcellCount: ORG_STRUCTURE.cells.reduce(
-      (sum, cell) => sum + cell.subcells.length,
-      0,
-    ),
+    cellCount: cells.length,
+    pendingCellCount: cells.filter((cell) => cell.status !== 'ativa').length,
+    subcellCount: cells.reduce((sum, cell) => sum + cell.subcells.length, 0),
     processCount: processesBySubcell.reduce(
       (sum, item) => sum + item.processCount,
       0,

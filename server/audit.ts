@@ -25,6 +25,7 @@ export type AuditEntityType =
   | 'demm_document'
   | 'catalog_option'
   | 'process_assignment'
+  | 'org_cell'
 
 export type AuditLogEntry = {
   action: AuditAction

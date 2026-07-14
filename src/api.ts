@@ -29,6 +29,22 @@ export type AppUser = {
 
 export type ProcessRole = 'responsavel' | 'executor'
 
+export type OrgCellStatus = 'pendente' | 'ativa'
+
+export type OrgCellDto = {
+  id: string
+  areaId: string
+  label: string
+  description: string
+  responsibleUserId: string | null
+  responsibleName: string | null
+  responsibleRegistration: string | null
+  status: OrgCellStatus
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
 export type ProcessAssignment = {
   processKey: string
   area: string
@@ -357,6 +373,27 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
+  listOrgCells: () => request<{ cells: OrgCellDto[] }>('/api/org-cells'),
+  createOrgCell: (payload: {
+    label: string
+    description?: string
+    responsibleUserId?: string | null
+  }) =>
+    request<{ cell: OrgCellDto | null; cells: OrgCellDto[] }>('/api/org-cells', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateOrgCell: (
+    id: string,
+    payload: { description?: string; responsibleUserId?: string | null },
+  ) =>
+    request<{ cell: OrgCellDto | null; cells: OrgCellDto[] }>(
+      `/api/org-cells/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    ),
   listCatalogOptions: () => request<{ catalogs: CatalogGroup[] }>('/api/catalog-options'),
   createCatalogOption: (payload: { catalogKey: CatalogKey; value: string }) =>
     request<{ option: CatalogOption }>('/api/catalog-options', {

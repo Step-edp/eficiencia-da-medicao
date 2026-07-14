@@ -197,6 +197,21 @@ export async function migrate() {
 
     CREATE INDEX IF NOT EXISTS idx_process_assignments_user
       ON process_assignments (user_id);
+
+    CREATE TABLE IF NOT EXISTS org_cells (
+      id TEXT PRIMARY KEY,
+      area_id TEXT NOT NULL DEFAULT 'Gestão',
+      label TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      responsible_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_org_cells_area
+      ON org_cells (area_id, sort_order, label);
   `)
 
   await query(`

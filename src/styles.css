@@ -1590,7 +1590,7 @@ button {
 }
 
 .gestao-dashboard-kpis {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .gestao-dashboard-breakdown h3 {
@@ -1601,6 +1601,123 @@ button {
 .gestao-dashboard-cell-tag {
   color: var(--text-soft);
   font-weight: 500;
+}
+
+.gestao-create-cell h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.gestao-create-cell-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.gestao-create-cell-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--text-soft);
+}
+
+.gestao-create-cell-form input,
+.gestao-create-cell-form select,
+.gestao-cell-responsible-form select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 45, 70, 0.18);
+  background: #fff;
+  font: inherit;
+  color: inherit;
+}
+
+.gestao-create-cell-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.9rem;
+}
+
+.gestao-cell-status-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.gestao-cell-status-badge.is-pendente {
+  background: rgba(180, 83, 9, 0.16);
+  color: #9a3412;
+}
+
+.gestao-cell-status-badge.is-ativa {
+  background: rgba(21, 128, 61, 0.14);
+  color: #166534;
+}
+
+.gestao-cell-card-owner {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.82rem;
+  opacity: 0.88;
+}
+
+.gestao-cell-card-owner.is-empty {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.gestao-cell-responsible {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0 8px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(15, 45, 70, 0.04);
+  border: 1px solid rgba(15, 45, 70, 0.08);
+}
+
+.gestao-cell-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.gestao-cell-status-row .gestao-cell-status-badge {
+  margin-top: 0;
+}
+
+.gestao-cell-responsible-name {
+  font-size: 0.92rem;
+  color: var(--text-soft);
+}
+
+.gestao-cell-responsible-form {
+  display: grid;
+  gap: 10px;
+  max-width: 420px;
+}
+
+.gestao-cell-responsible-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--text-soft);
+}
+
+@media (max-width: 900px) {
+  .gestao-dashboard-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
