@@ -15,7 +15,7 @@ export const CATALOG_LABELS: Record<CatalogKey, string> = {
 }
 
 const DEFAULT_OPTIONS: Record<CatalogKey, string[]> = {
-  cargo: ['Técnico', 'Analista', 'Engenheiro', 'Gestor', 'Estagiário'],
+  cargo: ['Técnico', 'Analista', 'Engenheiro', 'Gestor', 'Estagiário', 'Assistente Administrativo'],
   area: [
     'Medição',
     'Telemedição',
