@@ -326,22 +326,6 @@ function LoginPanel({ activeRoute, onLoginSuccess }: LoginPanelProps) {
 
   return (
     <section className="auth-panel">
-      <header>
-        <p className="section-tag">Acesso seguro</p>
-        <h2>Entrar com matrícula e senha</h2>
-        <p>
-          {activeRoute === 'compras-homologacao'
-            ? 'Entre para preencher o formulário fixo de Pedidos de Homologação. Se ainda não tiver cadastro, solicite acesso com perfil Compras.'
-            : 'Use sua matrícula corporativa e a senha cadastrada. Se sua solicitação ainda estiver pendente, aguarde a aprovação do ADM.'}
-        </p>
-      </header>
-
-      <div className="demo-access-box">
-        <strong>Acesso fictício para teste</strong>
-        <span>ADM - Matrícula: E706032 | Senha: Step@241</span>
-        <span>Compras - Matrícula: C900001 | Senha: Compras@241</span>
-      </div>
-
       <form className="form-grid" onSubmit={handleSubmit}>
         <label>
           Matrícula
