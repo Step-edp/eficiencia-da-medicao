@@ -1,9 +1,10 @@
 export const EDP_UNITS = ['EDP SP', 'EDP ES'] as const
 
 export const TECHNICIAN_SUBTYPES = [
-  'Administrativo',
-  'Inspeção',
-  'Grandes Clientes',
+  'Medição',
+  'Laboratório de Medição',
+  'Lavratura de TOI',
+  'Leituras de faturamento',
 ] as const
 
 export const ENGINEER_SUBTYPES = [

@@ -158,7 +158,12 @@ export async function register(req: Request, res: Response) {
   const allowedTerceiras = valuesByKey.terceira ?? []
   const allowedLocalities = valuesByKey.localidade ?? []
   const allowedEdpUnits = ['EDP SP', 'EDP ES']
-  const allowedTechnicianSubtypes = ['Administrativo', 'Inspeção', 'Grandes Clientes']
+  const allowedTechnicianSubtypes = [
+    'Medição',
+    'Laboratório de Medição',
+    'Lavratura de TOI',
+    'Leituras de faturamento',
+  ]
   const allowedEngineerSubtypes = ['Dono de área', 'Ponto focal', 'Não aplicável']
 
   if (!allowedCargos.includes(normalizedJobTitle)) {
