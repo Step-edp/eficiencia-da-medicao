@@ -36,15 +36,28 @@ export type OrgCell = {
   subcells: readonly OrgSubcell[]
   responsibleUserId?: string | null
   responsibleName?: string | null
+  substituteUserId?: string | null
+  substituteName?: string | null
   /** Sem responsável = pendente. */
   status?: OrgCellStatus
+}
+
+export type OrgAreaLeadership = {
+  id: OrgAreaId
+  label: string
+  description: string
+  responsibleUserId: string | null
+  responsibleName: string | null
+  substituteUserId: string | null
+  substituteName: string | null
+  status: OrgCellStatus
 }
 
 export type OrgArea = {
   id: OrgAreaId
   label: string
   description: string
-  /** Um gestor por área. */
+  /** Um gestor (responsável) e um substituto por área. */
   managerRoleLabel: 'Gestor'
   cells: readonly OrgCell[]
 }
@@ -127,6 +140,8 @@ export type OrgCellRecord = {
   description: string
   responsibleUserId: string | null
   responsibleName: string | null
+  substituteUserId: string | null
+  substituteName: string | null
   status: OrgCellStatus
 }
 
@@ -143,8 +158,21 @@ export function buildOrgCellsFromRecords(records: OrgCellRecord[]): OrgCell[] {
     subcells: DEFAULT_SUBCELLS_BY_CELL[record.id] ?? [],
     responsibleUserId: record.responsibleUserId,
     responsibleName: record.responsibleName,
+    substituteUserId: record.substituteUserId,
+    substituteName: record.substituteName,
     status: record.status,
   }))
+}
+
+export const DEFAULT_ORG_AREA_LEADERSHIP: OrgAreaLeadership = {
+  id: 'Gestão',
+  label: 'Gestão',
+  description: ORG_STRUCTURE.description,
+  responsibleUserId: null,
+  responsibleName: null,
+  substituteUserId: null,
+  substituteName: null,
+  status: 'pendente',
 }
 
 export function getOrgCell(

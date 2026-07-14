@@ -39,10 +39,32 @@ export type OrgCellDto = {
   responsibleUserId: string | null
   responsibleName: string | null
   responsibleRegistration: string | null
+  substituteUserId: string | null
+  substituteName: string | null
+  substituteRegistration: string | null
   status: OrgCellStatus
   sortOrder: number
   createdAt: string
   updatedAt: string
+}
+
+export type OrgAreaDto = {
+  id: string
+  label: string
+  description: string
+  responsibleUserId: string | null
+  responsibleName: string | null
+  responsibleRegistration: string | null
+  substituteUserId: string | null
+  substituteName: string | null
+  substituteRegistration: string | null
+  status: OrgCellStatus
+  updatedAt: string
+}
+
+export type OrgStructureResponse = {
+  area: OrgAreaDto | null
+  cells: OrgCellDto[]
 }
 
 export type ProcessAssignment = {
@@ -373,21 +395,34 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
-  listOrgCells: () => request<{ cells: OrgCellDto[] }>('/api/org-cells'),
+  listOrgCells: () => request<OrgStructureResponse>('/api/org-cells'),
+  updateOrgArea: (payload: {
+    responsibleUserId?: string | null
+    substituteUserId?: string | null
+  }) =>
+    request<OrgStructureResponse>('/api/org-area', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
   createOrgCell: (payload: {
     label: string
     description?: string
     responsibleUserId?: string | null
+    substituteUserId?: string | null
   }) =>
-    request<{ cell: OrgCellDto | null; cells: OrgCellDto[] }>('/api/org-cells', {
+    request<OrgStructureResponse & { cell: OrgCellDto | null }>('/api/org-cells', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
   updateOrgCell: (
     id: string,
-    payload: { description?: string; responsibleUserId?: string | null },
+    payload: {
+      description?: string
+      responsibleUserId?: string | null
+      substituteUserId?: string | null
+    },
   ) =>
-    request<{ cell: OrgCellDto | null; cells: OrgCellDto[] }>(
+    request<OrgStructureResponse & { cell: OrgCellDto | null }>(
       `/api/org-cells/${encodeURIComponent(id)}`,
       {
         method: 'PATCH',

@@ -1,26 +1,58 @@
 import { FormEvent, useState } from 'react'
 import type { AppUser } from './api'
-import { getGestaoDashboardStats, ORG_STRUCTURE, type OrgCell } from './orgStructure'
+import {
+  getGestaoDashboardStats,
+  ORG_STRUCTURE,
+  type OrgAreaLeadership,
+  type OrgCell,
+} from './orgStructure'
+
+type LeadershipPayload = {
+  responsibleUserId: string | null
+  substituteUserId: string | null
+}
 
 type GestaoDashboardProps = {
+  area: OrgAreaLeadership
   cells: OrgCell[]
   candidateUsers: AppUser[]
   canManage: boolean
   busy?: boolean
   error?: string | null
-  onCreateCell: (payload: {
-    label: string
-    description: string
-    responsibleUserId: string | null
-  }) => Promise<void>
+  onUpdateArea: (payload: LeadershipPayload) => Promise<void>
+  onCreateCell: (
+    payload: LeadershipPayload & { label: string; description: string },
+  ) => Promise<void>
+}
+
+function UserOptions({
+  users,
+  excludeId,
+}: {
+  users: AppUser[]
+  excludeId?: string
+}) {
+  return (
+    <>
+      {users
+        .filter((user) => user.id !== excludeId)
+        .map((user) => (
+          <option key={user.id} value={user.id}>
+            {user.name} ({user.registration})
+          </option>
+        ))}
+    </>
+  )
 }
 
 export function GestaoDashboard({
+  area,
   cells,
   candidateUsers,
   canManage,
   busy = false,
   error = null,
+  onUpdateArea,
   onCreateCell,
 }: GestaoDashboardProps) {
   const stats = getGestaoDashboardStats(cells)
@@ -32,6 +64,7 @@ export function GestaoDashboard({
   const [label, setLabel] = useState('')
   const [description, setDescription] = useState('')
   const [responsibleUserId, setResponsibleUserId] = useState('')
+  const [substituteUserId, setSubstituteUserId] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
 
   const handleCreate = async (event: FormEvent) => {
@@ -42,15 +75,21 @@ export function GestaoDashboard({
       setLocalError('Informe o nome da célula.')
       return
     }
+    if (responsibleUserId && substituteUserId && responsibleUserId === substituteUserId) {
+      setLocalError('O substituto deve ser diferente do responsável.')
+      return
+    }
     try {
       await onCreateCell({
         label: trimmed,
         description: description.trim(),
         responsibleUserId: responsibleUserId || null,
+        substituteUserId: responsibleUserId ? substituteUserId || null : null,
       })
       setLabel('')
       setDescription('')
       setResponsibleUserId('')
+      setSubstituteUserId('')
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Não foi possível criar a célula.')
     }
@@ -77,12 +116,23 @@ export function GestaoDashboard({
         </article>
       </div>
 
+      <AreaLeadershipEditor
+        key={`${area.responsibleUserId ?? 'none'}:${area.substituteUserId ?? 'none'}`}
+        title="Liderança da Gestão"
+        hint="A área Gestão tem 1 responsável e 1 substituto para períodos de ausência. Sem responsável, a área fica pendente."
+        area={area}
+        candidateUsers={candidateUsers}
+        canManage={canManage}
+        busy={busy}
+        onSave={onUpdateArea}
+      />
+
       {canManage ? (
         <div className="users-dashboard-card gestao-create-cell">
           <h3>Nova célula</h3>
           <p className="users-dashboard-ranking-hint">
-            Crie uma célula e atribua um responsável. Sem responsável, a célula fica
-            pendente.
+            Cada célula tem 1 responsável e 1 substituto para ausência. Sem responsável,
+            a célula fica pendente.
           </p>
           <form className="gestao-create-cell-form" onSubmit={handleCreate}>
             <label>
@@ -109,15 +159,28 @@ export function GestaoDashboard({
               Responsável (opcional)
               <select
                 value={responsibleUserId}
-                onChange={(event) => setResponsibleUserId(event.target.value)}
+                onChange={(event) => {
+                  const next = event.target.value
+                  setResponsibleUserId(next)
+                  if (!next || next === substituteUserId) {
+                    setSubstituteUserId('')
+                  }
+                }}
                 disabled={busy}
               >
                 <option value="">Sem responsável — pendente</option>
-                {candidateUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} ({user.registration})
-                  </option>
-                ))}
+                <UserOptions users={candidateUsers} />
+              </select>
+            </label>
+            <label>
+              Substituto (opcional)
+              <select
+                value={substituteUserId}
+                onChange={(event) => setSubstituteUserId(event.target.value)}
+                disabled={busy || !responsibleUserId}
+              >
+                <option value="">Sem substituto</option>
+                <UserOptions users={candidateUsers} excludeId={responsibleUserId || undefined} />
               </select>
             </label>
             {(localError || error) && (
@@ -175,69 +238,98 @@ export function GestaoDashboard({
   )
 }
 
-type CellResponsibleEditorProps = {
-  cell: OrgCell
+type AreaLeadershipEditorProps = {
+  title: string
+  hint: string
+  area: OrgAreaLeadership
   candidateUsers: AppUser[]
   canManage: boolean
   busy?: boolean
-  onAssign: (responsibleUserId: string | null) => Promise<void>
+  onSave: (payload: LeadershipPayload) => Promise<void>
 }
 
-export function CellResponsibleEditor({
-  cell,
+export function AreaLeadershipEditor({
+  title,
+  hint,
+  area,
   candidateUsers,
   canManage,
   busy = false,
-  onAssign,
-}: CellResponsibleEditorProps) {
-  const [responsibleUserId, setResponsibleUserId] = useState(
-    cell.responsibleUserId ?? '',
-  )
+  onSave,
+}: AreaLeadershipEditorProps) {
+  const [responsibleUserId, setResponsibleUserId] = useState(area.responsibleUserId ?? '')
+  const [substituteUserId, setSubstituteUserId] = useState(area.substituteUserId ?? '')
   const [error, setError] = useState<string | null>(null)
-  const status = cell.status === 'ativa' ? 'ativa' : 'pendente'
+  const status = area.status === 'ativa' ? 'ativa' : 'pendente'
 
   const handleSave = async () => {
     setError(null)
+    if (responsibleUserId && substituteUserId && responsibleUserId === substituteUserId) {
+      setError('O substituto deve ser diferente do responsável.')
+      return
+    }
     try {
-      await onAssign(responsibleUserId || null)
+      await onSave({
+        responsibleUserId: responsibleUserId || null,
+        substituteUserId: responsibleUserId ? substituteUserId || null : null,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível salvar.')
     }
   }
 
   return (
-    <div className="gestao-cell-responsible">
+    <div className="users-dashboard-card gestao-cell-responsible">
+      <h3>{title}</h3>
+      <p className="users-dashboard-ranking-hint">{hint}</p>
       <div className="gestao-cell-status-row">
         <span
           className={`gestao-cell-status-badge ${status === 'ativa' ? 'is-ativa' : 'is-pendente'}`}
         >
           {status === 'ativa' ? 'Ativa' : 'Pendente'}
         </span>
-        {cell.responsibleName ? (
-          <span className="gestao-cell-responsible-name">
-            Responsável: <strong>{cell.responsibleName}</strong>
-          </span>
-        ) : (
-          <span className="gestao-cell-responsible-name">
-            Sem responsável — célula pendente
-          </span>
-        )}
+        <span className="gestao-cell-responsible-name">
+          {area.responsibleName ? (
+            <>
+              Responsável: <strong>{area.responsibleName}</strong>
+            </>
+          ) : (
+            'Sem responsável'
+          )}
+          {area.substituteName ? (
+            <>
+              {' '}
+              · Substituto: <strong>{area.substituteName}</strong>
+            </>
+          ) : null}
+        </span>
       </div>
       {canManage ? (
         <div className="gestao-cell-responsible-form">
           <label>
-            Atribuir responsável
+            Responsável
             <select
               value={responsibleUserId}
-              onChange={(event) => setResponsibleUserId(event.target.value)}
+              onChange={(event) => {
+                const next = event.target.value
+                setResponsibleUserId(next)
+                if (!next || next === substituteUserId) setSubstituteUserId('')
+              }}
               disabled={busy}
             >
               <option value="">Sem responsável — pendente</option>
-              {candidateUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name} ({user.registration})
-                </option>
-              ))}
+              <UserOptions users={candidateUsers} />
+            </select>
+          </label>
+          <label>
+            Substituto (ausência)
+            <select
+              value={substituteUserId}
+              onChange={(event) => setSubstituteUserId(event.target.value)}
+              disabled={busy || !responsibleUserId}
+            >
+              <option value="">Sem substituto</option>
+              <UserOptions users={candidateUsers} excludeId={responsibleUserId || undefined} />
             </select>
           </label>
           {error ? (
@@ -251,7 +343,114 @@ export function CellResponsibleEditor({
             disabled={busy}
             onClick={() => void handleSave()}
           >
-            {busy ? 'Salvando…' : 'Salvar responsável'}
+            {busy ? 'Salvando…' : 'Salvar liderança'}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+type CellResponsibleEditorProps = {
+  cell: OrgCell
+  candidateUsers: AppUser[]
+  canManage: boolean
+  busy?: boolean
+  onAssign: (payload: LeadershipPayload) => Promise<void>
+}
+
+export function CellResponsibleEditor({
+  cell,
+  candidateUsers,
+  canManage,
+  busy = false,
+  onAssign,
+}: CellResponsibleEditorProps) {
+  const [responsibleUserId, setResponsibleUserId] = useState(cell.responsibleUserId ?? '')
+  const [substituteUserId, setSubstituteUserId] = useState(cell.substituteUserId ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const status = cell.status === 'ativa' ? 'ativa' : 'pendente'
+
+  const handleSave = async () => {
+    setError(null)
+    if (responsibleUserId && substituteUserId && responsibleUserId === substituteUserId) {
+      setError('O substituto deve ser diferente do responsável.')
+      return
+    }
+    try {
+      await onAssign({
+        responsibleUserId: responsibleUserId || null,
+        substituteUserId: responsibleUserId ? substituteUserId || null : null,
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível salvar.')
+    }
+  }
+
+  return (
+    <div className="gestao-cell-responsible">
+      <div className="gestao-cell-status-row">
+        <span
+          className={`gestao-cell-status-badge ${status === 'ativa' ? 'is-ativa' : 'is-pendente'}`}
+        >
+          {status === 'ativa' ? 'Ativa' : 'Pendente'}
+        </span>
+        <span className="gestao-cell-responsible-name">
+          {cell.responsibleName ? (
+            <>
+              Responsável: <strong>{cell.responsibleName}</strong>
+            </>
+          ) : (
+            'Sem responsável — célula pendente'
+          )}
+          {cell.substituteName ? (
+            <>
+              {' '}
+              · Substituto: <strong>{cell.substituteName}</strong>
+            </>
+          ) : null}
+        </span>
+      </div>
+      {canManage ? (
+        <div className="gestao-cell-responsible-form">
+          <label>
+            Responsável
+            <select
+              value={responsibleUserId}
+              onChange={(event) => {
+                const next = event.target.value
+                setResponsibleUserId(next)
+                if (!next || next === substituteUserId) setSubstituteUserId('')
+              }}
+              disabled={busy}
+            >
+              <option value="">Sem responsável — pendente</option>
+              <UserOptions users={candidateUsers} />
+            </select>
+          </label>
+          <label>
+            Substituto (ausência)
+            <select
+              value={substituteUserId}
+              onChange={(event) => setSubstituteUserId(event.target.value)}
+              disabled={busy || !responsibleUserId}
+            >
+              <option value="">Sem substituto</option>
+              <UserOptions users={candidateUsers} excludeId={responsibleUserId || undefined} />
+            </select>
+          </label>
+          {error ? (
+            <p className="gestao-create-cell-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className="primary-button"
+            disabled={busy}
+            onClick={() => void handleSave()}
+          >
+            {busy ? 'Salvando…' : 'Salvar liderança'}
           </button>
         </div>
       ) : null}

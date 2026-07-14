@@ -26,6 +26,7 @@ export type AuditEntityType =
   | 'catalog_option'
   | 'process_assignment'
   | 'org_cell'
+  | 'org_area'
 
 export type AuditLogEntry = {
   action: AuditAction

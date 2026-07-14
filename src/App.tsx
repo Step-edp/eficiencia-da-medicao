@@ -47,7 +47,13 @@ import {
   parseAccessProcess,
   subtypesForCargo,
 } from './registrationOptions'
-import { buildOrgCellsFromRecords, getOrgCell, ORG_STRUCTURE } from './orgStructure'
+import {
+  buildOrgCellsFromRecords,
+  DEFAULT_ORG_AREA_LEADERSHIP,
+  getOrgCell,
+  ORG_STRUCTURE,
+  type OrgAreaLeadership,
+} from './orgStructure'
 
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
 const FIELD_APP_URL =
@@ -1209,6 +1215,7 @@ function HomePanel({
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(null)
   const [, setSelectedOrgSubcell] = useState<string | null>(null)
   const [orgCells, setOrgCells] = useState(() => [...ORG_STRUCTURE.cells])
+  const [orgArea, setOrgArea] = useState<OrgAreaLeadership>(DEFAULT_ORG_AREA_LEADERSHIP)
   const [orgCellsBusy, setOrgCellsBusy] = useState(false)
   const [orgCellsError, setOrgCellsError] = useState<string | null>(null)
 
@@ -1229,7 +1236,19 @@ function HomePanel({
   useEffect(() => {
     void api
       .listOrgCells()
-      .then(({ cells }) => {
+      .then(({ area, cells }) => {
+        if (area) {
+          setOrgArea({
+            id: 'Gestão',
+            label: area.label,
+            description: area.description,
+            responsibleUserId: area.responsibleUserId,
+            responsibleName: area.responsibleName,
+            substituteUserId: area.substituteUserId,
+            substituteName: area.substituteName,
+            status: area.status,
+          })
+        }
         setOrgCells(
           buildOrgCellsFromRecords(
             cells.map((cell) => ({
@@ -1238,12 +1257,15 @@ function HomePanel({
               description: cell.description,
               responsibleUserId: cell.responsibleUserId,
               responsibleName: cell.responsibleName,
+              substituteUserId: cell.substituteUserId,
+              substituteName: cell.substituteName,
               status: cell.status,
             })),
           ),
         )
       })
       .catch(() => {
+        setOrgArea(DEFAULT_ORG_AREA_LEADERSHIP)
         setOrgCells([...ORG_STRUCTURE.cells])
       })
   }, [])
@@ -1491,40 +1513,85 @@ function HomePanel({
   const canManageOrgCells =
     isAdmin || (!isAdmin && currentUser.jobTitle === 'Gestor')
 
-  const applyOrgCellDtos = (
+  const applyOrgStructure = (payload: {
+    area: {
+      label: string
+      description: string
+      responsibleUserId: string | null
+      responsibleName: string | null
+      substituteUserId: string | null
+      substituteName: string | null
+      status: 'pendente' | 'ativa'
+    } | null
     cells: Array<{
       id: string
       label: string
       description: string
       responsibleUserId: string | null
       responsibleName: string | null
+      substituteUserId: string | null
+      substituteName: string | null
       status: 'pendente' | 'ativa'
-    }>,
-  ) => {
+    }>
+  }) => {
+    if (payload.area) {
+      setOrgArea({
+        id: 'Gestão',
+        label: payload.area.label,
+        description: payload.area.description,
+        responsibleUserId: payload.area.responsibleUserId,
+        responsibleName: payload.area.responsibleName,
+        substituteUserId: payload.area.substituteUserId,
+        substituteName: payload.area.substituteName,
+        status: payload.area.status,
+      })
+    }
     setOrgCells(
       buildOrgCellsFromRecords(
-        cells.map((cell) => ({
+        payload.cells.map((cell) => ({
           id: cell.id,
           label: cell.label,
           description: cell.description,
           responsibleUserId: cell.responsibleUserId,
           responsibleName: cell.responsibleName,
+          substituteUserId: cell.substituteUserId,
+          substituteName: cell.substituteName,
           status: cell.status,
         })),
       ),
     )
   }
 
+  const handleUpdateOrgArea = async (payload: {
+    responsibleUserId: string | null
+    substituteUserId: string | null
+  }) => {
+    setOrgCellsBusy(true)
+    setOrgCellsError(null)
+    try {
+      const response = await api.updateOrgArea(payload)
+      applyOrgStructure(response)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Não foi possível atualizar a liderança da Gestão.'
+      setOrgCellsError(message)
+      throw new Error(message)
+    } finally {
+      setOrgCellsBusy(false)
+    }
+  }
+
   const handleCreateOrgCell = async (payload: {
     label: string
     description: string
     responsibleUserId: string | null
+    substituteUserId: string | null
   }) => {
     setOrgCellsBusy(true)
     setOrgCellsError(null)
     try {
       const response = await api.createOrgCell(payload)
-      applyOrgCellDtos(response.cells)
+      applyOrgStructure(response)
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Não foi possível criar a célula.'
@@ -1535,18 +1602,21 @@ function HomePanel({
     }
   }
 
-  const handleAssignOrgCellResponsible = async (
+  const handleAssignOrgCellLeadership = async (
     cellId: string,
-    responsibleUserId: string | null,
+    payload: {
+      responsibleUserId: string | null
+      substituteUserId: string | null
+    },
   ) => {
     setOrgCellsBusy(true)
     setOrgCellsError(null)
     try {
-      const response = await api.updateOrgCell(cellId, { responsibleUserId })
-      applyOrgCellDtos(response.cells)
+      const response = await api.updateOrgCell(cellId, payload)
+      applyOrgStructure(response)
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Não foi possível atribuir o responsável.'
+        err instanceof Error ? err.message : 'Não foi possível salvar a liderança da célula.'
       setOrgCellsError(message)
       throw new Error(message)
     } finally {
@@ -2147,11 +2217,13 @@ function HomePanel({
             {!selectedOrgCell ? (
               <>
                 <GestaoDashboard
+                  area={orgArea}
                   cells={orgCells}
                   candidateUsers={registeredUsers}
                   canManage={canManageOrgCells}
                   busy={orgCellsBusy}
                   error={orgCellsError}
+                  onUpdateArea={handleUpdateOrgArea}
                   onCreateCell={handleCreateOrgCell}
                 />
 
@@ -2179,7 +2251,10 @@ function HomePanel({
                         {cell.status === 'ativa' ? 'Ativa' : 'Pendente'}
                       </span>
                       {cell.responsibleName ? (
-                        <span className="gestao-cell-card-owner">{cell.responsibleName}</span>
+                        <span className="gestao-cell-card-owner">
+                          Resp.: {cell.responsibleName}
+                          {cell.substituteName ? ` · Subst.: ${cell.substituteName}` : ''}
+                        </span>
                       ) : (
                         <span className="gestao-cell-card-owner is-empty">Sem responsável</span>
                       )}
@@ -2200,13 +2275,13 @@ function HomePanel({
                 <p>{activeCell?.description}</p>
                 {activeCell ? (
                   <CellResponsibleEditor
-                    key={`${activeCell.id}:${activeCell.responsibleUserId ?? 'none'}`}
+                    key={`${activeCell.id}:${activeCell.responsibleUserId ?? 'none'}:${activeCell.substituteUserId ?? 'none'}`}
                     cell={activeCell}
                     candidateUsers={registeredUsers}
                     canManage={canManageOrgCells}
                     busy={orgCellsBusy}
-                    onAssign={(responsibleUserId) =>
-                      handleAssignOrgCellResponsible(activeCell.id, responsibleUserId)
+                    onAssign={(payload) =>
+                      handleAssignOrgCellLeadership(activeCell.id, payload)
                     }
                   />
                 ) : null}

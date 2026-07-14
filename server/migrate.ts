@@ -212,6 +212,16 @@ export async function migrate() {
 
     CREATE INDEX IF NOT EXISTS idx_org_cells_area
       ON org_cells (area_id, sort_order, label);
+
+    CREATE TABLE IF NOT EXISTS org_areas (
+      id TEXT PRIMARY KEY,
+      label TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      responsible_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      substitute_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `)
 
   await query(`
@@ -230,6 +240,7 @@ export async function migrate() {
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS extracted_meters JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS document_number TEXT;
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS emission_date TEXT;
+    ALTER TABLE org_cells ADD COLUMN IF NOT EXISTS substitute_user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
   `)
 
   // Integração com Agendamento Lab Med: perfil field + compartilhamento do mesmo Postgres
