@@ -2998,12 +2998,6 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         ) : null}
       </header>
 
-      <div className="privacy-note">
-        Observação: foto de perfil, fotos de pessoas que você ama, descrição
-        pessoal, hobbies e demais informações pessoais serão visualizadas somente
-        por você.
-      </div>
-
       {feedback ? (
         <div className={`login-feedback ${feedback.type}`} role="status">
           {feedback.message}
