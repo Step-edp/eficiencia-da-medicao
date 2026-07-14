@@ -9,9 +9,9 @@ export const TECHNICIAN_SUBTYPES = [
 ] as const
 
 export const ENGINEER_SUBTYPES = [
-  'Dono de área',
-  'Ponto focal',
-  'Não aplicável',
+  'Área',
+  'Sub-área',
+  'Processos específicos',
 ] as const
 
 export const DEFAULT_AREA_OPTIONS = [
@@ -77,14 +77,11 @@ export function buildRequestedProfile(
   }
 
   if (jobTitle === 'Engenheiro') {
-    if (workSubtype === 'Dono de área' && workArea) {
-      return `Engenheiro Dono da Área – ${workArea}`
+    if (workSubtype && workArea) {
+      return `Engenheiro – ${workSubtype} – ${workArea}`
     }
-    if (workSubtype === 'Ponto focal' && workArea) {
-      return `Ponto Focal – ${workArea}`
-    }
-    if (workSubtype === 'Não aplicável' && workArea) {
-      return `Engenheiro Responsável – ${workArea}`
+    if (workSubtype) {
+      return `Engenheiro – ${workSubtype}`
     }
     if (workArea) {
       return `Engenheiro – ${workArea}`

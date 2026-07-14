@@ -3188,7 +3188,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         type: 'error',
         message:
           jobTitle === 'Engenheiro'
-            ? 'Selecione a função do engenheiro.'
+            ? 'Selecione a abrangência do engenheiro.'
             : 'Selecione o tipo de técnico.',
       })
       return
@@ -3365,7 +3365,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
 
         {subtypeOptions.length > 0 ? (
           <label>
-            {jobTitle === 'Engenheiro' ? 'Função do engenheiro' : 'Tipo de técnico'}
+            {jobTitle === 'Engenheiro' ? 'Abrangência do engenheiro' : 'Tipo de técnico'}
             <select
               value={workSubtype}
               onChange={(event) => setWorkSubtype(event.target.value)}

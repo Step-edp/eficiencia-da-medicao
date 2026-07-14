@@ -167,7 +167,7 @@ export async function register(req: Request, res: Response) {
     'Lavratura de TOI',
     'Leituras de faturamento',
   ]
-  const allowedEngineerSubtypes = ['Dono de área', 'Ponto focal', 'Não aplicável']
+  const allowedEngineerSubtypes = ['Área', 'Sub-área', 'Processos específicos']
 
   if (!allowedCargos.includes(normalizedJobTitle)) {
     res.status(400).json({ error: 'Selecione um cargo válido.' })
@@ -222,7 +222,7 @@ export async function register(req: Request, res: Response) {
     }
   } else if (normalizedJobTitle === 'Engenheiro') {
     if (!allowedEngineerSubtypes.includes(normalizedWorkSubtype)) {
-      res.status(400).json({ error: 'Selecione a função do engenheiro.' })
+      res.status(400).json({ error: 'Selecione a abrangência do engenheiro.' })
       return
     }
   }
