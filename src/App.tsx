@@ -2989,12 +2989,13 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
     <section className="auth-panel register-panel">
       <header>
         <p className="section-tag">Cadastro</p>
-        <h2>Cadastre-se para solicitar liberação no portal</h2>
-        <p>
-          {activeRoute === 'compras-homologacao'
-            ? 'Este cadastro cria um acesso com perfil Compras. Depois da aprovação do ADM, o usuário visualizará somente o formulário fixo de Pedidos de Homologação.'
-            : 'Preencha seus dados profissionais e pessoais. As informações pessoais terão visualização restrita somente a você.'}
-        </p>
+        {activeRoute === 'compras-homologacao' ? (
+          <p>
+            Este cadastro cria um acesso com perfil Compras. Depois da aprovação
+            do ADM, o usuário visualizará somente o formulário fixo de Pedidos de
+            Homologação.
+          </p>
+        ) : null}
       </header>
 
       <div className="privacy-note">
