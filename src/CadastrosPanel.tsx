@@ -5,7 +5,7 @@ import {
   type CatalogGroup,
   type CatalogKey,
 } from './api'
-import { PROFILE_DEFINITIONS } from './profilesAccess'
+import { CADASTRO_PROFILES } from './profilesAccess'
 
 const FALLBACK_CATALOGS: CatalogGroup[] = [
   {
@@ -57,6 +57,7 @@ type CadastrosPanelProps = {
 export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
   const [catalogs, setCatalogs] = useState<CatalogGroup[]>(FALLBACK_CATALOGS)
   const [loading, setLoading] = useState(true)
+  const [selectedProfileId, setSelectedProfileId] = useState(CADASTRO_PROFILES[0]?.id ?? '')
   const [drafts, setDrafts] = useState<Record<CatalogKey, string>>({
     cargo: '',
     area: '',
@@ -66,6 +67,9 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
+
+  const selectedProfile =
+    CADASTRO_PROFILES.find((profile) => profile.id === selectedProfileId) ?? CADASTRO_PROFILES[0]
 
   const loadCatalogs = useCallback(async () => {
     setLoading(true)
@@ -133,28 +137,69 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
         <header className="profiles-section-header">
           <div>
             <h3 id="cadastros-perfis-title">Perfis</h3>
-            <p>
-              Perfis do portal e as áreas às quais cada um tem acesso.
-            </p>
+            <p>Selecione um perfil para ver a descrição de acesso.</p>
           </div>
         </header>
 
-        <div className="profiles-grid">
-          {PROFILE_DEFINITIONS.map((profile) => (
-            <article key={profile.role} className="profile-card">
-              <header className="profile-card-header">
-                <h4>{profile.label}</h4>
-                <span>{profile.areas.length} área(s)</span>
-              </header>
-              <p className="profile-card-description">{profile.description}</p>
-              <p className="profile-card-areas-label">Áreas com acesso</p>
-              <ul className="profile-areas-list">
-                {profile.areas.map((area) => (
-                  <li key={area}>{area}</li>
-                ))}
-              </ul>
+        <div className="profiles-selector">
+          <label>
+            Perfil
+            <select
+              value={selectedProfile?.id ?? ''}
+              onChange={(event) => setSelectedProfileId(event.target.value)}
+              aria-label="Selecionar perfil"
+            >
+              {CADASTRO_PROFILES.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {selectedProfile ? (
+            <article className="profile-description-card" aria-live="polite">
+              <p className="profile-card-areas-label">Descrição</p>
+              <h4>{selectedProfile.name}</h4>
+              <p className="profile-card-description">{selectedProfile.description}</p>
             </article>
-          ))}
+          ) : null}
+
+          <div className="profiles-table-wrap">
+            <table className="data-table profiles-table">
+              <thead>
+                <tr>
+                  <th>Perfil</th>
+                  <th>Descrição</th>
+                </tr>
+              </thead>
+              <tbody>
+                {CADASTRO_PROFILES.map((profile) => (
+                  <tr
+                    key={profile.id}
+                    className={
+                      profile.id === selectedProfile?.id
+                        ? 'profiles-table-row is-selected'
+                        : 'profiles-table-row'
+                    }
+                    tabIndex={0}
+                    role="button"
+                    aria-pressed={profile.id === selectedProfile?.id}
+                    onClick={() => setSelectedProfileId(profile.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setSelectedProfileId(profile.id)
+                      }
+                    }}
+                  >
+                    <td>{profile.name}</td>
+                    <td>{profile.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 

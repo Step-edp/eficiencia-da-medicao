@@ -220,37 +220,48 @@ button {
   color: var(--text-soft);
 }
 
-.profiles-grid {
+.profiles-selector {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.profile-card {
+.profiles-selector label {
   display: grid;
-  gap: 12px;
+  gap: 8px;
+  max-width: 520px;
+  color: var(--text-soft);
+}
+
+.profile-description-card {
+  display: grid;
+  gap: 10px;
   padding: 16px;
   border-radius: 16px;
   border: 1px solid rgba(24, 216, 240, 0.22);
   background: rgba(5, 26, 44, 0.74);
 }
 
-.profile-card-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.profile-card-header h4 {
+.profile-description-card h4 {
   margin: 0;
   color: var(--text-main);
-  font-size: 1.05rem;
 }
 
-.profile-card-header span {
-  color: var(--text-soft);
-  font-size: 0.9rem;
+.profiles-table-wrap {
+  overflow-x: auto;
+}
+
+.profiles-table {
+  min-width: 720px;
+}
+
+.profiles-table-row {
+  cursor: pointer;
+}
+
+.profiles-table-row:hover,
+.profiles-table-row:focus-visible,
+.profiles-table-row.is-selected {
+  background: rgba(24, 216, 240, 0.12);
 }
 
 .profile-card-description {
@@ -265,22 +276,6 @@ button {
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-
-.profile-areas-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.profile-areas-list li {
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(158, 183, 203, 0.16);
-  background: rgba(4, 17, 32, 0.55);
-  color: var(--text-main);
 }
 
 .area-card-title {
