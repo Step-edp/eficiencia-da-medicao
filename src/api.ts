@@ -307,10 +307,14 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload ?? {}),
     }),
-  rejectUser: (id: string) =>
-    request<{ ok: boolean; id: string }>(`/api/users/${id}/reject`, {
-      method: 'PATCH',
-    }),
+  rejectUser: (id: string, payload: { reason: string }) =>
+    request<{ ok: boolean; id: string; emailSent?: boolean; warning?: string }>(
+      `/api/users/${id}/reject`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    ),
   updateUser: (
     id: string,
     payload: {

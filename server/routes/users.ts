@@ -7,6 +7,7 @@ import {
   isValidCrossAreaProcess,
   portalAreasFromProcesses,
 } from '../engineer-access.js'
+import { isMailConfigured, sendRegistrationRejectedEmail } from '../mail.js'
 
 type UserRow = {
   id: string
@@ -862,6 +863,22 @@ export async function updateUser(req: Request, res: Response) {
 
 export async function rejectUser(req: Request, res: Response) {
   const { id } = req.params
+  const reason =
+    typeof req.body?.reason === 'string' ? req.body.reason.trim() : ''
+
+  if (!reason || reason.length < 5) {
+    res.status(400).json({
+      error: 'Informe a justificativa da reprovação (mínimo de 5 caracteres).',
+    })
+    return
+  }
+
+  if (reason.length > 2000) {
+    res.status(400).json({
+      error: 'A justificativa deve ter no máximo 2000 caracteres.',
+    })
+    return
+  }
 
   const previous = await query<UserRow>(
     `SELECT * FROM users
@@ -878,6 +895,29 @@ export async function rejectUser(req: Request, res: Response) {
 
   const pending = mapUser(previous.rows[0])
 
+  let emailSent = false
+  try {
+    emailSent = await sendRegistrationRejectedEmail({
+      to: pending.email,
+      name: pending.name,
+      reason,
+    })
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Falha ao enviar e-mail de reprovação.'
+    res.status(502).json({
+      error: `${message} A reprovação não foi concluída. Tente novamente.`,
+    })
+    return
+  }
+
+  if (isMailConfigured() && !emailSent) {
+    res.status(502).json({
+      error: 'Não foi possível enviar o e-mail de reprovação. Tente novamente.',
+    })
+    return
+  }
+
   await writeAuditLog(req, {
     action: 'reject',
     entityType: 'user',
@@ -886,6 +926,11 @@ export async function rejectUser(req: Request, res: Response) {
     oldData: {
       ...pending,
       profilePhoto: pending.profilePhoto ? '[imagem anexada]' : '',
+    },
+    newData: {
+      reason,
+      emailSent,
+      emailedTo: pending.email,
     },
   })
 
@@ -898,7 +943,14 @@ export async function rejectUser(req: Request, res: Response) {
     [id],
   )
 
-  res.json({ ok: true, id })
+  res.json({
+    ok: true,
+    id,
+    emailSent,
+    warning: emailSent
+      ? undefined
+      : 'Cadastro reprovado, mas o envio de e-mail não está configurado no servidor.',
+  })
 }
 
 export async function deleteUser(req: Request, res: Response) {

@@ -186,9 +186,10 @@ export default function App() {
     setRegisteredUsers((prev) => prev.map((item) => (item.id === user.id ? user : item)))
   }
 
-  const handleRejectUser = async (userId: string) => {
-    await api.rejectUser(userId)
+  const handleRejectUser = async (userId: string, reason: string) => {
+    const result = await api.rejectUser(userId, { reason })
     setRegisteredUsers((prev) => prev.filter((item) => item.id !== userId))
+    return result
   }
 
   const handleCreateHomologationRequest = async (
@@ -474,7 +475,7 @@ type HomePanelProps = {
   users: AppUser[]
   homologationRequests: HomologationRequest[]
   onApproveUser: (userId: string, payload?: ApproveUserPayload) => Promise<void>
-  onRejectUser: (userId: string) => Promise<void>
+  onRejectUser: (userId: string, reason: string) => Promise<{ emailSent?: boolean; warning?: string }>
   onUpdateUser: (user: AppUser) => void
   onDeleteUser: (userId: string) => void
   onCreateHomologationRequest: (
@@ -733,7 +734,10 @@ type PendingApprovalItemProps = {
   user: AppUser
   terceiraOptions: string[]
   onApprove: (userId: string, payload: ApproveUserPayload) => Promise<void>
-  onReject: (userId: string) => Promise<void>
+  onReject: (
+    userId: string,
+    reason: string,
+  ) => Promise<{ emailSent?: boolean; warning?: string }>
   onEdit: (user: AppUser) => void
   onFeedback: (feedback: { type: 'success' | 'error'; message: string }) => void
 }
@@ -747,6 +751,8 @@ function PendingApprovalItem({
   onFeedback,
 }: PendingApprovalItemProps) {
   const [expanded, setExpanded] = useState(false)
+  const [showRejectForm, setShowRejectForm] = useState(false)
+  const [rejectReason, setRejectReason] = useState('')
   const [thirdPartyCompany, setThirdPartyCompany] = useState('')
   const [workSubtype, setWorkSubtype] = useState('')
   const [selectedSubareas, setSelectedSubareas] = useState<string[]>([])
@@ -865,18 +871,28 @@ function PendingApprovalItem({
   }
 
   const handleReject = async () => {
-    const confirmed = window.confirm(
-      `Reprovar o cadastro de ${user.name} (${user.registration})? O solicitante poderá se cadastrar novamente.`,
-    )
-    if (!confirmed) return
+    const reason = rejectReason.trim()
+    if (reason.length < 5) {
+      onFeedback({
+        type: 'error',
+        message: 'Informe a justificativa da reprovação (mínimo de 5 caracteres).',
+      })
+      return
+    }
 
     setRejecting(true)
     try {
-      await onReject(user.id)
+      const result = await onReject(user.id, reason)
       onFeedback({
         type: 'success',
-        message: `Cadastro de ${user.name} reprovado.`,
+        message: result.emailSent
+          ? `Cadastro de ${user.name} reprovado. A justificativa foi enviada por e-mail.`
+          : result.warning
+            ? `Cadastro de ${user.name} reprovado. ${result.warning}`
+            : `Cadastro de ${user.name} reprovado.`,
       })
+      setShowRejectForm(false)
+      setRejectReason('')
     } catch (error) {
       onFeedback({
         type: 'error',
@@ -1112,19 +1128,46 @@ function PendingApprovalItem({
               className="danger-button compact-button"
               type="button"
               disabled={submitting || rejecting}
-              onClick={() => void handleReject()}
+              onClick={() => setShowRejectForm((current) => !current)}
             >
-              {rejecting ? 'Reprovando...' : 'Reprovar cadastro'}
+              {showRejectForm ? 'Cancelar reprovação' : 'Reprovar cadastro'}
             </button>
             <button
               className="primary-button compact-button"
               type="button"
-              disabled={submitting || rejecting}
+              disabled={submitting || rejecting || showRejectForm}
               onClick={() => void handleApprove()}
             >
               {submitting ? 'Aprovando...' : 'Aprovar acesso'}
             </button>
           </div>
+
+          {showRejectForm ? (
+            <div className="approval-reject-form">
+              <label>
+                Justificativa da reprovação
+                <textarea
+                  rows={4}
+                  value={rejectReason}
+                  onChange={(event) => setRejectReason(event.target.value)}
+                  placeholder="Descreva o motivo da reprovação..."
+                  maxLength={2000}
+                />
+              </label>
+              <p className="approval-reject-notice" role="note">
+                Esta justificativa será enviada por e-mail ao usuário, na mensagem:
+                “Seu cadastro foi reprovado com a seguinte justificativa”.
+              </p>
+              <button
+                className="danger-button compact-button"
+                type="button"
+                disabled={rejecting || rejectReason.trim().length < 5}
+                onClick={() => void handleReject()}
+              >
+                {rejecting ? 'Reprovando...' : 'Confirmar reprovação e enviar e-mail'}
+              </button>
+            </div>
+          ) : null}
         </>
       ) : null}
     </article>
@@ -1903,11 +1946,12 @@ function HomePanel({
                       user={user}
                       terceiraOptions={terceiraOptions}
                       onApprove={onApproveUser}
-                      onReject={async (userId) => {
-                        await onRejectUser(userId)
+                      onReject={async (userId, reason) => {
+                        const result = await onRejectUser(userId, reason)
                         setSelectedUserDetail((current) =>
                           current?.id === userId ? null : current,
                         )
+                        return result
                       }}
                       onEdit={(user) => {
                         setUserDetailStartEditing(true)
@@ -2038,11 +2082,12 @@ function HomePanel({
                           user={user}
                           terceiraOptions={terceiraOptions}
                           onApprove={onApproveUser}
-                          onReject={async (userId) => {
-                            await onRejectUser(userId)
+                          onReject={async (userId, reason) => {
+                            const result = await onRejectUser(userId, reason)
                             setSelectedUserDetail((current) =>
                               current?.id === userId ? null : current,
                             )
+                            return result
                           }}
                           onEdit={(user) => {
                             setUserDetailStartEditing(true)
