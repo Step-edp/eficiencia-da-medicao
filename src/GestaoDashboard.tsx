@@ -66,6 +66,15 @@ export function GestaoDashboard({
   const [responsibleUserId, setResponsibleUserId] = useState('')
   const [substituteUserId, setSubstituteUserId] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+
+  const resetCreateForm = () => {
+    setLabel('')
+    setDescription('')
+    setResponsibleUserId('')
+    setSubstituteUserId('')
+    setLocalError(null)
+  }
 
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault()
@@ -86,10 +95,8 @@ export function GestaoDashboard({
         responsibleUserId: responsibleUserId || null,
         substituteUserId: responsibleUserId ? substituteUserId || null : null,
       })
-      setLabel('')
-      setDescription('')
-      setResponsibleUserId('')
-      setSubstituteUserId('')
+      resetCreateForm()
+      setShowCreateForm(false)
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Não foi possível criar a célula.')
     }
@@ -129,69 +136,98 @@ export function GestaoDashboard({
 
       {canManage ? (
         <div className="users-dashboard-card gestao-create-cell">
-          <h3>Nova célula</h3>
-          <p className="users-dashboard-ranking-hint">
-            Cada célula tem 1 responsável e 1 substituto para ausência. Sem responsável,
-            a célula fica pendente.
-          </p>
-          <form className="gestao-create-cell-form" onSubmit={handleCreate}>
-            <label>
-              Nome da célula
-              <input
-                value={label}
-                onChange={(event) => setLabel(event.target.value)}
-                placeholder="Ex.: Qualidade da Medição"
-                maxLength={80}
-                disabled={busy}
-                required
-              />
-            </label>
-            <label>
-              Descrição (opcional)
-              <input
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="Resumo da célula"
-                disabled={busy}
-              />
-            </label>
-            <label>
-              Responsável (opcional)
-              <select
-                value={responsibleUserId}
-                onChange={(event) => {
-                  const next = event.target.value
-                  setResponsibleUserId(next)
-                  if (!next || next === substituteUserId) {
-                    setSubstituteUserId('')
-                  }
-                }}
-                disabled={busy}
-              >
-                <option value="">Sem responsável — pendente</option>
-                <UserOptions users={candidateUsers} />
-              </select>
-            </label>
-            <label>
-              Substituto (opcional)
-              <select
-                value={substituteUserId}
-                onChange={(event) => setSubstituteUserId(event.target.value)}
-                disabled={busy || !responsibleUserId}
-              >
-                <option value="">Sem substituto</option>
-                <UserOptions users={candidateUsers} excludeId={responsibleUserId || undefined} />
-              </select>
-            </label>
-            {(localError || error) && (
-              <p className="gestao-create-cell-error" role="alert">
-                {localError || error}
-              </p>
-            )}
-            <button type="submit" className="primary-button" disabled={busy}>
-              {busy ? 'Criando…' : 'Criar célula'}
+          {!showCreateForm ? (
+            <button
+              type="button"
+              className="primary-button"
+              disabled={busy}
+              onClick={() => {
+                setLocalError(null)
+                setShowCreateForm(true)
+              }}
+            >
+              Nova célula
             </button>
-          </form>
+          ) : (
+            <>
+              <h3>Nova célula</h3>
+              <p className="users-dashboard-ranking-hint">
+                Cada célula tem 1 responsável e 1 substituto para ausência. Sem responsável,
+                a célula fica pendente.
+              </p>
+              <form className="gestao-create-cell-form" onSubmit={handleCreate}>
+                <label>
+                  Nome da célula
+                  <input
+                    value={label}
+                    onChange={(event) => setLabel(event.target.value)}
+                    placeholder="Ex.: Qualidade da Medição"
+                    maxLength={80}
+                    disabled={busy}
+                    required
+                  />
+                </label>
+                <label>
+                  Descrição (opcional)
+                  <input
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    placeholder="Resumo da célula"
+                    disabled={busy}
+                  />
+                </label>
+                <label>
+                  Responsável (opcional)
+                  <select
+                    value={responsibleUserId}
+                    onChange={(event) => {
+                      const next = event.target.value
+                      setResponsibleUserId(next)
+                      if (!next || next === substituteUserId) {
+                        setSubstituteUserId('')
+                      }
+                    }}
+                    disabled={busy}
+                  >
+                    <option value="">Sem responsável — pendente</option>
+                    <UserOptions users={candidateUsers} />
+                  </select>
+                </label>
+                <label>
+                  Substituto (opcional)
+                  <select
+                    value={substituteUserId}
+                    onChange={(event) => setSubstituteUserId(event.target.value)}
+                    disabled={busy || !responsibleUserId}
+                  >
+                    <option value="">Sem substituto</option>
+                    <UserOptions users={candidateUsers} excludeId={responsibleUserId || undefined} />
+                  </select>
+                </label>
+                {(localError || error) && (
+                  <p className="gestao-create-cell-error" role="alert">
+                    {localError || error}
+                  </p>
+                )}
+                <div className="gestao-create-cell-actions">
+                  <button type="submit" className="primary-button" disabled={busy}>
+                    {busy ? 'Criando…' : 'Criar célula'}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={busy}
+                    onClick={() => {
+                      resetCreateForm()
+                      setShowCreateForm(false)
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
         </div>
       ) : null}
 

@@ -1678,6 +1678,13 @@ button {
   margin-top: 12px;
 }
 
+.gestao-create-cell-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
 .gestao-create-cell-form label {
   display: grid;
   gap: 6px;
