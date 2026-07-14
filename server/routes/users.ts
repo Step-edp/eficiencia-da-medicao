@@ -18,6 +18,8 @@ type UserRow = {
   cpf: string
   personal_description: string
   hobby: string
+  work_area: string
+  work_subtype: string
 }
 
 function mapUser(row: UserRow) {
@@ -35,6 +37,8 @@ function mapUser(row: UserRow) {
     cpf: row.cpf,
     personalDescription: row.personal_description,
     hobby: row.hobby,
+    workArea: row.work_area,
+    workSubtype: row.work_subtype,
   }
 }
 

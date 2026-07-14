@@ -15,6 +15,8 @@ export type AppUser = {
   cpf: string
   personalDescription: string
   hobby: string
+  workArea?: string
+  workSubtype?: string
 }
 
 export type HomologationRequestItem = {

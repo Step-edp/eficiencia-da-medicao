@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { EnsaiarForm } from './EnsaiarForm'
@@ -645,6 +646,7 @@ function HomePanel({
   const [selectedHomologationSection, setSelectedHomologationSection] =
     useState<string | null>(null)
   const [openingFieldApp, setOpeningFieldApp] = useState(false)
+  const [selectedUserDetail, setSelectedUserDetail] = useState<AppUser | null>(null)
   const [trailStepCounts, setTrailStepCounts] = useState<Record<string, number>>({})
   const [ratmLaudos, setRatmLaudos] = useState<RatmLaudo[]>([])
   const [selectedCodeMaterialsAction, setSelectedCodeMaterialsAction] = useState<
@@ -1395,19 +1397,31 @@ function HomePanel({
       const statusLabel = (status: AppUser['approvalStatus']) =>
         status === 'approved' ? 'Aprovado' : 'Pendente'
 
+      const formatValue = (value?: string | null) => {
+        const trimmed = value?.trim()
+        return trimmed ? trimmed : '—'
+      }
+
       return (
         <main className="shell">
           <section className="home-card area-screen-card">
             <TopActionBar
-              onBack={() => setSelectedArea(null)}
-              onHome={() => setSelectedArea(null)}
+              onBack={() => {
+                setSelectedUserDetail(null)
+                setSelectedArea(null)
+              }}
+              onHome={() => {
+                setSelectedUserDetail(null)
+                setSelectedArea(null)
+              }}
               onLogout={onLogout}
             />
             <p className="section-tag">Usuários</p>
             <h2>Gestão de usuários</h2>
             <p>
               Consulte os cadastros do portal, aprove solicitações pendentes e
-              acompanhe o perfil de cada matrícula.
+              acompanhe o perfil de cada matrícula. Clique em um usuário para ver
+              todos os dados.
             </p>
 
             {passwordFeedback ? (
@@ -1438,30 +1452,39 @@ function HomePanel({
                             {new Date(user.requestedAt).toLocaleString('pt-BR')}
                           </span>
                         </div>
-                        <button
-                          className="primary-button compact-button"
-                          type="button"
-                          onClick={() => {
-                            void onApproveUser(user.id)
-                              .then(() => {
-                                setPasswordFeedback({
-                                  type: 'success',
-                                  message: `Acesso de ${user.name} aprovado com sucesso.`,
+                        <div className="approval-item-actions">
+                          <button
+                            className="secondary-button compact-button"
+                            type="button"
+                            onClick={() => setSelectedUserDetail(user)}
+                          >
+                            Ver detalhes
+                          </button>
+                          <button
+                            className="primary-button compact-button"
+                            type="button"
+                            onClick={() => {
+                              void onApproveUser(user.id)
+                                .then(() => {
+                                  setPasswordFeedback({
+                                    type: 'success',
+                                    message: `Acesso de ${user.name} aprovado com sucesso.`,
+                                  })
                                 })
-                              })
-                              .catch((error) => {
-                                setPasswordFeedback({
-                                  type: 'error',
-                                  message:
-                                    error instanceof ApiError
-                                      ? error.message
-                                      : 'Não foi possível aprovar o usuário.',
+                                .catch((error) => {
+                                  setPasswordFeedback({
+                                    type: 'error',
+                                    message:
+                                      error instanceof ApiError
+                                        ? error.message
+                                        : 'Não foi possível aprovar o usuário.',
+                                  })
                                 })
-                              })
-                          }}
-                        >
-                          Aprovar acesso
-                        </button>
+                            }}
+                          >
+                            Aprovar acesso
+                          </button>
+                        </div>
                       </article>
                     ))
                   ) : (
@@ -1490,7 +1513,20 @@ function HomePanel({
                     </thead>
                     <tbody>
                       {users.map((user) => (
-                        <tr key={user.id}>
+                        <tr
+                          key={user.id}
+                          className="users-table-row"
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`Ver detalhes de ${user.name}`}
+                          onClick={() => setSelectedUserDetail(user)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              setSelectedUserDetail(user)
+                            }
+                          }}
+                        >
                           <td>{user.name}</td>
                           <td>{user.registration}</td>
                           <td>{user.email}</td>
@@ -1507,6 +1543,110 @@ function HomePanel({
                 </div>
               </>
             )}
+
+            {selectedUserDetail
+              ? createPortal(
+                  <div
+                    className="ensaios-block-modal-overlay"
+                    role="presentation"
+                    onClick={() => setSelectedUserDetail(null)}
+                  >
+                    <div
+                      className="ensaios-block-modal user-detail-modal"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="user-detail-title"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        className="icon-button schedule-slot-modal-close"
+                        onClick={() => setSelectedUserDetail(null)}
+                        aria-label="Fechar"
+                        title="Fechar"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path
+                            d="M6 6l12 12M18 6L6 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </button>
+
+                      <h3 id="user-detail-title">{selectedUserDetail.name}</h3>
+                      <p className="user-detail-subtitle">
+                        {roleLabel(selectedUserDetail.role)} ·{' '}
+                        {statusLabel(selectedUserDetail.approvalStatus)}
+                      </p>
+
+                      <dl className="user-detail-grid">
+                        <div>
+                          <dt>Matrícula</dt>
+                          <dd>{formatValue(selectedUserDetail.registration)}</dd>
+                        </div>
+                        <div>
+                          <dt>E-mail</dt>
+                          <dd>{formatValue(selectedUserDetail.email)}</dd>
+                        </div>
+                        <div>
+                          <dt>Cargo</dt>
+                          <dd>{formatValue(selectedUserDetail.jobTitle)}</dd>
+                        </div>
+                        <div>
+                          <dt>CPF</dt>
+                          <dd>{formatValue(selectedUserDetail.cpf)}</dd>
+                        </div>
+                        <div>
+                          <dt>Data de nascimento</dt>
+                          <dd>{formatValue(selectedUserDetail.birthDate)}</dd>
+                        </div>
+                        <div>
+                          <dt>Perfil</dt>
+                          <dd>{roleLabel(selectedUserDetail.role)}</dd>
+                        </div>
+                        <div>
+                          <dt>Status</dt>
+                          <dd>{statusLabel(selectedUserDetail.approvalStatus)}</dd>
+                        </div>
+                        <div>
+                          <dt>Área de trabalho</dt>
+                          <dd>{formatValue(selectedUserDetail.workArea)}</dd>
+                        </div>
+                        <div>
+                          <dt>Subtipo</dt>
+                          <dd>{formatValue(selectedUserDetail.workSubtype)}</dd>
+                        </div>
+                        <div>
+                          <dt>Solicitado em</dt>
+                          <dd>
+                            {new Date(selectedUserDetail.requestedAt).toLocaleString('pt-BR')}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Aprovado em</dt>
+                          <dd>
+                            {selectedUserDetail.approvedAt
+                              ? new Date(selectedUserDetail.approvedAt).toLocaleString('pt-BR')
+                              : '—'}
+                          </dd>
+                        </div>
+                        <div className="user-detail-full">
+                          <dt>Descrição pessoal</dt>
+                          <dd>{formatValue(selectedUserDetail.personalDescription)}</dd>
+                        </div>
+                        <div className="user-detail-full">
+                          <dt>Hobby</dt>
+                          <dd>{formatValue(selectedUserDetail.hobby)}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>,
+                  document.body,
+                )
+              : null}
           </section>
         </main>
       )
