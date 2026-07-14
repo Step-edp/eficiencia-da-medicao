@@ -5,6 +5,7 @@ import {
   type VacationPeriod,
   type VacationStatus,
 } from './api'
+import { AgendaCalendar, nextVacationRangeFromClick } from './AgendaCalendar'
 
 const OTHER_ABSENCE_OPTIONS: Array<{ value: AbsenceType; label: string }> = [
   { value: 'licenca', label: 'Licença' },
@@ -229,41 +230,59 @@ export function AgendaPanel({
         <>
           <div className="users-dashboard-card">
             <h3>Próximas férias (obrigatório)</h3>
-            <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitVacation}>
-              <label>
-                Início das férias
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(event) => setStartDate(event.target.value)}
-                  required
+            <p className="users-dashboard-ranking-hint">
+              O período de férias aparece destacado no calendário. Você pode marcar as datas
+              clicando nos dias ou usando os campos abaixo.
+            </p>
+            <div className="agenda-vacation-layout">
+              <AgendaCalendar
+                periods={periods}
+                vacationStart={startDate}
+                vacationEnd={endDate}
+                interactive={!saving && !locked && displayStatus !== 'em_ausencia'}
+                onSelectDate={(isoDate) => {
+                  const next = nextVacationRangeFromClick(isoDate, startDate, endDate)
+                  setStartDate(next.startDate)
+                  setEndDate(next.endDate)
+                  setError(null)
+                }}
+              />
+              <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitVacation}>
+                <label>
+                  Início das férias
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(event) => setStartDate(event.target.value)}
+                    required
+                    disabled={saving || locked || displayStatus === 'em_ausencia'}
+                  />
+                </label>
+                <label>
+                  Fim das férias
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(event) => setEndDate(event.target.value)}
+                    required
+                    disabled={saving || locked || displayStatus === 'em_ausencia'}
+                    min={startDate || undefined}
+                  />
+                </label>
+                {error ? (
+                  <p className="gestao-create-cell-error" role="alert">
+                    {error}
+                  </p>
+                ) : null}
+                <button
+                  type="submit"
+                  className="primary-button"
                   disabled={saving || locked || displayStatus === 'em_ausencia'}
-                />
-              </label>
-              <label>
-                Fim das férias
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(event) => setEndDate(event.target.value)}
-                  required
-                  disabled={saving || locked || displayStatus === 'em_ausencia'}
-                  min={startDate || undefined}
-                />
-              </label>
-              {error ? (
-                <p className="gestao-create-cell-error" role="alert">
-                  {error}
-                </p>
-              ) : null}
-              <button
-                type="submit"
-                className="primary-button"
-                disabled={saving || locked || displayStatus === 'em_ausencia'}
-              >
-                {saving ? 'Salvando…' : 'Salvar período de férias'}
-              </button>
-            </form>
+                >
+                  {saving ? 'Salvando…' : 'Salvar período de férias'}
+                </button>
+              </form>
+            </div>
           </div>
 
           <div className="users-dashboard-card" style={{ marginTop: 18 }}>
