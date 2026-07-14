@@ -6,6 +6,7 @@ import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
 import { UsersDashboard } from './UsersDashboard'
+import { GestaoDashboard } from './GestaoDashboard'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
   CADASTRO_PROFILES,
@@ -1408,6 +1409,11 @@ function HomePanel({
 
   const gestaoArea = allAreas.find((area) => area.title === 'Gestão') ?? null
 
+  const isGestorView =
+    (!isAdmin && currentUser.jobTitle === 'Gestor') ||
+    previewProfileId === 'gestor-medicao' ||
+    previewProfile?.match.jobTitle === 'Gestor'
+
   const clearAreaSections = () => {
     setSelectedMeasurementSection(null)
     setSelectedLabMeasurementSection(null)
@@ -1420,10 +1426,14 @@ function HomePanel({
   }
 
   const exitToHome = () => {
-    setSelectedArea(null)
     setSelectedOrgCell(null)
     setSelectedOrgSubcell(null)
     clearAreaSections()
+    if (isGestorView && gestaoArea) {
+      setSelectedArea(gestaoArea)
+      return
+    }
+    setSelectedArea(null)
   }
 
   const returnToOrgCell = () => {
@@ -1483,6 +1493,15 @@ function HomePanel({
   const previewProfileUsers = previewProfile
     ? listUsersForCadastroProfile(registeredUsers, previewProfile.id)
     : []
+
+  useEffect(() => {
+    if (!isGestorView || !gestaoArea) return
+    if (!selectedArea) {
+      setSelectedArea(gestaoArea)
+      setSelectedOrgCell(null)
+      setSelectedOrgSubcell(null)
+    }
+  }, [isGestorView, gestaoArea, selectedArea])
 
   useEffect(() => {
     if (!previewProfile || !selectedArea) return
@@ -2026,21 +2045,24 @@ function HomePanel({
                   setSelectedOrgSubcell(null)
                   return
                 }
-                exitToHome()
+                if (!isGestorView) {
+                  exitToHome()
+                }
               }}
               onHome={exitToHome}
               onLogout={onLogout}
             />
-            <p className="section-tag">Área</p>
+            <p className="section-tag">{isGestorView ? 'Home · Gestor' : 'Área'}</p>
             <h2>{ORG_STRUCTURE.label}</h2>
             <p>
-              {ORG_STRUCTURE.description} Cada área tem um gestor; cada célula, um
-              engenheiro dono de área; cada subcélula, um engenheiro responsável; e cada
-              processo, um responsável e um executor (que pode ser o mesmo responsável).
+              Painel gerencial da área. Acompanhe células, subcélulas e processos sob
+              sua responsabilidade.
             </p>
 
             {!selectedOrgCell ? (
               <>
+                <GestaoDashboard />
+
                 <h3 className="lab-other-heading">Células</h3>
                 <div className="home-areas" aria-label="Células da área Gestão">
                   {visibleOrgCells.map((cell) => (

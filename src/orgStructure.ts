@@ -111,6 +111,67 @@ export function getOrgSubcell(cellId: string, subcellId: string): OrgSubcell | u
   return getOrgCell(cellId)?.subcells.find((item) => item.id === subcellId)
 }
 
+export type GestaoDashboardStats = {
+  cellCount: number
+  subcellCount: number
+  processCount: number
+  processesBySubcell: Array<{
+    cellId: string
+    cellLabel: string
+    subcellId: string
+    subcellLabel: string
+    processCount: number
+  }>
+}
+
+/** Indicadores do dashboard gerencial da área Gestão. */
+export function getGestaoDashboardStats(): GestaoDashboardStats {
+  const processesBySubcell: GestaoDashboardStats['processesBySubcell'] = []
+
+  for (const cell of ORG_STRUCTURE.cells) {
+    if (cell.subcells.length === 0) {
+      // Célula sem subcélulas: processos da própria chave da célula, se houver.
+      const processes =
+        PROCESSES_BY_HOME_SUBAREA[cell.id as EngineerHomeSubarea] ?? []
+      if (processes.length > 0) {
+        processesBySubcell.push({
+          cellId: cell.id,
+          cellLabel: cell.label,
+          subcellId: cell.id,
+          subcellLabel: `${cell.label} (célula)`,
+          processCount: processes.length,
+        })
+      }
+      continue
+    }
+
+    for (const sub of cell.subcells) {
+      const processes =
+        PROCESSES_BY_HOME_SUBAREA[sub.portalKey as EngineerHomeSubarea] ?? []
+      processesBySubcell.push({
+        cellId: cell.id,
+        cellLabel: cell.label,
+        subcellId: sub.id,
+        subcellLabel: sub.label,
+        processCount: processes.length,
+      })
+    }
+  }
+
+  return {
+    cellCount: ORG_STRUCTURE.cells.length,
+    subcellCount: ORG_STRUCTURE.cells.reduce(
+      (sum, cell) => sum + cell.subcells.length,
+      0,
+    ),
+    processCount: processesBySubcell.reduce(
+      (sum, item) => sum + item.processCount,
+      0,
+    ),
+    processesBySubcell,
+  }
+}
+
 /** Subcélulas usadas em cadastro/aprovação de engenheiro (com processos). */
 export const ENGINEER_HOME_SUBAREAS = [
   'Medição',

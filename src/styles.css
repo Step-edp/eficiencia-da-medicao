@@ -1583,9 +1583,30 @@ button {
   color: inherit;
 }
 
-.users-dashboard {
+.gestao-dashboard {
   display: grid;
-  gap: 20px;
+  gap: 18px;
+  margin: 16px 0 8px;
+}
+
+.gestao-dashboard-kpis {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gestao-dashboard-breakdown h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.gestao-dashboard-cell-tag {
+  color: var(--text-soft);
+  font-weight: 500;
+}
+
+@media (max-width: 720px) {
+  .gestao-dashboard-kpis {
+    grid-template-columns: 1fr;
+  }
 }
 
 .users-dashboard-kpis {
