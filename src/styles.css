@@ -1809,11 +1809,9 @@ body.laudo-viewer-open {
 }
 
 .brand-column {
-  padding: 24px;
-  border-radius: 24px;
-  background:
-    linear-gradient(180deg, rgba(12, 39, 67, 0.95), rgba(7, 24, 43, 0.88)),
-    linear-gradient(135deg, rgba(24, 216, 240, 0.08), rgba(91, 240, 0, 0.1));
+  padding: 0;
+  border-radius: 0;
+  background: none;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -2556,7 +2554,7 @@ input[type='file'] {
   }
 
   .brand-column {
-    min-height: 320px;
+    min-height: 0;
   }
 }
 
@@ -2566,8 +2564,7 @@ input[type='file'] {
   }
 
   .hero-card,
-  .auth-panel,
-  .brand-column {
+  .auth-panel {
     padding: 20px;
   }
 
