@@ -162,7 +162,7 @@ export async function register(req: Request, res: Response) {
   const allowedTerceiras = valuesByKey.terceira ?? []
   const allowedLocalities = valuesByKey.localidade ?? []
   const allowedTechnicianSubtypes = [
-    'Medição',
+    'Atividades administrativas da Medição',
     'Laboratório de Medição',
     'Lavratura de TOI',
     'Leituras de faturamento',
@@ -217,7 +217,7 @@ export async function register(req: Request, res: Response) {
 
   if (normalizedJobTitle === 'Técnico') {
     if (!allowedTechnicianSubtypes.includes(normalizedWorkSubtype)) {
-      res.status(400).json({ error: 'Selecione o tipo de técnico.' })
+      res.status(400).json({ error: 'Selecione o escopo.' })
       return
     }
   } else if (normalizedJobTitle === 'Engenheiro') {

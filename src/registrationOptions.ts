@@ -2,7 +2,7 @@
 export const EDP_SCOPE_OPTIONS = ['EDP SP', 'EDP ES', 'Transversal'] as const
 
 export const TECHNICIAN_SUBTYPES = [
-  'Medição',
+  'Atividades administrativas da Medição',
   'Laboratório de Medição',
   'Lavratura de TOI',
   'Leituras de faturamento',
