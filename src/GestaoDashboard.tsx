@@ -431,6 +431,125 @@ export function GestaoDashboard({
   )
 }
 
+type GestaoPessoasRole = {
+  scope: string
+  role: 'Responsável' | 'Substituto'
+}
+
+type GestaoPessoasPerson = {
+  userId: string
+  name: string
+  registration: string | null
+  jobTitle: string | null
+  roles: GestaoPessoasRole[]
+}
+
+type GestaoPessoasPanelProps = {
+  area: OrgAreaLeadership
+  cells: OrgCell[]
+  candidateUsers: AppUser[]
+}
+
+export function GestaoPessoasPanel({
+  area,
+  cells,
+  candidateUsers,
+}: GestaoPessoasPanelProps) {
+  const usersById = new Map(candidateUsers.map((user) => [user.id, user]))
+
+  const people = (() => {
+    const map = new Map<string, GestaoPessoasPerson>()
+
+    const upsert = (
+      userId: string | null | undefined,
+      name: string | null | undefined,
+      role: GestaoPessoasRole,
+    ) => {
+      if (!userId) return
+      const user = usersById.get(userId)
+      const current = map.get(userId)
+      if (current) {
+        if (!current.roles.some((item) => item.scope === role.scope && item.role === role.role)) {
+          current.roles.push(role)
+        }
+        return
+      }
+      map.set(userId, {
+        userId,
+        name: user?.name || name || 'Usuário',
+        registration: user?.registration ?? null,
+        jobTitle: user?.jobTitle ?? null,
+        roles: [role],
+      })
+    }
+
+    upsert(area.responsibleUserId, area.responsibleName, {
+      scope: `Área · ${area.label}`,
+      role: 'Responsável',
+    })
+    upsert(area.substituteUserId, area.substituteName, {
+      scope: `Área · ${area.label}`,
+      role: 'Substituto',
+    })
+
+    for (const cell of cells) {
+      upsert(cell.responsibleUserId, cell.responsibleName, {
+        scope: `Célula · ${cell.label}`,
+        role: 'Responsável',
+      })
+      upsert(cell.substituteUserId, cell.substituteName, {
+        scope: `Célula · ${cell.label}`,
+        role: 'Substituto',
+      })
+    }
+
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  })()
+
+  return (
+    <div className="gestao-dashboard" aria-label="Pessoas da gestão operacional">
+      <div className="users-dashboard-card">
+        <h3>Pessoas</h3>
+        <p className="users-dashboard-ranking-hint">
+          Responsáveis e substitutos da gestão operacional e das células vinculadas.
+        </p>
+        {people.length ? (
+          <div className="gestao-pessoas-list" aria-label="Lista de pessoas">
+            {people.map((person) => (
+              <article key={person.userId} className="gestao-pessoas-card">
+                <div className="gestao-pessoas-card-head">
+                  <strong>{person.name}</strong>
+                  <span>
+                    {[person.registration, person.jobTitle].filter(Boolean).join(' · ') || '—'}
+                  </span>
+                </div>
+                <ul className="gestao-pessoas-roles">
+                  {person.roles.map((role) => (
+                    <li key={`${role.scope}:${role.role}`}>
+                      <span
+                        className={`gestao-cell-status-badge ${
+                          role.role === 'Responsável' ? 'is-ativa' : 'is-pendente'
+                        }`}
+                      >
+                        {role.role}
+                      </span>
+                      <span>{role.scope}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="generated-password-empty">
+            Nenhuma pessoa atribuída ainda. Defina responsável e substituto na área e nas células.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 type AreaLeadershipEditorProps = {
   title: string
   hint: string

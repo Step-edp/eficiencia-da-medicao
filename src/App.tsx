@@ -6,7 +6,7 @@ import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
 import { UsersDashboard } from './UsersDashboard'
-import { GestaoDashboard, CellResponsibleEditor, CreateOrgAreaForm, AreaLeadershipEditor } from './GestaoDashboard'
+import { GestaoDashboard, CellResponsibleEditor, CreateOrgAreaForm, AreaLeadershipEditor, GestaoPessoasPanel } from './GestaoDashboard'
 import { AgendaPanel } from './AgendaPanel'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
@@ -1216,7 +1216,7 @@ function HomePanel({
   const [usersView, setUsersView] = useState<'usuarios' | 'pendentes' | 'dashboard'>(
     'usuarios',
   )
-  const [gestaoHomeTab, setGestaoHomeTab] = useState<'dash' | 'celulas'>('dash')
+  const [gestaoHomeTab, setGestaoHomeTab] = useState<'dash' | 'celulas' | 'pessoas'>('dash')
   const [terceiraOptions, setTerceiraOptions] = useState<string[]>([...THIRD_PARTY_COMPANIES])
   const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(null)
@@ -2604,6 +2604,15 @@ function HomePanel({
                   >
                     Células
                   </button>
+                  <button
+                    className={gestaoHomeTab === 'pessoas' ? 'active' : ''}
+                    type="button"
+                    role="tab"
+                    aria-selected={gestaoHomeTab === 'pessoas'}
+                    onClick={() => setGestaoHomeTab('pessoas')}
+                  >
+                    Pessoas
+                  </button>
                 </div>
 
                 {gestaoHomeTab === 'dash' ? (
@@ -2616,6 +2625,12 @@ function HomePanel({
                     busy={orgCellsBusy}
                     error={orgCellsError}
                     onCreateCell={handleCreateOrgCell}
+                  />
+                ) : gestaoHomeTab === 'pessoas' ? (
+                  <GestaoPessoasPanel
+                    area={activeOrgArea}
+                    cells={cellsForSelectedArea}
+                    candidateUsers={registeredUsers}
                   />
                 ) : (
                   <>

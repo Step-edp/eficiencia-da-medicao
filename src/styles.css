@@ -1788,7 +1788,57 @@ button {
 
 .gestao-home-switch {
   margin: 16px 0 12px;
-  width: min(360px, 100%);
+  width: min(480px, 100%);
+}
+
+.gestao-pessoas-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.gestao-pessoas-card {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(5, 26, 44, 0.45);
+}
+
+.gestao-pessoas-card-head {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.gestao-pessoas-card-head strong {
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+.gestao-pessoas-card-head span {
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.gestao-pessoas-roles {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.gestao-pessoas-roles li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.gestao-pessoas-roles .gestao-cell-status-badge {
+  margin-top: 0;
 }
 
 .users-view-switch button {
