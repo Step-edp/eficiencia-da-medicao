@@ -222,7 +222,7 @@ export default function App() {
           <EdpLogo />
           <div>
             <p className="eyebrow">Eficiência da Medição</p>
-            <h1>changing tomorrow now.</h1>
+            <h1>Changing tomorrow now.</h1>
             <p className="lead">
               Plataforma para centralizar autenticação, cadastro de usuários e
               governança de acesso com aprovação do administrador.
