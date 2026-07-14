@@ -20,9 +20,10 @@ export type AppUser = {
   whatsapp?: string
   employmentType?: string
   thirdPartyCompany?: string
+  locality?: string
 }
 
-export type CatalogKey = 'cargo' | 'area' | 'tipo' | 'terceira'
+export type CatalogKey = 'cargo' | 'area' | 'tipo' | 'terceira' | 'localidade'
 
 export type CatalogOption = {
   id: number
@@ -261,6 +262,8 @@ export const api = {
     employmentType?: string
     thirdPartyCompany?: string
     workArea?: string
+    workSubtype?: string
+    locality?: string
   }) =>
     request<{ user: AppUser }>('/api/auth/register', {
       method: 'POST',

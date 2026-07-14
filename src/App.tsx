@@ -24,6 +24,13 @@ import {
   type PasswordRecord,
   type PasswordType,
 } from './api'
+import {
+  buildRequestedProfile,
+  DEFAULT_AREA_OPTIONS,
+  DEFAULT_LOCALITIES,
+  EDP_UNITS,
+  subtypesForCargo,
+} from './registrationOptions'
 
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
 const FIELD_APP_URL =
@@ -39,13 +46,7 @@ const THIRD_PARTY_COMPANIES = [
   'Steenge',
 ] as const
 
-const AREA_OPTIONS = [
-  'Medição',
-  'CSD',
-  'Consumo Irregular',
-  'Grandes Clientes',
-  'Qualidade',
-] as const
+const AREA_OPTIONS = [...DEFAULT_AREA_OPTIONS] as const
 
 type Panel = 'login' | 'cadastro'
 type AppRoute = 'default' | 'compras-homologacao' | 'pesquisa-satisfacao'
@@ -162,6 +163,8 @@ export default function App() {
     employmentType: string
     thirdPartyCompany: string
     workArea: string
+    workSubtype: string
+    locality: string
   }) => {
     await api.register(payload)
   }
@@ -1623,12 +1626,14 @@ function HomePanel({
                           <dt>Tipo</dt>
                           <dd>{formatValue(selectedUserDetail.employmentType)}</dd>
                         </div>
-                        {selectedUserDetail.employmentType === 'Terceira' ? (
-                          <div>
-                            <dt>Empresa terceira</dt>
-                            <dd>{formatValue(selectedUserDetail.thirdPartyCompany)}</dd>
-                          </div>
-                        ) : null}
+                        <div>
+                          <dt>
+                            {selectedUserDetail.employmentType === 'Terceira'
+                              ? 'Empresa terceira'
+                              : 'Empresa'}
+                          </dt>
+                          <dd>{formatValue(selectedUserDetail.thirdPartyCompany)}</dd>
+                        </div>
                         <div>
                           <dt>CPF</dt>
                           <dd>{formatValue(selectedUserDetail.cpf)}</dd>
@@ -1639,7 +1644,13 @@ function HomePanel({
                         </div>
                         <div>
                           <dt>Perfil</dt>
-                          <dd>{roleLabel(selectedUserDetail.role)}</dd>
+                          <dd>
+                            {buildRequestedProfile(
+                              selectedUserDetail.jobTitle,
+                              selectedUserDetail.workSubtype ?? '',
+                              selectedUserDetail.workArea ?? '',
+                            ) || roleLabel(selectedUserDetail.role)}
+                          </dd>
                         </div>
                         <div>
                           <dt>Status</dt>
@@ -1652,6 +1663,10 @@ function HomePanel({
                         <div>
                           <dt>Subtipo</dt>
                           <dd>{formatValue(selectedUserDetail.workSubtype)}</dd>
+                        </div>
+                        <div>
+                          <dt>Localidade</dt>
+                          <dd>{formatValue(selectedUserDetail.locality)}</dd>
                         </div>
                         <div>
                           <dt>Solicitado em</dt>
@@ -3087,6 +3102,8 @@ type RegisterPanelProps = {
     employmentType: string
     thirdPartyCompany: string
     workArea: string
+    workSubtype: string
+    locality: string
   }) => Promise<void>
   onRegistered: () => void
 }
@@ -3098,8 +3115,10 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
   const [email, setEmail] = useState('')
   const [jobTitle, setJobTitle] = useState('')
   const [workArea, setWorkArea] = useState('')
+  const [workSubtype, setWorkSubtype] = useState('')
   const [employmentType, setEmploymentType] = useState('')
-  const [thirdPartyCompany, setThirdPartyCompany] = useState('')
+  const [employerCompany, setEmployerCompany] = useState('')
+  const [locality, setLocality] = useState('')
   const [cpf, setCpf] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [password, setPassword] = useState('')
@@ -3112,10 +3131,14 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
   const [areaOptions, setAreaOptions] = useState<string[]>([...AREA_OPTIONS])
   const [tipoOptions, setTipoOptions] = useState<string[]>(['Própria', 'Terceira'])
   const [terceiraOptions, setTerceiraOptions] = useState<string[]>([...THIRD_PARTY_COMPANIES])
+  const [localityOptions, setLocalityOptions] = useState<string[]>([...DEFAULT_LOCALITIES])
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
+
+  const subtypeOptions = subtypesForCargo(jobTitle)
+  const requestedProfile = buildRequestedProfile(jobTitle, workSubtype, workArea)
 
   useEffect(() => {
     void api
@@ -3123,12 +3146,13 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       .then(({ catalogs }) => {
         const byKey = Object.fromEntries(
           catalogs.map((catalog) => [catalog.key, catalog.options.map((item) => item.value)]),
-        ) as Partial<Record<'cargo' | 'area' | 'tipo' | 'terceira', string[]>>
+        ) as Partial<Record<'cargo' | 'area' | 'tipo' | 'terceira' | 'localidade', string[]>>
 
         if (byKey.cargo?.length) setCargoOptions(byKey.cargo)
         if (byKey.area?.length) setAreaOptions(byKey.area)
         if (byKey.tipo?.length) setTipoOptions(byKey.tipo)
         if (byKey.terceira?.length) setTerceiraOptions(byKey.terceira)
+        if (byKey.localidade?.length) setLocalityOptions(byKey.localidade)
       })
       .catch(() => {
         // Mantém fallback local se a API estiver indisponível no cadastro público.
@@ -3146,6 +3170,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       !jobTitle.trim() ||
       !workArea ||
       !employmentType ||
+      !employerCompany ||
+      !locality ||
       !cpf.trim() ||
       !whatsapp.trim() ||
       !password ||
@@ -3158,10 +3184,13 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       return
     }
 
-    if (employmentType === 'Terceira' && !thirdPartyCompany) {
+    if (subtypeOptions.length > 0 && !workSubtype) {
       setFeedback({
         type: 'error',
-        message: 'Selecione a empresa terceira.',
+        message:
+          jobTitle === 'Engenheiro'
+            ? 'Selecione a função do engenheiro.'
+            : 'Selecione o tipo de técnico.',
       })
       return
     }
@@ -3187,8 +3216,10 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         hobby: '',
         whatsapp: whatsapp.trim(),
         employmentType,
-        thirdPartyCompany: employmentType === 'Terceira' ? thirdPartyCompany : '',
+        thirdPartyCompany: employerCompany,
         workArea,
+        workSubtype: jobTitle === 'Analista' ? '' : workSubtype,
+        locality,
       })
 
       setFeedback({
@@ -3202,8 +3233,10 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setEmail('')
       setJobTitle('')
       setWorkArea('')
+      setWorkSubtype('')
       setEmploymentType('')
-      setThirdPartyCompany('')
+      setEmployerCompany('')
+      setLocality('')
       setCpf('')
       setWhatsapp('')
       setPassword('')
@@ -3240,9 +3273,152 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       ) : null}
 
       <form className="form-grid register-grid" onSubmit={handleSubmit}>
+        <label>
+          Tipo
+          <select
+            value={employmentType}
+            onChange={(event) => {
+              const nextType = event.target.value
+              setEmploymentType(nextType)
+              setEmployerCompany('')
+            }}
+            required
+          >
+            <option value="" disabled>
+              Selecione: Própria ou Terceira
+            </option>
+            {tipoOptions.map((tipo) => (
+              <option key={tipo} value={tipo}>
+                {tipo}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {employmentType === 'Própria' ? (
+          <label>
+            Empresa EDP
+            <select
+              value={employerCompany}
+              onChange={(event) => setEmployerCompany(event.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Selecione EDP SP ou EDP ES
+              </option>
+              {EDP_UNITS.map((unit) => (
+                <option key={unit} value={unit}>
+                  {unit}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        {employmentType === 'Terceira' ? (
+          <label>
+            Empresa terceira
+            <select
+              value={employerCompany}
+              onChange={(event) => setEmployerCompany(event.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Selecione a empresa
+              </option>
+              {terceiraOptions.map((company) => (
+                <option key={company} value={company}>
+                  {company}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        <label>
+          Área
+          <select
+            value={workArea}
+            onChange={(event) => setWorkArea(event.target.value)}
+            required
+          >
+            <option value="" disabled>
+              Selecione a área
+            </option>
+            {areaOptions.map((area) => (
+              <option key={area} value={area}>
+                {area}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Cargo
+          <select
+            value={jobTitle}
+            onChange={(event) => {
+              setJobTitle(event.target.value)
+              setWorkSubtype('')
+            }}
+            required
+          >
+            <option value="" disabled>
+              Selecione o cargo
+            </option>
+            {cargoOptions.map((cargo) => (
+              <option key={cargo} value={cargo}>
+                {cargo}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {subtypeOptions.length > 0 ? (
+          <label>
+            {jobTitle === 'Engenheiro' ? 'Função do engenheiro' : 'Tipo de técnico'}
+            <select
+              value={workSubtype}
+              onChange={(event) => setWorkSubtype(event.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Selecione...
+              </option>
+              {subtypeOptions.map((subtype) => (
+                <option key={subtype} value={subtype}>
+                  {subtype}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        <label>
+          Localidade
+          <select
+            value={locality}
+            onChange={(event) => setLocality(event.target.value)}
+            required
+          >
+            <option value="" disabled>
+              Selecione a cidade
+            </option>
+            {localityOptions.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <label className="full-width">
-          Perfil solicitado
-          <input type="text" value="Compras" readOnly />
+          Perfil construído
+          <input
+            type="text"
+            value={requestedProfile || 'Selecione tipo, área e cargo'}
+            readOnly
+          />
         </label>
 
         <label>
@@ -3279,86 +3455,6 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             onChange={(event) => setEmail(event.target.value)}
           />
         </label>
-
-        <label>
-          Cargo
-          <select
-            value={jobTitle}
-            onChange={(event) => setJobTitle(event.target.value)}
-            required
-          >
-            <option value="" disabled>
-              Selecione o cargo
-            </option>
-            {cargoOptions.map((cargo) => (
-              <option key={cargo} value={cargo}>
-                {cargo}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Área
-          <select
-            value={workArea}
-            onChange={(event) => setWorkArea(event.target.value)}
-            required
-          >
-            <option value="" disabled>
-              Selecione a área
-            </option>
-            {areaOptions.map((area) => (
-              <option key={area} value={area}>
-                {area}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Tipo
-          <select
-            value={employmentType}
-            onChange={(event) => {
-              const nextType = event.target.value
-              setEmploymentType(nextType)
-              if (nextType !== 'Terceira') {
-                setThirdPartyCompany('')
-              }
-            }}
-            required
-          >
-            <option value="" disabled>
-              Selecione o tipo
-            </option>
-            {tipoOptions.map((tipo) => (
-              <option key={tipo} value={tipo}>
-                {tipo}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {employmentType === 'Terceira' ? (
-          <label className="full-width">
-            Empresa terceira
-            <select
-              value={thirdPartyCompany}
-              onChange={(event) => setThirdPartyCompany(event.target.value)}
-              required
-            >
-              <option value="" disabled>
-                Selecione a empresa
-              </option>
-              {terceiraOptions.map((company) => (
-                <option key={company} value={company}>
-                  {company}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
 
         <label>
           CPF
@@ -3401,12 +3497,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           />
         </label>
 
-        <label>
-          Foto de perfil
-          <input type="file" accept="image/*" />
-        </label>
-
-        <button className="primary-button" type="submit">
+        <button className="primary-button login-enter-button" type="submit">
           Cadastrar para aprovação
         </button>
       </form>

@@ -3,7 +3,7 @@ import { query } from '../db.js'
 import { requireAdmin, requireAuth } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 
-export const CATALOG_KEYS = ['cargo', 'area', 'tipo', 'terceira'] as const
+export const CATALOG_KEYS = ['cargo', 'area', 'tipo', 'terceira', 'localidade'] as const
 export type CatalogKey = (typeof CATALOG_KEYS)[number]
 
 export const CATALOG_LABELS: Record<CatalogKey, string> = {
@@ -11,13 +11,51 @@ export const CATALOG_LABELS: Record<CatalogKey, string> = {
   area: 'Área',
   tipo: 'Tipo',
   terceira: 'Empresa terceira',
+  localidade: 'Localidade',
 }
 
 const DEFAULT_OPTIONS: Record<CatalogKey, string[]> = {
   cargo: ['Técnico', 'Analista', 'Engenheiro'],
-  area: ['Medição', 'CSD', 'Consumo Irregular', 'Grandes Clientes', 'Qualidade'],
+  area: [
+    'Medição',
+    'Telemedição',
+    'CSD',
+    'Consumo Irregular',
+    'Grandes Clientes',
+    'Qualidade',
+  ],
   tipo: ['Própria', 'Terceira'],
   terceira: ['Cennatech', 'Ecori', 'Landis+Gyr', 'Metta Brasil', 'SEW', 'Steenge'],
+  localidade: [
+    'Aparecida',
+    'Biritiba-Mirim',
+    'Caçapava',
+    'Cachoeira Paulista',
+    'Canas',
+    'Caraguatatuba',
+    'Cruzeiro',
+    'Ferraz de Vasconcelos',
+    'Guararema',
+    'Guaratinguetá',
+    'Guarulhos',
+    'Itaquaquecetuba',
+    'Jacareí',
+    'Jambeiro',
+    'Lorena',
+    'Mogi das Cruzes',
+    'Monteiro Lobato',
+    'Pindamonhangaba',
+    'Poá',
+    'Potim',
+    'Roseira',
+    'Salesópolis',
+    'Santa Branca',
+    'São José dos Campos',
+    'São Sebastião',
+    'Suzano',
+    'Taubaté',
+    'Tremembé',
+  ],
 }
 
 type CatalogOptionRow = {
@@ -39,12 +77,6 @@ function mapOption(row: CatalogOptionRow) {
 
 export async function ensureCatalogOptionsSeeded() {
   for (const key of CATALOG_KEYS) {
-    const existing = await query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM catalog_options WHERE catalog_key = $1`,
-      [key],
-    )
-    if (Number(existing.rows[0]?.count ?? 0) > 0) continue
-
     for (const [index, value] of DEFAULT_OPTIONS[key].entries()) {
       await query(
         `INSERT INTO catalog_options (catalog_key, value, sort_order)

@@ -23,6 +23,7 @@ type UserRow = {
   whatsapp: string
   employment_type: string
   third_party_company: string
+  locality: string
 }
 
 function mapUser(row: UserRow) {
@@ -45,6 +46,7 @@ function mapUser(row: UserRow) {
     whatsapp: row.whatsapp,
     employmentType: row.employment_type,
     thirdPartyCompany: row.third_party_company,
+    locality: row.locality,
   }
 }
 
@@ -103,13 +105,16 @@ export async function register(req: Request, res: Response) {
     employmentType,
     thirdPartyCompany,
     workArea,
+    workSubtype,
+    locality,
   } = req.body as Record<string, string | undefined>
 
   const normalizedEmploymentType = employmentType?.trim() ?? ''
-  const normalizedThirdParty =
-    normalizedEmploymentType === 'Terceira' ? thirdPartyCompany?.trim() ?? '' : ''
+  const normalizedEmployer = thirdPartyCompany?.trim() ?? ''
   const normalizedWorkArea = workArea?.trim() ?? ''
   const normalizedJobTitle = jobTitle?.trim() ?? ''
+  const normalizedWorkSubtype = workSubtype?.trim() ?? ''
+  const normalizedLocality = locality?.trim() ?? ''
   const normalizedWhatsapp = whatsapp?.trim() ?? ''
 
   if (
@@ -128,7 +133,7 @@ export async function register(req: Request, res: Response) {
   const catalogValues = await query<{ catalog_key: string; value: string }>(
     `SELECT catalog_key, value FROM catalog_options
      WHERE catalog_key = ANY($1::text[])`,
-    [['cargo', 'area', 'tipo', 'terceira']],
+    [['cargo', 'area', 'tipo', 'terceira', 'localidade']],
   )
   const valuesByKey = catalogValues.rows.reduce<Record<string, string[]>>((acc, row) => {
     acc[row.catalog_key] = acc[row.catalog_key] ?? []
@@ -138,12 +143,23 @@ export async function register(req: Request, res: Response) {
 
   const allowedAreas = valuesByKey.area?.length
     ? valuesByKey.area
-    : ['Medição', 'CSD', 'Consumo Irregular', 'Grandes Clientes', 'Qualidade']
+    : [
+        'Medição',
+        'Telemedição',
+        'CSD',
+        'Consumo Irregular',
+        'Grandes Clientes',
+        'Qualidade',
+      ]
   const allowedCargos = valuesByKey.cargo?.length
     ? valuesByKey.cargo
     : ['Técnico', 'Analista', 'Engenheiro']
   const allowedTipos = valuesByKey.tipo?.length ? valuesByKey.tipo : ['Própria', 'Terceira']
   const allowedTerceiras = valuesByKey.terceira ?? []
+  const allowedLocalities = valuesByKey.localidade ?? []
+  const allowedEdpUnits = ['EDP SP', 'EDP ES']
+  const allowedTechnicianSubtypes = ['Administrativo', 'Inspeção', 'Grandes Clientes']
+  const allowedEngineerSubtypes = ['Dono de área', 'Ponto focal', 'Não aplicável']
 
   if (!allowedCargos.includes(normalizedJobTitle)) {
     res.status(400).json({ error: 'Selecione um cargo válido.' })
@@ -160,13 +176,38 @@ export async function register(req: Request, res: Response) {
     return
   }
 
-  if (
-    normalizedEmploymentType === 'Terceira' &&
-    (!normalizedThirdParty ||
-      (allowedTerceiras.length > 0 && !allowedTerceiras.includes(normalizedThirdParty)))
+  if (normalizedEmploymentType === 'Própria') {
+    if (!allowedEdpUnits.includes(normalizedEmployer)) {
+      res.status(400).json({ error: 'Selecione EDP SP ou EDP ES.' })
+      return
+    }
+  } else if (
+    !normalizedEmployer ||
+    (allowedTerceiras.length > 0 && !allowedTerceiras.includes(normalizedEmployer))
   ) {
     res.status(400).json({ error: 'Selecione a empresa terceira.' })
     return
+  }
+
+  if (
+    allowedLocalities.length > 0
+      ? !allowedLocalities.includes(normalizedLocality)
+      : !normalizedLocality
+  ) {
+    res.status(400).json({ error: 'Selecione a localidade.' })
+    return
+  }
+
+  if (normalizedJobTitle === 'Técnico') {
+    if (!allowedTechnicianSubtypes.includes(normalizedWorkSubtype)) {
+      res.status(400).json({ error: 'Selecione o tipo de técnico.' })
+      return
+    }
+  } else if (normalizedJobTitle === 'Engenheiro') {
+    if (!allowedEngineerSubtypes.includes(normalizedWorkSubtype)) {
+      res.status(400).json({ error: 'Selecione a função do engenheiro.' })
+      return
+    }
   }
 
   const normalizedRegistration = registration.trim().toUpperCase()
@@ -179,8 +220,8 @@ export async function register(req: Request, res: Response) {
       `INSERT INTO users (
         id, name, registration, password_hash, email, role, approval_status,
         birth_date, job_title, cpf, personal_description, hobby, whatsapp,
-        employment_type, third_party_company, work_area
-      ) VALUES ($1,$2,$3,$4,$5,'compras','pending',$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        employment_type, third_party_company, work_area, work_subtype, locality
+      ) VALUES ($1,$2,$3,$4,$5,'compras','pending',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       RETURNING *`,
       [
         id,
@@ -195,8 +236,10 @@ export async function register(req: Request, res: Response) {
         hobby ?? '',
         normalizedWhatsapp,
         normalizedEmploymentType,
-        normalizedThirdParty,
+        normalizedEmployer,
         normalizedWorkArea,
+        normalizedJobTitle === 'Analista' ? '' : normalizedWorkSubtype,
+        normalizedLocality,
       ],
     )
 
@@ -218,6 +261,7 @@ export async function register(req: Request, res: Response) {
     throw error
   }
 }
+
 
 export async function me(req: Request, res: Response) {
   const user = await findUserById(req.user!.id)

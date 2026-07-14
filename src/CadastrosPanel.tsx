@@ -6,6 +6,7 @@ import {
   type CatalogKey,
 } from './api'
 import { CADASTRO_PROFILES } from './profilesAccess'
+import { DEFAULT_AREA_OPTIONS, DEFAULT_LOCALITIES } from './registrationOptions'
 
 const FALLBACK_CATALOGS: CatalogGroup[] = [
   {
@@ -20,13 +21,13 @@ const FALLBACK_CATALOGS: CatalogGroup[] = [
   {
     key: 'area',
     label: 'Área',
-    options: [
-      { id: -4, catalogKey: 'area', value: 'Medição', sortOrder: 0, label: 'Área' },
-      { id: -5, catalogKey: 'area', value: 'CSD', sortOrder: 1, label: 'Área' },
-      { id: -6, catalogKey: 'area', value: 'Consumo Irregular', sortOrder: 2, label: 'Área' },
-      { id: -7, catalogKey: 'area', value: 'Grandes Clientes', sortOrder: 3, label: 'Área' },
-      { id: -8, catalogKey: 'area', value: 'Qualidade', sortOrder: 4, label: 'Área' },
-    ],
+    options: DEFAULT_AREA_OPTIONS.map((value, index) => ({
+      id: -(20 + index),
+      catalogKey: 'area' as const,
+      value,
+      sortOrder: index,
+      label: 'Área',
+    })),
   },
   {
     key: 'tipo',
@@ -48,6 +49,17 @@ const FALLBACK_CATALOGS: CatalogGroup[] = [
       { id: -16, catalogKey: 'terceira', value: 'Steenge', sortOrder: 5, label: 'Empresa terceira' },
     ],
   },
+  {
+    key: 'localidade',
+    label: 'Localidade',
+    options: DEFAULT_LOCALITIES.map((value, index) => ({
+      id: -(100 + index),
+      catalogKey: 'localidade' as const,
+      value,
+      sortOrder: index,
+      label: 'Localidade',
+    })),
+  },
 ]
 
 type CadastrosPanelProps = {
@@ -63,6 +75,7 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
     area: '',
     tipo: '',
     terceira: '',
+    localidade: '',
   })
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
