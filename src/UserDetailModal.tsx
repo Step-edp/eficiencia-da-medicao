@@ -76,6 +76,7 @@ export function UserDetailModal({
     'Analista',
     'Engenheiro',
     'Gestor',
+    'Estagiário',
   ])
   const [areaOptions, setAreaOptions] = useState<string[]>([...DEFAULT_AREA_OPTIONS])
   const [tipoOptions, setTipoOptions] = useState<string[]>(['Própria', 'Terceira'])

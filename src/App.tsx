@@ -4478,6 +4478,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
     'Analista',
     'Engenheiro',
     'Gestor',
+    'Estagiário',
   ])
   const [areaOptions, setAreaOptions] = useState<string[]>([...AREA_OPTIONS])
   const [tipoOptions, setTipoOptions] = useState<string[]>(['Própria', 'Terceira'])
