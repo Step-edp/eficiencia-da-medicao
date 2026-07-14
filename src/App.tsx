@@ -1702,6 +1702,7 @@ function HomePanel({
   }
 
   const handleUpdateOrgArea = async (payload: {
+    label: string
     responsibleUserId: string | null
     substituteUserId: string | null
   }) => {
@@ -2480,11 +2481,11 @@ function HomePanel({
             />
             <p className="section-tag">{isGestorView ? 'Home · Gestor' : 'Área'}</p>
             <h2>{showAreaPicker ? 'Gestão Operacional' : activeOrgArea.label}</h2>
-            <p>
-              {showAreaPicker
-                ? 'Selecione uma gestão operacional ou crie uma nova (administrador).'
-                : 'Painel gerencial da área. Acompanhe células, subcélulas e processos sob sua responsabilidade.'}
-            </p>
+                <p>
+                  {showAreaPicker
+                    ? 'Cada gestão operacional tem um nome. Selecione uma ou crie uma nova (administrador).'
+                    : 'Painel gerencial da área. Acompanhe células, subcélulas e processos sob sua responsabilidade.'}
+                </p>
 
             {showAreaPicker ? (
               <>

@@ -322,6 +322,7 @@ export async function updateOrgArea(req: Request, res: Response) {
     return
   }
 
+  const hasLabel = Object.prototype.hasOwnProperty.call(req.body ?? {}, 'label')
   const hasResponsible = Object.prototype.hasOwnProperty.call(
     req.body ?? {},
     'responsibleUserId',
@@ -331,9 +332,33 @@ export async function updateOrgArea(req: Request, res: Response) {
     'substituteUserId',
   )
 
-  if (!hasResponsible && !hasSubstitute) {
+  if (!hasLabel && !hasResponsible && !hasSubstitute) {
     res.status(400).json({ error: 'Nenhuma alteração informada.' })
     return
+  }
+
+  let label = current.label
+  if (hasLabel) {
+    label = normalizeLabel(req.body.label)
+    if (!label) {
+      res.status(400).json({ error: 'Informe o nome da gestão operacional.' })
+      return
+    }
+    if (label.length > 80) {
+      res.status(400).json({
+        error: 'O nome da gestão operacional deve ter no máximo 80 caracteres.',
+      })
+      return
+    }
+    const duplicate = await query<{ id: string }>(
+      `SELECT id FROM org_areas
+       WHERE lower(label) = lower($1) AND id <> $2`,
+      [label, areaId],
+    )
+    if (duplicate.rows[0]) {
+      res.status(409).json({ error: 'Já existe uma gestão operacional com esse nome.' })
+      return
+    }
   }
 
   let responsibleUserId = current.responsible_user_id
@@ -357,25 +382,30 @@ export async function updateOrgArea(req: Request, res: Response) {
 
   await query(
     `UPDATE org_areas
-     SET responsible_user_id = $2,
-         substitute_user_id = $3,
+     SET label = $2,
+         responsible_user_id = $3,
+         substitute_user_id = $4,
          updated_at = NOW()
      WHERE id = $1`,
-    [areaId, responsibleUserId, substituteUserId],
+    [areaId, label, responsibleUserId, substituteUserId],
   )
 
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'org_area',
     entityId: areaId,
-    summary: responsibleUserId
-      ? `Liderança da área "${current.label}" atualizada (responsável e substituto).`
-      : `Área "${current.label}" ficou pendente (sem responsável).`,
+    summary:
+      label !== current.label
+        ? `Gestão operacional renomeada para "${label}".`
+        : responsibleUserId
+          ? `Liderança da área "${label}" atualizada (responsável e substituto).`
+          : `Área "${label}" ficou pendente (sem responsável).`,
     oldData: {
+      label: current.label,
       responsibleUserId: current.responsible_user_id,
       substituteUserId: current.substitute_user_id,
     },
-    newData: { responsibleUserId, substituteUserId },
+    newData: { label, responsibleUserId, substituteUserId },
   })
 
   res.json(await getStructurePayload())

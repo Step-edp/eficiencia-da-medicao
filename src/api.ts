@@ -489,6 +489,7 @@ export const api = {
   updateOrgArea: (
     areaId: string,
     payload: {
+      label?: string
       responsibleUserId?: string | null
       substituteUserId?: string | null
     },

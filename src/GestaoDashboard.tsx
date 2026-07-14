@@ -11,6 +11,10 @@ type LeadershipPayload = {
   substituteUserId: string | null
 }
 
+type AreaUpdatePayload = LeadershipPayload & {
+  label: string
+}
+
 function UserOptions({
   users,
   excludeId,
@@ -40,7 +44,7 @@ type GestaoDashboardProps = {
   error?: string | null
   /** Aba ativa na home Gestão Operacional: dashboard ou gestão de células. */
   view?: 'dash' | 'celulas'
-  onUpdateArea: (payload: LeadershipPayload) => Promise<void>
+  onUpdateArea: (payload: AreaUpdatePayload) => Promise<void>
   onCreateCell: (
     payload: LeadershipPayload & { label: string; description: string },
   ) => Promise<void>
@@ -123,12 +127,13 @@ export function CreateOrgAreaForm({
         <>
           <h3>Nova gestão operacional</h3>
           <p className="users-dashboard-ranking-hint">
-            Cada gestão operacional tem 1 responsável e 1 substituto para ausência. Sem
-            responsável, a área fica pendente. Células ficam vinculadas a esta área.
+            Informe um nome único para a gestão. Ela terá 1 responsável e 1
+            substituto para ausência. Sem responsável, a área fica pendente. Células
+            ficam vinculadas a esta área.
           </p>
           <form className="gestao-create-cell-form" onSubmit={handleCreate}>
             <label>
-              Nome da gestão operacional
+              Nome
               <input
                 value={label}
                 onChange={(event) => setLabel(event.target.value)}
@@ -385,9 +390,9 @@ export function GestaoDashboard({
       </div>
 
       <AreaLeadershipEditor
-        key={`${area.id}:${area.responsibleUserId ?? 'none'}:${area.substituteUserId ?? 'none'}`}
+        key={`${area.id}:${area.label}:${area.responsibleUserId ?? 'none'}:${area.substituteUserId ?? 'none'}`}
         title={`Liderança · ${area.label}`}
-        hint={`A área ${area.label} tem 1 responsável e 1 substituto para períodos de ausência. Sem responsável, a área fica pendente.`}
+        hint="Toda gestão operacional precisa ter um nome. Defina também 1 responsável e 1 substituto para períodos de ausência. Sem responsável, a área fica pendente."
         area={area}
         candidateUsers={candidateUsers}
         canManage={canManage}
@@ -445,7 +450,7 @@ type AreaLeadershipEditorProps = {
   candidateUsers: AppUser[]
   canManage: boolean
   busy?: boolean
-  onSave: (payload: LeadershipPayload) => Promise<void>
+  onSave: (payload: AreaUpdatePayload) => Promise<void>
 }
 
 export function AreaLeadershipEditor({
@@ -457,6 +462,7 @@ export function AreaLeadershipEditor({
   busy = false,
   onSave,
 }: AreaLeadershipEditorProps) {
+  const [label, setLabel] = useState(area.label)
   const [responsibleUserId, setResponsibleUserId] = useState(area.responsibleUserId ?? '')
   const [substituteUserId, setSubstituteUserId] = useState(area.substituteUserId ?? '')
   const [error, setError] = useState<string | null>(null)
@@ -464,12 +470,18 @@ export function AreaLeadershipEditor({
 
   const handleSave = async () => {
     setError(null)
+    const trimmed = label.trim()
+    if (!trimmed) {
+      setError('Informe o nome da gestão operacional.')
+      return
+    }
     if (responsibleUserId && substituteUserId && responsibleUserId === substituteUserId) {
       setError('O substituto deve ser diferente do responsável.')
       return
     }
     try {
       await onSave({
+        label: trimmed,
         responsibleUserId: responsibleUserId || null,
         substituteUserId: responsibleUserId ? substituteUserId || null : null,
       })
@@ -489,12 +501,14 @@ export function AreaLeadershipEditor({
           {status === 'ativa' ? 'Ativa' : 'Pendente'}
         </span>
         <span className="gestao-cell-responsible-name">
+          <strong>{area.label}</strong>
           {area.responsibleName ? (
             <>
-              Responsável: <strong>{area.responsibleName}</strong>
+              {' '}
+              · Responsável: <strong>{area.responsibleName}</strong>
             </>
           ) : (
-            'Sem responsável'
+            <> · Sem responsável</>
           )}
           {area.substituteName ? (
             <>
@@ -506,6 +520,17 @@ export function AreaLeadershipEditor({
       </div>
       {canManage ? (
         <div className="gestao-cell-responsible-form">
+          <label>
+            Nome da gestão operacional
+            <input
+              value={label}
+              onChange={(event) => setLabel(event.target.value)}
+              placeholder="Ex.: Gestão Operacional Norte"
+              maxLength={80}
+              disabled={busy}
+              required
+            />
+          </label>
           <label>
             Responsável
             <select
@@ -543,7 +568,7 @@ export function AreaLeadershipEditor({
             disabled={busy}
             onClick={() => void handleSave()}
           >
-            {busy ? 'Salvando…' : 'Salvar liderança'}
+            {busy ? 'Salvando…' : 'Salvar'}
           </button>
         </div>
       ) : null}

@@ -1699,6 +1699,7 @@ button {
 
 .gestao-create-cell-form input,
 .gestao-create-cell-form select,
+.gestao-cell-responsible-form input,
 .gestao-cell-responsible-form select {
   width: 100%;
   min-height: 42px;
