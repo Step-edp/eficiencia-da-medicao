@@ -6,7 +6,7 @@ import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
 import { UsersDashboard } from './UsersDashboard'
-import { GestaoDashboard, CellResponsibleEditor, CreateOrgAreaForm } from './GestaoDashboard'
+import { GestaoDashboard, CellResponsibleEditor, CreateOrgAreaForm, AreaLeadershipEditor } from './GestaoDashboard'
 import { AgendaPanel } from './AgendaPanel'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
@@ -2568,6 +2568,19 @@ function HomePanel({
               </>
             ) : !selectedOrgCell ? (
               <>
+                {canManageOrgCells ? (
+                  <AreaLeadershipEditor
+                    key={`${activeOrgArea.id}:${activeOrgArea.label}:${activeOrgArea.responsibleUserId ?? 'none'}:${activeOrgArea.substituteUserId ?? 'none'}`}
+                    title="Dados da gestão operacional"
+                    hint="Você pode editar o nome a qualquer momento. A área também precisa de 1 responsável e 1 substituto; sem qualquer um dos dois, fica pendente."
+                    area={activeOrgArea}
+                    candidateUsers={registeredUsers}
+                    canManage={canManageOrgCells}
+                    busy={orgCellsBusy}
+                    onSave={handleUpdateOrgArea}
+                  />
+                ) : null}
+
                 <div
                   className="panel-switch gestao-home-switch"
                   role="tablist"
@@ -2602,7 +2615,6 @@ function HomePanel({
                     canManage={canManageOrgCells}
                     busy={orgCellsBusy}
                     error={orgCellsError}
-                    onUpdateArea={handleUpdateOrgArea}
                     onCreateCell={handleCreateOrgCell}
                   />
                 ) : (
@@ -2615,7 +2627,6 @@ function HomePanel({
                       canManage={canManageOrgCells}
                       busy={orgCellsBusy}
                       error={orgCellsError}
-                      onUpdateArea={handleUpdateOrgArea}
                       onCreateCell={handleCreateOrgCell}
                     />
                     <h3 className="lab-other-heading">Células</h3>

@@ -45,7 +45,6 @@ type GestaoDashboardProps = {
   error?: string | null
   /** Aba ativa na home Gestão Operacional: dashboard ou gestão de células. */
   view?: 'dash' | 'celulas'
-  onUpdateArea: (payload: AreaUpdatePayload) => Promise<void>
   onCreateCell: (
     payload: LeadershipPayload & { label: string; description: string },
   ) => Promise<void>
@@ -217,7 +216,6 @@ export function GestaoDashboard({
   busy = false,
   error = null,
   view = 'dash',
-  onUpdateArea,
   onCreateCell,
 }: GestaoDashboardProps) {
   const stats = getGestaoDashboardStats(cells)
@@ -389,17 +387,6 @@ export function GestaoDashboard({
           <p className="users-dashboard-kpi-value">{stats.processCount}</p>
         </article>
       </div>
-
-      <AreaLeadershipEditor
-        key={`${area.id}:${area.label}:${area.responsibleUserId ?? 'none'}:${area.substituteUserId ?? 'none'}`}
-        title={`Liderança · ${area.label}`}
-        hint="Toda gestão operacional precisa ter um nome, 1 responsável e 1 substituto. Sem responsável ou sem substituto, a área fica pendente."
-        area={area}
-        candidateUsers={candidateUsers}
-        canManage={canManage}
-        busy={busy}
-        onSave={onUpdateArea}
-      />
 
       <div className="users-dashboard-card gestao-dashboard-breakdown">
         <h3>Processos por subcélula</h3>

@@ -676,7 +676,7 @@ export async function ensureOrgCellsSeeded() {
        $1,
        'Área gerencial do portal. Conta com 1 responsável e 1 substituto para períodos de ausência.'
      )
-     ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label`,
+     ON CONFLICT (id) DO NOTHING`,
     [DEFAULT_ORG_AREA_ID],
   )
 
