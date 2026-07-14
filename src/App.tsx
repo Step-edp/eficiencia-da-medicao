@@ -2039,16 +2039,16 @@ function HomePanel({
         <main className="shell">
           <section className="home-card area-screen-card">
             <TopActionBar
-              onBack={() => {
-                if (selectedOrgCell) {
-                  setSelectedOrgCell(null)
-                  setSelectedOrgSubcell(null)
-                  return
-                }
-                if (!isGestorView) {
-                  exitToHome()
-                }
-              }}
+              onBack={
+                selectedOrgCell
+                  ? () => {
+                      setSelectedOrgCell(null)
+                      setSelectedOrgSubcell(null)
+                    }
+                  : isGestorView
+                    ? undefined
+                    : exitToHome
+              }
               onHome={exitToHome}
               onLogout={onLogout}
             />
