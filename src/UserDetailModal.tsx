@@ -43,6 +43,7 @@ type UserDetailModalProps = {
   terceiraOptions: string[]
   onClose: () => void
   onSaved: (user: AppUser) => void
+  onDeleted?: (userId: string) => void
   onFeedback: (feedback: { type: 'success' | 'error'; message: string }) => void
 }
 
@@ -60,10 +61,14 @@ export function UserDetailModal({
   terceiraOptions,
   onClose,
   onSaved,
+  onDeleted,
   onFeedback,
 }: UserDetailModalProps) {
+  const isAdminUser = user.role === 'admin'
+  const canDelete = !isAdminUser
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [cargoOptions, setCargoOptions] = useState<string[]>([
     'Técnico',
     'Analista',
@@ -201,7 +206,15 @@ export function UserDetailModal({
   const handleSave = async (event: FormEvent) => {
     event.preventDefault()
 
-    if (
+    if (isAdminUser) {
+      if (!name.trim() || !registration.trim() || !email.trim()) {
+        onFeedback({
+          type: 'error',
+          message: 'Nome, matrícula e e-mail são obrigatórios.',
+        })
+        return
+      }
+    } else if (
       !name.trim() ||
       !registration.trim() ||
       !email.trim() ||
@@ -221,12 +234,12 @@ export function UserDetailModal({
       return
     }
 
-    if (needsCompany && !thirdPartyCompany) {
+    if (!isAdminUser && needsCompany && !thirdPartyCompany) {
       onFeedback({ type: 'error', message: 'Selecione a empresa terceira.' })
       return
     }
 
-    if (subtypeOptions.length > 0 && !workSubtype) {
+    if (!isAdminUser && subtypeOptions.length > 0 && !workSubtype) {
       onFeedback({
         type: 'error',
         message:
@@ -237,7 +250,7 @@ export function UserDetailModal({
       return
     }
 
-    if (needsHomeSubareas && accessAreas.length === 0) {
+    if (!isAdminUser && needsHomeSubareas && accessAreas.length === 0) {
       onFeedback({
         type: 'error',
         message: 'Selecione ao menos uma subárea da home.',
@@ -245,7 +258,11 @@ export function UserDetailModal({
       return
     }
 
-    if (needsSpecificProcesses && (selectedProcessAreas.length === 0 || accessProcesses.length === 0)) {
+    if (
+      !isAdminUser &&
+      needsSpecificProcesses &&
+      (selectedProcessAreas.length === 0 || accessProcesses.length === 0)
+    ) {
       onFeedback({
         type: 'error',
         message: 'Selecione a(s) área(s) e ao menos um processo específico de outra área.',
@@ -262,15 +279,31 @@ export function UserDetailModal({
         whatsapp: whatsapp.trim(),
         birthDate,
         cpf: cpf.trim(),
-        jobTitle: jobTitle.trim(),
-        workArea,
-        employmentType,
-        edpUnit,
-        locality,
-        thirdPartyCompany: needsCompany ? thirdPartyCompany : '',
-        workSubtype: subtypeOptions.length > 0 ? workSubtype : '',
-        accessAreas: needsHomeSubareas ? accessAreas : [],
-        accessProcesses: needsSpecificProcesses ? accessProcesses : [],
+        jobTitle: isAdminUser ? (user.jobTitle ?? '') : jobTitle.trim(),
+        workArea: isAdminUser ? (user.workArea ?? '') : workArea,
+        employmentType: isAdminUser ? (user.employmentType ?? '') : employmentType,
+        edpUnit: isAdminUser ? (user.edpUnit ?? '') : edpUnit,
+        locality: isAdminUser ? (user.locality ?? '') : locality,
+        thirdPartyCompany: isAdminUser
+          ? (user.thirdPartyCompany ?? '')
+          : needsCompany
+            ? thirdPartyCompany
+            : '',
+        workSubtype: isAdminUser
+          ? (user.workSubtype ?? '')
+          : subtypeOptions.length > 0
+            ? workSubtype
+            : '',
+        accessAreas: isAdminUser
+          ? (user.accessAreas ?? [])
+          : needsHomeSubareas
+            ? accessAreas
+            : [],
+        accessProcesses: isAdminUser
+          ? (user.accessProcesses ?? [])
+          : needsSpecificProcesses
+            ? accessProcesses
+            : [],
         personalDescription: personalDescription.trim(),
         hobby: hobby.trim(),
         profilePhoto,
@@ -288,6 +321,33 @@ export function UserDetailModal({
       })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!canDelete || deleting) return
+
+    const confirmed = window.confirm(
+      `Excluir o usuário "${user.name}" (${user.registration})? Esta ação não pode ser desfeita.`,
+    )
+    if (!confirmed) return
+
+    setDeleting(true)
+    try {
+      await api.deleteUser(user.id)
+      onDeleted?.(user.id)
+      onClose()
+      onFeedback({ type: 'success', message: 'Usuário excluído.' })
+    } catch (error) {
+      onFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível excluir o usuário.',
+      })
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -373,188 +433,198 @@ export function UserDetailModal({
               CPF
               <input type="text" value={cpf} onChange={(event) => setCpf(event.target.value)} />
             </label>
-            <label>
-              Tipo
-              <select
-                value={employmentType}
-                onChange={(event) => {
-                  setEmploymentType(event.target.value)
-                  if (event.target.value !== 'Terceira') setThirdPartyCompany('')
-                }}
-              >
-                <option value="">Selecione</option>
-                {tipoOptions.map((tipo) => (
-                  <option key={tipo} value={tipo}>
-                    {tipo}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Abrangência EDP
-              <select value={edpUnit} onChange={(event) => setEdpUnit(event.target.value)}>
-                <option value="">Selecione</option>
-                {EDP_SCOPE_OPTIONS.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {unit}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Área
-              <select
-                value={workArea}
-                onChange={(event) => {
-                  setWorkArea(event.target.value)
-                  setWorkSubtype('')
-                  setAccessAreas([])
-                  setAccessProcesses([])
-                  setSelectedProcessAreas([])
-                }}
-              >
-                <option value="">Selecione</option>
-                {areaOptions.map((area) => (
-                  <option key={area} value={area}>
-                    {area}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Cargo
-              <select
-                value={jobTitle}
-                onChange={(event) => {
-                  setJobTitle(event.target.value)
-                  setWorkSubtype('')
-                  setAccessAreas([])
-                  setAccessProcesses([])
-                  setSelectedProcessAreas([])
-                }}
-              >
-                <option value="">Selecione</option>
-                {cargoOptions.map((cargo) => (
-                  <option key={cargo} value={cargo}>
-                    {cargo}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Localidade
-              <select value={locality} onChange={(event) => setLocality(event.target.value)}>
-                <option value="">Selecione</option>
-                {localityOptions.map((city) => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
-              </select>
-            </label>
 
-            {needsCompany ? (
-              <label>
-                Empresa terceira
-                <select
-                  value={thirdPartyCompany}
-                  onChange={(event) => setThirdPartyCompany(event.target.value)}
-                >
-                  <option value="">Selecione</option>
-                  {terceiraOptions.map((company) => (
-                    <option key={company} value={company}>
-                      {company}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
+            {!isAdminUser ? (
+              <>
+                <label>
+                  Tipo
+                  <select
+                    value={employmentType}
+                    onChange={(event) => {
+                      setEmploymentType(event.target.value)
+                      if (event.target.value !== 'Terceira') setThirdPartyCompany('')
+                    }}
+                  >
+                    <option value="">Selecione</option>
+                    {tipoOptions.map((tipo) => (
+                      <option key={tipo} value={tipo}>
+                        {tipo}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Abrangência EDP
+                  <select value={edpUnit} onChange={(event) => setEdpUnit(event.target.value)}>
+                    <option value="">Selecione</option>
+                    {EDP_SCOPE_OPTIONS.map((unit) => (
+                      <option key={unit} value={unit}>
+                        {unit}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Área
+                  <select
+                    value={workArea}
+                    onChange={(event) => {
+                      setWorkArea(event.target.value)
+                      setWorkSubtype('')
+                      setAccessAreas([])
+                      setAccessProcesses([])
+                      setSelectedProcessAreas([])
+                    }}
+                  >
+                    <option value="">Selecione</option>
+                    {areaOptions.map((area) => (
+                      <option key={area} value={area}>
+                        {area}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Cargo
+                  <select
+                    value={jobTitle}
+                    onChange={(event) => {
+                      setJobTitle(event.target.value)
+                      setWorkSubtype('')
+                      setAccessAreas([])
+                      setAccessProcesses([])
+                      setSelectedProcessAreas([])
+                    }}
+                  >
+                    <option value="">Selecione</option>
+                    {cargoOptions.map((cargo) => (
+                      <option key={cargo} value={cargo}>
+                        {cargo}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Localidade
+                  <select value={locality} onChange={(event) => setLocality(event.target.value)}>
+                    <option value="">Selecione</option>
+                    {localityOptions.map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            {subtypeOptions.length > 0 ? (
-              <label>
-                {jobTitle === 'Engenheiro' ? 'Abrangência do engenheiro' : 'Escopo'}
-                <select
-                  value={workSubtype}
-                  onChange={(event) => {
-                    setWorkSubtype(event.target.value)
-                    setAccessAreas([])
-                    setAccessProcesses([])
-                    setSelectedProcessAreas([])
-                  }}
-                >
-                  <option value="">Selecione</option>
-                  {subtypeOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
+                {needsCompany ? (
+                  <label>
+                    Empresa terceira
+                    <select
+                      value={thirdPartyCompany}
+                      onChange={(event) => setThirdPartyCompany(event.target.value)}
+                    >
+                      <option value="">Selecione</option>
+                      {terceiraOptions.map((company) => (
+                        <option key={company} value={company}>
+                          {company}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
 
-            {needsHomeSubareas ? (
-              <fieldset className="approval-subareas user-edit-full">
-                <legend>Subáreas da home</legend>
-                <div className="approval-subareas-grid">
-                  {ENGINEER_HOME_SUBAREAS.map((area) => (
-                    <label key={area} className="approval-subarea-option">
-                      <input
-                        type="checkbox"
-                        checked={accessAreas.includes(area)}
-                        onChange={() => toggleSubarea(area)}
-                      />
-                      <span>{area}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            ) : null}
+                {subtypeOptions.length > 0 ? (
+                  <label>
+                    {jobTitle === 'Engenheiro' ? 'Abrangência do engenheiro' : 'Escopo'}
+                    <select
+                      value={workSubtype}
+                      onChange={(event) => {
+                        setWorkSubtype(event.target.value)
+                        setAccessAreas([])
+                        setAccessProcesses([])
+                        setSelectedProcessAreas([])
+                      }}
+                    >
+                      <option value="">Selecione</option>
+                      {subtypeOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
 
-            {needsSpecificProcesses ? (
-              <fieldset className="approval-subareas user-edit-full">
-                <legend>Áreas e processos específicos</legend>
-                <p className="approval-subareas-hint">
-                  A área {workArea || 'própria'} já inclui todos os processos. Selecione outras
-                  áreas e os processos de responsabilidade cruzada.
-                </p>
-                <div className="approval-subareas-grid">
-                  {crossAreaProcesses.map(({ area }) => (
-                    <label key={area} className="approval-subarea-option">
-                      <input
-                        type="checkbox"
-                        checked={selectedProcessAreas.includes(area)}
-                        onChange={() => toggleProcessArea(area)}
-                      />
-                      <span>{area}</span>
-                    </label>
-                  ))}
-                </div>
-                {selectedProcessAreas.map((area) => {
-                  const group = crossAreaProcesses.find((item) => item.area === area)
-                  if (!group) return null
-                  return (
-                    <div key={area} className="approval-process-group">
-                      <p className="approval-process-group-title">Processos de {area}</p>
-                      <div className="approval-subareas-grid">
-                        {group.processes.map((process) => {
-                          const encoded = encodeAccessProcess(area, process)
-                          return (
-                            <label key={encoded} className="approval-subarea-option">
-                              <input
-                                type="checkbox"
-                                checked={accessProcesses.includes(encoded)}
-                                onChange={() => toggleProcess(area, process)}
-                              />
-                              <span>{process}</span>
-                            </label>
-                          )
-                        })}
-                      </div>
+                {needsHomeSubareas ? (
+                  <fieldset className="approval-subareas user-edit-full">
+                    <legend>Subáreas da home</legend>
+                    <div className="approval-subareas-grid">
+                      {ENGINEER_HOME_SUBAREAS.map((area) => (
+                        <label key={area} className="approval-subarea-option">
+                          <input
+                            type="checkbox"
+                            checked={accessAreas.includes(area)}
+                            onChange={() => toggleSubarea(area)}
+                          />
+                          <span>{area}</span>
+                        </label>
+                      ))}
                     </div>
-                  )
-                })}
-              </fieldset>
-            ) : null}
+                  </fieldset>
+                ) : null}
+
+                {needsSpecificProcesses ? (
+                  <fieldset className="approval-subareas user-edit-full">
+                    <legend>Áreas e processos específicos</legend>
+                    <p className="approval-subareas-hint">
+                      A área {workArea || 'própria'} já inclui todos os processos. Selecione outras
+                      áreas e os processos de responsabilidade cruzada.
+                    </p>
+                    <div className="approval-subareas-grid">
+                      {crossAreaProcesses.map(({ area }) => (
+                        <label key={area} className="approval-subarea-option">
+                          <input
+                            type="checkbox"
+                            checked={selectedProcessAreas.includes(area)}
+                            onChange={() => toggleProcessArea(area)}
+                          />
+                          <span>{area}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {selectedProcessAreas.map((area) => {
+                      const group = crossAreaProcesses.find((item) => item.area === area)
+                      if (!group) return null
+                      return (
+                        <div key={area} className="approval-process-group">
+                          <p className="approval-process-group-title">Processos de {area}</p>
+                          <div className="approval-subareas-grid">
+                            {group.processes.map((process) => {
+                              const encoded = encodeAccessProcess(area, process)
+                              return (
+                                <label key={encoded} className="approval-subarea-option">
+                                  <input
+                                    type="checkbox"
+                                    checked={accessProcesses.includes(encoded)}
+                                    onChange={() => toggleProcess(area, process)}
+                                  />
+                                  <span>{process}</span>
+                                </label>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </fieldset>
+                ) : null}
+              </>
+            ) : (
+              <p className="user-detail-admin-note user-edit-full">
+                O administrador pode ter dados pessoais e de login alterados, mas o perfil
+                administrativo não pode ser alterado nem excluído.
+              </p>
+            )}
 
             <label className="user-edit-full">
               Descrição pessoal
@@ -745,6 +815,18 @@ export function UserDetailModal({
               >
                 Editar informações
               </button>
+              {canDelete ? (
+                <button
+                  type="button"
+                  className="danger-button compact-button"
+                  disabled={deleting}
+                  onClick={() => void handleDelete()}
+                >
+                  {deleting ? 'Excluindo...' : 'Excluir usuário'}
+                </button>
+              ) : (
+                <span className="user-detail-admin-note">Administrador: edição permitida, exclusão bloqueada.</span>
+              )}
             </div>
           </>
         )}

@@ -534,10 +534,8 @@ export async function updateUser(req: Request, res: Response) {
     return
   }
 
-  if (previous.rows[0].role === 'admin') {
-    res.status(403).json({ error: 'O usuário administrador não pode ser editado por esta tela.' })
-    return
-  }
+  const target = previous.rows[0]
+  const isTargetAdmin = target.role === 'admin'
 
   const normalizedName = typeof name === 'string' ? name.trim() : ''
   const normalizedRegistration =
@@ -568,6 +566,79 @@ export async function updateUser(req: Request, res: Response) {
     : []
 
   if (
+    normalizedProfilePhoto &&
+    (!normalizedProfilePhoto.startsWith('data:image/') ||
+      normalizedProfilePhoto.length > 3_500_000)
+  ) {
+    res.status(400).json({
+      error: 'Envie uma imagem de perfil válida com até cerca de 2 MB.',
+    })
+    return
+  }
+
+  // Admin: pode editar dados pessoais/login, mas mantém perfil e papel administrativos.
+  if (isTargetAdmin) {
+    if (!normalizedName || !normalizedRegistration || !normalizedEmail) {
+      res.status(400).json({ error: 'Nome, matrícula e e-mail são obrigatórios.' })
+      return
+    }
+
+    try {
+      const result = await query<UserRow>(
+        `UPDATE users SET
+          name = $2,
+          registration = $3,
+          email = $4,
+          whatsapp = $5,
+          birth_date = $6,
+          cpf = $7,
+          personal_description = $8,
+          hobby = $9,
+          profile_photo = $10
+         WHERE id = $1 AND role = 'admin'
+         RETURNING *`,
+        [
+          id,
+          normalizedName,
+          normalizedRegistration,
+          normalizedEmail,
+          normalizedWhatsapp,
+          normalizedBirthDate,
+          normalizedCpf,
+          normalizedDescription,
+          normalizedHobby,
+          normalizedProfilePhoto,
+        ],
+      )
+
+      const user = mapUser(result.rows[0])
+      await writeAuditLog(req, {
+        action: 'update',
+        entityType: 'user',
+        entityId: user.id,
+        summary: `Administrador atualizado: ${user.registration}`,
+        oldData: {
+          ...mapUser(target),
+          profilePhoto: target.profile_photo ? '[imagem anexada]' : '',
+        },
+        newData: {
+          ...user,
+          profilePhoto: user.profilePhoto ? '[imagem anexada]' : '',
+        },
+      })
+      res.json({ user })
+    } catch (error) {
+      const pgError = error as { code?: string }
+      if (pgError.code === '23505') {
+        res.status(409).json({ error: 'Já existe um cadastro com esta matrícula ou e-mail.' })
+        return
+      }
+      throw error
+    }
+    return
+  }
+
+  if (
     !normalizedName ||
     !normalizedRegistration ||
     !normalizedEmail ||
@@ -581,17 +652,6 @@ export async function updateUser(req: Request, res: Response) {
     !normalizedBirthDate
   ) {
     res.status(400).json({ error: 'Preencha os campos obrigatórios.' })
-    return
-  }
-
-  if (
-    normalizedProfilePhoto &&
-    (!normalizedProfilePhoto.startsWith('data:image/') ||
-      normalizedProfilePhoto.length > 3_500_000)
-  ) {
-    res.status(400).json({
-      error: 'Envie uma imagem de perfil válida com até cerca de 2 MB.',
-    })
     return
   }
 
@@ -841,6 +901,70 @@ export async function rejectUser(req: Request, res: Response) {
   res.json({ ok: true, id })
 }
 
+export async function deleteUser(req: Request, res: Response) {
+  const { id } = req.params
+
+  const previous = await query<UserRow>(`SELECT * FROM users WHERE id = $1`, [id])
+  if (!previous.rows[0]) {
+    res.status(404).json({ error: 'Usuário não encontrado.' })
+    return
+  }
+
+  if (previous.rows[0].role === 'admin') {
+    res.status(403).json({ error: 'O administrador não pode ser excluído.' })
+    return
+  }
+
+  if (req.user?.id === id) {
+    res.status(400).json({ error: 'Você não pode excluir o próprio usuário.' })
+    return
+  }
+
+  const target = mapUser(previous.rows[0])
+
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'user',
+    entityId: target.id,
+    summary: `Usuário excluído: ${target.registration}`,
+    oldData: {
+      ...target,
+      profilePhoto: target.profilePhoto ? '[imagem anexada]' : '',
+    },
+  })
+
+  await query(`DELETE FROM csds WHERE responsible_user_id = $1`, [id])
+  await query(`DELETE FROM homologation_requests WHERE requester_user_id = $1`, [id])
+  await query(`UPDATE ratm_laudos SET created_by_user_id = NULL WHERE created_by_user_id = $1`, [
+    id,
+  ])
+  await query(
+    `UPDATE ensaios_manual_blocks SET created_by_user_id = NULL WHERE created_by_user_id = $1`,
+    [id],
+  )
+  await query(
+    `UPDATE meter_schedules SET created_by_user_id = NULL WHERE created_by_user_id = $1`,
+    [id],
+  )
+  await query(
+    `UPDATE demm_documents SET created_by_user_id = NULL WHERE created_by_user_id = $1`,
+    [id],
+  )
+  await query(`UPDATE audit_logs SET user_id = NULL WHERE user_id = $1`, [id])
+
+  const deleted = await query<{ id: string }>(
+    `DELETE FROM users WHERE id = $1 AND role <> 'admin' RETURNING id`,
+    [id],
+  )
+
+  if (!deleted.rows[0]) {
+    res.status(403).json({ error: 'O administrador não pode ser excluído.' })
+    return
+  }
+
+  res.json({ ok: true, id })
+}
+
 export const authRoutes = {
   login,
   register,
@@ -852,4 +976,5 @@ export const authRoutes = {
   approveUser: [requireAuth, requireAdmin, approveUser],
   updateUser: [requireAuth, requireAdmin, updateUser],
   rejectUser: [requireAuth, requireAdmin, rejectUser],
+  deleteUser: [requireAuth, requireAdmin, deleteUser],
 }

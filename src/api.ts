@@ -324,6 +324,10 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+  deleteUser: (id: string) =>
+    request<{ ok: boolean; id: string }>(`/api/users/${id}`, {
+      method: 'DELETE',
+    }),
   listCatalogOptions: () => request<{ catalogs: CatalogGroup[] }>('/api/catalog-options'),
   createCatalogOption: (payload: { catalogKey: CatalogKey; value: string }) =>
     request<{ option: CatalogOption }>('/api/catalog-options', {

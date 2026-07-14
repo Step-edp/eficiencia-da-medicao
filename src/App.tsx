@@ -253,6 +253,9 @@ export default function App() {
         onUpdateUser={(user) => {
           setRegisteredUsers((prev) => prev.map((item) => (item.id === user.id ? user : item)))
         }}
+        onDeleteUser={(userId) => {
+          setRegisteredUsers((prev) => prev.filter((item) => item.id !== userId))
+        }}
         onCreateHomologationRequest={handleCreateHomologationRequest}
         onLogout={handleLogout}
       />
@@ -471,6 +474,7 @@ type HomePanelProps = {
   onApproveUser: (userId: string, payload?: ApproveUserPayload) => Promise<void>
   onRejectUser: (userId: string) => Promise<void>
   onUpdateUser: (user: AppUser) => void
+  onDeleteUser: (userId: string) => void
   onCreateHomologationRequest: (
     payload: Omit<
       HomologationRequest,
@@ -1053,6 +1057,7 @@ function HomePanel({
   onApproveUser,
   onRejectUser,
   onUpdateUser,
+  onDeleteUser,
   onCreateHomologationRequest,
   onLogout,
 }: HomePanelProps) {
@@ -1840,6 +1845,10 @@ function HomePanel({
                       onUpdateUser(user)
                       setSelectedUserDetail(user)
                     }}
+                    onDeleted={(userId) => {
+                      onDeleteUser(userId)
+                      setSelectedUserDetail(null)
+                    }}
                     onFeedback={setPasswordFeedback}
                   />,
                   document.body,
@@ -2016,6 +2025,10 @@ function HomePanel({
                     onSaved={(user) => {
                       onUpdateUser(user)
                       setSelectedUserDetail(user)
+                    }}
+                    onDeleted={(userId) => {
+                      onDeleteUser(userId)
+                      setSelectedUserDetail(null)
                     }}
                     onFeedback={setPasswordFeedback}
                   />,

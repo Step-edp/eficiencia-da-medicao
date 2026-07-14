@@ -100,6 +100,7 @@ async function start() {
   app.patch('/api/users/:id/approve', ...wrap(authRoutes.approveUser))
   app.patch('/api/users/:id/reject', ...wrap(authRoutes.rejectUser))
   app.patch('/api/users/:id', ...wrap(authRoutes.updateUser))
+  app.delete('/api/users/:id', ...wrap(authRoutes.deleteUser))
 
   app.get('/api/homologation-requests', ...wrap(homologationRoutes.list))
   app.post('/api/homologation-requests', ...wrap(homologationRoutes.create))
