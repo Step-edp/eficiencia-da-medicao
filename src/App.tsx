@@ -246,9 +246,7 @@ export default function App() {
             <p className="eyebrow">Eficiência da Medição</p>
             <h1>Changing tomorrow now</h1>
           </div>
-        </div>
 
-        <div className="panel-column">
           <div className="panel-switch" role="tablist" aria-label="Autenticação">
             <button
               className={activePanel === 'login' ? 'active' : ''}
@@ -265,7 +263,9 @@ export default function App() {
               Cadastrar
             </button>
           </div>
+        </div>
 
+        <div className="panel-column">
           {activePanel === 'login' ? (
             <LoginPanel
               onLoginSuccess={(user) => {

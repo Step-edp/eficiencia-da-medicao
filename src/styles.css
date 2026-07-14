@@ -1818,8 +1818,9 @@ body.laudo-viewer-open {
   gap: 12px;
 }
 
-.brand-column .edp-logo {
-  margin-bottom: 0;
+.brand-column .panel-switch {
+  margin-top: 4px;
+  width: min(360px, 100%);
 }
 
 .eyebrow,
