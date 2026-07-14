@@ -41,12 +41,9 @@ const FALLBACK_CATALOGS: CatalogGroup[] = [
     key: 'terceira',
     label: 'Empresa terceira',
     options: [
-      { id: -11, catalogKey: 'terceira', value: 'Cennatech', sortOrder: 0, label: 'Empresa terceira' },
-      { id: -12, catalogKey: 'terceira', value: 'Ecori', sortOrder: 1, label: 'Empresa terceira' },
-      { id: -13, catalogKey: 'terceira', value: 'Landis+Gyr', sortOrder: 2, label: 'Empresa terceira' },
-      { id: -14, catalogKey: 'terceira', value: 'Metta Brasil', sortOrder: 3, label: 'Empresa terceira' },
-      { id: -15, catalogKey: 'terceira', value: 'SEW', sortOrder: 4, label: 'Empresa terceira' },
-      { id: -16, catalogKey: 'terceira', value: 'Steenge', sortOrder: 5, label: 'Empresa terceira' },
+      { id: -11, catalogKey: 'terceira', value: 'BMB', sortOrder: 0, label: 'Empresa terceira' },
+      { id: -12, catalogKey: 'terceira', value: 'ROTARY', sortOrder: 1, label: 'Empresa terceira' },
+      { id: -13, catalogKey: 'terceira', value: 'TIVIT', sortOrder: 2, label: 'Empresa terceira' },
     ],
   },
   {

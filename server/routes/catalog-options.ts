@@ -25,7 +25,7 @@ const DEFAULT_OPTIONS: Record<CatalogKey, string[]> = {
     'Qualidade',
   ],
   tipo: ['Própria', 'Terceira'],
-  terceira: ['Cennatech', 'Ecori', 'Landis+Gyr', 'Metta Brasil', 'SEW', 'Steenge'],
+  terceira: ['BMB', 'ROTARY', 'TIVIT'],
   localidade: [
     'Aparecida',
     'Biritiba-Mirim',
@@ -86,6 +86,14 @@ export async function ensureCatalogOptionsSeeded() {
       )
     }
   }
+
+  // Mantém a lista de empresas terceiras alinhada ao conjunto oficial atual.
+  await query(
+    `DELETE FROM catalog_options
+     WHERE catalog_key = 'terceira'
+       AND value <> ALL($1::text[])`,
+    [DEFAULT_OPTIONS.terceira],
+  )
 }
 
 export async function listCatalogOptions(_req: Request, res: Response) {

@@ -37,14 +37,7 @@ const FIELD_APP_URL =
   (import.meta.env.VITE_FIELD_APP_URL as string | undefined)?.trim() ||
   'https://agendamento-lab-med-production.up.railway.app'
 
-const THIRD_PARTY_COMPANIES = [
-  'Cennatech',
-  'Ecori',
-  'Landis+Gyr',
-  'Metta Brasil',
-  'SEW',
-  'Steenge',
-] as const
+const THIRD_PARTY_COMPANIES = ['BMB', 'ROTARY', 'TIVIT'] as const
 
 const AREA_OPTIONS = [...DEFAULT_AREA_OPTIONS] as const
 
