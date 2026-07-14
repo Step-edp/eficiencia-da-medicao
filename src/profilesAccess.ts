@@ -30,77 +30,77 @@ export type CadastroProfile = {
 export const CADASTRO_PROFILES: CadastroProfile[] = [
   {
     id: 'backoffice-inspecao',
-    name: 'BackOffice – Inspeção',
+    name: 'CSD – BackOffice – Inspeção',
     description:
       'Permite realizar o agendamento de medidores em nome das equipes de campo para equipamentos provenientes de lavratura de TOI, com suspeita de fraude ou defeito, que necessitem de ensaio no Laboratório de Medição da EDP SP.',
     areas: ['Equipe de campo'],
   },
   {
     id: 'tecnico-inspecao',
-    name: 'Técnico – Inspeção',
+    name: 'CSD – Técnico – Inspeção',
     description:
       'Permite realizar o agendamento de medidores provenientes de lavratura de TOI, com suspeita de fraude ou defeito, destinados à realização de ensaios no Laboratório de Medição da EDP SP.',
     areas: ['Equipe de campo'],
   },
   {
     id: 'ponto-focal-inspecao',
-    name: 'Ponto Focal – Inspeção',
+    name: 'CSD – Ponto Focal – Inspeção',
     description:
       'Permite realizar o agendamento de medidores em nome das equipes de campo para equipamentos provenientes de lavratura de TOI, com suspeita de fraude ou defeito, destinados ao Laboratório de Medição da EDP SP. Além disso, é responsável pelo controle, acompanhamento e entrega desses medidores ao laboratório.',
     areas: ['Equipe de campo', 'Laboratório de Medição'],
   },
   {
     id: 'tecnico-laboratorio-medicao',
-    name: 'Técnico – Laboratório de Medição',
+    name: 'Medição – Técnico – Laboratório de Medição',
     description:
       'Permite executar todas as atividades operacionais relacionadas ao Laboratório de Medição, incluindo o processamento, análise e registro dos ensaios realizados.',
     areas: ['Laboratório de Medição'],
   },
   {
     id: 'engenheiro-responsavel-laboratorio-medicao',
-    name: 'Engenheiro Responsável – Laboratório de Medição',
+    name: 'Medição – Engenheiro Responsável – Laboratório de Medição',
     description:
       'Permite gerenciar e controlar as atividades do Laboratório de Medição, acompanhando sua execução, sem realizar diretamente as atividades operacionais.',
     areas: ['Laboratório de Medição'],
   },
   {
     id: 'engenheiro-responsavel-medicao',
-    name: 'Engenheiro Responsável – Medição',
+    name: 'Medição – Engenheiro Responsável',
     description:
       'Possui acesso à visualização e acompanhamento de todas as atividades relacionadas à subárea de Medição.',
     areas: ['Medição'],
   },
   {
     id: 'engenheiro-responsavel-telemedicao',
-    name: 'Engenheiro Responsável – Telemedição',
+    name: 'Telemedição – Engenheiro Responsável',
     description:
       'Possui acesso à visualização e acompanhamento de todas as atividades relacionadas à subárea de Telemedição.',
     areas: ['Telemedição'],
   },
   {
     id: 'engenheiro-dono-area-medicao',
-    name: 'Engenheiro Dono da Área – Medição',
+    name: 'Medição – Engenheiro Dono da Área',
     description:
       'Possui controle sobre todas as atividades da área de Medição, incluindo gestão, acompanhamento e tomada de decisão.',
     areas: ['Gestão', 'Medição', 'Laboratório de Medição', 'Equipe de campo'],
   },
   {
     id: 'engenheiro-dono-area-telemedicao',
-    name: 'Engenheiro Dono da Área – Telemedição',
+    name: 'Telemedição – Engenheiro Dono da Área',
     description:
       'Possui controle sobre todas as atividades da área de Telemedição, incluindo gestão, acompanhamento e tomada de decisão.',
     areas: ['Gestão', 'Telemedição'],
   },
   {
     id: 'engenheiro-gestor-medicao',
-    name: 'Engenheiro Gestor – Medição',
+    name: 'Medição – Engenheiro Gestor',
     description:
       'Possui acesso aos indicadores e dashboards consolidados de todas as áreas de Medição sob sua concessão, permitindo o acompanhamento gerencial dos resultados.',
     areas: ['Gestão', 'Medição'],
   },
   {
     id: 'analista-medicao',
-    name: 'Analista – Medição',
+    name: 'Medição – Analista',
     description:
       'Possui acesso apenas às atividades atribuídas ao seu usuário, podendo executá-las e acompanhar seu andamento.',
     areas: ['Medição'],

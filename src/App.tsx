@@ -708,6 +708,8 @@ function PendingApprovalItem({
     user.jobTitle,
     workSubtype,
     user.workArea ?? '',
+    user.employmentType === 'Terceira' ? thirdPartyCompany || undefined : undefined,
+    user.edpUnit || undefined,
   )
 
   const handleApprove = async () => {
@@ -1723,7 +1725,17 @@ function HomePanel({
                               <td>{user.registration}</td>
                               <td>{user.email}</td>
                               <td>{user.jobTitle || '—'}</td>
-                              <td>{roleLabel(user.role)}</td>
+                              <td>
+                                {buildRequestedProfile(
+                                  user.jobTitle,
+                                  user.workSubtype ?? '',
+                                  user.workArea ?? '',
+                                  user.employmentType === 'Terceira'
+                                    ? user.thirdPartyCompany
+                                    : undefined,
+                                  user.edpUnit,
+                                ) || roleLabel(user.role)}
+                              </td>
                               <td>{statusLabel(user.approvalStatus)}</td>
                               <td>
                                 {new Date(user.requestedAt).toLocaleString('pt-BR')}
@@ -1827,6 +1839,11 @@ function HomePanel({
                               selectedUserDetail.jobTitle,
                               selectedUserDetail.workSubtype ?? '',
                               selectedUserDetail.workArea ?? '',
+                              selectedUserDetail.employmentType === 'Terceira'
+                                ? selectedUserDetail.thirdPartyCompany
+                                : undefined,
+                              selectedUserDetail.edpUnit,
+                              selectedUserDetail.locality,
                             ) || roleLabel(selectedUserDetail.role)}
                           </dd>
                         </div>

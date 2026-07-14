@@ -72,33 +72,15 @@ export function subtypesForCargo(jobTitle: string, workArea = ''): readonly stri
   return []
 }
 
-/** Monta o rótulo do perfil a partir das escolhas do cadastro. */
+/** Monta o rótulo do perfil: Área → Cargo → Escopo → demais informações. */
 export function buildRequestedProfile(
   jobTitle: string,
   workSubtype: string,
   workArea: string,
+  ...extraParts: Array<string | undefined | null>
 ): string {
-  if (!jobTitle) return ''
-
-  if (jobTitle === 'Técnico' && workSubtype) {
-    return `Técnico – ${workSubtype}`
-  }
-
-  if (jobTitle === 'Analista' && workArea) {
-    return `Analista – ${workArea}`
-  }
-
-  if (jobTitle === 'Engenheiro') {
-    if (workSubtype && workArea) {
-      return `Engenheiro – ${workSubtype} – ${workArea}`
-    }
-    if (workSubtype) {
-      return `Engenheiro – ${workSubtype}`
-    }
-    if (workArea) {
-      return `Engenheiro – ${workArea}`
-    }
-  }
-
-  return [jobTitle, workSubtype, workArea].filter(Boolean).join(' – ')
+  return [workArea, jobTitle, workSubtype, ...extraParts]
+    .map((part) => (typeof part === 'string' ? part.trim() : ''))
+    .filter(Boolean)
+    .join(' – ')
 }
