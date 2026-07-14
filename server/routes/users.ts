@@ -398,12 +398,13 @@ export async function approveUser(req: Request, res: Response) {
   }
   const allowedEngineerSubtypes = ['Área', 'Sub-área', 'Processos específicos']
   const allowedEngineerHomeSubareas = [
-    'Gestão',
     'Medição',
     'Laboratório de Medição',
     'Laboratório de Homologação',
-    'Telemedição',
     'Equipe de campo',
+    'Usuários',
+    'Cadastros',
+    'Telemedição',
   ]
 
   let storedCompany = ''
@@ -733,12 +734,13 @@ export async function updateUser(req: Request, res: Response) {
   }
   const allowedEngineerSubtypes = ['Área', 'Sub-área', 'Processos específicos']
   const allowedEngineerHomeSubareas = [
-    'Gestão',
     'Medição',
     'Laboratório de Medição',
     'Laboratório de Homologação',
-    'Telemedição',
     'Equipe de campo',
+    'Usuários',
+    'Cadastros',
+    'Telemedição',
   ]
 
   let storedSubtype = ''

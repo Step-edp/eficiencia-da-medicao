@@ -1,6 +1,6 @@
 import type { UserRole } from './api'
 
-/** Áreas do portal exibidas na home (exceto o fluxo dedicado de Compras). */
+/** Áreas do portal (portas/telas navegáveis). */
 export const PORTAL_AREAS = [
   'Gestão',
   'Medição',
@@ -13,6 +13,29 @@ export const PORTAL_AREAS = [
 ] as const
 
 export type PortalArea = (typeof PORTAL_AREAS)[number]
+
+/** Home do usuário: Gestão é a área primária quando há acesso a qualquer subcélula. */
+const GESTAO_NESTED_PORTALS: PortalArea[] = [
+  'Medição',
+  'Laboratório de Medição',
+  'Laboratório de Homologação',
+  'Telemedição',
+  'Equipe de campo',
+  'Usuários',
+  'Cadastros',
+]
+
+export function portalsToHomeCards(portals: readonly PortalArea[]): readonly PortalArea[] {
+  const hasGestaoAccess =
+    portals.includes('Gestão') ||
+    portals.some((portal) => GESTAO_NESTED_PORTALS.includes(portal))
+
+  if (hasGestaoAccess) {
+    return ['Gestão']
+  }
+
+  return portals
+}
 
 /** Acesso especial fora dos cards da home. */
 export const COMPRAS_DEDICATED_ACCESS = 'Pedidos de Homologação' as const
@@ -197,11 +220,11 @@ export function roleLabel(role: UserRole): string {
 
 export function getHomeAreasForRole(role: UserRole): readonly PortalArea[] {
   const areas = SYSTEM_ROLE_ACCESS[role]?.areas ?? []
-  return PORTAL_AREAS.filter((area) => areas.includes(area))
+  return portalsToHomeCards(PORTAL_AREAS.filter((area) => areas.includes(area)))
 }
 
-/** Home do usuário considerando subáreas atribuídas (engenheiro Sub-área). */
-export function getHomeAreasForUser(user: {
+/** Portais que o usuário pode abrir (sem colapsar em Gestão). */
+export function getAccessiblePortals(user: {
   role: UserRole
   accessAreas?: string[] | null
 }): readonly PortalArea[] {
@@ -213,7 +236,16 @@ export function getHomeAreasForUser(user: {
     return PORTAL_AREAS.filter((area) => assigned.includes(area))
   }
 
-  return getHomeAreasForRole(user.role)
+  const areas = SYSTEM_ROLE_ACCESS[user.role]?.areas ?? []
+  return PORTAL_AREAS.filter((area) => areas.includes(area))
+}
+
+/** Home do usuário: card primário Gestão quando há acesso à hierarquia. */
+export function getHomeAreasForUser(user: {
+  role: UserRole
+  accessAreas?: string[] | null
+}): readonly PortalArea[] {
+  return portalsToHomeCards(getAccessiblePortals(user))
 }
 
 export function getCadastroProfile(profileId: string): CadastroProfile | undefined {
@@ -272,11 +304,11 @@ export function listUsersForCadastroProfile<T extends {
 /** Áreas da home na pré-visualização de um perfil de negócio (admin). */
 export function getHomeAreasForProfilePreview(profileId: string): readonly PortalArea[] {
   if (!profileId || profileId === ADMIN_PREVIEW_PROFILE_ID) {
-    return PORTAL_AREAS
+    return portalsToHomeCards(PORTAL_AREAS)
   }
 
   const profile = getCadastroProfile(profileId)
-  if (!profile) return PORTAL_AREAS
+  if (!profile) return portalsToHomeCards(PORTAL_AREAS)
 
-  return PORTAL_AREAS.filter((area) => profile.areas.includes(area))
+  return portalsToHomeCards(PORTAL_AREAS.filter((area) => profile.areas.includes(area)))
 }

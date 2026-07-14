@@ -24,87 +24,32 @@ export const ENGINEER_SUBTYPES = [
   'Processos específicos',
 ] as const
 
-/** Subáreas da home disponíveis para engenheiro. */
-export const ENGINEER_HOME_SUBAREAS = [
-  'Gestão',
-  'Medição',
-  'Laboratório de Medição',
-  'Laboratório de Homologação',
-  'Telemedição',
-  'Equipe de campo',
-] as const
+export {
+  ENGINEER_HOME_SUBAREAS,
+  PROCESSES_BY_HOME_SUBAREA,
+  type EngineerHomeSubarea,
+} from './orgStructure'
 
-export type EngineerHomeSubarea = (typeof ENGINEER_HOME_SUBAREAS)[number]
+import {
+  ENGINEER_HOME_SUBAREAS,
+  PROCESSES_BY_HOME_SUBAREA,
+  type EngineerHomeSubarea,
+} from './orgStructure'
 
-/**
- * Processos específicos dentro de cada subárea da home.
- * Codificação: `Subárea::Processo`.
- */
-export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly string[]> = {
-  Gestão: ['Indicadores', 'Dashboards', 'Metas operacionais'],
-  Medição: [
-    'Faturamento de clientes livres',
-    'Faturamento de clientes cativos',
-    'Faturamento de consumo próprio',
-    'Memória de massa',
-    'Medidas inconsistentes',
-    'Migração',
-    'Arcesp',
-    'Pirâmide',
-    'Capex',
-    'Geração de senha',
-    'Geração de número de série',
-    'Sap Hana',
-  ],
-  'Laboratório de Medição': [
-    'Agendar',
-    'Entrada de medidores',
-    'Ensaiar',
-    'Aprovação de RATM',
-    'Pesquisa de satisfação',
-    'Sucata',
-    'Dashboard',
-    'Consultar RATM',
-    'Calendário de ensaios',
-    'Auditoria',
-    'Analisadores de Tensão',
-    'Inventário',
-    'Aferição de Padrões BT',
-    'Grandes Clientes',
-    'Criar Modelo',
-    'Galeria',
-    'Apresentação',
-    'Fornecedores',
-    'CSDs',
-    'Treinamentos',
-    'Softwares',
-  ],
-  'Laboratório de Homologação': [
-    'Ensaio',
-    'Pedidos de Homologação',
-    'Código de materiais',
-  ],
-  Telemedição: [
-    'Monitoramento remoto',
-    'Coleta de dados em tempo real',
-    'Gestão de alertas',
-  ],
-  'Equipe de campo': [
-    'Agendar',
-    'Consultar',
-    'Lavratura de TOI',
-    'Lavratura de TOI - Ponto Focal',
-    'Leituras de faturamento',
-  ],
-}
-
-/** Alias usado em ranking/atribuições — processos por subárea da home. */
+/** Alias usado em ranking/atribuições — processos por subcélula. */
 export const PROCESSES_BY_AREA: Record<string, readonly string[]> = PROCESSES_BY_HOME_SUBAREA
 
-/** Mapeia área de negócio do cadastro para subáreas da home. */
+/** Mapeia área de negócio do cadastro para subcélulas acessíveis. */
 export const BUSINESS_AREA_TO_HOME_PORTALS: Record<string, readonly EngineerHomeSubarea[]> = {
-  Medição: ['Medição', 'Laboratório de Medição', 'Equipe de campo', 'Gestão'],
-  Telemedição: ['Telemedição', 'Gestão'],
+  Medição: [
+    'Medição',
+    'Laboratório de Medição',
+    'Laboratório de Homologação',
+    'Equipe de campo',
+    'Usuários',
+    'Cadastros',
+  ],
+  Telemedição: ['Telemedição'],
   CSD: ['Equipe de campo'],
   'Consumo Irregular': ['Equipe de campo'],
   'Grandes Clientes': ['Medição'],
@@ -129,7 +74,7 @@ export function parseAccessProcess(value: string): AccessProcess | null {
   return { area, process }
 }
 
-/** Grupos de processos por subárea da home (para UI de processos específicos). */
+/** Grupos de processos por subcélula (UI de processos específicos). */
 export function getHomeSubareaProcessGroups(): Array<{
   area: EngineerHomeSubarea
   processes: readonly string[]
@@ -140,7 +85,7 @@ export function getHomeSubareaProcessGroups(): Array<{
   }))
 }
 
-/** @deprecated Use getHomeSubareaProcessGroups — processos ficam nas subáreas da home. */
+/** @deprecated Use getHomeSubareaProcessGroups. */
 export function getCrossAreaProcesses(_ownWorkArea = ''): Array<{
   area: string
   processes: readonly string[]
@@ -157,7 +102,7 @@ export function isValidHomeSubareaProcess(encoded: string): boolean {
   )
 }
 
-/** Deriva as subáreas da home a partir dos processos específicos escolhidos. */
+/** Deriva subcélulas a partir dos processos específicos escolhidos. */
 export function portalAreasFromProcesses(
   _ownWorkArea: string,
   accessProcesses: string[],
@@ -227,10 +172,6 @@ export function processCountForHomePortal(portal: string): number {
   return PROCESSES_BY_HOME_SUBAREA[portal as EngineerHomeSubarea]?.length ?? 0
 }
 
-/**
- * Quantidade de processos sob responsabilidade do usuário,
- * conforme cargo, escopo/abrangência e processos específicos.
- */
 export function countResponsibleProcesses(user: {
   role?: string
   jobTitle?: string | null
@@ -268,7 +209,6 @@ export function countResponsibleProcesses(user: {
   return user.accessProcesses?.length ?? 0
 }
 
-/** Monta o rótulo do perfil: Área → Cargo → Escopo → demais infos. */
 export function buildRequestedProfile(
   jobTitle: string,
   workSubtype: string,

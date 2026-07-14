@@ -11,7 +11,9 @@ import {
   CADASTRO_PROFILES,
   getHomeAreasForProfilePreview,
   getHomeAreasForUser,
+  getAccessiblePortals,
   listUsersForCadastroProfile,
+  PORTAL_AREAS,
   roleLabel,
 } from './profilesAccess'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
@@ -44,6 +46,7 @@ import {
   parseAccessProcess,
   subtypesForCargo,
 } from './registrationOptions'
+import { getOrgCell, ORG_STRUCTURE } from './orgStructure'
 
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
 const FIELD_APP_URL =
@@ -1202,6 +1205,8 @@ function HomePanel({
   )
   const [terceiraOptions, setTerceiraOptions] = useState<string[]>([...THIRD_PARTY_COMPANIES])
   const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
+  const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(null)
+  const [, setSelectedOrgSubcell] = useState<string | null>(null)
 
   useEffect(() => {
     void api
@@ -1385,10 +1390,95 @@ function HomePanel({
   const areas = allAreas.filter((area) =>
     allowedHomeAreas.includes(area.title as (typeof allowedHomeAreas)[number]),
   )
+
   const previewProfile =
     isAdmin && previewProfileId !== ADMIN_PREVIEW_PROFILE_ID
       ? CADASTRO_PROFILES.find((profile) => profile.id === previewProfileId)
       : null
+
+  const accessiblePortals = (() => {
+    if (isAdmin && previewProfileId === ADMIN_PREVIEW_PROFILE_ID) {
+      return [...PORTAL_AREAS]
+    }
+    if (isAdmin && previewProfile) {
+      return previewProfile.areas
+    }
+    return getAccessiblePortals(currentUser)
+  })()
+
+  const gestaoArea = allAreas.find((area) => area.title === 'Gestão') ?? null
+
+  const clearAreaSections = () => {
+    setSelectedMeasurementSection(null)
+    setSelectedLabMeasurementSection(null)
+    setSelectedHomologationSection(null)
+    setSelectedPasswordAction(null)
+    setSelectedCodeMaterialsAction(null)
+    setUsersView('usuarios')
+    setSelectedUserDetail(null)
+    setUserDetailStartEditing(false)
+  }
+
+  const exitToHome = () => {
+    setSelectedArea(null)
+    setSelectedOrgCell(null)
+    setSelectedOrgSubcell(null)
+    clearAreaSections()
+  }
+
+  const returnToOrgCell = () => {
+    if (!gestaoArea || !selectedOrgCell) {
+      exitToHome()
+      return
+    }
+    setSelectedArea(gestaoArea)
+    setSelectedOrgSubcell(null)
+    clearAreaSections()
+  }
+
+  const handleAreaBack = () => {
+    if (selectedOrgCell) {
+      returnToOrgCell()
+      return
+    }
+    exitToHome()
+  }
+
+  const openOrgSubcell = (cellId: string, subcellPortal: string) => {
+    const portal = allAreas.find((area) => area.title === subcellPortal)
+    if (!portal) return
+    setSelectedOrgCell(cellId)
+    setSelectedOrgSubcell(subcellPortal)
+    setSelectedArea(portal)
+    clearAreaSections()
+  }
+
+  const visibleOrgCells = ORG_STRUCTURE.cells.filter((cell) => {
+    if (cell.subcells.length === 0) {
+      return (
+        isAdmin ||
+        accessiblePortals.includes('Telemedição') ||
+        accessiblePortals.includes('Gestão')
+      )
+    }
+    return cell.subcells.some(
+      (sub) =>
+        isAdmin ||
+        accessiblePortals.includes(sub.portalKey) ||
+        accessiblePortals.includes('Gestão'),
+    )
+  })
+
+  const visibleSubcellsForCell = (cellId: string) => {
+    const cell = getOrgCell(cellId)
+    if (!cell) return []
+    return cell.subcells.filter(
+      (sub) =>
+        isAdmin ||
+        accessiblePortals.includes(sub.portalKey) ||
+        accessiblePortals.includes('Gestão'),
+    )
+  }
 
   const previewProfileUsers = previewProfile
     ? listUsersForCadastroProfile(registeredUsers, previewProfile.id)
@@ -1396,8 +1486,13 @@ function HomePanel({
 
   useEffect(() => {
     if (!previewProfile || !selectedArea) return
-    if (!previewProfile.areas.includes(selectedArea.title as (typeof previewProfile.areas)[number])) {
+    const allowed =
+      previewProfile.areas.includes(selectedArea.title as (typeof previewProfile.areas)[number]) ||
+      selectedArea.title === 'Gestão'
+    if (!allowed) {
       setSelectedArea(null)
+      setSelectedOrgCell(null)
+      setSelectedOrgSubcell(null)
       setSelectedMeasurementSection(null)
       setSelectedLabMeasurementSection(null)
       setSelectedHomologationSection(null)
@@ -1918,87 +2013,93 @@ function HomePanel({
 
   if (selectedArea) {
     if (selectedArea.title === 'Gestão') {
+      const activeCell = selectedOrgCell ? getOrgCell(selectedOrgCell) : null
+      const cellSubcells = selectedOrgCell ? visibleSubcellsForCell(selectedOrgCell) : []
+
       return (
         <main className="shell">
           <section className="home-card area-screen-card">
             <TopActionBar
-              onBack={() => setSelectedArea(null)}
-              onHome={() => setSelectedArea(null)}
+              onBack={() => {
+                if (selectedOrgCell) {
+                  setSelectedOrgCell(null)
+                  setSelectedOrgSubcell(null)
+                  return
+                }
+                exitToHome()
+              }}
+              onHome={exitToHome}
               onLogout={onLogout}
             />
-            <p className="section-tag">Gestão</p>
-            <h2>Solicitações de acesso</h2>
+            <p className="section-tag">Área</p>
+            <h2>{ORG_STRUCTURE.label}</h2>
             <p>
-              Acompanhe as solicitações de cadastro do perfil Compras e aprove o acesso
-              ao formulário fixo de Pedidos de Homologação.
+              {ORG_STRUCTURE.description} Cada área tem um gestor; cada célula, um
+              engenheiro dono de área; cada subcélula, um engenheiro responsável; e cada
+              processo, um responsável e um executor (que pode ser o mesmo responsável).
             </p>
 
-            {passwordFeedback ? (
-              <div className={`login-feedback ${passwordFeedback.type}`} role="status">
-                {passwordFeedback.message}
-              </div>
-            ) : null}
-
-            {isAdmin ? (
-              <div className="approval-list" aria-label="Solicitações pendentes para aprovação">
-                {pendingApprovalUsers.length ? (
-                  pendingApprovalUsers.map((user) => (
-                    <PendingApprovalItem
-                      key={user.id}
-                      user={user}
-                      terceiraOptions={terceiraOptions}
-                      onApprove={onApproveUser}
-                      onReject={async (userId, reason) => {
-                        const result = await onRejectUser(userId, reason)
-                        setSelectedUserDetail((current) =>
-                          current?.id === userId ? null : current,
-                        )
-                        return result
+            {!selectedOrgCell ? (
+              <>
+                <h3 className="lab-other-heading">Células</h3>
+                <div className="home-areas" aria-label="Células da área Gestão">
+                  {visibleOrgCells.map((cell) => (
+                    <button
+                      key={cell.id}
+                      className={`area-card ${getAreaCardClassName(cell.id)}`}
+                      type="button"
+                      onClick={() => {
+                        setSelectedOrgCell(cell.id)
+                        setSelectedOrgSubcell(null)
                       }}
-                      onEdit={(user) => {
-                        setUserDetailStartEditing(true)
-                        setSelectedUserDetail(user)
-                      }}
-                      onFeedback={setPasswordFeedback}
-                    />
-                  ))
+                    >
+                      <span className="area-card-title">
+                        <ItemIcon title={cell.id} />
+                        <span>{cell.label}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {!visibleOrgCells.length ? (
+                  <p className="generated-password-empty">
+                    Nenhuma célula disponível para o seu perfil.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <p className="consultar-summary">
+                  Célula <strong>{activeCell?.label}</strong> · {activeCell?.ownerRoleLabel}
+                </p>
+                <p>{activeCell?.description}</p>
+                <h3 className="lab-other-heading">Subcélulas</h3>
+                {cellSubcells.length ? (
+                  <div
+                    className="home-areas"
+                    aria-label={`Subcélulas de ${activeCell?.label}`}
+                  >
+                    {cellSubcells.map((sub) => (
+                      <button
+                        key={sub.id}
+                        className={`area-card ${getAreaCardClassName(sub.portalKey)}`}
+                        type="button"
+                        onClick={() => openOrgSubcell(selectedOrgCell, sub.portalKey)}
+                      >
+                        <span className="area-card-title">
+                          <ItemIcon title={sub.portalKey} />
+                          <span>{sub.label}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 ) : (
                   <p className="generated-password-empty">
-                    Nenhuma solicitação pendente no momento.
+                    Esta célula ainda não possui subcélulas. A Telemedição ficará vazia
+                    por enquanto até a definição das subcélulas e processos.
                   </p>
                 )}
-              </div>
-            ) : (
-              <p className="generated-password-empty">
-                Somente o perfil administrador pode aprovar cadastros.
-              </p>
+              </>
             )}
-
-            {selectedUserDetail
-              ? createPortal(
-                  <UserDetailModal
-                    user={selectedUserDetail}
-                    terceiraOptions={terceiraOptions}
-                    startInEditMode={userDetailStartEditing}
-                    onClose={() => {
-                      setSelectedUserDetail(null)
-                      setUserDetailStartEditing(false)
-                    }}
-                    onSaved={(user) => {
-                      onUpdateUser(user)
-                      setSelectedUserDetail(user)
-                      setUserDetailStartEditing(false)
-                    }}
-                    onDeleted={(userId) => {
-                      onDeleteUser(userId)
-                      setSelectedUserDetail(null)
-                      setUserDetailStartEditing(false)
-                    }}
-                    onFeedback={setPasswordFeedback}
-                  />,
-                  document.body,
-                )
-              : null}
           </section>
         </main>
       )
@@ -2009,10 +2110,8 @@ function HomePanel({
         status === 'approved' ? 'Aprovado' : 'Pendente'
 
       const leaveUsersArea = () => {
-        setSelectedUserDetail(null)
-        setUserDetailStartEditing(false)
-        setUsersView('usuarios')
-        setSelectedArea(null)
+        clearAreaSections()
+        handleAreaBack()
       }
 
       return (
@@ -2020,7 +2119,7 @@ function HomePanel({
           <section className="home-card area-screen-card">
             <TopActionBar
               onBack={leaveUsersArea}
-              onHome={leaveUsersArea}
+              onHome={exitToHome}
               onLogout={onLogout}
             />
             <p className="section-tag">Usuários</p>
@@ -2220,8 +2319,8 @@ function HomePanel({
         <main className="shell">
           <section className="home-card area-screen-card">
             <TopActionBar
-              onBack={() => setSelectedArea(null)}
-              onHome={() => setSelectedArea(null)}
+              onBack={handleAreaBack}
+              onHome={exitToHome}
               onLogout={onLogout}
             />
             <p className="section-tag">Cadastros</p>
@@ -3055,11 +3154,13 @@ function HomePanel({
       <main className="shell">
         <section className="home-card area-screen-card">
           <TopActionBar
-            onBack={() => setSelectedArea(null)}
-            onHome={() => setSelectedArea(null)}
+            onBack={handleAreaBack}
+            onHome={exitToHome}
             onLogout={onLogout}
           />
-          <p className="section-tag">Área</p>
+          <p className="section-tag">
+            {selectedOrgCell ? `Subcélula · ${selectedOrgCell}` : 'Área'}
+          </p>
           <h2>{selectedArea.title}</h2>
           {selectedArea.details ? <p>{selectedArea.details}</p> : null}
           {selectedArea.title === 'Medição' ? (
@@ -3199,7 +3300,7 @@ function HomePanel({
                 value={previewProfileId}
                 onChange={(event) => {
                   setPreviewProfileId(event.target.value)
-                  setSelectedArea(null)
+                  exitToHome()
                 }}
               >
                 <option value={ADMIN_PREVIEW_PROFILE_ID}>Administrador (visão completa)</option>
@@ -3225,7 +3326,11 @@ function HomePanel({
               key={area.title}
               className={`area-card ${getAreaCardClassName(area.title)}`}
               type="button"
-              onClick={() => setSelectedArea(area)}
+              onClick={() => {
+                setSelectedOrgCell(null)
+                setSelectedOrgSubcell(null)
+                setSelectedArea(area)
+              }}
             >
               <span className="area-card-title">
                 <ItemIcon title={area.title} />

@@ -1,18 +1,18 @@
-/** Catálogo compartilhado: processos específicos por subárea da home. */
+/** Catálogo servidor: processos por subcélula (espelha orgStructure / registrationOptions). */
 
 export const ENGINEER_HOME_SUBAREAS = [
-  'Gestão',
   'Medição',
   'Laboratório de Medição',
   'Laboratório de Homologação',
-  'Telemedição',
   'Equipe de campo',
+  'Usuários',
+  'Cadastros',
+  'Telemedição',
 ] as const
 
 export type EngineerHomeSubarea = (typeof ENGINEER_HOME_SUBAREAS)[number]
 
 export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly string[]> = {
-  Gestão: ['Indicadores', 'Dashboards', 'Metas operacionais'],
   Medição: [
     'Faturamento de clientes livres',
     'Faturamento de clientes cativos',
@@ -55,11 +55,6 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Pedidos de Homologação',
     'Código de materiais',
   ],
-  Telemedição: [
-    'Monitoramento remoto',
-    'Coleta de dados em tempo real',
-    'Gestão de alertas',
-  ],
   'Equipe de campo': [
     'Agendar',
     'Consultar',
@@ -67,9 +62,15 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Lavratura de TOI - Ponto Focal',
     'Leituras de faturamento',
   ],
+  Usuários: ['Gestão de usuários', 'Aprovação de cadastros', 'Dashboard de usuários'],
+  Cadastros: ['Listas suspensas', 'Perfis de acesso'],
+  Telemedição: [
+    'Monitoramento remoto',
+    'Coleta de dados em tempo real',
+    'Gestão de alertas',
+  ],
 }
 
-/** Alias para atribuições/ranking. */
 export const PROCESSES_BY_AREA: Record<string, readonly string[]> = PROCESSES_BY_HOME_SUBAREA
 
 export function parseAccessProcess(value: string): { area: string; process: string } | null {
@@ -94,7 +95,6 @@ export function isValidHomeSubareaProcess(encoded: string): boolean {
   )
 }
 
-/** @deprecated Use isValidHomeSubareaProcess. */
 export function isValidCrossAreaProcess(_ownWorkArea: string, encoded: string): boolean {
   return isValidHomeSubareaProcess(encoded)
 }

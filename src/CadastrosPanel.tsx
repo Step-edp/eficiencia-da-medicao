@@ -273,7 +273,7 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
           </section>
           <section className="catalog-card">
             <header className="catalog-card-header">
-              <h3>Subáreas da home (engenheiro Sub-área)</h3>
+              <h3>Subáreas / subcélulas (engenheiro Sub-área)</h3>
             </header>
             <ul className="catalog-option-list">
               {ENGINEER_HOME_SUBAREAS.map((option) => (
@@ -285,7 +285,7 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
           </section>
           <section className="catalog-card">
             <header className="catalog-card-header">
-              <h3>Processos específicos por subárea da home</h3>
+              <h3>Processos específicos por subcélula</h3>
             </header>
             <ul className="catalog-option-list">
               {getHomeSubareaProcessGroups().map(({ area, processes }) => (
