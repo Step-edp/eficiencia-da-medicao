@@ -3402,12 +3402,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             do ADM, o usuário visualizará somente o formulário fixo de Pedidos de
             Homologação.
           </p>
-        ) : (
-          <p>
-            Informe tipo, abrangência, área, cargo e localidade. Escopo, abrangência
-            do engenheiro e empresa terceira serão definidos na aprovação.
-          </p>
-        )}
+        ) : null}
       </header>
 
       {feedback ? (
