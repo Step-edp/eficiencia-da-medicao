@@ -248,6 +248,7 @@ export async function migrate() {
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       start_date DATE NOT NULL,
       end_date DATE NOT NULL,
+      absence_type TEXT NOT NULL DEFAULT 'ferias',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CHECK (end_date >= start_date)
@@ -255,6 +256,9 @@ export async function migrate() {
 
     CREATE INDEX IF NOT EXISTS idx_user_vacation_periods_user
       ON user_vacation_periods (user_id, start_date);
+
+    ALTER TABLE user_vacation_periods
+      ADD COLUMN IF NOT EXISTS absence_type TEXT NOT NULL DEFAULT 'ferias';
   `)
 
   // Integração com Agendamento Lab Med: perfil field + compartilhamento do mesmo Postgres

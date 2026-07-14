@@ -1,5 +1,18 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { api, type VacationPeriod, type VacationStatus } from './api'
+import {
+  api,
+  type AbsenceType,
+  type VacationPeriod,
+  type VacationStatus,
+} from './api'
+
+const OTHER_ABSENCE_OPTIONS: Array<{ value: AbsenceType; label: string }> = [
+  { value: 'licenca', label: 'Licença' },
+  { value: 'afastamento', label: 'Afastamento' },
+  { value: 'atestado', label: 'Atestado médico' },
+  { value: 'treinamento', label: 'Treinamento' },
+  { value: 'outro', label: 'Outra ausência' },
+]
 
 function formatDateBr(isoDate: string) {
   const [year, month, day] = isoDate.slice(0, 10).split('-')
@@ -20,6 +33,10 @@ function formatDeadline(iso: string | null | undefined) {
   } catch {
     return iso
   }
+}
+
+function periodLabel(period: VacationPeriod) {
+  return period.absenceTypeLabel || (period.absenceType === 'ferias' ? 'Férias' : 'Ausência')
 }
 
 type AgendaPanelProps = {
@@ -44,10 +61,30 @@ export function AgendaPanel({
   const [deadlineAt, setDeadlineAt] = useState<string | null>(vacationDeadlineAt ?? null)
   const [startDate, setStartDate] = useState(nextVacationStart ?? '')
   const [endDate, setEndDate] = useState(nextVacationEnd ?? '')
+  const [absenceType, setAbsenceType] = useState<AbsenceType>('licenca')
+  const [absenceStart, setAbsenceStart] = useState('')
+  const [absenceEnd, setAbsenceEnd] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingAbsence, setSavingAbsence] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [absenceError, setAbsenceError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  const applyAgenda = (response: {
+    periods: VacationPeriod[]
+    vacationStatus: VacationStatus
+    vacationDeadlineAt: string | null
+    nextVacation: VacationPeriod | null
+  }) => {
+    setPeriods(response.periods)
+    setStatus(response.vacationStatus)
+    setDeadlineAt(response.vacationDeadlineAt)
+    if (response.nextVacation) {
+      setStartDate(response.nextVacation.startDate)
+      setEndDate(response.nextVacation.endDate)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -55,13 +92,7 @@ export function AgendaPanel({
       .getVacationAgenda()
       .then((response) => {
         if (cancelled) return
-        setPeriods(response.periods)
-        setStatus(response.vacationStatus)
-        setDeadlineAt(response.vacationDeadlineAt)
-        if (response.nextVacation) {
-          setStartDate(response.nextVacation.startDate)
-          setEndDate(response.nextVacation.endDate)
-        }
+        applyAgenda(response)
       })
       .catch((err) => {
         if (cancelled) return
@@ -75,7 +106,7 @@ export function AgendaPanel({
     }
   }, [])
 
-  const handleSubmit = async (event: FormEvent) => {
+  const handleSubmitVacation = async (event: FormEvent) => {
     event.preventDefault()
     setError(null)
     setSuccess(null)
@@ -90,9 +121,7 @@ export function AgendaPanel({
     setSaving(true)
     try {
       const response = await api.saveVacationPeriod({ startDate, endDate })
-      setPeriods(response.periods)
-      setStatus(response.vacationStatus)
-      setDeadlineAt(response.vacationDeadlineAt)
+      applyAgenda(response)
       setSuccess('Período de férias registrado com sucesso.')
       await onSaved()
     } catch (err) {
@@ -102,14 +131,64 @@ export function AgendaPanel({
     }
   }
 
+  const handleSubmitAbsence = async (event: FormEvent) => {
+    event.preventDefault()
+    setAbsenceError(null)
+    setSuccess(null)
+    if (!absenceStart || !absenceEnd) {
+      setAbsenceError('Informe o início e o fim da ausência.')
+      return
+    }
+    if (absenceEnd < absenceStart) {
+      setAbsenceError('A data de fim deve ser igual ou posterior ao início.')
+      return
+    }
+    setSavingAbsence(true)
+    try {
+      const response = await api.createAbsencePeriod({
+        startDate: absenceStart,
+        endDate: absenceEnd,
+        absenceType,
+      })
+      applyAgenda(response)
+      setAbsenceStart('')
+      setAbsenceEnd('')
+      setSuccess('Período de ausência registrado. O substituto cobrirá as atividades se estiver ativo.')
+      await onSaved()
+    } catch (err) {
+      setAbsenceError(err instanceof Error ? err.message : 'Não foi possível salvar a ausência.')
+    } finally {
+      setSavingAbsence(false)
+    }
+  }
+
+  const handleDelete = async (id: number) => {
+    setAbsenceError(null)
+    setSuccess(null)
+    try {
+      const response = await api.deleteAbsencePeriod(id)
+      applyAgenda(response)
+      setSuccess('Período removido.')
+      await onSaved()
+    } catch (err) {
+      setAbsenceError(err instanceof Error ? err.message : 'Não foi possível remover o período.')
+    }
+  }
+
   const deadlineLabel = formatDeadline(deadlineAt)
-  const displayStatus = locked ? 'bloqueado' : status
+  const displayStatus =
+    locked
+      ? 'bloqueado'
+      : status === 'em_ferias'
+        ? 'em_ausencia'
+        : status
 
   return (
     <div className="agenda-panel">
       <p>
-        Todo usuário deve registrar o próximo período de férias. Sem esse registro, o status fica
-        pendente. Se não registrar em até 7 dias, o perfil é bloqueado até a atualização.
+        Todo usuário deve registrar o próximo período de férias. Também é possível cadastrar outros
+        períodos de ausência (licença, atestado, treinamento etc.). Em qualquer ausência ativa, o
+        portal fica bloqueado e as atividades ficam com o substituto.
       </p>
 
       {displayStatus === 'bloqueado' ? (
@@ -120,13 +199,10 @@ export function AgendaPanel({
         </div>
       ) : null}
 
-      {displayStatus === 'em_ferias' ? (
+      {displayStatus === 'em_ausencia' ? (
         <div className="agenda-alert agenda-alert-blocked" role="alert">
-          <strong>Bloqueado devido a férias.</strong>
-          {startDate && endDate
-            ? ` Período atual: ${formatDateBr(startDate)} a ${formatDateBr(endDate)}.`
-            : null}{' '}
-          As atividades ficam com o substituto cadastrado na liderança da área/célula.
+          <strong>Bloqueado por ausência.</strong> Durante o período ativo, as atividades ficam
+          com o substituto cadastrado na liderança da área/célula.
         </div>
       ) : null}
 
@@ -151,48 +227,122 @@ export function AgendaPanel({
         <p>Carregando agenda...</p>
       ) : (
         <>
-          <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmit}>
-            <label>
-              Início das férias
-              <input
-                type="date"
-                value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
-                required
-                disabled={saving}
-              />
-            </label>
-            <label>
-              Fim das férias
-              <input
-                type="date"
-                value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
-                required
-                disabled={saving}
-                min={startDate || undefined}
-              />
-            </label>
-            {error ? (
-              <p className="gestao-create-cell-error" role="alert">
-                {error}
-              </p>
-            ) : null}
-            {success ? <p className="agenda-success">{success}</p> : null}
-            <button type="submit" className="primary-button" disabled={saving}>
-              {saving ? 'Salvando…' : 'Salvar período de férias'}
-            </button>
-          </form>
+          <div className="users-dashboard-card">
+            <h3>Próximas férias (obrigatório)</h3>
+            <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitVacation}>
+              <label>
+                Início das férias
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                  required
+                  disabled={saving || locked || displayStatus === 'em_ausencia'}
+                />
+              </label>
+              <label>
+                Fim das férias
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                  required
+                  disabled={saving || locked || displayStatus === 'em_ausencia'}
+                  min={startDate || undefined}
+                />
+              </label>
+              {error ? (
+                <p className="gestao-create-cell-error" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={saving || locked || displayStatus === 'em_ausencia'}
+              >
+                {saving ? 'Salvando…' : 'Salvar período de férias'}
+              </button>
+            </form>
+          </div>
+
+          <div className="users-dashboard-card" style={{ marginTop: 18 }}>
+            <h3>Outros períodos de ausência</h3>
+            <p className="users-dashboard-ranking-hint">
+              Licença, atestado, treinamento e demais ausências também acionam o substituto.
+            </p>
+            <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitAbsence}>
+              <label>
+                Tipo de ausência
+                <select
+                  value={absenceType}
+                  onChange={(event) => setAbsenceType(event.target.value as AbsenceType)}
+                  disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                >
+                  {OTHER_ABSENCE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Início
+                <input
+                  type="date"
+                  value={absenceStart}
+                  onChange={(event) => setAbsenceStart(event.target.value)}
+                  required
+                  disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                />
+              </label>
+              <label>
+                Fim
+                <input
+                  type="date"
+                  value={absenceEnd}
+                  onChange={(event) => setAbsenceEnd(event.target.value)}
+                  required
+                  disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                  min={absenceStart || undefined}
+                />
+              </label>
+              {absenceError ? (
+                <p className="gestao-create-cell-error" role="alert">
+                  {absenceError}
+                </p>
+              ) : null}
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+              >
+                {savingAbsence ? 'Salvando…' : 'Adicionar ausência'}
+              </button>
+            </form>
+          </div>
+
+          {success ? <p className="agenda-success">{success}</p> : null}
 
           <div className="users-dashboard-card" style={{ marginTop: 18 }}>
             <h3>Histórico registrado</h3>
             {periods.length ? (
               <ul className="agenda-period-list">
                 {periods.map((period) => (
-                  <li key={period.id}>
-                    <strong>
-                      {formatDateBr(period.startDate)} — {formatDateBr(period.endDate)}
-                    </strong>
+                  <li key={period.id} className="agenda-period-item">
+                    <span>
+                      <strong>{periodLabel(period)}</strong>
+                      {`: ${formatDateBr(period.startDate)} — ${formatDateBr(period.endDate)}`}
+                    </span>
+                    {!locked && displayStatus !== 'em_ausencia' ? (
+                      <button
+                        type="button"
+                        className="link-button"
+                        onClick={() => void handleDelete(period.id)}
+                      >
+                        Remover
+                      </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>

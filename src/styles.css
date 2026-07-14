@@ -228,9 +228,18 @@ button {
 
 .agenda-period-list {
   margin: 10px 0 0;
-  padding-left: 18px;
+  padding-left: 0;
+  list-style: none;
   display: grid;
-  gap: 6px;
+  gap: 8px;
+}
+
+.agenda-period-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .users-dashboard-cover-note {

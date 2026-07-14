@@ -1,16 +1,41 @@
 import { query } from './db.js'
 
+export type AbsenceType =
+  | 'ferias'
+  | 'licenca'
+  | 'afastamento'
+  | 'atestado'
+  | 'treinamento'
+  | 'outro'
+
+export const ABSENCE_TYPE_LABELS: Record<AbsenceType, string> = {
+  ferias: 'Férias',
+  licenca: 'Licença',
+  afastamento: 'Afastamento',
+  atestado: 'Atestado médico',
+  treinamento: 'Treinamento',
+  outro: 'Outra ausência',
+}
+
+export const ABSENCE_TYPES = Object.keys(ABSENCE_TYPE_LABELS) as AbsenceType[]
+
+export function isAbsenceType(value: string): value is AbsenceType {
+  return (ABSENCE_TYPES as string[]).includes(value)
+}
+
 export type CoveragePerson = {
   userId: string
   name: string
   registration: string
 }
 
-export type VacationCover = {
+export type AbsenceCover = {
   titular: CoveragePerson
   substitute: CoveragePerson
-  vacationStart: string
-  vacationEnd: string
+  absenceStart: string
+  absenceEnd: string
+  absenceType: AbsenceType
+  absenceTypeLabel: string
   sources: string[]
 }
 
@@ -22,29 +47,50 @@ function toDateOnly(value: string | Date) {
   return typeof value === 'string' ? value.slice(0, 10) : value.toISOString().slice(0, 10)
 }
 
-/** Usuários com férias ativas hoje (inclusive). */
-export async function listUsersOnVacationToday(): Promise<
-  Array<{ userId: string; startDate: string; endDate: string }>
+function normalizeAbsenceType(raw: string | null | undefined): AbsenceType {
+  if (raw && isAbsenceType(raw)) return raw
+  return 'ferias'
+}
+
+/** Usuários com qualquer ausência ativa hoje (férias ou outros). */
+export async function listUsersOnAbsenceToday(): Promise<
+  Array<{
+    userId: string
+    startDate: string
+    endDate: string
+    absenceType: AbsenceType
+  }>
 > {
   const today = todayIso()
   const result = await query<{
     user_id: string
     start_date: string
     end_date: string
+    absence_type: string
   }>(
     `SELECT DISTINCT ON (user_id) user_id,
             start_date::text AS start_date,
-            end_date::text AS end_date
+            end_date::text AS end_date,
+            absence_type
      FROM user_vacation_periods
      WHERE start_date <= $1::date AND end_date >= $1::date
-     ORDER BY user_id, start_date ASC, id ASC`,
+     ORDER BY user_id,
+              CASE WHEN absence_type = 'ferias' THEN 0 ELSE 1 END,
+              start_date ASC,
+              id ASC`,
     [today],
   )
   return result.rows.map((row) => ({
     userId: row.user_id,
     startDate: toDateOnly(row.start_date),
     endDate: toDateOnly(row.end_date),
+    absenceType: normalizeAbsenceType(row.absence_type),
   }))
+}
+
+/** @deprecated use listUsersOnAbsenceToday */
+export async function listUsersOnVacationToday() {
+  return listUsersOnAbsenceToday()
 }
 
 /**
@@ -118,12 +164,12 @@ export async function findSubstitutesForResponsible(titularUserId: string): Prom
 /** Coberturas ativas onde o usuário logado é o substituto. */
 export async function listActiveCoversForSubstitute(
   substituteUserId: string,
-): Promise<VacationCover[]> {
-  const onVacation = await listUsersOnVacationToday()
-  if (!onVacation.length) return []
+): Promise<AbsenceCover[]> {
+  const onAbsence = await listUsersOnAbsenceToday()
+  if (!onAbsence.length) return []
 
-  const covers: VacationCover[] = []
-  for (const period of onVacation) {
+  const covers: AbsenceCover[] = []
+  for (const period of onAbsence) {
     const sub = await findSubstitutesForResponsible(period.userId)
     if (!sub || sub.substituteUserId !== substituteUserId) continue
 
@@ -144,15 +190,17 @@ export async function listActiveCoversForSubstitute(
         name: sub.substituteName,
         registration: sub.substituteRegistration,
       },
-      vacationStart: period.startDate,
-      vacationEnd: period.endDate,
+      absenceStart: period.startDate,
+      absenceEnd: period.endDate,
+      absenceType: period.absenceType,
+      absenceTypeLabel: ABSENCE_TYPE_LABELS[period.absenceType],
       sources: sub.sources,
     })
   }
   return covers
 }
 
-/** Mapa titular → substituto para quem está de férias hoje. */
+/** Mapa titular → substituto para quem está ausente hoje. */
 export async function buildVacationSubstituteMap(): Promise<
   Map<
     string,
@@ -162,6 +210,7 @@ export async function buildVacationSubstituteMap(): Promise<
       substituteRegistration: string
       vacationStart: string
       vacationEnd: string
+      absenceType: AbsenceType
     }
   >
 > {
@@ -173,12 +222,13 @@ export async function buildVacationSubstituteMap(): Promise<
       substituteRegistration: string
       vacationStart: string
       vacationEnd: string
+      absenceType: AbsenceType
     }
   >()
 
-  const onVacation = await listUsersOnVacationToday()
+  const onAbsence = await listUsersOnAbsenceToday()
   await Promise.all(
-    onVacation.map(async (period) => {
+    onAbsence.map(async (period) => {
       const sub = await findSubstitutesForResponsible(period.userId)
       if (!sub) return
       map.set(period.userId, {
@@ -187,6 +237,7 @@ export async function buildVacationSubstituteMap(): Promise<
         substituteRegistration: sub.substituteRegistration,
         vacationStart: period.startDate,
         vacationEnd: period.endDate,
+        absenceType: period.absenceType,
       })
     }),
   )

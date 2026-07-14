@@ -1,6 +1,13 @@
 export type UserRole = 'admin' | 'compras' | 'field'
 export type ApprovalStatus = 'approved' | 'pending'
-export type VacationStatus = 'ok' | 'pendente' | 'bloqueado' | 'em_ferias'
+export type VacationStatus = 'ok' | 'pendente' | 'bloqueado' | 'em_ausencia' | 'em_ferias'
+export type AbsenceType =
+  | 'ferias'
+  | 'licenca'
+  | 'afastamento'
+  | 'atestado'
+  | 'treinamento'
+  | 'outro'
 
 export type VacationCoverFor = {
   userId: string
@@ -8,6 +15,8 @@ export type VacationCoverFor = {
   registration: string
   vacationStart: string
   vacationEnd: string
+  absenceType?: AbsenceType
+  absenceTypeLabel?: string
   sources: string[]
 }
 
@@ -40,6 +49,10 @@ export type AppUser = {
   vacationRequiredSince?: string | null
   nextVacationStart?: string | null
   nextVacationEnd?: string | null
+  activeAbsenceType?: AbsenceType | null
+  activeAbsenceTypeLabel?: string | null
+  activeAbsenceStart?: string | null
+  activeAbsenceEnd?: string | null
   vacationSubstituteUserId?: string | null
   vacationSubstituteName?: string | null
   coveringFor?: VacationCoverFor[]
@@ -49,6 +62,8 @@ export type VacationPeriod = {
   id: number
   startDate: string
   endDate: string
+  absenceType?: AbsenceType
+  absenceTypeLabel?: string
   createdAt: string
   updatedAt: string
 }
@@ -59,6 +74,7 @@ export type VacationAgendaResponse = {
   vacationDeadlineAt: string | null
   vacationRequiredSince: string | null
   nextVacation: VacationPeriod | null
+  activeAbsence?: VacationPeriod | null
   vacationSubstituteUserId?: string | null
   vacationSubstituteName?: string | null
   coveringFor?: VacationCoverFor[]
@@ -339,6 +355,19 @@ export const api = {
     request<VacationAgendaResponse>('/api/agenda/vacations', {
       method: 'PUT',
       body: JSON.stringify(payload),
+    }),
+  createAbsencePeriod: (payload: {
+    startDate: string
+    endDate: string
+    absenceType: AbsenceType
+  }) =>
+    request<VacationAgendaResponse>('/api/agenda/absences', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  deleteAbsencePeriod: (id: number) =>
+    request<VacationAgendaResponse>(`/api/agenda/absences/${id}`, {
+      method: 'DELETE',
     }),
   login: (registration: string, password: string) =>
     request<{ user: AppUser; token?: string }>('/api/auth/login', {

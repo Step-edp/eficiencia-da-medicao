@@ -1472,8 +1472,10 @@ function HomePanel({
 
   const isVacationBlocked =
     currentUser.role !== 'admin' && currentUser.vacationStatus === 'bloqueado'
-  const isOnVacation =
-    currentUser.role !== 'admin' && currentUser.vacationStatus === 'em_ferias'
+  const isOnAbsence =
+    currentUser.role !== 'admin' &&
+    (currentUser.vacationStatus === 'em_ausencia' ||
+      currentUser.vacationStatus === 'em_ferias')
   const coveringFor = currentUser.coveringFor ?? []
 
   const isGestorView =
@@ -1496,7 +1498,7 @@ function HomePanel({
     setSelectedOrgCell(null)
     setSelectedOrgSubcell(null)
     clearAreaSections()
-    if (isOnVacation) {
+    if (isOnAbsence) {
       return
     }
     if (isVacationBlocked && agendaArea) {
@@ -1526,13 +1528,13 @@ function HomePanel({
   }, [isVacationBlocked, agendaArea, selectedArea?.title])
 
   useEffect(() => {
-    if (!isGestorView || !gestaoArea || isVacationBlocked || isOnVacation) return
+    if (!isGestorView || !gestaoArea || isVacationBlocked || isOnAbsence) return
     if (!selectedArea) {
       setSelectedArea(gestaoArea)
       setSelectedOrgCell(null)
       setSelectedOrgSubcell(null)
     }
-  }, [isGestorView, gestaoArea, selectedArea, isVacationBlocked, isOnVacation])
+  }, [isGestorView, gestaoArea, selectedArea, isVacationBlocked, isOnAbsence])
 
   const returnToOrgCell = () => {
     if (!gestaoArea || !selectedOrgCell) {
@@ -2210,23 +2212,24 @@ function HomePanel({
     }
   }
 
-  // Em férias: portal bloqueado; atividades ficam com o substituto.
-  if (isOnVacation) {
-    const start = currentUser.nextVacationStart
-    const end = currentUser.nextVacationEnd
+  // Em ausência (férias ou outro período): portal bloqueado; atividades com o substituto.
+  if (isOnAbsence) {
+    const start = currentUser.activeAbsenceStart ?? currentUser.nextVacationStart
+    const end = currentUser.activeAbsenceEnd ?? currentUser.nextVacationEnd
     const periodLabel =
       start && end
         ? `${start.slice(8, 10)}/${start.slice(5, 7)}/${start.slice(0, 4)} a ${end.slice(8, 10)}/${end.slice(5, 7)}/${end.slice(0, 4)}`
         : null
+    const absenceLabel = currentUser.activeAbsenceTypeLabel || 'Ausência'
 
     return (
       <main className="shell">
         <section className="home-card area-screen-card">
           <TopActionBar onLogout={onLogout} />
-          <p className="section-tag">Portal · Férias</p>
-          <h2>Bloqueado devido a férias</h2>
+          <p className="section-tag">Portal · Ausência</p>
+          <h2>Bloqueado devido a {absenceLabel.toLowerCase()}</h2>
           <div className="agenda-alert agenda-alert-blocked" role="alert">
-            <strong>Seu acesso ao portal está bloqueado durante as férias.</strong>
+            <strong>Seu acesso ao portal está bloqueado durante a ausência.</strong>
             {periodLabel ? ` Período: ${periodLabel}.` : null}
             {currentUser.vacationSubstituteName ? (
               <>
@@ -2243,8 +2246,8 @@ function HomePanel({
             )}
           </div>
           <p>
-            Ao término do período, o acesso é restabelecido automaticamente. Se precisar
-            atualizar o próximo período de férias depois do retorno, use a Agenda.
+            Ao término do período, o acesso é restabelecido automaticamente. Use a Agenda para
+            registrar férias e demais ausências.
           </p>
         </section>
       </main>
@@ -3631,12 +3634,13 @@ function HomePanel({
 
         {coveringFor.length ? (
           <div className="agenda-alert agenda-alert-ok" role="status">
-            <strong>Cobertura de férias.</strong> Você está atuando como substituto de{' '}
+            <strong>Cobertura de ausência.</strong> Você está atuando como substituto de{' '}
             {coveringFor.map((item, index) => (
               <span key={item.userId}>
                 {index > 0 ? '; ' : null}
                 <strong>{item.name}</strong>
-                {` (${item.vacationStart.slice(8, 10)}/${item.vacationStart.slice(5, 7)} a ${item.vacationEnd.slice(8, 10)}/${item.vacationEnd.slice(5, 7)})`}
+                {item.absenceTypeLabel ? ` (${item.absenceTypeLabel})` : ''}
+                {` ${item.vacationStart.slice(8, 10)}/${item.vacationStart.slice(5, 7)} a ${item.vacationEnd.slice(8, 10)}/${item.vacationEnd.slice(5, 7)}`}
               </span>
             ))}
             . As atividades desses titulares estão atreladas a você neste período.

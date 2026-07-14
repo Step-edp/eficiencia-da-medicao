@@ -147,6 +147,8 @@ async function start() {
 
   app.get('/api/agenda/vacations', ...wrap(vacationRoutes.getMine))
   app.put('/api/agenda/vacations', ...wrap(vacationRoutes.upsertMine))
+  app.post('/api/agenda/absences', ...wrap(vacationRoutes.createAbsence))
+  app.delete('/api/agenda/absences/:id', ...wrap(vacationRoutes.deleteAbsence))
 
   app.get('/api/audit-logs', requireAuth, listAuditLogs)
 

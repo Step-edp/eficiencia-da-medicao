@@ -3,17 +3,21 @@ import { query } from '../db.js'
 import { requireAuth } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 import {
+  ABSENCE_TYPE_LABELS,
+  type AbsenceType,
   findSubstitutesForResponsible,
+  isAbsenceType,
   listActiveCoversForSubstitute,
 } from '../vacation-coverage.js'
 
-export type VacationStatus = 'ok' | 'pendente' | 'bloqueado' | 'em_ferias'
+export type VacationStatus = 'ok' | 'pendente' | 'bloqueado' | 'em_ausencia' | 'em_ferias'
 
 export type VacationPeriodRow = {
   id: number
   user_id: string
   start_date: string
   end_date: string
+  absence_type: string
   created_at: Date
   updated_at: Date
 }
@@ -22,6 +26,8 @@ export type VacationPeriodView = {
   id: number
   startDate: string
   endDate: string
+  absenceType: AbsenceType
+  absenceTypeLabel: string
   createdAt: string
   updatedAt: string
 }
@@ -32,6 +38,8 @@ export type VacationCoverSummary = {
   registration: string
   vacationStart: string
   vacationEnd: string
+  absenceType: AbsenceType
+  absenceTypeLabel: string
   sources: string[]
 }
 
@@ -40,6 +48,7 @@ export type VacationMeta = {
   vacationDeadlineAt: string | null
   vacationRequiredSince: string | null
   nextVacation: VacationPeriodView | null
+  activeAbsence: VacationPeriodView | null
   vacationSubstituteUserId: string | null
   vacationSubstituteName: string | null
   coveringFor: VacationCoverSummary[]
@@ -58,11 +67,19 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
+function normalizeAbsenceType(raw: string | null | undefined): AbsenceType {
+  if (raw && isAbsenceType(raw)) return raw
+  return 'ferias'
+}
+
 function toPeriodView(row: VacationPeriodRow): VacationPeriodView {
+  const absenceType = normalizeAbsenceType(row.absence_type)
   return {
     id: row.id,
     startDate: toDateOnly(row.start_date),
     endDate: toDateOnly(row.end_date),
+    absenceType,
+    absenceTypeLabel: ABSENCE_TYPE_LABELS[absenceType],
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   }
@@ -71,7 +88,7 @@ function toPeriodView(row: VacationPeriodRow): VacationPeriodView {
 export async function listUserVacationPeriods(userId: string) {
   const result = await query<VacationPeriodRow>(
     `SELECT id, user_id, start_date::text AS start_date, end_date::text AS end_date,
-            created_at, updated_at
+            absence_type, created_at, updated_at
      FROM user_vacation_periods
      WHERE user_id = $1
      ORDER BY start_date ASC, id ASC`,
@@ -80,13 +97,16 @@ export async function listUserVacationPeriods(userId: string) {
   return result.rows.map(toPeriodView)
 }
 
+/** Próximas férias obrigatórias (somente tipo ferias). */
 async function findNextVacation(userId: string) {
   const today = todayIso()
   const result = await query<VacationPeriodRow>(
     `SELECT id, user_id, start_date::text AS start_date, end_date::text AS end_date,
-            created_at, updated_at
+            absence_type, created_at, updated_at
      FROM user_vacation_periods
-     WHERE user_id = $1 AND end_date >= $2::date
+     WHERE user_id = $1
+       AND absence_type = 'ferias'
+       AND end_date >= $2::date
      ORDER BY start_date ASC, id ASC
      LIMIT 1`,
     [userId, today],
@@ -94,14 +114,27 @@ async function findNextVacation(userId: string) {
   return result.rows[0] ? toPeriodView(result.rows[0]) : null
 }
 
-function isActiveVacation(period: VacationPeriodView) {
+/** Qualquer ausência ativa hoje. */
+async function findActiveAbsence(userId: string) {
   const today = todayIso()
-  return period.startDate <= today && period.endDate >= today
+  const result = await query<VacationPeriodRow>(
+    `SELECT id, user_id, start_date::text AS start_date, end_date::text AS end_date,
+            absence_type, created_at, updated_at
+     FROM user_vacation_periods
+     WHERE user_id = $1
+       AND start_date <= $2::date
+       AND end_date >= $2::date
+     ORDER BY CASE WHEN absence_type = 'ferias' THEN 0 ELSE 1 END,
+              start_date ASC, id ASC
+     LIMIT 1`,
+    [userId, today],
+  )
+  return result.rows[0] ? toPeriodView(result.rows[0]) : null
 }
 
 /**
  * Garante o relógio de 7 dias quando não há próximo período de férias.
- * Admin fica isento de pendente/bloqueado; pode ter em_ferias só informativo.
+ * Qualquer ausência ativa (férias ou outra) bloqueia o portal e cobre o substituto.
  */
 export async function getVacationMetaForUser(
   userId: string,
@@ -112,12 +145,17 @@ export async function getVacationMetaForUser(
     userId: item.titular.userId,
     name: item.titular.name,
     registration: item.titular.registration,
-    vacationStart: item.vacationStart,
-    vacationEnd: item.vacationEnd,
+    vacationStart: item.absenceStart,
+    vacationEnd: item.absenceEnd,
+    absenceType: item.absenceType,
+    absenceTypeLabel: item.absenceTypeLabel,
     sources: item.sources,
   }))
 
-  const nextVacation = await findNextVacation(userId)
+  const [nextVacation, activeAbsence] = await Promise.all([
+    findNextVacation(userId),
+    findActiveAbsence(userId),
+  ])
 
   if (role === 'admin') {
     return {
@@ -125,23 +163,25 @@ export async function getVacationMetaForUser(
       vacationDeadlineAt: null,
       vacationRequiredSince: null,
       nextVacation,
+      activeAbsence,
       vacationSubstituteUserId: null,
       vacationSubstituteName: null,
       coveringFor,
     }
   }
 
-  if (nextVacation && isActiveVacation(nextVacation)) {
+  if (activeAbsence) {
     await query(
       `UPDATE users SET vacation_required_since = NULL WHERE id = $1 AND vacation_required_since IS NOT NULL`,
       [userId],
     )
     const substitute = await findSubstitutesForResponsible(userId)
     return {
-      vacationStatus: 'em_ferias',
+      vacationStatus: 'em_ausencia',
       vacationDeadlineAt: null,
       vacationRequiredSince: null,
       nextVacation,
+      activeAbsence,
       vacationSubstituteUserId: substitute?.substituteUserId ?? null,
       vacationSubstituteName: substitute?.substituteName ?? null,
       coveringFor,
@@ -158,6 +198,7 @@ export async function getVacationMetaForUser(
       vacationDeadlineAt: null,
       vacationRequiredSince: null,
       nextVacation,
+      activeAbsence: null,
       vacationSubstituteUserId: null,
       vacationSubstituteName: null,
       coveringFor,
@@ -190,6 +231,7 @@ export async function getVacationMetaForUser(
     vacationDeadlineAt: deadline.toISOString(),
     vacationRequiredSince: since.toISOString(),
     nextVacation: null,
+    activeAbsence: null,
     vacationSubstituteUserId: null,
     vacationSubstituteName: null,
     coveringFor,
@@ -207,6 +249,10 @@ export function attachVacationMeta<T extends Record<string, unknown>>(
     vacationRequiredSince: meta.vacationRequiredSince,
     nextVacationStart: meta.nextVacation?.startDate ?? null,
     nextVacationEnd: meta.nextVacation?.endDate ?? null,
+    activeAbsenceType: meta.activeAbsence?.absenceType ?? null,
+    activeAbsenceTypeLabel: meta.activeAbsence?.absenceTypeLabel ?? null,
+    activeAbsenceStart: meta.activeAbsence?.startDate ?? null,
+    activeAbsenceEnd: meta.activeAbsence?.endDate ?? null,
     vacationSubstituteUserId: meta.vacationSubstituteUserId,
     vacationSubstituteName: meta.vacationSubstituteName,
     coveringFor: meta.coveringFor,
@@ -225,19 +271,23 @@ function parseDateInput(raw: unknown): string | null {
   return value
 }
 
-export async function getMyAgenda(req: Request, res: Response) {
-  const userId = req.user!.id
-  const role = req.user!.role
+async function agendaResponse(userId: string, role: string, extra: Record<string, unknown> = {}) {
   const [periods, meta] = await Promise.all([
     listUserVacationPeriods(userId),
     getVacationMetaForUser(userId, role),
   ])
-  res.json({
+  return {
     periods,
     ...meta,
-  })
+    ...extra,
+  }
 }
 
+export async function getMyAgenda(req: Request, res: Response) {
+  res.json(await agendaResponse(req.user!.id, req.user!.role))
+}
+
+/** Define/atualiza o próximo período de férias (obrigatório). */
 export async function upsertMyNextVacation(req: Request, res: Response) {
   const userId = req.user!.id
   const role = req.user!.role
@@ -262,17 +312,20 @@ export async function upsertMyNextVacation(req: Request, res: Response) {
     return
   }
 
+  // Substitui somente férias futuras/atuais; preserva outras ausências.
   await query(
     `DELETE FROM user_vacation_periods
-     WHERE user_id = $1 AND end_date >= CURRENT_DATE`,
+     WHERE user_id = $1
+       AND absence_type = 'ferias'
+       AND end_date >= CURRENT_DATE`,
     [userId],
   )
 
   const inserted = await query<VacationPeriodRow>(
-    `INSERT INTO user_vacation_periods (user_id, start_date, end_date)
-     VALUES ($1, $2::date, $3::date)
+    `INSERT INTO user_vacation_periods (user_id, start_date, end_date, absence_type)
+     VALUES ($1, $2::date, $3::date, 'ferias')
      RETURNING id, user_id, start_date::text AS start_date, end_date::text AS end_date,
-               created_at, updated_at`,
+               absence_type, created_at, updated_at`,
     [userId, startDate, endDate],
   )
 
@@ -283,22 +336,109 @@ export async function upsertMyNextVacation(req: Request, res: Response) {
     entityType: 'user',
     entityId: userId,
     summary: `Período de férias registrado: ${startDate} a ${endDate}.`,
-    newData: { startDate, endDate },
+    newData: { startDate, endDate, absenceType: 'ferias' },
   })
 
-  const [periods, meta] = await Promise.all([
-    listUserVacationPeriods(userId),
-    getVacationMetaForUser(userId, role),
-  ])
+  res.json(
+    await agendaResponse(userId, role, {
+      period: inserted.rows[0] ? toPeriodView(inserted.rows[0]) : null,
+    }),
+  )
+}
 
-  res.json({
-    period: inserted.rows[0] ? toPeriodView(inserted.rows[0]) : null,
-    periods,
-    ...meta,
+/** Adiciona outro período de ausência (licença, atestado, etc.). */
+export async function createMyAbsence(req: Request, res: Response) {
+  const userId = req.user!.id
+  const role = req.user!.role
+
+  const startDate = parseDateInput(req.body?.startDate)
+  const endDate = parseDateInput(req.body?.endDate)
+  const rawType =
+    typeof req.body?.absenceType === 'string' ? req.body.absenceType.trim() : ''
+  const absenceType: AbsenceType =
+    rawType && isAbsenceType(rawType) ? rawType : 'outro'
+
+  if (!startDate || !endDate) {
+    res.status(400).json({
+      error: 'Informe as datas de início e fim no formato AAAA-MM-DD.',
+    })
+    return
+  }
+  if (endDate < startDate) {
+    res.status(400).json({ error: 'A data de fim deve ser igual ou posterior ao início.' })
+    return
+  }
+  if (endDate < todayIso()) {
+    res.status(400).json({
+      error: 'A ausência deve ter data de fim a partir de hoje.',
+    })
+    return
+  }
+
+  if (absenceType === 'ferias') {
+    res.status(400).json({
+      error: 'Para férias, use o campo de próximo período de férias.',
+    })
+    return
+  }
+
+  const inserted = await query<VacationPeriodRow>(
+    `INSERT INTO user_vacation_periods (user_id, start_date, end_date, absence_type)
+     VALUES ($1, $2::date, $3::date, $4)
+     RETURNING id, user_id, start_date::text AS start_date, end_date::text AS end_date,
+               absence_type, created_at, updated_at`,
+    [userId, startDate, endDate, absenceType],
+  )
+
+  await writeAuditLog(req, {
+    action: 'create',
+    entityType: 'user',
+    entityId: userId,
+    summary: `Ausência (${ABSENCE_TYPE_LABELS[absenceType]}) registrada: ${startDate} a ${endDate}.`,
+    newData: { startDate, endDate, absenceType },
   })
+
+  res.status(201).json(
+    await agendaResponse(userId, role, {
+      period: inserted.rows[0] ? toPeriodView(inserted.rows[0]) : null,
+    }),
+  )
+}
+
+export async function deleteMyAbsence(req: Request, res: Response) {
+  const userId = req.user!.id
+  const role = req.user!.role
+  const id = Number(req.params.id)
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: 'Identificador inválido.' })
+    return
+  }
+
+  const deleted = await query<{ id: number; absence_type: string }>(
+    `DELETE FROM user_vacation_periods
+     WHERE id = $1 AND user_id = $2
+     RETURNING id, absence_type`,
+    [id, userId],
+  )
+  if (!deleted.rows[0]) {
+    res.status(404).json({ error: 'Período não encontrado.' })
+    return
+  }
+
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'user',
+    entityId: userId,
+    summary: `Período de ausência removido (#${id}).`,
+    oldData: deleted.rows[0],
+  })
+
+  res.json(await agendaResponse(userId, role))
 }
 
 export const vacationRoutes = {
   getMine: [requireAuth, getMyAgenda],
   upsertMine: [requireAuth, upsertMyNextVacation],
+  createAbsence: [requireAuth, createMyAbsence],
+  deleteAbsence: [requireAuth, deleteMyAbsence],
 }
