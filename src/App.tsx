@@ -3284,9 +3284,6 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             }}
             required
           >
-            <option value="" disabled>
-              Selecione: Própria ou Terceira
-            </option>
             {tipoOptions.map((tipo) => (
               <option key={tipo} value={tipo}>
                 {tipo}
