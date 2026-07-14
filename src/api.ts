@@ -24,6 +24,7 @@ export type AppUser = {
   edpUnit?: string
   profilePhoto?: string
   accessAreas?: string[]
+  accessProcesses?: string[]
 }
 
 export type CatalogKey = 'cargo' | 'area' | 'tipo' | 'terceira' | 'localidade'
@@ -281,7 +282,12 @@ export const api = {
   listUsers: () => request<{ users: AppUser[] }>('/api/users'),
   approveUser: (
     id: string,
-    payload?: { thirdPartyCompany?: string; workSubtype?: string; accessAreas?: string[] },
+    payload?: {
+      thirdPartyCompany?: string
+      workSubtype?: string
+      accessAreas?: string[]
+      accessProcesses?: string[]
+    },
   ) =>
     request<{ user: AppUser }>(`/api/users/${id}/approve`, {
       method: 'PATCH',
@@ -308,6 +314,7 @@ export const api = {
       thirdPartyCompany: string
       workSubtype: string
       accessAreas: string[]
+      accessProcesses: string[]
       personalDescription: string
       hobby: string
       profilePhoto: string

@@ -36,7 +36,10 @@ import {
   DEFAULT_AREA_OPTIONS,
   DEFAULT_LOCALITIES,
   EDP_SCOPE_OPTIONS,
+  encodeAccessProcess,
   ENGINEER_HOME_SUBAREAS,
+  getCrossAreaProcesses,
+  parseAccessProcess,
   subtypesForCargo,
 } from './registrationOptions'
 
@@ -717,6 +720,7 @@ type ApproveUserPayload = {
   thirdPartyCompany?: string
   workSubtype?: string
   accessAreas?: string[]
+  accessProcesses?: string[]
 }
 
 type PendingApprovalItemProps = {
@@ -739,17 +743,29 @@ function PendingApprovalItem({
   const [thirdPartyCompany, setThirdPartyCompany] = useState('')
   const [workSubtype, setWorkSubtype] = useState('')
   const [selectedSubareas, setSelectedSubareas] = useState<string[]>([])
+  const [selectedProcesses, setSelectedProcesses] = useState<string[]>([])
+  const [selectedProcessAreas, setSelectedProcessAreas] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [rejecting, setRejecting] = useState(false)
   const subtypeOptions = subtypesForCargo(user.jobTitle, user.workArea ?? '')
   const needsCompany = user.employmentType === 'Terceira'
   const needsSubtype = subtypeOptions.length > 0
   const needsHomeSubareas = user.jobTitle === 'Engenheiro' && workSubtype === 'Sub-área'
+  const needsSpecificProcesses =
+    user.jobTitle === 'Engenheiro' && workSubtype === 'Processos específicos'
+  const crossAreaProcesses = getCrossAreaProcesses(user.workArea ?? '')
+  const processLabel = selectedProcesses
+    .map((encoded) => {
+      const parsed = parseAccessProcess(encoded)
+      return parsed ? `${parsed.area}: ${parsed.process}` : encoded
+    })
+    .join(', ')
   const builtProfile = buildRequestedProfile(
     user.jobTitle,
     workSubtype,
     user.workArea ?? '',
     needsHomeSubareas && selectedSubareas.length > 0 ? selectedSubareas.join(', ') : undefined,
+    needsSpecificProcesses && processLabel ? processLabel : undefined,
     user.employmentType === 'Terceira' ? thirdPartyCompany || undefined : undefined,
     user.edpUnit || undefined,
   )
@@ -759,6 +775,27 @@ function PendingApprovalItem({
       current.includes(area)
         ? current.filter((item) => item !== area)
         : [...current, area],
+    )
+  }
+
+  const toggleProcessArea = (area: string) => {
+    setSelectedProcessAreas((current) => {
+      if (current.includes(area)) {
+        setSelectedProcesses((processes) =>
+          processes.filter((encoded) => !encoded.startsWith(`${area}::`)),
+        )
+        return current.filter((item) => item !== area)
+      }
+      return [...current, area]
+    })
+  }
+
+  const toggleProcess = (area: string, process: string) => {
+    const encoded = encodeAccessProcess(area, process)
+    setSelectedProcesses((current) =>
+      current.includes(encoded)
+        ? current.filter((item) => item !== encoded)
+        : [...current, encoded],
     )
   }
 
@@ -784,6 +821,16 @@ function PendingApprovalItem({
       })
       return
     }
+    if (needsSpecificProcesses) {
+      if (selectedProcessAreas.length === 0 || selectedProcesses.length === 0) {
+        onFeedback({
+          type: 'error',
+          message:
+            'Selecione a(s) área(s) e ao menos um processo específico de outra área.',
+        })
+        return
+      }
+    }
 
     setSubmitting(true)
     try {
@@ -791,6 +838,7 @@ function PendingApprovalItem({
         thirdPartyCompany: needsCompany ? thirdPartyCompany : '',
         workSubtype: needsSubtype ? workSubtype : '',
         accessAreas: needsHomeSubareas ? selectedSubareas : [],
+        accessProcesses: needsSpecificProcesses ? selectedProcesses : [],
       })
       onFeedback({
         type: 'success',
@@ -885,6 +933,8 @@ function PendingApprovalItem({
               onChange={(event) => {
                 setWorkSubtype(event.target.value)
                 setSelectedSubareas([])
+                setSelectedProcessAreas([])
+                setSelectedProcesses([])
               }}
             >
               <option value="" disabled hidden />
@@ -915,6 +965,52 @@ function PendingApprovalItem({
                 </label>
               ))}
             </div>
+          </fieldset>
+        ) : null}
+
+        {needsSpecificProcesses ? (
+          <fieldset className="approval-subareas">
+            <legend>Áreas e processos específicos</legend>
+            <p className="approval-subareas-hint">
+              A área {user.workArea || 'própria'} já inclui todos os processos. Selecione outras
+              áreas e os processos pelos quais este engenheiro será responsável.
+            </p>
+            <div className="approval-subareas-grid">
+              {crossAreaProcesses.map(({ area }) => (
+                <label key={area} className="approval-subarea-option">
+                  <input
+                    type="checkbox"
+                    checked={selectedProcessAreas.includes(area)}
+                    onChange={() => toggleProcessArea(area)}
+                  />
+                  <span>{area}</span>
+                </label>
+              ))}
+            </div>
+            {selectedProcessAreas.map((area) => {
+              const group = crossAreaProcesses.find((item) => item.area === area)
+              if (!group) return null
+              return (
+                <div key={area} className="approval-process-group">
+                  <p className="approval-process-group-title">Processos de {area}</p>
+                  <div className="approval-subareas-grid">
+                    {group.processes.map((process) => {
+                      const encoded = encodeAccessProcess(area, process)
+                      return (
+                        <label key={encoded} className="approval-subarea-option">
+                          <input
+                            type="checkbox"
+                            checked={selectedProcesses.includes(encoded)}
+                            onChange={() => toggleProcess(area, process)}
+                          />
+                          <span>{process}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
           </fieldset>
         ) : null}
       </div>
@@ -1662,8 +1758,12 @@ function HomePanel({
     }
   }
 
-  // Compras puro (sem subáreas de portal) segue no formulário dedicado.
-  if (currentUser.role === 'compras' && !(currentUser.accessAreas?.length)) {
+  // Compras puro (sem subáreas/processos de portal) segue no formulário dedicado.
+  if (
+    currentUser.role === 'compras' &&
+    !(currentUser.accessAreas?.length) &&
+    !(currentUser.accessProcesses?.length)
+  ) {
     return (
       <HomologationRequestPortal
         currentUser={currentUser}

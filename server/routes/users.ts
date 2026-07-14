@@ -3,6 +3,10 @@ import bcrypt from 'bcryptjs'
 import { query } from '../db.js'
 import { clearAuthCookie, requireAdmin, requireAuth, setAuthCookie, signSsoToken, signToken, verifySsoToken } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
+import {
+  isValidCrossAreaProcess,
+  portalAreasFromProcesses,
+} from '../engineer-access.js'
 
 type UserRow = {
   id: string
@@ -27,6 +31,7 @@ type UserRow = {
   edp_unit: string
   profile_photo: string
   access_areas: unknown
+  access_processes: unknown
 }
 
 function parseAccessAreas(value: unknown): string[] {
@@ -68,6 +73,7 @@ function mapUser(row: UserRow) {
     edpUnit: row.edp_unit,
     profilePhoto: row.profile_photo || '',
     accessAreas: parseAccessAreas(row.access_areas),
+    accessProcesses: parseAccessAreas(row.access_processes),
   }
 }
 
@@ -348,10 +354,11 @@ export async function listUsers(_req: Request, res: Response) {
 
 export async function approveUser(req: Request, res: Response) {
   const { id } = req.params
-  const { thirdPartyCompany, workSubtype, accessAreas } = req.body as {
+  const { thirdPartyCompany, workSubtype, accessAreas, accessProcesses } = req.body as {
     thirdPartyCompany?: string
     workSubtype?: string
     accessAreas?: string[]
+    accessProcesses?: string[]
   }
 
   const previous = await query<UserRow>(
@@ -372,6 +379,9 @@ export async function approveUser(req: Request, res: Response) {
   const normalizedSubtype = workSubtype?.trim() ?? ''
   const requestedAccessAreas = Array.isArray(accessAreas)
     ? accessAreas.map((area) => area.trim()).filter(Boolean)
+    : []
+  const requestedAccessProcesses = Array.isArray(accessProcesses)
+    ? accessProcesses.map((item) => item.trim()).filter(Boolean)
     : []
 
   const technicianScopesByArea: Record<string, string[]> = {
@@ -413,6 +423,7 @@ export async function approveUser(req: Request, res: Response) {
 
   let storedSubtype = ''
   let storedAccessAreas: string[] = []
+  let storedAccessProcesses: string[] = []
   if (jobTitle === 'Técnico') {
     const allowedScopes = technicianScopesByArea[workArea] ?? []
     if (!allowedScopes.includes(normalizedSubtype)) {
@@ -444,6 +455,21 @@ export async function approveUser(req: Request, res: Response) {
       }
       storedAccessAreas = requestedAccessAreas
     }
+
+    if (normalizedSubtype === 'Processos específicos') {
+      const invalid = requestedAccessProcesses.filter(
+        (item) => !isValidCrossAreaProcess(workArea, item),
+      )
+      if (requestedAccessProcesses.length === 0 || invalid.length > 0) {
+        res.status(400).json({
+          error:
+            'Selecione ao menos um processo específico de outra área para o engenheiro.',
+        })
+        return
+      }
+      storedAccessProcesses = requestedAccessProcesses
+      storedAccessAreas = portalAreasFromProcesses(workArea, storedAccessProcesses)
+    }
   }
 
   const result = await query<UserRow>(
@@ -452,10 +478,17 @@ export async function approveUser(req: Request, res: Response) {
          approved_at = NOW(),
          third_party_company = $2,
          work_subtype = $3,
-         access_areas = $4::jsonb
+         access_areas = $4::jsonb,
+         access_processes = $5::jsonb
      WHERE id = $1 AND role = 'compras'
      RETURNING *`,
-    [id, storedCompany, storedSubtype, JSON.stringify(storedAccessAreas)],
+    [
+      id,
+      storedCompany,
+      storedSubtype,
+      JSON.stringify(storedAccessAreas),
+      JSON.stringify(storedAccessProcesses),
+    ],
   )
 
   const user = mapUser(result.rows[0])
@@ -489,6 +522,7 @@ export async function updateUser(req: Request, res: Response) {
     thirdPartyCompany,
     workSubtype,
     accessAreas,
+    accessProcesses,
     personalDescription,
     hobby,
     profilePhoto,
@@ -528,6 +562,9 @@ export async function updateUser(req: Request, res: Response) {
     typeof profilePhoto === 'string' ? profilePhoto.trim() : ''
   const requestedAccessAreas = Array.isArray(accessAreas)
     ? accessAreas.map((area) => String(area).trim()).filter(Boolean)
+    : []
+  const requestedAccessProcesses = Array.isArray(accessProcesses)
+    ? accessProcesses.map((item) => String(item).trim()).filter(Boolean)
     : []
 
   if (
@@ -645,6 +682,7 @@ export async function updateUser(req: Request, res: Response) {
 
   let storedSubtype = ''
   let storedAccessAreas: string[] = []
+  let storedAccessProcesses: string[] = []
 
   if (normalizedJobTitle === 'Técnico') {
     const allowedScopes = technicianScopesByArea[normalizedWorkArea] ?? []
@@ -673,6 +711,20 @@ export async function updateUser(req: Request, res: Response) {
       }
       storedAccessAreas = requestedAccessAreas
     }
+    if (normalizedSubtype === 'Processos específicos') {
+      const invalid = requestedAccessProcesses.filter(
+        (item) => !isValidCrossAreaProcess(normalizedWorkArea, item),
+      )
+      if (requestedAccessProcesses.length === 0 || invalid.length > 0) {
+        res.status(400).json({
+          error:
+            'Selecione ao menos um processo específico de outra área para o engenheiro.',
+        })
+        return
+      }
+      storedAccessProcesses = requestedAccessProcesses
+      storedAccessAreas = portalAreasFromProcesses(normalizedWorkArea, storedAccessProcesses)
+    }
   }
 
   try {
@@ -692,9 +744,10 @@ export async function updateUser(req: Request, res: Response) {
         third_party_company = $13,
         work_subtype = $14,
         access_areas = $15::jsonb,
-        personal_description = $16,
-        hobby = $17,
-        profile_photo = $18
+        access_processes = $16::jsonb,
+        personal_description = $17,
+        hobby = $18,
+        profile_photo = $19
        WHERE id = $1
        RETURNING *`,
       [
@@ -713,6 +766,7 @@ export async function updateUser(req: Request, res: Response) {
         storedCompany,
         storedSubtype,
         JSON.stringify(storedAccessAreas),
+        JSON.stringify(storedAccessProcesses),
         normalizedDescription,
         normalizedHobby,
         normalizedProfilePhoto,

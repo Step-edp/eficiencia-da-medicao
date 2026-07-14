@@ -10,7 +10,10 @@ import {
   DEFAULT_AREA_OPTIONS,
   DEFAULT_LOCALITIES,
   EDP_SCOPE_OPTIONS,
+  encodeAccessProcess,
   ENGINEER_HOME_SUBAREAS,
+  getCrossAreaProcesses,
+  parseAccessProcess,
   subtypesForCargo,
 } from './registrationOptions'
 
@@ -29,6 +32,7 @@ export type UserUpdatePayload = {
   thirdPartyCompany: string
   workSubtype: string
   accessAreas: string[]
+  accessProcesses: string[]
   personalDescription: string
   hobby: string
   profilePhoto: string
@@ -84,6 +88,10 @@ export function UserDetailModal({
   const [thirdPartyCompany, setThirdPartyCompany] = useState(user.thirdPartyCompany ?? '')
   const [workSubtype, setWorkSubtype] = useState(user.workSubtype ?? '')
   const [accessAreas, setAccessAreas] = useState<string[]>(user.accessAreas ?? [])
+  const [accessProcesses, setAccessProcesses] = useState<string[]>(user.accessProcesses ?? [])
+  const [selectedProcessAreas, setSelectedProcessAreas] = useState<string[]>(() =>
+    [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
+  )
   const [personalDescription, setPersonalDescription] = useState(user.personalDescription ?? '')
   const [hobby, setHobby] = useState(user.hobby ?? '')
   const [profilePhoto, setProfilePhoto] = useState(user.profilePhoto ?? '')
@@ -121,6 +129,10 @@ export function UserDetailModal({
     setThirdPartyCompany(user.thirdPartyCompany ?? '')
     setWorkSubtype(user.workSubtype ?? '')
     setAccessAreas(user.accessAreas ?? [])
+    setAccessProcesses(user.accessProcesses ?? [])
+    setSelectedProcessAreas(
+      [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
+    )
     setPersonalDescription(user.personalDescription ?? '')
     setHobby(user.hobby ?? '')
     setProfilePhoto(user.profilePhoto ?? '')
@@ -130,6 +142,8 @@ export function UserDetailModal({
   const subtypeOptions = subtypesForCargo(jobTitle, workArea)
   const needsCompany = employmentType === 'Terceira'
   const needsHomeSubareas = jobTitle === 'Engenheiro' && workSubtype === 'Sub-área'
+  const needsSpecificProcesses = jobTitle === 'Engenheiro' && workSubtype === 'Processos específicos'
+  const crossAreaProcesses = getCrossAreaProcesses(workArea)
 
   const resetDraft = () => {
     setName(user.name)
@@ -146,6 +160,10 @@ export function UserDetailModal({
     setThirdPartyCompany(user.thirdPartyCompany ?? '')
     setWorkSubtype(user.workSubtype ?? '')
     setAccessAreas(user.accessAreas ?? [])
+    setAccessProcesses(user.accessProcesses ?? [])
+    setSelectedProcessAreas(
+      [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
+    )
     setPersonalDescription(user.personalDescription ?? '')
     setHobby(user.hobby ?? '')
     setProfilePhoto(user.profilePhoto ?? '')
@@ -156,6 +174,27 @@ export function UserDetailModal({
       current.includes(area)
         ? current.filter((item) => item !== area)
         : [...current, area],
+    )
+  }
+
+  const toggleProcessArea = (area: string) => {
+    setSelectedProcessAreas((current) => {
+      if (current.includes(area)) {
+        setAccessProcesses((processes) =>
+          processes.filter((encoded) => !encoded.startsWith(`${area}::`)),
+        )
+        return current.filter((item) => item !== area)
+      }
+      return [...current, area]
+    })
+  }
+
+  const toggleProcess = (area: string, process: string) => {
+    const encoded = encodeAccessProcess(area, process)
+    setAccessProcesses((current) =>
+      current.includes(encoded)
+        ? current.filter((item) => item !== encoded)
+        : [...current, encoded],
     )
   }
 
@@ -206,6 +245,14 @@ export function UserDetailModal({
       return
     }
 
+    if (needsSpecificProcesses && (selectedProcessAreas.length === 0 || accessProcesses.length === 0)) {
+      onFeedback({
+        type: 'error',
+        message: 'Selecione a(s) área(s) e ao menos um processo específico de outra área.',
+      })
+      return
+    }
+
     setSaving(true)
     try {
       const { user: updated } = await api.updateUser(user.id, {
@@ -223,6 +270,7 @@ export function UserDetailModal({
         thirdPartyCompany: needsCompany ? thirdPartyCompany : '',
         workSubtype: subtypeOptions.length > 0 ? workSubtype : '',
         accessAreas: needsHomeSubareas ? accessAreas : [],
+        accessProcesses: needsSpecificProcesses ? accessProcesses : [],
         personalDescription: personalDescription.trim(),
         hobby: hobby.trim(),
         profilePhoto,
@@ -361,6 +409,8 @@ export function UserDetailModal({
                   setWorkArea(event.target.value)
                   setWorkSubtype('')
                   setAccessAreas([])
+                  setAccessProcesses([])
+                  setSelectedProcessAreas([])
                 }}
               >
                 <option value="">Selecione</option>
@@ -379,6 +429,8 @@ export function UserDetailModal({
                   setJobTitle(event.target.value)
                   setWorkSubtype('')
                   setAccessAreas([])
+                  setAccessProcesses([])
+                  setSelectedProcessAreas([])
                 }}
               >
                 <option value="">Selecione</option>
@@ -426,6 +478,8 @@ export function UserDetailModal({
                   onChange={(event) => {
                     setWorkSubtype(event.target.value)
                     setAccessAreas([])
+                    setAccessProcesses([])
+                    setSelectedProcessAreas([])
                   }}
                 >
                   <option value="">Selecione</option>
@@ -453,6 +507,52 @@ export function UserDetailModal({
                     </label>
                   ))}
                 </div>
+              </fieldset>
+            ) : null}
+
+            {needsSpecificProcesses ? (
+              <fieldset className="approval-subareas user-edit-full">
+                <legend>Áreas e processos específicos</legend>
+                <p className="approval-subareas-hint">
+                  A área {workArea || 'própria'} já inclui todos os processos. Selecione outras
+                  áreas e os processos de responsabilidade cruzada.
+                </p>
+                <div className="approval-subareas-grid">
+                  {crossAreaProcesses.map(({ area }) => (
+                    <label key={area} className="approval-subarea-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedProcessAreas.includes(area)}
+                        onChange={() => toggleProcessArea(area)}
+                      />
+                      <span>{area}</span>
+                    </label>
+                  ))}
+                </div>
+                {selectedProcessAreas.map((area) => {
+                  const group = crossAreaProcesses.find((item) => item.area === area)
+                  if (!group) return null
+                  return (
+                    <div key={area} className="approval-process-group">
+                      <p className="approval-process-group-title">Processos de {area}</p>
+                      <div className="approval-subareas-grid">
+                        {group.processes.map((process) => {
+                          const encoded = encodeAccessProcess(area, process)
+                          return (
+                            <label key={encoded} className="approval-subarea-option">
+                              <input
+                                type="checkbox"
+                                checked={accessProcesses.includes(encoded)}
+                                onChange={() => toggleProcess(area, process)}
+                              />
+                              <span>{process}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
               </fieldset>
             ) : null}
 
@@ -566,6 +666,14 @@ export function UserDetailModal({
                     user.workSubtype ?? '',
                     user.workArea ?? '',
                     user.accessAreas?.length ? user.accessAreas.join(', ') : undefined,
+                    user.accessProcesses?.length
+                      ? user.accessProcesses
+                          .map((item) => {
+                            const parsed = parseAccessProcess(item)
+                            return parsed ? `${parsed.area}: ${parsed.process}` : item
+                          })
+                          .join(', ')
+                      : undefined,
                     user.employmentType === 'Terceira' ? user.thirdPartyCompany : undefined,
                     user.edpUnit,
                     user.locality,
@@ -588,6 +696,19 @@ export function UserDetailModal({
                 <div>
                   <dt>Subáreas da home</dt>
                   <dd>{user.accessAreas.join(', ')}</dd>
+                </div>
+              ) : null}
+              {user.accessProcesses?.length ? (
+                <div className="user-detail-full">
+                  <dt>Processos específicos</dt>
+                  <dd>
+                    {user.accessProcesses
+                      .map((item) => {
+                        const parsed = parseAccessProcess(item)
+                        return parsed ? `${parsed.area}: ${parsed.process}` : item
+                      })
+                      .join('; ')}
+                  </dd>
                 </div>
               ) : null}
               <div>

@@ -1397,9 +1397,17 @@ button {
   color: var(--text-main) !important;
 }
 
-.approval-subarea-option input {
-  width: auto;
+.approval-process-group {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.approval-process-group-title {
   margin: 0;
+  color: var(--text-main);
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .users-section-heading {
