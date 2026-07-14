@@ -1,8 +1,6 @@
 /** Abrangência do cadastro (própria ou terceira). */
 export const EDP_SCOPE_OPTIONS = ['EDP SP', 'EDP ES', 'Transversal'] as const
 
-export const OWN_COMPANY_DEFAULT = 'EDP SP' as const
-
 export const TECHNICIAN_SUBTYPES = [
   'Medição',
   'Laboratório de Medição',
