@@ -1633,7 +1633,7 @@ function HomePanel({
                           <dd>{statusLabel(selectedUserDetail.approvalStatus)}</dd>
                         </div>
                         <div>
-                          <dt>Área de trabalho</dt>
+                          <dt>Área</dt>
                           <dd>{formatValue(selectedUserDetail.workArea)}</dd>
                         </div>
                         <div>
