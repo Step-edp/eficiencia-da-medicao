@@ -224,16 +224,6 @@ export default function App() {
             <p className="eyebrow">Eficiência da Medição</p>
             <h1>Changing tomorrow now.</h1>
           </div>
-
-          <div className="status-card">
-            <span className="status-pill">Fluxo com aprovação do ADM</span>
-            <h2>Solicitação protegida</h2>
-            <p>
-              Depois do cadastro, o acesso permanece como pendente até a validação
-              administrativa. Informações pessoais ficam visíveis somente para o
-              próprio colaborador.
-            </p>
-          </div>
         </div>
 
         <div className="panel-column">
