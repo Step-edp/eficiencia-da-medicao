@@ -1159,7 +1159,7 @@ function PendingApprovalItem({
               {showRejectForm ? 'Cancelar reprovação' : 'Reprovar cadastro'}
             </button>
             <button
-              className="primary-button compact-button"
+              className="success-button compact-button"
               type="button"
               disabled={submitting || rejecting || showRejectForm}
               onClick={() => void handleApprove()}
