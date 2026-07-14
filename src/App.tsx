@@ -3284,6 +3284,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             }}
             required
           >
+            <option value="" disabled hidden />
             {tipoOptions.map((tipo) => (
               <option key={tipo} value={tipo}>
                 {tipo}
@@ -3300,9 +3301,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
               onChange={(event) => setEmployerCompany(event.target.value)}
               required
             >
-              <option value="" disabled>
-                Selecione EDP SP ou EDP ES
-              </option>
+              <option value="" disabled hidden />
               {EDP_UNITS.map((unit) => (
                 <option key={unit} value={unit}>
                   {unit}
@@ -3320,9 +3319,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
               onChange={(event) => setEmployerCompany(event.target.value)}
               required
             >
-              <option value="" disabled>
-                Selecione a empresa
-              </option>
+              <option value="" disabled hidden />
               {terceiraOptions.map((company) => (
                 <option key={company} value={company}>
                   {company}
@@ -3339,9 +3336,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             onChange={(event) => setWorkArea(event.target.value)}
             required
           >
-            <option value="" disabled>
-              Selecione a área
-            </option>
+            <option value="" disabled hidden />
             {areaOptions.map((area) => (
               <option key={area} value={area}>
                 {area}
@@ -3360,9 +3355,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             }}
             required
           >
-            <option value="" disabled>
-              Selecione o cargo
-            </option>
+            <option value="" disabled hidden />
             {cargoOptions.map((cargo) => (
               <option key={cargo} value={cargo}>
                 {cargo}
@@ -3379,9 +3372,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
               onChange={(event) => setWorkSubtype(event.target.value)}
               required
             >
-              <option value="" disabled>
-                Selecione...
-              </option>
+              <option value="" disabled hidden />
               {subtypeOptions.map((subtype) => (
                 <option key={subtype} value={subtype}>
                   {subtype}
@@ -3398,9 +3389,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             onChange={(event) => setLocality(event.target.value)}
             required
           >
-            <option value="" disabled>
-              Selecione a cidade
-            </option>
+            <option value="" disabled hidden />
             {localityOptions.map((city) => (
               <option key={city} value={city}>
                 {city}
@@ -3411,11 +3400,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
 
         <label className="full-width">
           Perfil construído
-          <input
-            type="text"
-            value={requestedProfile || 'Selecione tipo, área e cargo'}
-            readOnly
-          />
+          <input type="text" value={requestedProfile} readOnly />
         </label>
 
         <label>
