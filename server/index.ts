@@ -146,6 +146,7 @@ async function start() {
   app.patch('/api/org-area/:id', ...wrap(orgCellRoutes.updateArea))
   app.post('/api/org-cells', ...wrap(orgCellRoutes.create))
   app.patch('/api/org-cells/:id', ...wrap(orgCellRoutes.update))
+  app.delete('/api/org-cells/:id', ...wrap(orgCellRoutes.remove))
 
   app.get('/api/agenda/vacations', ...wrap(vacationRoutes.getMine))
   app.put('/api/agenda/vacations', ...wrap(vacationRoutes.upsertMine))

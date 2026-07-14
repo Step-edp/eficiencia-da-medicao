@@ -598,12 +598,58 @@ export async function updateOrgCell(req: Request, res: Response) {
   })
 }
 
+export async function deleteOrgCell(req: Request, res: Response) {
+  const cellId = String(req.params.id ?? '').trim()
+  if (!cellId) {
+    res.status(400).json({ error: 'Identificador da célula inválido.' })
+    return
+  }
+
+  const current = await query<{
+    id: string
+    label: string
+    area_id: string
+    description: string
+    responsible_user_id: string | null
+    substitute_user_id: string | null
+  }>(
+    `SELECT id, label, area_id, description, responsible_user_id, substitute_user_id
+     FROM org_cells
+     WHERE id = $1`,
+    [cellId],
+  )
+  if (!current.rows[0]) {
+    res.status(404).json({ error: 'Célula não encontrada.' })
+    return
+  }
+
+  await query(`DELETE FROM org_cells WHERE id = $1`, [cellId])
+
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'org_cell',
+    entityId: cellId,
+    summary: `Célula "${current.rows[0].label}" excluída.`,
+    oldData: {
+      id: current.rows[0].id,
+      label: current.rows[0].label,
+      areaId: current.rows[0].area_id,
+      description: current.rows[0].description,
+      responsibleUserId: current.rows[0].responsible_user_id,
+      substituteUserId: current.rows[0].substitute_user_id,
+    },
+  })
+
+  res.json(await getStructurePayload())
+}
+
 export const orgCellRoutes = {
   list: [requireAuth, listOrgStructure],
   createArea: [requireAuth, requireAdmin, createOrgArea],
   updateArea: [requireAuth, requireGestorOrAdmin, updateOrgArea],
   create: [requireAuth, requireGestorOrAdmin, createOrgCell],
   update: [requireAuth, requireGestorOrAdmin, updateOrgCell],
+  remove: [requireAuth, requireGestorOrAdmin, deleteOrgCell],
 }
 
 const DEFAULT_ORG_CELLS = [
@@ -633,6 +679,13 @@ export async function ensureOrgCellsSeeded() {
      ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label`,
     [DEFAULT_ORG_AREA_ID],
   )
+
+  const existing = await query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM org_cells WHERE area_id = $1`,
+    [DEFAULT_ORG_AREA_ID],
+  )
+  // Só cria as células padrão na primeira carga; exclusões do usuário não são recriadas.
+  if (Number(existing.rows[0]?.count ?? 0) > 0) return
 
   for (const cell of DEFAULT_ORG_CELLS) {
     await query(

@@ -1794,6 +1794,25 @@ function HomePanel({
     }
   }
 
+  const handleDeleteOrgCell = async (cellId: string) => {
+    setOrgCellsBusy(true)
+    setOrgCellsError(null)
+    try {
+      const response = await api.deleteOrgCell(cellId)
+      applyOrgStructure(response, { selectAreaId: selectedOrgAreaId })
+      setSelectedOrgCell(null)
+      setSelectedOrgSubcell(null)
+      setGestaoHomeTab('celulas')
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Não foi possível excluir a célula.'
+      setOrgCellsError(message)
+      throw new Error(message)
+    } finally {
+      setOrgCellsBusy(false)
+    }
+  }
+
   const hasPortalAccess = (portalKey: string) =>
     (accessiblePortals as readonly string[]).includes(portalKey)
 
@@ -2664,6 +2683,11 @@ function HomePanel({
                     busy={orgCellsBusy}
                     onAssign={(payload) =>
                       handleAssignOrgCellLeadership(activeCell.id, payload)
+                    }
+                    onDelete={
+                      canManageOrgCells
+                        ? () => handleDeleteOrgCell(activeCell.id)
+                        : undefined
                     }
                   />
                 ) : null}

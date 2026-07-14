@@ -524,6 +524,10 @@ export const api = {
         body: JSON.stringify(payload),
       },
     ),
+  deleteOrgCell: (id: string) =>
+    request<OrgStructureResponse>(`/api/org-cells/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
   listCatalogOptions: () => request<{ catalogs: CatalogGroup[] }>('/api/catalog-options'),
   createCatalogOption: (payload: { catalogKey: CatalogKey; value: string }) =>
     request<{ option: CatalogOption }>('/api/catalog-options', {

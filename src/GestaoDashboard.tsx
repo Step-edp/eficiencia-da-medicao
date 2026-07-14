@@ -592,6 +592,7 @@ type CellResponsibleEditorProps = {
   canManage: boolean
   busy?: boolean
   onAssign: (payload: LeadershipPayload) => Promise<void>
+  onDelete?: () => Promise<void>
 }
 
 export function CellResponsibleEditor({
@@ -600,10 +601,13 @@ export function CellResponsibleEditor({
   canManage,
   busy = false,
   onAssign,
+  onDelete,
 }: CellResponsibleEditorProps) {
   const [responsibleUserId, setResponsibleUserId] = useState(cell.responsibleUserId ?? '')
   const [substituteUserId, setSubstituteUserId] = useState(cell.substituteUserId ?? '')
   const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const status = cell.status === 'ativa' ? 'ativa' : 'pendente'
   const pendingReason = leadershipPendingReason(
     cell.responsibleUserId,
@@ -623,6 +627,20 @@ export function CellResponsibleEditor({
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível salvar.')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!onDelete) return
+    setError(null)
+    setDeleting(true)
+    try {
+      await onDelete()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível excluir a célula.')
+      setConfirmDelete(false)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -669,7 +687,7 @@ export function CellResponsibleEditor({
                 setResponsibleUserId(next)
                 if (!next || next === substituteUserId) setSubstituteUserId('')
               }}
-              disabled={busy}
+              disabled={busy || deleting}
             >
               <option value="">Sem responsável — pendente</option>
               <UserOptions users={candidateUsers} />
@@ -680,9 +698,9 @@ export function CellResponsibleEditor({
             <select
               value={substituteUserId}
               onChange={(event) => setSubstituteUserId(event.target.value)}
-              disabled={busy || !responsibleUserId}
+              disabled={busy || deleting || !responsibleUserId}
             >
-                    <option value="">Sem substituto — pendente</option>
+              <option value="">Sem substituto — pendente</option>
               <UserOptions users={candidateUsers} excludeId={responsibleUserId || undefined} />
             </select>
           </label>
@@ -691,14 +709,55 @@ export function CellResponsibleEditor({
               {error}
             </p>
           ) : null}
-          <button
-            type="button"
-            className="primary-button"
-            disabled={busy}
-            onClick={() => void handleSave()}
-          >
-            {busy ? 'Salvando…' : 'Salvar liderança'}
-          </button>
+          <div className="gestao-create-cell-actions">
+            <button
+              type="button"
+              className="primary-button"
+              disabled={busy || deleting}
+              onClick={() => void handleSave()}
+            >
+              {busy ? 'Salvando…' : 'Salvar liderança'}
+            </button>
+            {onDelete ? (
+              confirmDelete ? (
+                <>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    disabled={busy || deleting}
+                    onClick={() => void handleDelete()}
+                  >
+                    {deleting ? 'Excluindo…' : 'Confirmar exclusão'}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={busy || deleting}
+                    onClick={() => setConfirmDelete(false)}
+                  >
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="danger-button"
+                  disabled={busy || deleting}
+                  onClick={() => {
+                    setError(null)
+                    setConfirmDelete(true)
+                  }}
+                >
+                  Excluir célula
+                </button>
+              )
+            ) : null}
+          </div>
+          {confirmDelete ? (
+            <p className="users-dashboard-ranking-hint">
+              A exclusão remove a célula permanentemente. Esta ação não pode ser desfeita.
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>
