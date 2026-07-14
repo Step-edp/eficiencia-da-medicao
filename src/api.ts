@@ -22,6 +22,7 @@ export type AppUser = {
   thirdPartyCompany?: string
   locality?: string
   edpUnit?: string
+  profilePhoto?: string
 }
 
 export type CatalogKey = 'cargo' | 'area' | 'tipo' | 'terceira' | 'localidade'
@@ -266,6 +267,7 @@ export const api = {
     workSubtype?: string
     locality?: string
     edpUnit?: string
+    profilePhoto?: string
   }) =>
     request<{ user: AppUser }>('/api/auth/register', {
       method: 'POST',

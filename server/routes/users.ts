@@ -25,6 +25,7 @@ type UserRow = {
   third_party_company: string
   locality: string
   edp_unit: string
+  profile_photo: string
 }
 
 function mapUser(row: UserRow) {
@@ -49,6 +50,7 @@ function mapUser(row: UserRow) {
     thirdPartyCompany: row.third_party_company,
     locality: row.locality,
     edpUnit: row.edp_unit,
+    profilePhoto: row.profile_photo || '',
   }
 }
 
@@ -110,6 +112,7 @@ export async function register(req: Request, res: Response) {
     workSubtype,
     locality,
     edpUnit,
+    profilePhoto,
   } = req.body as Record<string, string | undefined>
 
   const normalizedEmploymentType = employmentType?.trim() ?? ''
@@ -120,6 +123,17 @@ export async function register(req: Request, res: Response) {
   const normalizedLocality = locality?.trim() ?? ''
   const normalizedWhatsapp = whatsapp?.trim() ?? ''
   const normalizedEdpUnit = edpUnit?.trim() ?? ''
+  const normalizedProfilePhoto = profilePhoto?.trim() ?? ''
+
+  if (
+    normalizedProfilePhoto &&
+    (!normalizedProfilePhoto.startsWith('data:image/') || normalizedProfilePhoto.length > 3_500_000)
+  ) {
+    res.status(400).json({
+      error: 'Envie uma imagem de perfil válida com até cerca de 2 MB.',
+    })
+    return
+  }
 
   if (
     !name?.trim() ||
@@ -203,11 +217,12 @@ export async function register(req: Request, res: Response) {
         id, name, registration, password_hash, email, role, approval_status,
         requested_at,
         birth_date, job_title, cpf, personal_description, hobby, whatsapp,
-        employment_type, third_party_company, work_area, work_subtype, locality, edp_unit
+        employment_type, third_party_company, work_area, work_subtype, locality, edp_unit,
+        profile_photo
       ) VALUES (
         $1,$2,$3,$4,$5,'compras','pending',
         NOW(),
-        $6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
+        $6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
       )
       RETURNING *`,
       [
@@ -228,6 +243,7 @@ export async function register(req: Request, res: Response) {
         '',
         normalizedLocality,
         normalizedEdpUnit,
+        normalizedProfilePhoto,
       ],
     )
 
@@ -238,7 +254,10 @@ export async function register(req: Request, res: Response) {
       entityType: 'user',
       entityId: stampedUser.id,
       summary: `Cadastro solicitado: ${stampedUser.registration}`,
-      newData: stampedUser,
+      newData: {
+        ...stampedUser,
+        profilePhoto: stampedUser.profilePhoto ? '[imagem anexada]' : '',
+      },
     })
 
     // Carimbo fica só no banco/admin; não devolve a data ao solicitante.

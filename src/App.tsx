@@ -165,6 +165,7 @@ export default function App() {
     workSubtype: string
     locality: string
     edpUnit: string
+    profilePhoto: string
   }) => {
     await api.register(payload)
   }
@@ -754,6 +755,13 @@ function PendingApprovalItem({
   return (
     <article className="approval-item">
       <div>
+        {user.profilePhoto ? (
+          <img
+            className="profile-photo-thumb"
+            src={user.profilePhoto}
+            alt={`Foto de ${user.name}`}
+          />
+        ) : null}
         <strong>{user.name}</strong>
         <span>Matrícula: {user.registration}</span>
         <span>E-mail: {user.email}</span>
@@ -1792,6 +1800,14 @@ function HomePanel({
                         {roleLabel(selectedUserDetail.role)} ·{' '}
                         {statusLabel(selectedUserDetail.approvalStatus)}
                       </p>
+
+                      {selectedUserDetail.profilePhoto ? (
+                        <img
+                          className="profile-photo-detail"
+                          src={selectedUserDetail.profilePhoto}
+                          alt={`Foto de ${selectedUserDetail.name}`}
+                        />
+                      ) : null}
 
                       <dl className="user-detail-grid">
                         <div>
@@ -3334,8 +3350,33 @@ type RegisterPanelProps = {
     workSubtype: string
     locality: string
     edpUnit: string
+    profilePhoto: string
   }) => Promise<void>
   onRegistered: () => void
+}
+
+function readImageAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error('Selecione um arquivo de imagem.'))
+      return
+    }
+    if (file.size > 2_000_000) {
+      reject(new Error('A foto de perfil deve ter no máximo 2 MB.'))
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result)
+        return
+      }
+      reject(new Error('Não foi possível ler a imagem selecionada.'))
+    }
+    reader.onerror = () => reject(new Error('Não foi possível ler a imagem selecionada.'))
+    reader.readAsDataURL(file)
+  })
 }
 
 function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelProps) {
@@ -3352,6 +3393,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
   const [whatsapp, setWhatsapp] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [profilePhoto, setProfilePhoto] = useState('')
+  const [profilePhotoName, setProfilePhotoName] = useState('')
   const [cargoOptions, setCargoOptions] = useState<string[]>([
     'Técnico',
     'Analista',
@@ -3435,6 +3478,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         workSubtype: '',
         locality,
         edpUnit,
+        profilePhoto,
       })
 
       setFeedback({
@@ -3455,6 +3499,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setWhatsapp('')
       setPassword('')
       setConfirmPassword('')
+      setProfilePhoto('')
+      setProfilePhotoName('')
       onRegistered()
     } catch (error) {
       setFeedback({
@@ -3641,8 +3687,49 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           onChange={setConfirmPassword}
         />
 
+        <label className="register-photo-field">
+          Foto de perfil
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (!file) {
+                setProfilePhoto('')
+                setProfilePhotoName('')
+                return
+              }
+
+              void readImageAsDataUrl(file)
+                .then((dataUrl) => {
+                  setProfilePhoto(dataUrl)
+                  setProfilePhotoName(file.name)
+                  setFeedback(null)
+                })
+                .catch((error: unknown) => {
+                  setProfilePhoto('')
+                  setProfilePhotoName('')
+                  event.target.value = ''
+                  setFeedback({
+                    type: 'error',
+                    message:
+                      error instanceof Error
+                        ? error.message
+                        : 'Não foi possível carregar a foto de perfil.',
+                  })
+                })
+            }}
+          />
+          {profilePhoto ? (
+            <span className="register-photo-preview">
+              <img src={profilePhoto} alt="Pré-visualização da foto de perfil" />
+              <small>{profilePhotoName || 'Imagem selecionada'}</small>
+            </span>
+          ) : null}
+        </label>
+
         <button className="primary-button login-enter-button" type="submit">
-          Cadastrar para aprovação
+          Enviar cadastro para aprovação
         </button>
       </form>
     </section>
