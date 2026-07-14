@@ -1177,6 +1177,12 @@ button {
   color: var(--text-soft);
 }
 
+.users-section-heading {
+  margin: 18px 0 8px;
+  color: var(--text-main);
+  font-size: 1.05rem;
+}
+
 .approval-item-actions {
   display: grid;
   gap: 10px;
