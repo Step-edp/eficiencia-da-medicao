@@ -4,7 +4,13 @@ import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
-import { getHomeAreasForRole, roleLabel } from './profilesAccess'
+import {
+  ADMIN_PREVIEW_PROFILE_ID,
+  CADASTRO_PROFILES,
+  getHomeAreasForProfilePreview,
+  getHomeAreasForRole,
+  roleLabel,
+} from './profilesAccess'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
 import { SatisfactionSurveyPage } from './ratm/SatisfactionSurveyPage'
 import { mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
@@ -838,6 +844,7 @@ function HomePanel({
   const [selectedUserDetail, setSelectedUserDetail] = useState<AppUser | null>(null)
   const [usersView, setUsersView] = useState<'usuarios' | 'pendentes'>('usuarios')
   const [terceiraOptions, setTerceiraOptions] = useState<string[]>([...THIRD_PARTY_COMPANIES])
+  const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
 
   useEffect(() => {
     void api
@@ -1013,10 +1020,26 @@ function HomePanel({
     },
   ]
 
-  const allowedHomeAreas = getHomeAreasForRole(currentUser.role)
+  const allowedHomeAreas = isAdmin
+    ? getHomeAreasForProfilePreview(previewProfileId)
+    : getHomeAreasForRole(currentUser.role)
   const areas = allAreas.filter((area) =>
     allowedHomeAreas.includes(area.title as (typeof allowedHomeAreas)[number]),
   )
+  const previewProfile =
+    isAdmin && previewProfileId !== ADMIN_PREVIEW_PROFILE_ID
+      ? CADASTRO_PROFILES.find((profile) => profile.id === previewProfileId)
+      : null
+
+  useEffect(() => {
+    if (!previewProfile || !selectedArea) return
+    if (!previewProfile.areas.includes(selectedArea.title as (typeof previewProfile.areas)[number])) {
+      setSelectedArea(null)
+      setSelectedMeasurementSection(null)
+      setSelectedLabMeasurementSection(null)
+      setSelectedHomologationSection(null)
+    }
+  }, [previewProfile, selectedArea])
 
   const handleRatmFinish = async (forms: RatmFormData[]) => {
     const response = await api.createRatmLaudos(forms)
@@ -2831,6 +2854,35 @@ function HomePanel({
         <TopActionBar onLogout={onLogout} />
         <p className="section-tag">Home</p>
         <h2>Bem-vindo ao portal, {currentUser.name}</h2>
+
+        {isAdmin ? (
+          <div className="profile-preview-bar">
+            <label>
+              Ver como o perfil
+              <select
+                value={previewProfileId}
+                onChange={(event) => {
+                  setPreviewProfileId(event.target.value)
+                  setSelectedArea(null)
+                }}
+              >
+                <option value={ADMIN_PREVIEW_PROFILE_ID}>Administrador (visão completa)</option>
+                {CADASTRO_PROFILES.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {previewProfile ? (
+              <p className="profile-preview-note">
+                Pré-visualização: <strong>{previewProfile.name}</strong>. Só as áreas desse
+                perfil aparecem abaixo.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="home-areas" aria-label="Áreas do portal">
           {areas.map((area) => (
             <button
@@ -2846,6 +2898,11 @@ function HomePanel({
             </button>
           ))}
         </div>
+        {!areas.length ? (
+          <p className="generated-password-empty">
+            Este perfil não possui áreas de acesso na home.
+          </p>
+        ) : null}
       </section>
     </main>
   )

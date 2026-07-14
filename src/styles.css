@@ -80,6 +80,31 @@ button {
   color: var(--text-soft);
 }
 
+.profile-preview-bar {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  background: rgba(5, 26, 44, 0.55);
+}
+
+.profile-preview-bar label {
+  display: grid;
+  gap: 8px;
+  max-width: 520px;
+}
+
+.profile-preview-note {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
+.profile-preview-note strong {
+  color: var(--text-main);
+}
+
 .home-areas {
   display: grid;
   gap: 14px;
