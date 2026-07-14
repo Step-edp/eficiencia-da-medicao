@@ -532,7 +532,7 @@ function TopActionBar({ onBack, onHome, onLogout }: TopActionBarProps) {
 }
 
 function ItemIcon({ title }: { title: string }) {
-  const iconByTitle: Record<string, 'chart' | 'flask' | 'calendar' | 'search' | 'inbox' | 'cube' | 'check' | 'image' | 'bolt' | 'ruler' | 'smile' | 'shield' | 'archive' | 'trash' | 'presentation' | 'truck' | 'book' | 'code' | 'lock' | 'key' | 'database' | 'repeat' | 'building' | 'layer' | 'monitor' | 'star'> = {
+  const iconByTitle: Record<string, 'chart' | 'flask' | 'calendar' | 'search' | 'inbox' | 'cube' | 'check' | 'image' | 'bolt' | 'ruler' | 'smile' | 'shield' | 'archive' | 'trash' | 'presentation' | 'truck' | 'book' | 'code' | 'lock' | 'key' | 'database' | 'repeat' | 'building' | 'layer' | 'monitor' | 'star' | 'users'> = {
     Dashboard: 'chart',
     Ensaiar: 'flask',
     Agendar: 'calendar',
@@ -571,6 +571,7 @@ function ItemIcon({ title }: { title: string }) {
     'Pedidos de Homologação': 'archive',
     'Código de materiais': 'code',
     'Equipe de campo': 'truck',
+    Usuários: 'users',
     Consultar: 'search',
   }
 
@@ -622,6 +623,13 @@ function ItemIcon({ title }: { title: string }) {
         {icon === 'building' ? <path d="M4 21h16M6 21V7h12v14M9 10h2m2 0h2m-6 4h2m2 0h2" fill="none" stroke="currentColor" strokeWidth="2" /> : null}
         {icon === 'layer' ? <path d="M12 4l8 4-8 4-8-4 8-4zm8 8l-8 4-8-4m16 4l-8 4-8-4" fill="none" stroke="currentColor" strokeWidth="2" /> : null}
         {icon === 'monitor' ? <path d="M3 5h18v12H3V5zm6 16h6m-4-4h2" fill="none" stroke="currentColor" strokeWidth="2" /> : null}
+        {icon === 'users' ? (
+          <>
+            <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <circle cx="9" cy="7" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
+            <path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a3 3 0 010 5.74" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </>
+        ) : null}
         {icon === 'star' ? <path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9L12 3z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /> : null}
       </svg>
     </span>
@@ -791,6 +799,12 @@ function HomePanel({
         'Agendar e consultar medidores no Agendamento Lab Med (mesmo banco do laboratório).',
       details:
         'Abre o aplicativo Agendamento Lab Med com login automático. Os agendamentos entram direto na trilha Entrada de medidores.',
+    },
+    {
+      title: 'Usuários',
+      description: 'Cadastros, aprovações e perfis de acesso ao portal.',
+      details:
+        'Consulte usuários cadastrados, aprove solicitações pendentes e acompanhe o perfil de cada matrícula.',
     },
   ]
 
@@ -1374,6 +1388,133 @@ function HomePanel({
               <p className="generated-password-empty">
                 Somente o perfil administrador pode aprovar cadastros.
               </p>
+            )}
+          </section>
+        </main>
+      )
+    }
+
+    if (selectedArea.title === 'Usuários') {
+      const roleLabel = (role: AppUser['role']) => {
+        if (role === 'admin') return 'Administrador'
+        if (role === 'field') return 'Equipe de campo'
+        return 'Compras'
+      }
+
+      const statusLabel = (status: AppUser['approvalStatus']) =>
+        status === 'approved' ? 'Aprovado' : 'Pendente'
+
+      return (
+        <main className="shell">
+          <section className="home-card area-screen-card">
+            <TopActionBar
+              onBack={() => setSelectedArea(null)}
+              onHome={() => setSelectedArea(null)}
+              onLogout={onLogout}
+            />
+            <p className="section-tag">Usuários</p>
+            <h2>Gestão de usuários</h2>
+            <p>
+              Consulte os cadastros do portal, aprove solicitações pendentes e
+              acompanhe o perfil de cada matrícula.
+            </p>
+
+            {passwordFeedback ? (
+              <div className={`login-feedback ${passwordFeedback.type}`} role="status">
+                {passwordFeedback.message}
+              </div>
+            ) : null}
+
+            {!isAdmin ? (
+              <p className="generated-password-empty">
+                Somente o perfil administrador pode gerenciar usuários.
+              </p>
+            ) : (
+              <>
+                <h3 className="users-section-heading">Solicitações pendentes</h3>
+                <div className="approval-list" aria-label="Solicitações pendentes para aprovação">
+                  {pendingApprovalUsers.length ? (
+                    pendingApprovalUsers.map((user) => (
+                      <article key={user.id} className="approval-item">
+                        <div>
+                          <strong>{user.name}</strong>
+                          <span>Matrícula: {user.registration}</span>
+                          <span>E-mail: {user.email}</span>
+                          <span>Cargo: {user.jobTitle || 'Não informado'}</span>
+                          <span>Perfil solicitado: {roleLabel(user.role)}</span>
+                          <span>
+                            Solicitação enviada em{' '}
+                            {new Date(user.requestedAt).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                        <button
+                          className="primary-button compact-button"
+                          type="button"
+                          onClick={() => {
+                            void onApproveUser(user.id)
+                              .then(() => {
+                                setPasswordFeedback({
+                                  type: 'success',
+                                  message: `Acesso de ${user.name} aprovado com sucesso.`,
+                                })
+                              })
+                              .catch((error) => {
+                                setPasswordFeedback({
+                                  type: 'error',
+                                  message:
+                                    error instanceof ApiError
+                                      ? error.message
+                                      : 'Não foi possível aprovar o usuário.',
+                                })
+                              })
+                          }}
+                        >
+                          Aprovar acesso
+                        </button>
+                      </article>
+                    ))
+                  ) : (
+                    <p className="generated-password-empty">
+                      Nenhuma solicitação pendente no momento.
+                    </p>
+                  )}
+                </div>
+
+                <h3 className="users-section-heading">Usuários cadastrados</h3>
+                <p className="consultar-summary">
+                  {users.length} usuário(s) no portal
+                </p>
+                <div className="entrada-table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Nome</th>
+                        <th>Matrícula</th>
+                        <th>E-mail</th>
+                        <th>Cargo</th>
+                        <th>Perfil</th>
+                        <th>Status</th>
+                        <th>Solicitado em</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map((user) => (
+                        <tr key={user.id}>
+                          <td>{user.name}</td>
+                          <td>{user.registration}</td>
+                          <td>{user.email}</td>
+                          <td>{user.jobTitle || '—'}</td>
+                          <td>{roleLabel(user.role)}</td>
+                          <td>{statusLabel(user.approvalStatus)}</td>
+                          <td>
+                            {new Date(user.requestedAt).toLocaleString('pt-BR')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </section>
         </main>
@@ -2735,6 +2876,10 @@ function getAreaCardClassName(title: string) {
 
   if (title === 'Equipe de campo') {
     return 'area-card-equipe-campo'
+  }
+
+  if (title === 'Usuários') {
+    return 'area-card-usuarios'
   }
 
   return ''

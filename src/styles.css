@@ -139,6 +139,10 @@ button {
   order: 6;
 }
 
+.area-card-usuarios {
+  order: 7;
+}
+
 .area-card-title {
   display: inline-flex;
   align-items: center;
