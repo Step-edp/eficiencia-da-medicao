@@ -201,6 +201,63 @@ export function subtypesForCargo(jobTitle: string, workArea = ''): readonly stri
   return []
 }
 
+/** Soma processos de catálogo ligados a um portal da home. */
+export function processCountForHomePortal(portal: string): number {
+  let count = 0
+  for (const [area, processes] of Object.entries(PROCESSES_BY_AREA)) {
+    if ((AREA_TO_HOME_PORTALS[area] ?? []).includes(portal)) {
+      count += processes.length
+    }
+  }
+  return count
+}
+
+/**
+ * Quantidade de processos sob responsabilidade do usuário,
+ * conforme cargo, escopo/abrangência e processos específicos.
+ */
+export function countResponsibleProcesses(user: {
+  role?: string
+  jobTitle?: string | null
+  workArea?: string | null
+  workSubtype?: string | null
+  accessAreas?: string[] | null
+  accessProcesses?: string[] | null
+}): number {
+  if (user.role === 'admin') return 0
+
+  const jobTitle = user.jobTitle?.trim() ?? ''
+  const workArea = user.workArea?.trim() ?? ''
+  const workSubtype = user.workSubtype?.trim() ?? ''
+  const ownAreaProcesses = workArea ? (PROCESSES_BY_AREA[workArea] ?? []) : []
+
+  if (jobTitle === 'Engenheiro') {
+    if (workSubtype === 'Área') {
+      return ownAreaProcesses.length
+    }
+    if (workSubtype === 'Sub-área') {
+      return (user.accessAreas ?? []).reduce(
+        (sum, portal) => sum + processCountForHomePortal(portal),
+        0,
+      )
+    }
+    if (workSubtype === 'Processos específicos') {
+      return ownAreaProcesses.length + (user.accessProcesses?.length ?? 0)
+    }
+    return ownAreaProcesses.length
+  }
+
+  if (jobTitle === 'Técnico' && workSubtype) {
+    return 1
+  }
+
+  if (ownAreaProcesses.length > 0) {
+    return ownAreaProcesses.length
+  }
+
+  return user.accessProcesses?.length ?? 0
+}
+
 /** Monta o rótulo do perfil: Área → Cargo → Escopo → demais informações. */
 export function buildRequestedProfile(
   jobTitle: string,

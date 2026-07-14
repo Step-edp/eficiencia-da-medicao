@@ -1480,7 +1480,7 @@ button {
 
 .users-dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -1495,6 +1495,22 @@ button {
   margin: 0 0 14px;
   font-size: 1rem;
   font-weight: 600;
+}
+
+.users-dashboard-ranking {
+  grid-column: 1 / -1;
+}
+
+.users-dashboard-ranking-hint {
+  margin: -6px 0 14px;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.users-dashboard-rank-cell {
+  display: grid;
+  gap: 6px;
+  min-width: 96px;
 }
 
 .users-dashboard-bars {
@@ -1514,6 +1530,17 @@ button {
   color: var(--text-soft);
 }
 
+.users-dashboard-bar-meta strong {
+  color: var(--text-main);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.users-dashboard-bar-meta strong span {
+  color: var(--text-soft);
+  font-weight: 500;
+}
+
 .users-dashboard-bar-track {
   height: 8px;
   border-radius: 999px;
@@ -1528,10 +1555,15 @@ button {
   min-width: 2px;
 }
 
-@media (max-width: 900px) {
-  .users-dashboard-kpis,
+@media (max-width: 1100px) {
   .users-dashboard-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .users-dashboard-kpis {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
