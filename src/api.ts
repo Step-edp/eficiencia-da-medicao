@@ -287,6 +287,10 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload ?? {}),
     }),
+  rejectUser: (id: string) =>
+    request<{ ok: boolean; id: string }>(`/api/users/${id}/reject`, {
+      method: 'PATCH',
+    }),
   updateUser: (
     id: string,
     payload: {

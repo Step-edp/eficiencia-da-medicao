@@ -6,6 +6,7 @@ export type AuditAction =
   | 'update'
   | 'delete'
   | 'approve'
+  | 'reject'
   | 'register'
   | 'block'
   | 'unblock'

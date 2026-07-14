@@ -181,6 +181,11 @@ export default function App() {
     setRegisteredUsers((prev) => prev.map((item) => (item.id === user.id ? user : item)))
   }
 
+  const handleRejectUser = async (userId: string) => {
+    await api.rejectUser(userId)
+    setRegisteredUsers((prev) => prev.filter((item) => item.id !== userId))
+  }
+
   const handleCreateHomologationRequest = async (
     payload: Omit<
       HomologationRequest,
@@ -241,6 +246,7 @@ export default function App() {
         users={registeredUsers}
         homologationRequests={homologationRequests}
         onApproveUser={handleApproveUser}
+        onRejectUser={handleRejectUser}
         onUpdateUser={(user) => {
           setRegisteredUsers((prev) => prev.map((item) => (item.id === user.id ? user : item)))
         }}
@@ -460,6 +466,7 @@ type HomePanelProps = {
   users: AppUser[]
   homologationRequests: HomologationRequest[]
   onApproveUser: (userId: string, payload?: ApproveUserPayload) => Promise<void>
+  onRejectUser: (userId: string) => Promise<void>
   onUpdateUser: (user: AppUser) => void
   onCreateHomologationRequest: (
     payload: Omit<
@@ -716,6 +723,7 @@ type PendingApprovalItemProps = {
   user: AppUser
   terceiraOptions: string[]
   onApprove: (userId: string, payload: ApproveUserPayload) => Promise<void>
+  onReject: (userId: string) => Promise<void>
   onViewDetails: (user: AppUser) => void
   onFeedback: (feedback: { type: 'success' | 'error'; message: string }) => void
 }
@@ -724,6 +732,7 @@ function PendingApprovalItem({
   user,
   terceiraOptions,
   onApprove,
+  onReject,
   onViewDetails,
   onFeedback,
 }: PendingApprovalItemProps) {
@@ -731,6 +740,7 @@ function PendingApprovalItem({
   const [workSubtype, setWorkSubtype] = useState('')
   const [selectedSubareas, setSelectedSubareas] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
   const subtypeOptions = subtypesForCargo(user.jobTitle, user.workArea ?? '')
   const needsCompany = user.employmentType === 'Terceira'
   const needsSubtype = subtypeOptions.length > 0
@@ -796,6 +806,32 @@ function PendingApprovalItem({
       })
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleReject = async () => {
+    const confirmed = window.confirm(
+      `Reprovar o cadastro de ${user.name} (${user.registration})? O solicitante poderá se cadastrar novamente.`,
+    )
+    if (!confirmed) return
+
+    setRejecting(true)
+    try {
+      await onReject(user.id)
+      onFeedback({
+        type: 'success',
+        message: `Cadastro de ${user.name} reprovado.`,
+      })
+    } catch (error) {
+      onFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível reprovar o cadastro.',
+      })
+    } finally {
+      setRejecting(false)
     }
   }
 
@@ -892,9 +928,17 @@ function PendingApprovalItem({
           Ver detalhes
         </button>
         <button
+          className="danger-button compact-button"
+          type="button"
+          disabled={submitting || rejecting}
+          onClick={() => void handleReject()}
+        >
+          {rejecting ? 'Reprovando...' : 'Reprovar cadastro'}
+        </button>
+        <button
           className="primary-button compact-button"
           type="button"
-          disabled={submitting}
+          disabled={submitting || rejecting}
           onClick={() => void handleApprove()}
         >
           {submitting ? 'Aprovando...' : 'Aprovar acesso'}
@@ -911,6 +955,7 @@ function HomePanel({
   users,
   homologationRequests,
   onApproveUser,
+  onRejectUser,
   onUpdateUser,
   onCreateHomologationRequest,
   onLogout,
@@ -1663,6 +1708,12 @@ function HomePanel({
                       user={user}
                       terceiraOptions={terceiraOptions}
                       onApprove={onApproveUser}
+                      onReject={async (userId) => {
+                        await onRejectUser(userId)
+                        setSelectedUserDetail((current) =>
+                          current?.id === userId ? null : current,
+                        )
+                      }}
                       onViewDetails={setSelectedUserDetail}
                       onFeedback={setPasswordFeedback}
                     />
@@ -1769,6 +1820,12 @@ function HomePanel({
                           user={user}
                           terceiraOptions={terceiraOptions}
                           onApprove={onApproveUser}
+                          onReject={async (userId) => {
+                            await onRejectUser(userId)
+                            setSelectedUserDetail((current) =>
+                              current?.id === userId ? null : current,
+                            )
+                          }}
                           onViewDetails={setSelectedUserDetail}
                           onFeedback={setPasswordFeedback}
                         />

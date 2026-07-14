@@ -746,6 +746,47 @@ export async function updateUser(req: Request, res: Response) {
   }
 }
 
+export async function rejectUser(req: Request, res: Response) {
+  const { id } = req.params
+
+  const previous = await query<UserRow>(
+    `SELECT * FROM users
+     WHERE id = $1
+       AND role = 'compras'
+       AND approval_status = 'pending'`,
+    [id],
+  )
+
+  if (!previous.rows[0]) {
+    res.status(404).json({ error: 'Cadastro pendente não encontrado.' })
+    return
+  }
+
+  const pending = mapUser(previous.rows[0])
+
+  await writeAuditLog(req, {
+    action: 'reject',
+    entityType: 'user',
+    entityId: pending.id,
+    summary: `Cadastro reprovado: ${pending.registration}`,
+    oldData: {
+      ...pending,
+      profilePhoto: pending.profilePhoto ? '[imagem anexada]' : '',
+    },
+  })
+
+  await query(`UPDATE audit_logs SET user_id = NULL WHERE user_id = $1`, [id])
+  await query(
+    `DELETE FROM users
+     WHERE id = $1
+       AND role = 'compras'
+       AND approval_status = 'pending'`,
+    [id],
+  )
+
+  res.json({ ok: true, id })
+}
+
 export const authRoutes = {
   login,
   register,
@@ -756,4 +797,5 @@ export const authRoutes = {
   listUsers: [requireAuth, requireAdmin, listUsers],
   approveUser: [requireAuth, requireAdmin, approveUser],
   updateUser: [requireAuth, requireAdmin, updateUser],
+  rejectUser: [requireAuth, requireAdmin, rejectUser],
 }

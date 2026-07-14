@@ -3,6 +3,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   update: 'Edição',
   delete: 'Exclusão',
   approve: 'Aprovação',
+  reject: 'Reprovação',
   register: 'Solicitação de cadastro',
   block: 'Bloqueio',
   unblock: 'Desbloqueio',

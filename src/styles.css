@@ -317,6 +317,19 @@ button {
   background: rgba(8, 39, 66, 0.8);
 }
 
+.danger-button {
+  border: 1px solid rgba(255, 120, 120, 0.45);
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: #ffe0e0;
+  background: rgba(110, 23, 23, 0.55);
+}
+
+.danger-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 .area-screen-card {
   width: min(1280px, 100%);
 }

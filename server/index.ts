@@ -98,6 +98,7 @@ async function start() {
   app.post('/api/auth/sso-exchange', wrap(authRoutes.exchangeSsoToken))
   app.get('/api/users', ...wrap(authRoutes.listUsers))
   app.patch('/api/users/:id/approve', ...wrap(authRoutes.approveUser))
+  app.patch('/api/users/:id/reject', ...wrap(authRoutes.rejectUser))
   app.patch('/api/users/:id', ...wrap(authRoutes.updateUser))
 
   app.get('/api/homologation-requests', ...wrap(homologationRoutes.list))
