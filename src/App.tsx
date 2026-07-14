@@ -56,6 +56,13 @@ import {
   ORG_STRUCTURE,
   type OrgAreaLeadership,
 } from './orgStructure'
+import {
+  clearHomeNavState,
+  loadHomeNavState,
+  saveHomeNavState,
+  type GestaoHomeTab,
+  type UsersViewTab,
+} from './homeNavState'
 
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
 const FIELD_APP_URL =
@@ -225,6 +232,7 @@ export default function App() {
     try {
       await api.logout()
     } finally {
+      clearHomeNavState()
       setAuthenticatedUser(null)
       setRegisteredUsers([])
       setHomologationRequests([])
@@ -1203,30 +1211,52 @@ function HomePanel({
   onCreateHomologationRequest,
   onLogout,
 }: HomePanelProps) {
+  const savedNav = useMemo(() => loadHomeNavState(currentUser.id), [currentUser.id])
+  const [navReady, setNavReady] = useState(() => !savedNav?.selectedAreaTitle)
+
   const [selectedArea, setSelectedArea] = useState<Area | null>(null)
-  const [selectedMeasurementSection, setSelectedMeasurementSection] =
-    useState<string | null>(null)
-  const [selectedLabMeasurementSection, setSelectedLabMeasurementSection] =
-    useState<string | null>(null)
-  const [selectedHomologationSection, setSelectedHomologationSection] =
-    useState<string | null>(null)
+  const [selectedMeasurementSection, setSelectedMeasurementSection] = useState<string | null>(
+    () => savedNav?.selectedMeasurementSection ?? null,
+  )
+  const [selectedLabMeasurementSection, setSelectedLabMeasurementSection] = useState<
+    string | null
+  >(() => savedNav?.selectedLabMeasurementSection ?? null)
+  const [selectedHomologationSection, setSelectedHomologationSection] = useState<string | null>(
+    () => savedNav?.selectedHomologationSection ?? null,
+  )
   const [openingFieldApp, setOpeningFieldApp] = useState(false)
   const [selectedUserDetail, setSelectedUserDetail] = useState<AppUser | null>(null)
   const [userDetailStartEditing, setUserDetailStartEditing] = useState(false)
-  const [usersView, setUsersView] = useState<'usuarios' | 'pendentes' | 'dashboard'>(
-    'usuarios',
+  const [usersView, setUsersView] = useState<UsersViewTab>(
+    () => savedNav?.usersView ?? 'usuarios',
   )
-  const [gestaoHomeTab, setGestaoHomeTab] = useState<'dash' | 'celulas' | 'pessoas'>('dash')
+  const [gestaoHomeTab, setGestaoHomeTab] = useState<GestaoHomeTab>(
+    () => savedNav?.gestaoHomeTab ?? 'dash',
+  )
   const [terceiraOptions, setTerceiraOptions] = useState<string[]>([...THIRD_PARTY_COMPANIES])
-  const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
-  const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(null)
-  const [, setSelectedOrgSubcell] = useState<string | null>(null)
+  const [previewProfileId, setPreviewProfileId] = useState(
+    () => savedNav?.previewProfileId ?? ADMIN_PREVIEW_PROFILE_ID,
+  )
+  const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(
+    () => savedNav?.selectedOrgCell ?? null,
+  )
+  const [selectedOrgSubcell, setSelectedOrgSubcell] = useState<string | null>(
+    () => savedNav?.selectedOrgSubcell ?? null,
+  )
   const [orgCells, setOrgCells] = useState(() => [...ORG_STRUCTURE.cells])
   const [orgAreas, setOrgAreas] = useState<OrgAreaLeadership[]>([DEFAULT_ORG_AREA_LEADERSHIP])
   const [orgArea, setOrgArea] = useState<OrgAreaLeadership>(DEFAULT_ORG_AREA_LEADERSHIP)
-  const [selectedOrgAreaId, setSelectedOrgAreaId] = useState<string | null>(null)
+  const [selectedOrgAreaId, setSelectedOrgAreaId] = useState<string | null>(
+    () => savedNav?.selectedOrgAreaId ?? null,
+  )
   const [orgCellsBusy, setOrgCellsBusy] = useState(false)
   const [orgCellsError, setOrgCellsError] = useState<string | null>(null)
+  const [selectedCodeMaterialsAction, setSelectedCodeMaterialsAction] = useState<
+    'create' | null
+  >(() => savedNav?.selectedCodeMaterialsAction ?? null)
+  const [selectedPasswordAction, setSelectedPasswordAction] = useState<string | null>(
+    () => savedNav?.selectedPasswordAction ?? null,
+  )
 
   useEffect(() => {
     void api
@@ -1286,11 +1316,27 @@ function HomePanel({
         )
 
         const adminUser = currentUser.role === 'admin'
-        if (!adminUser && nextAreas.length === 1) {
+        const preferredAreaId = savedNav?.selectedOrgAreaId
+        const preferredArea = preferredAreaId
+          ? nextAreas.find((item) => item.id === preferredAreaId)
+          : null
+
+        if (preferredArea) {
+          setSelectedOrgAreaId(preferredArea.id)
+          setOrgArea(preferredArea)
+        } else if (!adminUser && nextAreas.length === 1) {
           setSelectedOrgAreaId(nextAreas[0].id)
           setOrgArea(nextAreas[0])
         } else if (nextAreas.length === 1) {
           setOrgArea(nextAreas[0])
+        }
+
+        if (
+          savedNav?.selectedOrgCell &&
+          !cells.some((cell) => cell.id === savedNav.selectedOrgCell)
+        ) {
+          setSelectedOrgCell(null)
+          setSelectedOrgSubcell(null)
         }
       })
       .catch(() => {
@@ -1298,13 +1344,9 @@ function HomePanel({
         setOrgArea(DEFAULT_ORG_AREA_LEADERSHIP)
         setOrgCells([...ORG_STRUCTURE.cells])
       })
-  }, [currentUser.role])
+  }, [currentUser.role, savedNav?.selectedOrgAreaId, savedNav?.selectedOrgCell])
   const [trailStepCounts, setTrailStepCounts] = useState<Record<string, number>>({})
   const [ratmLaudos, setRatmLaudos] = useState<RatmLaudo[]>([])
-  const [selectedCodeMaterialsAction, setSelectedCodeMaterialsAction] = useState<
-    'create' | null
-  >(null)
-  const [selectedPasswordAction, setSelectedPasswordAction] = useState<string | null>(null)
   const [meterNumbersInput, setMeterNumbersInput] = useState('')
   const [passwordDigitsInput, setPasswordDigitsInput] = useState('')
   const [passwordType, setPasswordType] = useState<PasswordTypeSelection>('')
@@ -1562,17 +1604,88 @@ function HomePanel({
   }, [isVacationBlocked, agendaArea, selectedArea?.title])
 
   useEffect(() => {
+    if (navReady) return
+    const savedTitle = savedNav?.selectedAreaTitle
+    if (!savedTitle) {
+      setNavReady(true)
+      return
+    }
+    const area = allAreas.find((item) => item.title === savedTitle) ?? null
+    if (area) {
+      setSelectedArea(area)
+    }
+    setNavReady(true)
+  }, [navReady, savedNav?.selectedAreaTitle, allAreas])
+
+  useEffect(() => {
+    if (!navReady) return
+    saveHomeNavState({
+      userId: currentUser.id,
+      selectedAreaTitle: selectedArea?.title ?? null,
+      selectedOrgAreaId,
+      selectedOrgCell,
+      selectedOrgSubcell,
+      gestaoHomeTab,
+      selectedMeasurementSection,
+      selectedLabMeasurementSection,
+      selectedHomologationSection,
+      selectedPasswordAction,
+      selectedCodeMaterialsAction,
+      usersView,
+      previewProfileId,
+    })
+  }, [
+    navReady,
+    currentUser.id,
+    selectedArea?.title,
+    selectedOrgAreaId,
+    selectedOrgCell,
+    selectedOrgSubcell,
+    gestaoHomeTab,
+    selectedMeasurementSection,
+    selectedLabMeasurementSection,
+    selectedHomologationSection,
+    selectedPasswordAction,
+    selectedCodeMaterialsAction,
+    usersView,
+    previewProfileId,
+  ])
+
+  useEffect(() => {
+    if (!navReady) return
+    void api
+      .me()
+      .then(({ user }) => onCurrentUserChange(user))
+      .catch(() => {
+        // Mantém a sessão atual se a atualização falhar.
+      })
+  }, [navReady, onCurrentUserChange])
+
+  useEffect(() => {
+    if (!navReady) return
     if (!isGestorView || !gestaoArea || isVacationBlocked || isOnAbsence) return
     if (!selectedArea) {
       setSelectedArea(gestaoArea)
-      setSelectedOrgCell(null)
-      setSelectedOrgSubcell(null)
+      if (!savedNav?.selectedOrgCell) {
+        setSelectedOrgCell(null)
+        setSelectedOrgSubcell(null)
+      }
       if (!isAdmin && orgAreas.length === 1) {
         setSelectedOrgAreaId(orgAreas[0].id)
         setOrgArea(orgAreas[0])
       }
     }
-  }, [isGestorView, gestaoArea, selectedArea, isVacationBlocked, isOnAbsence, isAdmin, orgAreas])
+  }, [
+    navReady,
+    isGestorView,
+    gestaoArea,
+    selectedArea,
+    isVacationBlocked,
+    isOnAbsence,
+    isAdmin,
+    orgAreas,
+    savedNav?.selectedOrgCell,
+  ])
 
   useEffect(() => {
     if (selectedArea?.title !== 'Gestão Operacional') return
