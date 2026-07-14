@@ -1234,9 +1234,7 @@ function HomePanel({
     () => savedNav?.gestaoHomeTab ?? 'dash',
   )
   const [terceiraOptions, setTerceiraOptions] = useState<string[]>([...THIRD_PARTY_COMPANIES])
-  const [previewProfileId, setPreviewProfileId] = useState(
-    () => savedNav?.previewProfileId ?? ADMIN_PREVIEW_PROFILE_ID,
-  )
+  const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(
     () => savedNav?.selectedOrgCell ?? null,
   )
@@ -1632,7 +1630,6 @@ function HomePanel({
       selectedPasswordAction,
       selectedCodeMaterialsAction,
       usersView,
-      previewProfileId,
     })
   }, [
     navReady,
@@ -1648,7 +1645,6 @@ function HomePanel({
     selectedPasswordAction,
     selectedCodeMaterialsAction,
     usersView,
-    previewProfileId,
   ])
 
   useEffect(() => {

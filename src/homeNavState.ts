@@ -14,7 +14,6 @@ export type HomeNavState = {
   selectedPasswordAction: string | null
   selectedCodeMaterialsAction: 'create' | null
   usersView: UsersViewTab
-  previewProfileId: string | null
 }
 
 const STORAGE_KEY = 'edm-home-nav-v1'
@@ -62,8 +61,6 @@ export function loadHomeNavState(userId: string): HomeNavState | null {
       selectedCodeMaterialsAction:
         parsed.selectedCodeMaterialsAction === 'create' ? 'create' : null,
       usersView: isUsersViewTab(parsed.usersView) ? parsed.usersView : 'usuarios',
-      previewProfileId:
-        typeof parsed.previewProfileId === 'string' ? parsed.previewProfileId : null,
     }
   } catch {
     return null
