@@ -7,7 +7,7 @@ export function EdpLogo({ className = '', compact = false }: EdpLogoProps) {
   return (
     <img
       className={`edp-logo ${compact ? 'edp-logo-compact' : ''} ${className}`.trim()}
-      src="/edp-logo.svg"
+      src="/logo/edp-logo.svg"
       alt="EDP"
       draggable={false}
     />
