@@ -657,6 +657,7 @@ function HomePanel({
     useState<string | null>(null)
   const [openingFieldApp, setOpeningFieldApp] = useState(false)
   const [selectedUserDetail, setSelectedUserDetail] = useState<AppUser | null>(null)
+  const [usersView, setUsersView] = useState<'usuarios' | 'pendentes'>('usuarios')
   const [trailStepCounts, setTrailStepCounts] = useState<Record<string, number>>({})
   const [ratmLaudos, setRatmLaudos] = useState<RatmLaudo[]>([])
   const [selectedCodeMaterialsAction, setSelectedCodeMaterialsAction] = useState<
@@ -701,6 +702,7 @@ function HomePanel({
   const pendingApprovalUsers = users.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'pending',
   )
+  const registeredUsers = users.filter((user) => user.approvalStatus === 'approved')
   const measurementSections = [
     'Faturamento de clientes livres',
     'Faturamento de clientes cativos',
@@ -1417,26 +1419,26 @@ function HomePanel({
         return trimmed ? trimmed : '—'
       }
 
+      const leaveUsersArea = () => {
+        setSelectedUserDetail(null)
+        setUsersView('usuarios')
+        setSelectedArea(null)
+      }
+
       return (
         <main className="shell">
           <section className="home-card area-screen-card">
             <TopActionBar
-              onBack={() => {
-                setSelectedUserDetail(null)
-                setSelectedArea(null)
-              }}
-              onHome={() => {
-                setSelectedUserDetail(null)
-                setSelectedArea(null)
-              }}
+              onBack={leaveUsersArea}
+              onHome={leaveUsersArea}
               onLogout={onLogout}
             />
             <p className="section-tag">Usuários</p>
             <h2>Gestão de usuários</h2>
             <p>
-              Consulte os cadastros do portal, aprove solicitações pendentes e
-              acompanhe o perfil de cada matrícula. Clique em um usuário para ver
-              todos os dados.
+              Consulte os usuários com acesso ao portal e os cadastros ainda
+              pendentes de aprovação. Clique em um usuário para ver todos os
+              dados.
             </p>
 
             {passwordFeedback ? (
@@ -1451,111 +1453,141 @@ function HomePanel({
               </p>
             ) : (
               <>
-                <h3 className="users-section-heading">Solicitações pendentes</h3>
-                <div className="approval-list" aria-label="Solicitações pendentes para aprovação">
-                  {pendingApprovalUsers.length ? (
-                    pendingApprovalUsers.map((user) => (
-                      <article key={user.id} className="approval-item">
-                        <div>
-                          <strong>{user.name}</strong>
-                          <span>Matrícula: {user.registration}</span>
-                          <span>E-mail: {user.email}</span>
-                          <span>Cargo: {user.jobTitle || 'Não informado'}</span>
-                          <span>Perfil solicitado: {roleLabel(user.role)}</span>
-                          <span>
-                            Solicitação enviada em{' '}
-                            {new Date(user.requestedAt).toLocaleString('pt-BR')}
-                          </span>
-                        </div>
-                        <div className="approval-item-actions">
-                          <button
-                            className="secondary-button compact-button"
-                            type="button"
-                            onClick={() => setSelectedUserDetail(user)}
-                          >
-                            Ver detalhes
-                          </button>
-                          <button
-                            className="primary-button compact-button"
-                            type="button"
-                            onClick={() => {
-                              void onApproveUser(user.id)
-                                .then(() => {
-                                  setPasswordFeedback({
-                                    type: 'success',
-                                    message: `Acesso de ${user.name} aprovado com sucesso.`,
-                                  })
-                                })
-                                .catch((error) => {
-                                  setPasswordFeedback({
-                                    type: 'error',
-                                    message:
-                                      error instanceof ApiError
-                                        ? error.message
-                                        : 'Não foi possível aprovar o usuário.',
-                                  })
-                                })
-                            }}
-                          >
-                            Aprovar acesso
-                          </button>
-                        </div>
-                      </article>
-                    ))
-                  ) : (
-                    <p className="generated-password-empty">
-                      Nenhuma solicitação pendente no momento.
-                    </p>
-                  )}
+                <div className="panel-switch users-view-switch" role="tablist" aria-label="Usuários">
+                  <button
+                    className={usersView === 'usuarios' ? 'active' : ''}
+                    type="button"
+                    role="tab"
+                    aria-selected={usersView === 'usuarios'}
+                    onClick={() => setUsersView('usuarios')}
+                  >
+                    Usuários
+                    <span className="users-view-count">{registeredUsers.length}</span>
+                  </button>
+                  <button
+                    className={usersView === 'pendentes' ? 'active' : ''}
+                    type="button"
+                    role="tab"
+                    aria-selected={usersView === 'pendentes'}
+                    onClick={() => setUsersView('pendentes')}
+                  >
+                    Cadastros pendentes
+                    <span className="users-view-count">{pendingApprovalUsers.length}</span>
+                  </button>
                 </div>
 
-                <h3 className="users-section-heading">Usuários cadastrados</h3>
-                <p className="consultar-summary">
-                  {users.length} usuário(s) no portal
-                </p>
-                <div className="entrada-table-wrap">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Nome</th>
-                        <th>Matrícula</th>
-                        <th>E-mail</th>
-                        <th>Cargo</th>
-                        <th>Perfil</th>
-                        <th>Status</th>
-                        <th>Solicitado em</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map((user) => (
-                        <tr
-                          key={user.id}
-                          className="users-table-row"
-                          tabIndex={0}
-                          role="button"
-                          aria-label={`Ver detalhes de ${user.name}`}
-                          onClick={() => setSelectedUserDetail(user)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault()
-                              setSelectedUserDetail(user)
-                            }
-                          }}
-                        >
-                          <td>{user.name}</td>
-                          <td>{user.registration}</td>
-                          <td>{user.email}</td>
-                          <td>{user.jobTitle || '—'}</td>
-                          <td>{roleLabel(user.role)}</td>
-                          <td>{statusLabel(user.approvalStatus)}</td>
-                          <td>
-                            {new Date(user.requestedAt).toLocaleString('pt-BR')}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {usersView === 'pendentes' ? (
+                  <div className="approval-list" aria-label="Solicitações pendentes para aprovação">
+                    {pendingApprovalUsers.length ? (
+                      pendingApprovalUsers.map((user) => (
+                        <article key={user.id} className="approval-item">
+                          <div>
+                            <strong>{user.name}</strong>
+                            <span>Matrícula: {user.registration}</span>
+                            <span>E-mail: {user.email}</span>
+                            <span>Cargo: {user.jobTitle || 'Não informado'}</span>
+                            <span>Perfil solicitado: {roleLabel(user.role)}</span>
+                            <span>
+                              Solicitação enviada em{' '}
+                              {new Date(user.requestedAt).toLocaleString('pt-BR')}
+                            </span>
+                          </div>
+                          <div className="approval-item-actions">
+                            <button
+                              className="secondary-button compact-button"
+                              type="button"
+                              onClick={() => setSelectedUserDetail(user)}
+                            >
+                              Ver detalhes
+                            </button>
+                            <button
+                              className="primary-button compact-button"
+                              type="button"
+                              onClick={() => {
+                                void onApproveUser(user.id)
+                                  .then(() => {
+                                    setPasswordFeedback({
+                                      type: 'success',
+                                      message: `Acesso de ${user.name} aprovado com sucesso.`,
+                                    })
+                                  })
+                                  .catch((error) => {
+                                    setPasswordFeedback({
+                                      type: 'error',
+                                      message:
+                                        error instanceof ApiError
+                                          ? error.message
+                                          : 'Não foi possível aprovar o usuário.',
+                                    })
+                                  })
+                              }}
+                            >
+                              Aprovar acesso
+                            </button>
+                          </div>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="generated-password-empty">
+                        Nenhuma solicitação pendente no momento.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <p className="consultar-summary">
+                      {registeredUsers.length} usuário(s) com acesso aprovado
+                    </p>
+                    <div className="entrada-table-wrap">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Nome</th>
+                            <th>Matrícula</th>
+                            <th>E-mail</th>
+                            <th>Cargo</th>
+                            <th>Perfil</th>
+                            <th>Status</th>
+                            <th>Solicitado em</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {registeredUsers.map((user) => (
+                            <tr
+                              key={user.id}
+                              className="users-table-row"
+                              tabIndex={0}
+                              role="button"
+                              aria-label={`Ver detalhes de ${user.name}`}
+                              onClick={() => setSelectedUserDetail(user)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault()
+                                  setSelectedUserDetail(user)
+                                }
+                              }}
+                            >
+                              <td>{user.name}</td>
+                              <td>{user.registration}</td>
+                              <td>{user.email}</td>
+                              <td>{user.jobTitle || '—'}</td>
+                              <td>{roleLabel(user.role)}</td>
+                              <td>{statusLabel(user.approvalStatus)}</td>
+                              <td>
+                                {new Date(user.requestedAt).toLocaleString('pt-BR')}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {!registeredUsers.length ? (
+                      <p className="generated-password-empty">
+                        Nenhum usuário aprovado no momento.
+                      </p>
+                    ) : null}
+                  </>
+                )}
               </>
             )}
 

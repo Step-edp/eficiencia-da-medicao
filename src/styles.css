@@ -1323,6 +1323,32 @@ button {
   font-size: 1.05rem;
 }
 
+.users-view-switch {
+  margin: 8px 0 20px;
+  width: min(520px, 100%);
+}
+
+.users-view-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.users-view-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.14);
+  color: inherit;
+}
+
 .users-table-row {
   cursor: pointer;
   transition: background-color 160ms ease;
