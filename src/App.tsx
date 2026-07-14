@@ -28,9 +28,8 @@ import {
   buildRequestedProfile,
   DEFAULT_AREA_OPTIONS,
   DEFAULT_LOCALITIES,
-  OWN_COMPANY_DEFAULT,
+  EDP_SCOPE_OPTIONS,
   subtypesForCargo,
-  THIRD_PARTY_EDP_UNITS,
 } from './registrationOptions'
 
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
@@ -1630,14 +1629,7 @@ function HomePanel({
                         </div>
                         <div>
                           <dt>Abrangência</dt>
-                          <dd>
-                            {formatValue(
-                              selectedUserDetail.edpUnit ||
-                                (selectedUserDetail.employmentType === 'Própria'
-                                  ? OWN_COMPANY_DEFAULT
-                                  : ''),
-                            )}
-                          </dd>
+                          <dd>{formatValue(selectedUserDetail.edpUnit)}</dd>
                         </div>
                         {selectedUserDetail.employmentType === 'Terceira' ? (
                           <div>
@@ -3183,7 +3175,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       !jobTitle.trim() ||
       !workArea ||
       !employmentType ||
-      (employmentType === 'Terceira' && (!employerCompany || !edpUnit)) ||
+      !edpUnit ||
+      (employmentType === 'Terceira' && !employerCompany) ||
       !locality ||
       !cpf.trim() ||
       !whatsapp.trim() ||
@@ -3233,7 +3226,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         workArea,
         workSubtype: jobTitle === 'Analista' ? '' : workSubtype,
         locality,
-        edpUnit: employmentType === 'Própria' ? OWN_COMPANY_DEFAULT : edpUnit,
+        edpUnit,
       })
 
       setFeedback({
@@ -3296,7 +3289,6 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
               const nextType = event.target.value
               setEmploymentType(nextType)
               setEmployerCompany('')
-              setEdpUnit('')
             }}
             required
           >
@@ -3309,40 +3301,38 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           </select>
         </label>
 
-        {employmentType === 'Terceira' ? (
-          <>
-            <label>
-              Empresa terceira
-              <select
-                value={employerCompany}
-                onChange={(event) => setEmployerCompany(event.target.value)}
-                required
-              >
-                <option value="" disabled hidden />
-                {terceiraOptions.map((company) => (
-                  <option key={company} value={company}>
-                    {company}
-                  </option>
-                ))}
-              </select>
-            </label>
+        <label>
+          Abrangência
+          <select
+            value={edpUnit}
+            onChange={(event) => setEdpUnit(event.target.value)}
+            required
+          >
+            <option value="" disabled hidden />
+            {EDP_SCOPE_OPTIONS.map((unit) => (
+              <option key={unit} value={unit}>
+                {unit}
+              </option>
+            ))}
+          </select>
+        </label>
 
-            <label>
-              Abrangência
-              <select
-                value={edpUnit}
-                onChange={(event) => setEdpUnit(event.target.value)}
-                required
-              >
-                <option value="" disabled hidden />
-                {THIRD_PARTY_EDP_UNITS.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {unit}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </>
+        {employmentType === 'Terceira' ? (
+          <label>
+            Empresa terceira
+            <select
+              value={employerCompany}
+              onChange={(event) => setEmployerCompany(event.target.value)}
+              required
+            >
+              <option value="" disabled hidden />
+              {terceiraOptions.map((company) => (
+                <option key={company} value={company}>
+                  {company}
+                </option>
+              ))}
+            </select>
+          </label>
         ) : null}
 
         <label>

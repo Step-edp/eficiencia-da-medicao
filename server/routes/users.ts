@@ -161,7 +161,6 @@ export async function register(req: Request, res: Response) {
   const allowedTipos = valuesByKey.tipo?.length ? valuesByKey.tipo : ['Própria', 'Terceira']
   const allowedTerceiras = valuesByKey.terceira ?? []
   const allowedLocalities = valuesByKey.localidade ?? []
-  const allowedThirdPartyEdpUnits = ['EDP SP', 'EDP ES', 'Transversal']
   const allowedTechnicianSubtypes = [
     'Medição',
     'Laboratório de Medição',
@@ -188,9 +187,14 @@ export async function register(req: Request, res: Response) {
   let storedEmployer = ''
   let storedEdpUnit = ''
 
+  if (!['EDP SP', 'EDP ES', 'Transversal'].includes(normalizedEdpUnit)) {
+    res.status(400).json({ error: 'Selecione EDP SP, EDP ES ou Transversal.' })
+    return
+  }
+  storedEdpUnit = normalizedEdpUnit
+
   if (normalizedEmploymentType === 'Própria') {
     storedEmployer = ''
-    storedEdpUnit = 'EDP SP'
   } else {
     if (
       !normalizedEmployer ||
@@ -199,12 +203,7 @@ export async function register(req: Request, res: Response) {
       res.status(400).json({ error: 'Selecione a empresa terceira.' })
       return
     }
-    if (!allowedThirdPartyEdpUnits.includes(normalizedEdpUnit)) {
-      res.status(400).json({ error: 'Selecione EDP SP, EDP ES ou Transversal.' })
-      return
-    }
     storedEmployer = normalizedEmployer
-    storedEdpUnit = normalizedEdpUnit
   }
 
   if (
