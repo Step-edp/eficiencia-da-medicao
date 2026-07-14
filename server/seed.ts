@@ -4,227 +4,72 @@ import { ensureMeterRegistryImported } from './import-meter-registry.js'
 import { syncMeterRegistryTrailSteps } from './routes/meter-registry.js'
 import { ensureCatalogOptionsSeeded } from './routes/catalog-options.js'
 
-const demoUsers = [
-  {
-    id: 'admin-demo-user',
-    registration: 'adm@edp',
-    password: 'edpsp2026',
-    name: 'Administrador',
-    email: 'adm@edp.com',
-    role: 'admin',
-    approvalStatus: 'approved',
-    jobTitle: 'Administrador do Portal',
-    workArea: '',
-    workSubtype: '',
-  },
-  {
-    id: 'compras-demo-user',
-    registration: 'C900001',
-    password: 'Compras@241',
-    name: 'Usuário de Compras (Demonstração)',
-    email: 'compras.demo@edp.com',
-    role: 'compras',
-    approvalStatus: 'approved',
-    jobTitle: 'Analista de Compras',
-    workArea: '',
-    workSubtype: '',
-  },
-  {
-    id: 'field-inspection-1',
-    registration: 'F700001',
-    password: 'Campo@241',
-    name: 'Ana Paula Inspeção',
-    email: 'ana.inspecao@edp.com',
-    role: 'field',
-    approvalStatus: 'approved',
-    jobTitle: 'Inspetora de Campo',
-    workArea: 'Equipe de Campo',
-    workSubtype: 'Inspeção',
-  },
-  {
-    id: 'field-inspection-2',
-    registration: 'F700002',
-    password: 'Campo@241',
-    name: 'Carlos Mendes Inspeção',
-    email: 'carlos.inspecao@edp.com',
-    role: 'field',
-    approvalStatus: 'approved',
-    jobTitle: 'Inspetor de Campo',
-    workArea: 'Equipe de Campo',
-    workSubtype: 'Inspeção',
-  },
-]
+const adminUser = {
+  id: 'admin-demo-user',
+  registration: 'adm@edp',
+  password: 'edpsp2026',
+  name: 'Administrador',
+  email: 'adm@edp.com',
+  role: 'admin',
+  approvalStatus: 'approved',
+  jobTitle: 'Administrador do Portal',
+  workArea: '',
+  workSubtype: '',
+}
 
-const initialMaterials = [
-  {
-    material: '10002260',
-    oldCode: '90002260',
-    newCode: '17000001',
-    description: 'MEDIDOR ENERG FRONT 280V-2,5A-4F-3E-0,2S',
-    manufacturer: 'CENNATECH',
-    prefix: '4077',
-    equipmentType: 'Medidor',
-  },
-  {
-    material: '10002260',
-    oldCode: '90002261',
-    newCode: '17000002',
-    description: 'MEDIDOR ENERG FRONT 280V-2,5A-4F-3E-0,2S',
-    manufacturer: 'CENNATECH',
-    prefix: 'PREFIXO_4077',
-    equipmentType: 'Medidor',
-  },
-  {
-    material: '10010887',
-    oldCode: '90010887',
-    newCode: '17000003',
-    description: 'MEDIDOR ELETR DE FAT E QLD DE ENERGIA',
-    manufacturer: 'CENNATECH',
-    prefix: '4177',
-    equipmentType: 'Medidor',
-  },
-  {
-    material: '10010887',
-    oldCode: '90010888',
-    newCode: '17000004',
-    description: 'MEDIDOR ELETR DE FAT E QLD DE ENERGIA',
-    manufacturer: 'CENNATECH',
-    prefix: '4177',
-    equipmentType: 'Medidor',
-  },
-  {
-    material: '10010887',
-    oldCode: '90010889',
-    newCode: '17000005',
-    description: 'MEDIDOR ELETR DE FAT E QLD DE ENERGIA',
-    manufacturer: 'CENNATECH',
-    prefix: '4177',
-    equipmentType: 'Medidor',
-  },
-  {
-    material: '10010887',
-    oldCode: '90010890',
-    newCode: '17000006',
-    description: 'MEDIDOR ELETR DE FAT E QLD DE ENERGIA',
-    manufacturer: 'CENNATECH',
-    prefix: '4177',
-    equipmentType: 'Medidor',
-  },
-]
+/** Usuários e CSDs de demonstração a remover em ambientes já populados. */
+const DEMO_USER_IDS = ['compras-demo-user', 'field-inspection-1', 'field-inspection-2'] as const
+const DEMO_CSD_IDS = ['csd-001', 'csd-002', 'csd-003', 'csd-004', 'csd-005'] as const
+const DEMO_MATERIAL_OLD_CODES = [
+  '90002260',
+  '90002261',
+  '90010887',
+  '90010888',
+  '90010889',
+  '90010890',
+] as const
 
-const defaultManufacturers = ['Eletra', 'Nansen']
-
-const initialCsds = [
-  {
-    id: 'csd-001',
-    name: 'CSD-001 - Região Norte',
-    address: 'Av. Norte, 1200',
-    cities: ['São José dos Campos', 'Jacareí', 'Caçapava', 'Monteiro Lobato'],
-    responsibleUserId: 'field-inspection-1',
-  },
-  {
-    id: 'csd-002',
-    name: 'CSD-002 - Região Sul',
-    address: 'Rua Sul, 450',
-    cities: ['Taubaté', 'Tremembé', 'Pindamonhangaba', 'Potim'],
-    responsibleUserId: 'field-inspection-2',
-  },
-  {
-    id: 'csd-003',
-    name: 'CSD-003 - Região Leste',
-    address: 'Av. Leste, 890',
-    cities: ['Guarulhos', 'Suzano', 'Poá', 'Ferraz de Vasconcelos', 'Itaquaquecetuba'],
-    responsibleUserId: 'field-inspection-1',
-  },
-  {
-    id: 'csd-004',
-    name: 'CSD-004 - Região Oeste',
-    address: 'Rua Oeste, 320',
-    cities: ['Caraguatatuba', 'São Sebastião', 'Canas', 'Cruzeiro'],
-    responsibleUserId: 'field-inspection-2',
-  },
-  {
-    id: 'csd-005',
-    name: 'CSD-005 - Região Centro',
-    address: 'Av. Central, 1500',
-    cities: ['Guaratinguetá', 'Lorena', 'Aparecida', 'Cachoeira Paulista', 'Roseira'],
-    responsibleUserId: 'field-inspection-1',
-  },
-]
+async function removeDemoData() {
+  await query(`DELETE FROM csds WHERE id = ANY($1::text[])`, [DEMO_CSD_IDS])
+  await query(`DELETE FROM materials WHERE old_code = ANY($1::text[])`, [DEMO_MATERIAL_OLD_CODES])
+  await query(`DELETE FROM users WHERE id = ANY($1::text[])`, [DEMO_USER_IDS])
+}
 
 export async function seed() {
-  for (const user of demoUsers) {
-    const hash = await bcrypt.hash(user.password, 10)
-    await query(
-      `INSERT INTO users (
-        id, name, registration, password_hash, email, role, approval_status,
-        requested_at, approved_at, job_title, work_area, work_subtype
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        registration = EXCLUDED.registration,
-        password_hash = EXCLUDED.password_hash,
-        email = EXCLUDED.email,
-        role = EXCLUDED.role,
-        approval_status = EXCLUDED.approval_status,
-        approved_at = EXCLUDED.approved_at,
-        job_title = EXCLUDED.job_title,
-        work_area = EXCLUDED.work_area,
-        work_subtype = EXCLUDED.work_subtype`,
-      [
-        user.id,
-        user.name,
-        user.registration,
-        hash,
-        user.email,
-        user.role,
-        user.approvalStatus,
-        '2026-04-08T00:00:00.000Z',
-        '2026-04-08T00:00:00.000Z',
-        user.jobTitle,
-        user.workArea,
-        user.workSubtype,
-      ],
-    )
-  }
+  await removeDemoData()
 
-  const materialsCount = await query<{ count: string }>('SELECT COUNT(*)::text AS count FROM materials')
-  if (Number(materialsCount.rows[0]?.count ?? 0) === 0) {
-    for (const row of initialMaterials) {
-      await query(
-        `INSERT INTO materials (material, old_code, new_code, description, manufacturer, prefix, equipment_type)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [
-          row.material,
-          row.oldCode,
-          row.newCode,
-          row.description,
-          row.manufacturer,
-          row.prefix,
-          row.equipmentType,
-        ],
-      )
-    }
-  }
-
-  for (const name of defaultManufacturers) {
-    await query(
-      `INSERT INTO manufacturers (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`,
-      [name],
-    )
-  }
-
-  const csdsCount = await query<{ count: string }>('SELECT COUNT(*)::text AS count FROM csds')
-  if (Number(csdsCount.rows[0]?.count ?? 0) === 0) {
-    for (const csd of initialCsds) {
-      await query(
-        `INSERT INTO csds (id, name, address, cities, responsible_user_id)
-         VALUES ($1, $2, $3, $4::jsonb, $5)
-         ON CONFLICT (id) DO NOTHING`,
-        [csd.id, csd.name, csd.address, JSON.stringify(csd.cities), csd.responsibleUserId],
-      )
-    }
-  }
+  const hash = await bcrypt.hash(adminUser.password, 10)
+  await query(
+    `INSERT INTO users (
+      id, name, registration, password_hash, email, role, approval_status,
+      requested_at, approved_at, job_title, work_area, work_subtype
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name,
+      registration = EXCLUDED.registration,
+      password_hash = EXCLUDED.password_hash,
+      email = EXCLUDED.email,
+      role = EXCLUDED.role,
+      approval_status = EXCLUDED.approval_status,
+      approved_at = EXCLUDED.approved_at,
+      job_title = EXCLUDED.job_title,
+      work_area = EXCLUDED.work_area,
+      work_subtype = EXCLUDED.work_subtype`,
+    [
+      adminUser.id,
+      adminUser.name,
+      adminUser.registration,
+      hash,
+      adminUser.email,
+      adminUser.role,
+      adminUser.approvalStatus,
+      '2026-04-08T00:00:00.000Z',
+      '2026-04-08T00:00:00.000Z',
+      adminUser.jobTitle,
+      adminUser.workArea,
+      adminUser.workSubtype,
+    ],
+  )
 
   await ensureCatalogOptionsSeeded()
 
