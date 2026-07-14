@@ -32,6 +32,23 @@ const DEMO_MATERIAL_OLD_CODES = [
 async function removeDemoData() {
   await query(`DELETE FROM csds WHERE id = ANY($1::text[])`, [DEMO_CSD_IDS])
   await query(`DELETE FROM materials WHERE old_code = ANY($1::text[])`, [DEMO_MATERIAL_OLD_CODES])
+  await query(`DELETE FROM homologation_requests WHERE requester_user_id = ANY($1::text[])`, [DEMO_USER_IDS])
+
+  await query(`UPDATE ratm_laudos SET created_by_user_id = NULL WHERE created_by_user_id = ANY($1::text[])`, [
+    DEMO_USER_IDS,
+  ])
+  await query(
+    `UPDATE ensaios_manual_blocks SET created_by_user_id = NULL WHERE created_by_user_id = ANY($1::text[])`,
+    [DEMO_USER_IDS],
+  )
+  await query(`UPDATE meter_schedules SET created_by_user_id = NULL WHERE created_by_user_id = ANY($1::text[])`, [
+    DEMO_USER_IDS,
+  ])
+  await query(`UPDATE demm_documents SET created_by_user_id = NULL WHERE created_by_user_id = ANY($1::text[])`, [
+    DEMO_USER_IDS,
+  ])
+  await query(`UPDATE audit_logs SET user_id = NULL WHERE user_id = ANY($1::text[])`, [DEMO_USER_IDS])
+
   await query(`DELETE FROM users WHERE id = ANY($1::text[])`, [DEMO_USER_IDS])
 }
 
