@@ -6,7 +6,11 @@ export const TECHNICIAN_SCOPES_BY_AREA: Record<string, readonly string[]> = {
     'Atividades administrativas da Medição',
     'Laboratório de Medição',
   ],
-  CSD: ['Lavratura de TOI', 'Leituras de faturamento'],
+  CSD: [
+    'Lavratura de TOI',
+    'Lavratura de TOI - Ponto Focal',
+    'Leituras de faturamento',
+  ],
 }
 
 export const TECHNICIAN_SUBTYPES = [

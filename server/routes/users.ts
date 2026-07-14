@@ -167,7 +167,11 @@ export async function register(req: Request, res: Response) {
       'Atividades administrativas da Medição',
       'Laboratório de Medição',
     ],
-    CSD: ['Lavratura de TOI', 'Leituras de faturamento'],
+    CSD: [
+      'Lavratura de TOI',
+      'Lavratura de TOI - Ponto Focal',
+      'Leituras de faturamento',
+    ],
   }
 
   if (!allowedCargos.includes(normalizedJobTitle)) {
