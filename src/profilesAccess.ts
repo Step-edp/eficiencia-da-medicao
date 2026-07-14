@@ -92,8 +92,8 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     areas: ['Gestão', 'Telemedição'],
   },
   {
-    id: 'engenheiro-gestor-medicao',
-    name: 'Medição – Engenheiro Gestor',
+    id: 'gestor-medicao',
+    name: 'Medição – Gestor',
     description:
       'Possui acesso aos indicadores e dashboards consolidados de todas as áreas de Medição sob sua concessão, permitindo o acompanhamento gerencial dos resultados.',
     areas: ['Gestão', 'Medição'],

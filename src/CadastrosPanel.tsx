@@ -21,6 +21,7 @@ const FALLBACK_CATALOGS: CatalogGroup[] = [
       { id: -1, catalogKey: 'cargo', value: 'Técnico', sortOrder: 0, label: 'Cargo' },
       { id: -2, catalogKey: 'cargo', value: 'Analista', sortOrder: 1, label: 'Cargo' },
       { id: -3, catalogKey: 'cargo', value: 'Engenheiro', sortOrder: 2, label: 'Cargo' },
+      { id: -4, catalogKey: 'cargo', value: 'Gestor', sortOrder: 3, label: 'Cargo' },
     ],
   },
   {

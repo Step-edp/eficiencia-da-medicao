@@ -157,7 +157,7 @@ export async function register(req: Request, res: Response) {
       ]
   const allowedCargos = valuesByKey.cargo?.length
     ? valuesByKey.cargo
-    : ['Técnico', 'Analista', 'Engenheiro']
+    : ['Técnico', 'Analista', 'Engenheiro', 'Gestor']
   const allowedTipos = valuesByKey.tipo?.length ? valuesByKey.tipo : ['Própria', 'Terceira']
   const allowedLocalities = valuesByKey.localidade ?? []
 
