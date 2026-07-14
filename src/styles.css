@@ -1960,6 +1960,42 @@ input[type='file'] {
   padding: 10px 12px;
 }
 
+.password-input-wrap {
+  position: relative;
+  display: grid;
+}
+
+.password-input-wrap input {
+  padding-right: 52px;
+}
+
+.password-visibility-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-soft);
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.password-visibility-toggle:hover,
+.password-visibility-toggle:focus-visible {
+  color: var(--text-main);
+  background: rgba(24, 216, 240, 0.12);
+}
+
+.password-visibility-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
 .full-width,
 .primary-button,
 .privacy-note {
