@@ -159,20 +159,7 @@ export async function register(req: Request, res: Response) {
     ? valuesByKey.cargo
     : ['Técnico', 'Analista', 'Engenheiro']
   const allowedTipos = valuesByKey.tipo?.length ? valuesByKey.tipo : ['Própria', 'Terceira']
-  const allowedTerceiras = valuesByKey.terceira ?? []
   const allowedLocalities = valuesByKey.localidade ?? []
-  const allowedEngineerSubtypes = ['Área', 'Sub-área', 'Processos específicos']
-  const technicianScopesByArea: Record<string, string[]> = {
-    Medição: [
-      'Atividades administrativas da Medição',
-      'Laboratório de Medição',
-    ],
-    CSD: [
-      'Lavratura de TOI',
-      'Lavratura de TOI - Ponto Focal',
-      'Leituras de faturamento',
-    ],
-  }
 
   if (!allowedCargos.includes(normalizedJobTitle)) {
     res.status(400).json({ error: 'Selecione um cargo válido.' })
@@ -193,21 +180,6 @@ export async function register(req: Request, res: Response) {
     res.status(400).json({ error: 'Selecione EDP SP, EDP ES ou Transversal.' })
     return
   }
-  const storedEdpUnit = normalizedEdpUnit
-  let storedEmployer = ''
-
-  if (normalizedEmploymentType === 'Própria') {
-    storedEmployer = ''
-  } else {
-    if (
-      !normalizedEmployer ||
-      (allowedTerceiras.length > 0 && !allowedTerceiras.includes(normalizedEmployer))
-    ) {
-      res.status(400).json({ error: 'Selecione a empresa terceira.' })
-      return
-    }
-    storedEmployer = normalizedEmployer
-  }
 
   if (
     allowedLocalities.length > 0
@@ -218,23 +190,7 @@ export async function register(req: Request, res: Response) {
     return
   }
 
-  if (normalizedJobTitle === 'Técnico') {
-    const allowedScopes = technicianScopesByArea[normalizedWorkArea] ?? []
-    if (!allowedScopes.includes(normalizedWorkSubtype)) {
-      res.status(400).json({
-        error:
-          allowedScopes.length === 0
-            ? 'Para técnico, selecione a área Medição ou CSD.'
-            : 'Selecione o escopo.',
-      })
-      return
-    }
-  } else if (normalizedJobTitle === 'Engenheiro') {
-    if (!allowedEngineerSubtypes.includes(normalizedWorkSubtype)) {
-      res.status(400).json({ error: 'Selecione a abrangência do engenheiro.' })
-      return
-    }
-  }
+  // Escopo, abrangência do engenheiro e empresa terceira são definidos na aprovação.
 
   const normalizedRegistration = registration.trim().toUpperCase()
   const normalizedEmail = email.trim().toLowerCase()
@@ -262,11 +218,11 @@ export async function register(req: Request, res: Response) {
         hobby ?? '',
         normalizedWhatsapp,
         normalizedEmploymentType,
-        storedEmployer,
+        '',
         normalizedWorkArea,
-        normalizedJobTitle === 'Analista' ? '' : normalizedWorkSubtype,
+        '',
         normalizedLocality,
-        storedEdpUnit,
+        normalizedEdpUnit,
       ],
     )
 
@@ -347,6 +303,10 @@ export async function listUsers(_req: Request, res: Response) {
 
 export async function approveUser(req: Request, res: Response) {
   const { id } = req.params
+  const { thirdPartyCompany, workSubtype } = req.body as {
+    thirdPartyCompany?: string
+    workSubtype?: string
+  }
 
   const previous = await query<UserRow>(
     `SELECT * FROM users WHERE id = $1 AND role = 'compras'`,
@@ -358,11 +318,72 @@ export async function approveUser(req: Request, res: Response) {
     return
   }
 
+  const pending = previous.rows[0]
+  const jobTitle = pending.job_title
+  const workArea = pending.work_area
+  const employmentType = pending.employment_type
+  const normalizedCompany = thirdPartyCompany?.trim() ?? ''
+  const normalizedSubtype = workSubtype?.trim() ?? ''
+
+  const technicianScopesByArea: Record<string, string[]> = {
+    Medição: [
+      'Atividades administrativas da Medição',
+      'Laboratório de Medição',
+    ],
+    CSD: [
+      'Lavratura de TOI',
+      'Lavratura de TOI - Ponto Focal',
+      'Leituras de faturamento',
+    ],
+  }
+  const allowedEngineerSubtypes = ['Área', 'Sub-área', 'Processos específicos']
+
+  let storedCompany = ''
+  if (employmentType === 'Terceira') {
+    const catalogValues = await query<{ value: string }>(
+      `SELECT value FROM catalog_options WHERE catalog_key = 'terceira'`,
+    )
+    const allowedTerceiras = catalogValues.rows.map((row) => row.value)
+    if (
+      !normalizedCompany ||
+      (allowedTerceiras.length > 0 && !allowedTerceiras.includes(normalizedCompany))
+    ) {
+      res.status(400).json({ error: 'Selecione a empresa terceira antes de aprovar.' })
+      return
+    }
+    storedCompany = normalizedCompany
+  }
+
+  let storedSubtype = ''
+  if (jobTitle === 'Técnico') {
+    const allowedScopes = technicianScopesByArea[workArea] ?? []
+    if (!allowedScopes.includes(normalizedSubtype)) {
+      res.status(400).json({
+        error:
+          allowedScopes.length === 0
+            ? 'Este técnico está em uma área sem escopo configurado.'
+            : 'Selecione o escopo antes de aprovar.',
+      })
+      return
+    }
+    storedSubtype = normalizedSubtype
+  } else if (jobTitle === 'Engenheiro') {
+    if (!allowedEngineerSubtypes.includes(normalizedSubtype)) {
+      res.status(400).json({ error: 'Selecione a abrangência do engenheiro antes de aprovar.' })
+      return
+    }
+    storedSubtype = normalizedSubtype
+  }
+
   const result = await query<UserRow>(
-    `UPDATE users SET approval_status = 'approved', approved_at = NOW()
+    `UPDATE users
+     SET approval_status = 'approved',
+         approved_at = NOW(),
+         third_party_company = $2,
+         work_subtype = $3
      WHERE id = $1 AND role = 'compras'
      RETURNING *`,
-    [id],
+    [id, storedCompany, storedSubtype],
   )
 
   const user = mapUser(result.rows[0])

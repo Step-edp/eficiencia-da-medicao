@@ -6,7 +6,12 @@ import {
   type CatalogKey,
 } from './api'
 import { CADASTRO_PROFILES } from './profilesAccess'
-import { DEFAULT_AREA_OPTIONS, DEFAULT_LOCALITIES } from './registrationOptions'
+import {
+  DEFAULT_AREA_OPTIONS,
+  DEFAULT_LOCALITIES,
+  ENGINEER_SUBTYPES,
+  TECHNICIAN_SCOPES_BY_AREA,
+} from './registrationOptions'
 
 const FALLBACK_CATALOGS: CatalogGroup[] = [
   {
@@ -214,9 +219,57 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
       </section>
 
       <p>
-        Abaixo ficam as listas suspensas usadas no cadastro de usuários. O
-        administrador pode incluir novas opções.
+        Abaixo ficam as listas usadas no cadastro e na aprovação. Empresa
+        terceira, escopo e abrangência do engenheiro são definidos pelo
+        responsável ao aprovar o cadastro pendente.
       </p>
+
+      <section className="profiles-section" aria-labelledby="approval-options-title">
+        <header className="profiles-section-header">
+          <div>
+            <h3 id="approval-options-title">Opções de aprovação</h3>
+            <p>Escopo e abrangência do engenheiro disponíveis para o aprovador.</p>
+          </div>
+        </header>
+        <div className="catalogs-grid">
+          <section className="catalog-card">
+            <header className="catalog-card-header">
+              <h3>Escopo · Medição</h3>
+            </header>
+            <ul className="catalog-option-list">
+              {TECHNICIAN_SCOPES_BY_AREA.Medição.map((option) => (
+                <li key={option}>
+                  <span>{option}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="catalog-card">
+            <header className="catalog-card-header">
+              <h3>Escopo · CSD</h3>
+            </header>
+            <ul className="catalog-option-list">
+              {TECHNICIAN_SCOPES_BY_AREA.CSD.map((option) => (
+                <li key={option}>
+                  <span>{option}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="catalog-card">
+            <header className="catalog-card-header">
+              <h3>Abrangência do engenheiro</h3>
+            </header>
+            <ul className="catalog-option-list">
+              {ENGINEER_SUBTYPES.map((option) => (
+                <li key={option}>
+                  <span>{option}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      </section>
 
       {feedback ? (
         <div className={`login-feedback ${feedback.type}`} role="status">

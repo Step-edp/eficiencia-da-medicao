@@ -276,9 +276,13 @@ export const api = {
       method: 'POST',
     }),
   listUsers: () => request<{ users: AppUser[] }>('/api/users'),
-  approveUser: (id: string) =>
+  approveUser: (
+    id: string,
+    payload?: { thirdPartyCompany?: string; workSubtype?: string },
+  ) =>
     request<{ user: AppUser }>(`/api/users/${id}/approve`, {
       method: 'PATCH',
+      body: JSON.stringify(payload ?? {}),
     }),
   listCatalogOptions: () => request<{ catalogs: CatalogGroup[] }>('/api/catalog-options'),
   createCatalogOption: (payload: { catalogKey: CatalogKey; value: string }) =>

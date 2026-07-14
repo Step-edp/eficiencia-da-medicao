@@ -163,8 +163,8 @@ export default function App() {
     await api.register(payload)
   }
 
-  const handleApproveUser = async (userId: string) => {
-    const { user } = await api.approveUser(userId)
+  const handleApproveUser = async (userId: string, payload?: ApproveUserPayload) => {
+    const { user } = await api.approveUser(userId, payload)
     setRegisteredUsers((prev) => prev.map((item) => (item.id === user.id ? user : item)))
   }
 
@@ -362,7 +362,7 @@ type HomePanelProps = {
   fixedRequestLink: string
   users: AppUser[]
   homologationRequests: HomologationRequest[]
-  onApproveUser: (userId: string) => Promise<void>
+  onApproveUser: (userId: string, payload?: ApproveUserPayload) => Promise<void>
   onCreateHomologationRequest: (
     payload: Omit<
       HomologationRequest,
@@ -608,6 +608,151 @@ function ItemIcon({ title }: { title: string }) {
   )
 }
 
+type ApproveUserPayload = {
+  thirdPartyCompany?: string
+  workSubtype?: string
+}
+
+type PendingApprovalItemProps = {
+  user: AppUser
+  terceiraOptions: string[]
+  onApprove: (userId: string, payload: ApproveUserPayload) => Promise<void>
+  onViewDetails: (user: AppUser) => void
+  onFeedback: (feedback: { type: 'success' | 'error'; message: string }) => void
+}
+
+function PendingApprovalItem({
+  user,
+  terceiraOptions,
+  onApprove,
+  onViewDetails,
+  onFeedback,
+}: PendingApprovalItemProps) {
+  const [thirdPartyCompany, setThirdPartyCompany] = useState('')
+  const [workSubtype, setWorkSubtype] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const subtypeOptions = subtypesForCargo(user.jobTitle, user.workArea ?? '')
+  const needsCompany = user.employmentType === 'Terceira'
+  const needsSubtype = subtypeOptions.length > 0
+  const builtProfile = buildRequestedProfile(
+    user.jobTitle,
+    workSubtype,
+    user.workArea ?? '',
+  )
+
+  const handleApprove = async () => {
+    if (needsCompany && !thirdPartyCompany) {
+      onFeedback({ type: 'error', message: 'Selecione a empresa terceira antes de aprovar.' })
+      return
+    }
+    if (needsSubtype && !workSubtype) {
+      onFeedback({
+        type: 'error',
+        message:
+          user.jobTitle === 'Engenheiro'
+            ? 'Selecione a abrangência do engenheiro antes de aprovar.'
+            : 'Selecione o escopo antes de aprovar.',
+      })
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      await onApprove(user.id, {
+        thirdPartyCompany: needsCompany ? thirdPartyCompany : '',
+        workSubtype: needsSubtype ? workSubtype : '',
+      })
+      onFeedback({
+        type: 'success',
+        message: `Acesso de ${user.name} aprovado com sucesso.`,
+      })
+    } catch (error) {
+      onFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível aprovar o usuário.',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <article className="approval-item">
+      <div>
+        <strong>{user.name}</strong>
+        <span>Matrícula: {user.registration}</span>
+        <span>E-mail: {user.email}</span>
+        <span>Tipo: {user.employmentType || '—'}</span>
+        <span>Abrangência: {user.edpUnit || '—'}</span>
+        <span>Área: {user.workArea || '—'}</span>
+        <span>Cargo: {user.jobTitle || 'Não informado'}</span>
+        <span>Localidade: {user.locality || '—'}</span>
+        <span>
+          Solicitação enviada em {new Date(user.requestedAt).toLocaleString('pt-BR')}
+        </span>
+        {builtProfile ? <span>Perfil a aprovar: {builtProfile}</span> : null}
+      </div>
+
+      <div className="approval-completion-fields">
+        {needsCompany ? (
+          <label>
+            Empresa terceira
+            <select
+              value={thirdPartyCompany}
+              onChange={(event) => setThirdPartyCompany(event.target.value)}
+            >
+              <option value="" disabled hidden />
+              {terceiraOptions.map((company) => (
+                <option key={company} value={company}>
+                  {company}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        {needsSubtype ? (
+          <label>
+            {user.jobTitle === 'Engenheiro' ? 'Abrangência do engenheiro' : 'Escopo'}
+            <select
+              value={workSubtype}
+              onChange={(event) => setWorkSubtype(event.target.value)}
+            >
+              <option value="" disabled hidden />
+              {subtypeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+
+      <div className="approval-item-actions">
+        <button
+          className="secondary-button compact-button"
+          type="button"
+          onClick={() => onViewDetails(user)}
+        >
+          Ver detalhes
+        </button>
+        <button
+          className="primary-button compact-button"
+          type="button"
+          disabled={submitting}
+          onClick={() => void handleApprove()}
+        >
+          {submitting ? 'Aprovando...' : 'Aprovar acesso'}
+        </button>
+      </div>
+    </article>
+  )
+}
+
 function HomePanel({
   currentUser,
   activeRoute,
@@ -628,6 +773,21 @@ function HomePanel({
   const [openingFieldApp, setOpeningFieldApp] = useState(false)
   const [selectedUserDetail, setSelectedUserDetail] = useState<AppUser | null>(null)
   const [usersView, setUsersView] = useState<'usuarios' | 'pendentes'>('usuarios')
+  const [terceiraOptions, setTerceiraOptions] = useState<string[]>([...THIRD_PARTY_COMPANIES])
+
+  useEffect(() => {
+    void api
+      .listCatalogOptions()
+      .then(({ catalogs }) => {
+        const terceira = catalogs.find((catalog) => catalog.key === 'terceira')
+        if (terceira?.options.length) {
+          setTerceiraOptions(terceira.options.map((option) => option.value))
+        }
+      })
+      .catch(() => {
+        // Mantém fallback local.
+      })
+  }, [])
   const [trailStepCounts, setTrailStepCounts] = useState<Record<string, number>>({})
   const [ratmLaudos, setRatmLaudos] = useState<RatmLaudo[]>([])
   const [selectedCodeMaterialsAction, setSelectedCodeMaterialsAction] = useState<
@@ -1328,41 +1488,14 @@ function HomePanel({
               <div className="approval-list" aria-label="Solicitações pendentes para aprovação">
                 {pendingApprovalUsers.length ? (
                   pendingApprovalUsers.map((user) => (
-                    <article key={user.id} className="approval-item">
-                      <div>
-                        <strong>{user.name}</strong>
-                        <span>Matrícula: {user.registration}</span>
-                        <span>E-mail: {user.email}</span>
-                        <span>Cargo: {user.jobTitle || 'Não informado'}</span>
-                        <span>Perfil solicitado: Compras</span>
-                        <span>
-                          Solicitação enviada em{' '}
-                          {new Date(user.requestedAt).toLocaleString('pt-BR')}
-                        </span>
-                      </div>
-                      <button
-                        className="primary-button compact-button"
-                        type="button"
-                        onClick={() => {
-                          void onApproveUser(user.id).then(() => {
-                            setPasswordFeedback({
-                              type: 'success',
-                              message: `Acesso de ${user.name} aprovado com sucesso.`,
-                            })
-                          }).catch((error) => {
-                            setPasswordFeedback({
-                              type: 'error',
-                              message:
-                                error instanceof ApiError
-                                  ? error.message
-                                  : 'Não foi possível aprovar o usuário.',
-                            })
-                          })
-                        }}
-                      >
-                        Aprovar acesso
-                      </button>
-                    </article>
+                    <PendingApprovalItem
+                      key={user.id}
+                      user={user}
+                      terceiraOptions={terceiraOptions}
+                      onApprove={onApproveUser}
+                      onViewDetails={setSelectedUserDetail}
+                      onFeedback={setPasswordFeedback}
+                    />
                   ))
                 ) : (
                   <p className="generated-password-empty">
@@ -1450,52 +1583,14 @@ function HomePanel({
                   <div className="approval-list" aria-label="Solicitações pendentes para aprovação">
                     {pendingApprovalUsers.length ? (
                       pendingApprovalUsers.map((user) => (
-                        <article key={user.id} className="approval-item">
-                          <div>
-                            <strong>{user.name}</strong>
-                            <span>Matrícula: {user.registration}</span>
-                            <span>E-mail: {user.email}</span>
-                            <span>Cargo: {user.jobTitle || 'Não informado'}</span>
-                            <span>Perfil solicitado: {roleLabel(user.role)}</span>
-                            <span>
-                              Solicitação enviada em{' '}
-                              {new Date(user.requestedAt).toLocaleString('pt-BR')}
-                            </span>
-                          </div>
-                          <div className="approval-item-actions">
-                            <button
-                              className="secondary-button compact-button"
-                              type="button"
-                              onClick={() => setSelectedUserDetail(user)}
-                            >
-                              Ver detalhes
-                            </button>
-                            <button
-                              className="primary-button compact-button"
-                              type="button"
-                              onClick={() => {
-                                void onApproveUser(user.id)
-                                  .then(() => {
-                                    setPasswordFeedback({
-                                      type: 'success',
-                                      message: `Acesso de ${user.name} aprovado com sucesso.`,
-                                    })
-                                  })
-                                  .catch((error) => {
-                                    setPasswordFeedback({
-                                      type: 'error',
-                                      message:
-                                        error instanceof ApiError
-                                          ? error.message
-                                          : 'Não foi possível aprovar o usuário.',
-                                    })
-                                  })
-                              }}
-                            >
-                              Aprovar acesso
-                            </button>
-                          </div>
-                        </article>
+                        <PendingApprovalItem
+                          key={user.id}
+                          user={user}
+                          terceiraOptions={terceiraOptions}
+                          onApprove={onApproveUser}
+                          onViewDetails={setSelectedUserDetail}
+                          onFeedback={setPasswordFeedback}
+                        />
                       ))
                     ) : (
                       <p className="generated-password-empty">
@@ -3112,9 +3207,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
   const [email, setEmail] = useState('')
   const [jobTitle, setJobTitle] = useState('')
   const [workArea, setWorkArea] = useState('')
-  const [workSubtype, setWorkSubtype] = useState('')
   const [employmentType, setEmploymentType] = useState('')
-  const [employerCompany, setEmployerCompany] = useState('')
   const [edpUnit, setEdpUnit] = useState('')
   const [locality, setLocality] = useState('')
   const [cpf, setCpf] = useState('')
@@ -3128,15 +3221,11 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
   ])
   const [areaOptions, setAreaOptions] = useState<string[]>([...AREA_OPTIONS])
   const [tipoOptions, setTipoOptions] = useState<string[]>(['Própria', 'Terceira'])
-  const [terceiraOptions, setTerceiraOptions] = useState<string[]>([...THIRD_PARTY_COMPANIES])
   const [localityOptions, setLocalityOptions] = useState<string[]>([...DEFAULT_LOCALITIES])
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
-
-  const subtypeOptions = subtypesForCargo(jobTitle, workArea)
-  const requestedProfile = buildRequestedProfile(jobTitle, workSubtype, workArea)
 
   useEffect(() => {
     void api
@@ -3144,12 +3233,11 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       .then(({ catalogs }) => {
         const byKey = Object.fromEntries(
           catalogs.map((catalog) => [catalog.key, catalog.options.map((item) => item.value)]),
-        ) as Partial<Record<'cargo' | 'area' | 'tipo' | 'terceira' | 'localidade', string[]>>
+        ) as Partial<Record<'cargo' | 'area' | 'tipo' | 'localidade', string[]>>
 
         if (byKey.cargo?.length) setCargoOptions(byKey.cargo)
         if (byKey.area?.length) setAreaOptions(byKey.area)
         if (byKey.tipo?.length) setTipoOptions(byKey.tipo)
-        if (byKey.terceira?.length) setTerceiraOptions(byKey.terceira)
         if (byKey.localidade?.length) setLocalityOptions(byKey.localidade)
       })
       .catch(() => {
@@ -3169,7 +3257,6 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       !workArea ||
       !employmentType ||
       !edpUnit ||
-      (employmentType === 'Terceira' && !employerCompany) ||
       !locality ||
       !cpf.trim() ||
       !whatsapp.trim() ||
@@ -3179,17 +3266,6 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setFeedback({
         type: 'error',
         message: 'Preencha os campos obrigatórios antes de enviar o cadastro.',
-      })
-      return
-    }
-
-    if (subtypeOptions.length > 0 && !workSubtype) {
-      setFeedback({
-        type: 'error',
-        message:
-          jobTitle === 'Engenheiro'
-            ? 'Selecione a abrangência do engenheiro.'
-            : 'Selecione o escopo.',
       })
       return
     }
@@ -3215,9 +3291,9 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         hobby: '',
         whatsapp: whatsapp.trim(),
         employmentType,
-        thirdPartyCompany: employmentType === 'Terceira' ? employerCompany : '',
+        thirdPartyCompany: '',
         workArea,
-        workSubtype: jobTitle === 'Analista' ? '' : workSubtype,
+        workSubtype: '',
         locality,
         edpUnit,
       })
@@ -3225,7 +3301,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setFeedback({
         type: 'success',
         message:
-          'Cadastro enviado para aprovação do ADM. Após a liberação, o perfil Compras poderá acessar somente o formulário fixo de Pedidos de Homologação.',
+          'Cadastro enviado para aprovação. O responsável definirá escopo, abrangência do engenheiro e empresa terceira na aprovação.',
       })
       setName('')
       setRegistration('')
@@ -3233,9 +3309,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setEmail('')
       setJobTitle('')
       setWorkArea('')
-      setWorkSubtype('')
       setEmploymentType('')
-      setEmployerCompany('')
       setEdpUnit('')
       setLocality('')
       setCpf('')
@@ -3264,7 +3338,12 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             do ADM, o usuário visualizará somente o formulário fixo de Pedidos de
             Homologação.
           </p>
-        ) : null}
+        ) : (
+          <p>
+            Informe tipo, abrangência, área, cargo e localidade. Escopo, abrangência
+            do engenheiro e empresa terceira serão definidos na aprovação.
+          </p>
+        )}
       </header>
 
       {feedback ? (
@@ -3278,11 +3357,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           Tipo
           <select
             value={employmentType}
-            onChange={(event) => {
-              const nextType = event.target.value
-              setEmploymentType(nextType)
-              setEmployerCompany('')
-            }}
+            onChange={(event) => setEmploymentType(event.target.value)}
             required
           >
             <option value="" disabled hidden />
@@ -3310,32 +3385,11 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           </select>
         </label>
 
-        {employmentType === 'Terceira' ? (
-          <label>
-            Empresa terceira
-            <select
-              value={employerCompany}
-              onChange={(event) => setEmployerCompany(event.target.value)}
-              required
-            >
-              <option value="" disabled hidden />
-              {terceiraOptions.map((company) => (
-                <option key={company} value={company}>
-                  {company}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-
         <label>
           Área
           <select
             value={workArea}
-            onChange={(event) => {
-              setWorkArea(event.target.value)
-              setWorkSubtype('')
-            }}
+            onChange={(event) => setWorkArea(event.target.value)}
             required
           >
             <option value="" disabled hidden />
@@ -3351,10 +3405,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           Cargo
           <select
             value={jobTitle}
-            onChange={(event) => {
-              setJobTitle(event.target.value)
-              setWorkSubtype('')
-            }}
+            onChange={(event) => setJobTitle(event.target.value)}
             required
           >
             <option value="" disabled hidden />
@@ -3365,24 +3416,6 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             ))}
           </select>
         </label>
-
-        {subtypeOptions.length > 0 ? (
-          <label>
-            {jobTitle === 'Engenheiro' ? 'Abrangência do engenheiro' : 'Escopo'}
-            <select
-              value={workSubtype}
-              onChange={(event) => setWorkSubtype(event.target.value)}
-              required
-            >
-              <option value="" disabled hidden />
-              {subtypeOptions.map((subtype) => (
-                <option key={subtype} value={subtype}>
-                  {subtype}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
 
         <label>
           Localidade
@@ -3398,11 +3431,6 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
               </option>
             ))}
           </select>
-        </label>
-
-        <label className="full-width">
-          Perfil construído
-          <input type="text" value={requestedProfile} readOnly />
         </label>
 
         <label>
