@@ -1341,13 +1341,63 @@ button {
 
 .approval-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
   align-items: start;
-  padding: 18px;
+  padding: 14px 16px;
   border-radius: 16px;
   border: 1px solid rgba(24, 216, 240, 0.22);
   background: rgba(5, 26, 44, 0.74);
+}
+
+.approval-item.is-expanded {
+  grid-template-columns: 1fr;
+  padding: 18px;
+}
+
+.approval-item.is-collapsed {
+  grid-template-columns: 1fr;
+  padding: 10px 14px;
+}
+
+.approval-item-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.approval-item.is-expanded .approval-item-summary {
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.approval-item-summary:hover strong,
+.approval-item-summary:focus-visible strong {
+  color: #18d8f0;
+}
+
+.approval-item-summary:focus-visible {
+  outline: 2px solid rgba(24, 216, 240, 0.55);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
+.approval-item-toggle {
+  color: var(--text-soft);
+  font-size: 0.95rem;
+}
+
+.approval-item-details {
+  display: grid;
+  gap: 6px;
 }
 
 .approval-item div {
@@ -1361,6 +1411,18 @@ button {
 
 .approval-item span {
   color: var(--text-soft);
+}
+
+.profile-photo-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(24, 216, 240, 0.16);
+  color: var(--text-main);
+  font-weight: 700;
 }
 
 .approval-completion-fields {

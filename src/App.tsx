@@ -746,6 +746,7 @@ function PendingApprovalItem({
   onViewDetails,
   onFeedback,
 }: PendingApprovalItemProps) {
+  const [expanded, setExpanded] = useState(false)
   const [thirdPartyCompany, setThirdPartyCompany] = useState('')
   const [workSubtype, setWorkSubtype] = useState('')
   const [selectedSubareas, setSelectedSubareas] = useState<string[]>([])
@@ -890,162 +891,181 @@ function PendingApprovalItem({
   }
 
   return (
-    <article className="approval-item">
-      <div>
+    <article className={`approval-item${expanded ? ' is-expanded' : ' is-collapsed'}`}>
+      <button
+        type="button"
+        className="approval-item-summary"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((current) => !current)}
+      >
         {user.profilePhoto ? (
           <img
             className="profile-photo-thumb"
             src={user.profilePhoto}
-            alt={`Foto de ${user.name}`}
+            alt=""
           />
-        ) : null}
+        ) : (
+          <span className="profile-photo-placeholder" aria-hidden="true">
+            {user.name.trim().charAt(0).toUpperCase() || '?'}
+          </span>
+        )}
         <strong>{user.name}</strong>
-        <span>Matrícula: {user.registration}</span>
-        <span>E-mail: {user.email}</span>
-        <span>Tipo: {user.employmentType || '—'}</span>
-        <span>Abrangência: {user.edpUnit || '—'}</span>
-        <span>Área: {user.workArea || '—'}</span>
-        <span>Cargo: {user.jobTitle || 'Não informado'}</span>
-        <span>Localidade: {user.locality || '—'}</span>
-        <span>
-          Solicitação enviada em {new Date(user.requestedAt).toLocaleString('pt-BR')}
+        <span className="approval-item-toggle" aria-hidden="true">
+          {expanded ? '▾' : '▸'}
         </span>
-        {builtProfile ? <span>Perfil a aprovar: {builtProfile}</span> : null}
-      </div>
+      </button>
 
-      <div className="approval-completion-fields">
-        {needsCompany ? (
-          <label>
-            Empresa terceira
-            <select
-              value={thirdPartyCompany}
-              onChange={(event) => setThirdPartyCompany(event.target.value)}
-            >
-              <option value="" disabled hidden />
-              {terceiraOptions.map((company) => (
-                <option key={company} value={company}>
-                  {company}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
+      {expanded ? (
+        <>
+          <div className="approval-item-details">
+            <span>Matrícula: {user.registration}</span>
+            <span>E-mail: {user.email}</span>
+            <span>Tipo: {user.employmentType || '—'}</span>
+            <span>Abrangência: {user.edpUnit || '—'}</span>
+            <span>Área: {user.workArea || '—'}</span>
+            <span>Cargo: {user.jobTitle || 'Não informado'}</span>
+            <span>Localidade: {user.locality || '—'}</span>
+            <span>
+              Solicitação enviada em {new Date(user.requestedAt).toLocaleString('pt-BR')}
+            </span>
+            {builtProfile ? <span>Perfil a aprovar: {builtProfile}</span> : null}
+          </div>
 
-        {needsSubtype ? (
-          <label>
-            {user.jobTitle === 'Engenheiro' ? 'Abrangência do engenheiro' : 'Escopo'}
-            <select
-              value={workSubtype}
-              onChange={(event) => {
-                setWorkSubtype(event.target.value)
-                setSelectedSubareas([])
-                setSelectedProcessAreas([])
-                setSelectedProcesses([])
-              }}
-            >
-              <option value="" disabled hidden />
-              {subtypeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
+          <div className="approval-completion-fields">
+            {needsCompany ? (
+              <label>
+                Empresa terceira
+                <select
+                  value={thirdPartyCompany}
+                  onChange={(event) => setThirdPartyCompany(event.target.value)}
+                >
+                  <option value="" disabled hidden />
+                  {terceiraOptions.map((company) => (
+                    <option key={company} value={company}>
+                      {company}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
 
-        {needsHomeSubareas ? (
-          <fieldset className="approval-subareas">
-            <legend>Subáreas da home</legend>
-            <p className="approval-subareas-hint">
-              Selecione as áreas que este engenheiro poderá ver na tela inicial.
-            </p>
-            <div className="approval-subareas-grid">
-              {ENGINEER_HOME_SUBAREAS.map((area) => (
-                <label key={area} className="approval-subarea-option">
-                  <input
-                    type="checkbox"
-                    checked={selectedSubareas.includes(area)}
-                    onChange={() => toggleSubarea(area)}
-                  />
-                  <span>{area}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        ) : null}
+            {needsSubtype ? (
+              <label>
+                {user.jobTitle === 'Engenheiro' ? 'Abrangência do engenheiro' : 'Escopo'}
+                <select
+                  value={workSubtype}
+                  onChange={(event) => {
+                    setWorkSubtype(event.target.value)
+                    setSelectedSubareas([])
+                    setSelectedProcessAreas([])
+                    setSelectedProcesses([])
+                  }}
+                >
+                  <option value="" disabled hidden />
+                  {subtypeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
 
-        {needsSpecificProcesses ? (
-          <fieldset className="approval-subareas">
-            <legend>Áreas e processos específicos</legend>
-            <p className="approval-subareas-hint">
-              A área {user.workArea || 'própria'} já inclui todos os processos. Selecione outras
-              áreas e os processos pelos quais este engenheiro será responsável.
-            </p>
-            <div className="approval-subareas-grid">
-              {crossAreaProcesses.map(({ area }) => (
-                <label key={area} className="approval-subarea-option">
-                  <input
-                    type="checkbox"
-                    checked={selectedProcessAreas.includes(area)}
-                    onChange={() => toggleProcessArea(area)}
-                  />
-                  <span>{area}</span>
-                </label>
-              ))}
-            </div>
-            {selectedProcessAreas.map((area) => {
-              const group = crossAreaProcesses.find((item) => item.area === area)
-              if (!group) return null
-              return (
-                <div key={area} className="approval-process-group">
-                  <p className="approval-process-group-title">Processos de {area}</p>
-                  <div className="approval-subareas-grid">
-                    {group.processes.map((process) => {
-                      const encoded = encodeAccessProcess(area, process)
-                      return (
-                        <label key={encoded} className="approval-subarea-option">
-                          <input
-                            type="checkbox"
-                            checked={selectedProcesses.includes(encoded)}
-                            onChange={() => toggleProcess(area, process)}
-                          />
-                          <span>{process}</span>
-                        </label>
-                      )
-                    })}
-                  </div>
+            {needsHomeSubareas ? (
+              <fieldset className="approval-subareas">
+                <legend>Subáreas da home</legend>
+                <p className="approval-subareas-hint">
+                  Selecione as áreas que este engenheiro poderá ver na tela inicial.
+                </p>
+                <div className="approval-subareas-grid">
+                  {ENGINEER_HOME_SUBAREAS.map((area) => (
+                    <label key={area} className="approval-subarea-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedSubareas.includes(area)}
+                        onChange={() => toggleSubarea(area)}
+                      />
+                      <span>{area}</span>
+                    </label>
+                  ))}
                 </div>
-              )
-            })}
-          </fieldset>
-        ) : null}
-      </div>
+              </fieldset>
+            ) : null}
 
-      <div className="approval-item-actions">
-        <button
-          className="secondary-button compact-button"
-          type="button"
-          onClick={() => onViewDetails(user)}
-        >
-          Ver detalhes
-        </button>
-        <button
-          className="danger-button compact-button"
-          type="button"
-          disabled={submitting || rejecting}
-          onClick={() => void handleReject()}
-        >
-          {rejecting ? 'Reprovando...' : 'Reprovar cadastro'}
-        </button>
-        <button
-          className="primary-button compact-button"
-          type="button"
-          disabled={submitting || rejecting}
-          onClick={() => void handleApprove()}
-        >
-          {submitting ? 'Aprovando...' : 'Aprovar acesso'}
-        </button>
-      </div>
+            {needsSpecificProcesses ? (
+              <fieldset className="approval-subareas">
+                <legend>Áreas e processos específicos</legend>
+                <p className="approval-subareas-hint">
+                  A área {user.workArea || 'própria'} já inclui todos os processos. Selecione outras
+                  áreas e os processos pelos quais este engenheiro será responsável.
+                </p>
+                <div className="approval-subareas-grid">
+                  {crossAreaProcesses.map(({ area }) => (
+                    <label key={area} className="approval-subarea-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedProcessAreas.includes(area)}
+                        onChange={() => toggleProcessArea(area)}
+                      />
+                      <span>{area}</span>
+                    </label>
+                  ))}
+                </div>
+                {selectedProcessAreas.map((area) => {
+                  const group = crossAreaProcesses.find((item) => item.area === area)
+                  if (!group) return null
+                  return (
+                    <div key={area} className="approval-process-group">
+                      <p className="approval-process-group-title">Processos de {area}</p>
+                      <div className="approval-subareas-grid">
+                        {group.processes.map((process) => {
+                          const encoded = encodeAccessProcess(area, process)
+                          return (
+                            <label key={encoded} className="approval-subarea-option">
+                              <input
+                                type="checkbox"
+                                checked={selectedProcesses.includes(encoded)}
+                                onChange={() => toggleProcess(area, process)}
+                              />
+                              <span>{process}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </fieldset>
+            ) : null}
+          </div>
+
+          <div className="approval-item-actions">
+            <button
+              className="secondary-button compact-button"
+              type="button"
+              onClick={() => onViewDetails(user)}
+            >
+              Ver detalhes
+            </button>
+            <button
+              className="danger-button compact-button"
+              type="button"
+              disabled={submitting || rejecting}
+              onClick={() => void handleReject()}
+            >
+              {rejecting ? 'Reprovando...' : 'Reprovar cadastro'}
+            </button>
+            <button
+              className="primary-button compact-button"
+              type="button"
+              disabled={submitting || rejecting}
+              onClick={() => void handleApprove()}
+            >
+              {submitting ? 'Aprovando...' : 'Aprovar acesso'}
+            </button>
+          </div>
+        </>
+      ) : null}
     </article>
   )
 }
