@@ -24,6 +24,18 @@ export const ENGINEER_SUBTYPES = [
   'Processos específicos',
 ] as const
 
+/** Subáreas da home disponíveis para engenheiro com abrangência Sub-área. */
+export const ENGINEER_HOME_SUBAREAS = [
+  'Gestão',
+  'Medição',
+  'Laboratório de Medição',
+  'Laboratório de Homologação',
+  'Telemedição',
+  'Equipe de campo',
+] as const
+
+export type EngineerHomeSubarea = (typeof ENGINEER_HOME_SUBAREAS)[number]
+
 export const DEFAULT_AREA_OPTIONS = [
   'Medição',
   'Telemedição',

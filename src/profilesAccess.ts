@@ -137,6 +137,22 @@ export function getHomeAreasForRole(role: UserRole): readonly PortalArea[] {
   return PORTAL_AREAS.filter((area) => areas.includes(area))
 }
 
+/** Home do usuário considerando subáreas atribuídas (engenheiro Sub-área). */
+export function getHomeAreasForUser(user: {
+  role: UserRole
+  accessAreas?: string[] | null
+}): readonly PortalArea[] {
+  const assigned = (user.accessAreas ?? []).filter((area): area is PortalArea =>
+    (PORTAL_AREAS as readonly string[]).includes(area),
+  )
+
+  if (assigned.length > 0) {
+    return PORTAL_AREAS.filter((area) => assigned.includes(area))
+  }
+
+  return getHomeAreasForRole(user.role)
+}
+
 export function getCadastroProfile(profileId: string): CadastroProfile | undefined {
   return CADASTRO_PROFILES.find((profile) => profile.id === profileId)
 }

@@ -26,6 +26,22 @@ type UserRow = {
   locality: string
   edp_unit: string
   profile_photo: string
+  access_areas: unknown
+}
+
+function parseAccessAreas(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+  }
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value) as unknown
+      return parseAccessAreas(parsed)
+    } catch {
+      return []
+    }
+  }
+  return []
 }
 
 function mapUser(row: UserRow) {
@@ -51,6 +67,7 @@ function mapUser(row: UserRow) {
     locality: row.locality,
     edpUnit: row.edp_unit,
     profilePhoto: row.profile_photo || '',
+    accessAreas: parseAccessAreas(row.access_areas),
   }
 }
 
@@ -331,9 +348,10 @@ export async function listUsers(_req: Request, res: Response) {
 
 export async function approveUser(req: Request, res: Response) {
   const { id } = req.params
-  const { thirdPartyCompany, workSubtype } = req.body as {
+  const { thirdPartyCompany, workSubtype, accessAreas } = req.body as {
     thirdPartyCompany?: string
     workSubtype?: string
+    accessAreas?: string[]
   }
 
   const previous = await query<UserRow>(
@@ -352,6 +370,9 @@ export async function approveUser(req: Request, res: Response) {
   const employmentType = pending.employment_type
   const normalizedCompany = thirdPartyCompany?.trim() ?? ''
   const normalizedSubtype = workSubtype?.trim() ?? ''
+  const requestedAccessAreas = Array.isArray(accessAreas)
+    ? accessAreas.map((area) => area.trim()).filter(Boolean)
+    : []
 
   const technicianScopesByArea: Record<string, string[]> = {
     Medição: [
@@ -365,6 +386,14 @@ export async function approveUser(req: Request, res: Response) {
     ],
   }
   const allowedEngineerSubtypes = ['Área', 'Sub-área', 'Processos específicos']
+  const allowedEngineerHomeSubareas = [
+    'Gestão',
+    'Medição',
+    'Laboratório de Medição',
+    'Laboratório de Homologação',
+    'Telemedição',
+    'Equipe de campo',
+  ]
 
   let storedCompany = ''
   if (employmentType === 'Terceira') {
@@ -383,6 +412,7 @@ export async function approveUser(req: Request, res: Response) {
   }
 
   let storedSubtype = ''
+  let storedAccessAreas: string[] = []
   if (jobTitle === 'Técnico') {
     const allowedScopes = technicianScopesByArea[workArea] ?? []
     if (!allowedScopes.includes(normalizedSubtype)) {
@@ -401,6 +431,19 @@ export async function approveUser(req: Request, res: Response) {
       return
     }
     storedSubtype = normalizedSubtype
+
+    if (normalizedSubtype === 'Sub-área') {
+      const invalid = requestedAccessAreas.filter(
+        (area) => !allowedEngineerHomeSubareas.includes(area),
+      )
+      if (requestedAccessAreas.length === 0 || invalid.length > 0) {
+        res.status(400).json({
+          error: 'Selecione ao menos uma subárea da home para o engenheiro.',
+        })
+        return
+      }
+      storedAccessAreas = requestedAccessAreas
+    }
   }
 
   const result = await query<UserRow>(
@@ -408,10 +451,11 @@ export async function approveUser(req: Request, res: Response) {
      SET approval_status = 'approved',
          approved_at = NOW(),
          third_party_company = $2,
-         work_subtype = $3
+         work_subtype = $3,
+         access_areas = $4::jsonb
      WHERE id = $1 AND role = 'compras'
      RETURNING *`,
-    [id, storedCompany, storedSubtype],
+    [id, storedCompany, storedSubtype, JSON.stringify(storedAccessAreas)],
   )
 
   const user = mapUser(result.rows[0])

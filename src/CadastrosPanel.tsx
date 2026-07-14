@@ -9,6 +9,7 @@ import { CADASTRO_PROFILES } from './profilesAccess'
 import {
   DEFAULT_AREA_OPTIONS,
   DEFAULT_LOCALITIES,
+  ENGINEER_HOME_SUBAREAS,
   ENGINEER_SUBTYPES,
   TECHNICIAN_SCOPES_BY_AREA,
 } from './registrationOptions'
@@ -263,6 +264,18 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
             </header>
             <ul className="catalog-option-list">
               {ENGINEER_SUBTYPES.map((option) => (
+                <li key={option}>
+                  <span>{option}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="catalog-card">
+            <header className="catalog-card-header">
+              <h3>Subáreas da home (engenheiro Sub-área)</h3>
+            </header>
+            <ul className="catalog-option-list">
+              {ENGINEER_HOME_SUBAREAS.map((option) => (
                 <li key={option}>
                   <span>{option}</span>
                 </li>

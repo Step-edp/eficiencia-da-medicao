@@ -8,7 +8,7 @@ import {
   ADMIN_PREVIEW_PROFILE_ID,
   CADASTRO_PROFILES,
   getHomeAreasForProfilePreview,
-  getHomeAreasForRole,
+  getHomeAreasForUser,
   roleLabel,
 } from './profilesAccess'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
@@ -35,6 +35,7 @@ import {
   DEFAULT_AREA_OPTIONS,
   DEFAULT_LOCALITIES,
   EDP_SCOPE_OPTIONS,
+  ENGINEER_HOME_SUBAREAS,
   subtypesForCargo,
 } from './registrationOptions'
 
@@ -703,6 +704,7 @@ function ItemIcon({ title }: { title: string }) {
 type ApproveUserPayload = {
   thirdPartyCompany?: string
   workSubtype?: string
+  accessAreas?: string[]
 }
 
 type PendingApprovalItemProps = {
@@ -722,17 +724,28 @@ function PendingApprovalItem({
 }: PendingApprovalItemProps) {
   const [thirdPartyCompany, setThirdPartyCompany] = useState('')
   const [workSubtype, setWorkSubtype] = useState('')
+  const [selectedSubareas, setSelectedSubareas] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const subtypeOptions = subtypesForCargo(user.jobTitle, user.workArea ?? '')
   const needsCompany = user.employmentType === 'Terceira'
   const needsSubtype = subtypeOptions.length > 0
+  const needsHomeSubareas = user.jobTitle === 'Engenheiro' && workSubtype === 'Sub-área'
   const builtProfile = buildRequestedProfile(
     user.jobTitle,
     workSubtype,
     user.workArea ?? '',
+    needsHomeSubareas && selectedSubareas.length > 0 ? selectedSubareas.join(', ') : undefined,
     user.employmentType === 'Terceira' ? thirdPartyCompany || undefined : undefined,
     user.edpUnit || undefined,
   )
+
+  const toggleSubarea = (area: string) => {
+    setSelectedSubareas((current) =>
+      current.includes(area)
+        ? current.filter((item) => item !== area)
+        : [...current, area],
+    )
+  }
 
   const handleApprove = async () => {
     if (needsCompany && !thirdPartyCompany) {
@@ -749,12 +762,20 @@ function PendingApprovalItem({
       })
       return
     }
+    if (needsHomeSubareas && selectedSubareas.length === 0) {
+      onFeedback({
+        type: 'error',
+        message: 'Selecione ao menos uma subárea da home para o engenheiro.',
+      })
+      return
+    }
 
     setSubmitting(true)
     try {
       await onApprove(user.id, {
         thirdPartyCompany: needsCompany ? thirdPartyCompany : '',
         workSubtype: needsSubtype ? workSubtype : '',
+        accessAreas: needsHomeSubareas ? selectedSubareas : [],
       })
       onFeedback({
         type: 'success',
@@ -820,7 +841,10 @@ function PendingApprovalItem({
             {user.jobTitle === 'Engenheiro' ? 'Abrangência do engenheiro' : 'Escopo'}
             <select
               value={workSubtype}
-              onChange={(event) => setWorkSubtype(event.target.value)}
+              onChange={(event) => {
+                setWorkSubtype(event.target.value)
+                setSelectedSubareas([])
+              }}
             >
               <option value="" disabled hidden />
               {subtypeOptions.map((option) => (
@@ -830,6 +854,27 @@ function PendingApprovalItem({
               ))}
             </select>
           </label>
+        ) : null}
+
+        {needsHomeSubareas ? (
+          <fieldset className="approval-subareas">
+            <legend>Subáreas da home</legend>
+            <p className="approval-subareas-hint">
+              Selecione as áreas que este engenheiro poderá ver na tela inicial.
+            </p>
+            <div className="approval-subareas-grid">
+              {ENGINEER_HOME_SUBAREAS.map((area) => (
+                <label key={area} className="approval-subarea-option">
+                  <input
+                    type="checkbox"
+                    checked={selectedSubareas.includes(area)}
+                    onChange={() => toggleSubarea(area)}
+                  />
+                  <span>{area}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
         ) : null}
       </div>
 
@@ -1053,7 +1098,7 @@ function HomePanel({
 
   const allowedHomeAreas = isAdmin
     ? getHomeAreasForProfilePreview(previewProfileId)
-    : getHomeAreasForRole(currentUser.role)
+    : getHomeAreasForUser(currentUser)
   const areas = allAreas.filter((area) =>
     allowedHomeAreas.includes(area.title as (typeof allowedHomeAreas)[number]),
   )
@@ -1566,7 +1611,8 @@ function HomePanel({
     }
   }
 
-  if (currentUser.role === 'compras') {
+  // Compras puro (sem subáreas de portal) segue no formulário dedicado.
+  if (currentUser.role === 'compras' && !(currentUser.accessAreas?.length)) {
     return (
       <HomologationRequestPortal
         currentUser={currentUser}
@@ -1759,6 +1805,9 @@ function HomePanel({
                                   user.jobTitle,
                                   user.workSubtype ?? '',
                                   user.workArea ?? '',
+                                  user.accessAreas?.length
+                                    ? user.accessAreas.join(', ')
+                                    : undefined,
                                   user.employmentType === 'Terceira'
                                     ? user.thirdPartyCompany
                                     : undefined,
@@ -1876,6 +1925,9 @@ function HomePanel({
                               selectedUserDetail.jobTitle,
                               selectedUserDetail.workSubtype ?? '',
                               selectedUserDetail.workArea ?? '',
+                              selectedUserDetail.accessAreas?.length
+                                ? selectedUserDetail.accessAreas.join(', ')
+                                : undefined,
                               selectedUserDetail.employmentType === 'Terceira'
                                 ? selectedUserDetail.thirdPartyCompany
                                 : undefined,
@@ -1893,9 +1945,19 @@ function HomePanel({
                           <dd>{formatValue(selectedUserDetail.workArea)}</dd>
                         </div>
                         <div>
-                          <dt>Subtipo</dt>
+                          <dt>
+                            {selectedUserDetail.jobTitle === 'Engenheiro'
+                              ? 'Abrangência'
+                              : 'Escopo'}
+                          </dt>
                           <dd>{formatValue(selectedUserDetail.workSubtype)}</dd>
                         </div>
+                        {selectedUserDetail.accessAreas?.length ? (
+                          <div>
+                            <dt>Subáreas da home</dt>
+                            <dd>{selectedUserDetail.accessAreas.join(', ')}</dd>
+                          </div>
+                        ) : null}
                         <div>
                           <dt>Localidade</dt>
                           <dd>{formatValue(selectedUserDetail.locality)}</dd>

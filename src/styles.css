@@ -1350,6 +1350,45 @@ button {
   font-size: 0.92rem;
 }
 
+.approval-subareas {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(158, 183, 203, 0.22);
+  background: rgba(4, 17, 32, 0.35);
+}
+
+.approval-subareas legend {
+  padding: 0 6px;
+  color: var(--text-main);
+  font-size: 0.92rem;
+}
+
+.approval-subareas-hint {
+  margin: 0 0 10px;
+  color: var(--text-soft);
+  font-size: 0.86rem;
+}
+
+.approval-subareas-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.approval-subarea-option {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-main) !important;
+}
+
+.approval-subarea-option input {
+  width: auto;
+  margin: 0;
+}
+
 .users-section-heading {
   margin: 18px 0 8px;
   color: var(--text-main);
