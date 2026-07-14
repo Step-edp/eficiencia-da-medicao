@@ -241,6 +241,20 @@ export async function migrate() {
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS document_number TEXT;
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS emission_date TEXT;
     ALTER TABLE org_cells ADD COLUMN IF NOT EXISTS substitute_user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_required_since TIMESTAMPTZ;
+
+    CREATE TABLE IF NOT EXISTS user_vacation_periods (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CHECK (end_date >= start_date)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_user_vacation_periods_user
+      ON user_vacation_periods (user_id, start_date);
   `)
 
   // Integração com Agendamento Lab Med: perfil field + compartilhamento do mesmo Postgres

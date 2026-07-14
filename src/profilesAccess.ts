@@ -10,6 +10,7 @@ export const PORTAL_AREAS = [
   'Equipe de campo',
   'Usuários',
   'Cadastros',
+  'Agenda',
 ] as const
 
 export type PortalArea = (typeof PORTAL_AREAS)[number]
@@ -26,15 +27,21 @@ const GESTAO_NESTED_PORTALS: PortalArea[] = [
 ]
 
 export function portalsToHomeCards(portals: readonly PortalArea[]): readonly PortalArea[] {
+  const hasAgenda = portals.includes('Agenda')
+  const withoutAgenda = portals.filter((portal) => portal !== 'Agenda')
   const hasGestaoAccess =
-    portals.includes('Gestão') ||
-    portals.some((portal) => GESTAO_NESTED_PORTALS.includes(portal))
+    withoutAgenda.includes('Gestão') ||
+    withoutAgenda.some((portal) => GESTAO_NESTED_PORTALS.includes(portal))
 
-  if (hasGestaoAccess) {
-    return ['Gestão']
+  const cards: PortalArea[] = hasGestaoAccess
+    ? ['Gestão']
+    : [...withoutAgenda]
+
+  if (hasAgenda && !cards.includes('Agenda')) {
+    cards.push('Agenda')
   }
 
-  return portals
+  return cards
 }
 
 /** Acesso especial fora dos cards da home. */
@@ -232,12 +239,18 @@ export function getAccessiblePortals(user: {
     (PORTAL_AREAS as readonly string[]).includes(area),
   )
 
+  let portals: PortalArea[]
   if (assigned.length > 0) {
-    return PORTAL_AREAS.filter((area) => assigned.includes(area))
+    portals = PORTAL_AREAS.filter((area) => assigned.includes(area))
+  } else {
+    const areas = SYSTEM_ROLE_ACCESS[user.role]?.areas ?? []
+    portals = PORTAL_AREAS.filter((area) => areas.includes(area))
   }
 
-  const areas = SYSTEM_ROLE_ACCESS[user.role]?.areas ?? []
-  return PORTAL_AREAS.filter((area) => areas.includes(area))
+  if (!portals.includes('Agenda')) {
+    portals = [...portals, 'Agenda']
+  }
+  return portals
 }
 
 /** Home do usuário: card primário Gestão quando há acesso à hierarquia. */
@@ -310,5 +323,8 @@ export function getHomeAreasForProfilePreview(profileId: string): readonly Porta
   const profile = getCadastroProfile(profileId)
   if (!profile) return portalsToHomeCards(PORTAL_AREAS)
 
-  return portalsToHomeCards(PORTAL_AREAS.filter((area) => profile.areas.includes(area)))
+  const areas = PORTAL_AREAS.filter(
+    (area) => profile.areas.includes(area) || area === 'Agenda',
+  )
+  return portalsToHomeCards(areas)
 }

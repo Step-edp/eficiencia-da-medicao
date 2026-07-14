@@ -185,6 +185,65 @@ button {
   order: 8;
 }
 
+.area-card-agenda {
+  order: 9;
+}
+
+.agenda-alert {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.agenda-alert-pending {
+  background: rgba(180, 83, 9, 0.14);
+  border: 1px solid rgba(180, 83, 9, 0.28);
+  color: #9a3412;
+}
+
+.agenda-alert-blocked {
+  background: rgba(185, 28, 28, 0.12);
+  border: 1px solid rgba(185, 28, 28, 0.28);
+  color: #991b1b;
+}
+
+.agenda-alert-ok {
+  background: rgba(21, 128, 61, 0.12);
+  border: 1px solid rgba(21, 128, 61, 0.24);
+  color: #166534;
+}
+
+.agenda-form {
+  max-width: 420px;
+  margin-top: 8px;
+}
+
+.agenda-success {
+  margin: 0;
+  color: #166534;
+  font-size: 0.9rem;
+}
+
+.agenda-period-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.link-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
 .catalogs-grid {
   display: grid;
   gap: 16px;

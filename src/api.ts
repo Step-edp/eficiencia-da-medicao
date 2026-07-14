@@ -1,5 +1,6 @@
 export type UserRole = 'admin' | 'compras' | 'field'
 export type ApprovalStatus = 'approved' | 'pending'
+export type VacationStatus = 'ok' | 'pendente' | 'bloqueado'
 
 export type AppUser = {
   id: string
@@ -25,6 +26,28 @@ export type AppUser = {
   profilePhoto?: string
   accessAreas?: string[]
   accessProcesses?: string[]
+  vacationStatus?: VacationStatus
+  vacationDeadlineAt?: string | null
+  vacationRequiredSince?: string | null
+  nextVacationStart?: string | null
+  nextVacationEnd?: string | null
+}
+
+export type VacationPeriod = {
+  id: number
+  startDate: string
+  endDate: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type VacationAgendaResponse = {
+  periods: VacationPeriod[]
+  vacationStatus: VacationStatus
+  vacationDeadlineAt: string | null
+  vacationRequiredSince: string | null
+  nextVacation: VacationPeriod | null
+  period?: VacationPeriod | null
 }
 
 export type ProcessRole = 'responsavel' | 'executor'
@@ -290,6 +313,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   me: () => request<{ user: AppUser }>('/api/auth/me'),
+  getVacationAgenda: () => request<VacationAgendaResponse>('/api/agenda/vacations'),
+  saveVacationPeriod: (payload: { startDate: string; endDate: string }) =>
+    request<VacationAgendaResponse>('/api/agenda/vacations', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
   login: (registration: string, password: string) =>
     request<{ user: AppUser; token?: string }>('/api/auth/login', {
       method: 'POST',

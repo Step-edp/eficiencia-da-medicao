@@ -7,6 +7,7 @@ import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
 import { UsersDashboard } from './UsersDashboard'
 import { GestaoDashboard, CellResponsibleEditor } from './GestaoDashboard'
+import { AgendaPanel } from './AgendaPanel'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
   CADASTRO_PROFILES,
@@ -269,6 +270,7 @@ export default function App() {
         onDeleteUser={(userId) => {
           setRegisteredUsers((prev) => prev.filter((item) => item.id !== userId))
         }}
+        onCurrentUserChange={setAuthenticatedUser}
         onCreateHomologationRequest={handleCreateHomologationRequest}
         onLogout={handleLogout}
       />
@@ -488,6 +490,7 @@ type HomePanelProps = {
   onRejectUser: (userId: string, reason: string) => Promise<{ emailSent?: boolean; warning?: string }>
   onUpdateUser: (user: AppUser) => void
   onDeleteUser: (userId: string) => void
+  onCurrentUserChange: (user: AppUser) => void
   onCreateHomologationRequest: (
     payload: Omit<
       HomologationRequest,
@@ -669,6 +672,7 @@ function ItemIcon({ title }: { title: string }) {
     'Equipe de campo': 'truck',
     Usuários: 'users',
     Cadastros: 'archive',
+    Agenda: 'calendar',
     Consultar: 'search',
   }
 
@@ -1194,6 +1198,7 @@ function HomePanel({
   onRejectUser,
   onUpdateUser,
   onDeleteUser,
+  onCurrentUserChange,
   onCreateHomologationRequest,
   onLogout,
 }: HomePanelProps) {
@@ -1430,6 +1435,12 @@ function HomePanel({
       details:
         'Centralize cadastros de apoio da área de Medição, como bases, parâmetros e informações operacionais.',
     },
+    {
+      title: 'Agenda',
+      description: 'Registro obrigatório do próximo período de férias.',
+      details:
+        'Informe suas próximas férias. Sem registro o status fica pendente; após 7 dias o perfil é bloqueado.',
+    },
   ]
 
   const allowedHomeAreas = isAdmin
@@ -1449,12 +1460,18 @@ function HomePanel({
       return [...PORTAL_AREAS]
     }
     if (isAdmin && previewProfile) {
-      return previewProfile.areas
+      const areas = [...previewProfile.areas] as Array<(typeof PORTAL_AREAS)[number]>
+      if (!areas.includes('Agenda')) areas.push('Agenda')
+      return areas
     }
     return getAccessiblePortals(currentUser)
   })()
 
   const gestaoArea = allAreas.find((area) => area.title === 'Gestão') ?? null
+  const agendaArea = allAreas.find((area) => area.title === 'Agenda') ?? null
+
+  const isVacationBlocked =
+    currentUser.role !== 'admin' && currentUser.vacationStatus === 'bloqueado'
 
   const isGestorView =
     (!isAdmin && currentUser.jobTitle === 'Gestor') ||
@@ -1476,12 +1493,40 @@ function HomePanel({
     setSelectedOrgCell(null)
     setSelectedOrgSubcell(null)
     clearAreaSections()
+    if (isVacationBlocked && agendaArea) {
+      setSelectedArea(agendaArea)
+      return
+    }
     if (isGestorView && gestaoArea) {
       setSelectedArea(gestaoArea)
       return
     }
     setSelectedArea(null)
   }
+
+  const refreshCurrentUser = async () => {
+    const response = await api.me()
+    onCurrentUserChange(response.user)
+  }
+
+  useEffect(() => {
+    if (!isVacationBlocked || !agendaArea) return
+    if (selectedArea?.title !== 'Agenda') {
+      setSelectedArea(agendaArea)
+      clearAreaSections()
+      setSelectedOrgCell(null)
+      setSelectedOrgSubcell(null)
+    }
+  }, [isVacationBlocked, agendaArea, selectedArea?.title])
+
+  useEffect(() => {
+    if (!isGestorView || !gestaoArea || isVacationBlocked) return
+    if (!selectedArea) {
+      setSelectedArea(gestaoArea)
+      setSelectedOrgCell(null)
+      setSelectedOrgSubcell(null)
+    }
+  }, [isGestorView, gestaoArea, selectedArea, isVacationBlocked])
 
   const returnToOrgCell = () => {
     if (!gestaoArea || !selectedOrgCell) {
@@ -1650,19 +1695,11 @@ function HomePanel({
     : []
 
   useEffect(() => {
-    if (!isGestorView || !gestaoArea) return
-    if (!selectedArea) {
-      setSelectedArea(gestaoArea)
-      setSelectedOrgCell(null)
-      setSelectedOrgSubcell(null)
-    }
-  }, [isGestorView, gestaoArea, selectedArea])
-
-  useEffect(() => {
     if (!previewProfile || !selectedArea) return
     const allowed =
       previewProfile.areas.includes(selectedArea.title as (typeof previewProfile.areas)[number]) ||
-      selectedArea.title === 'Gestão'
+      selectedArea.title === 'Gestão' ||
+      selectedArea.title === 'Agenda'
     if (!allowed) {
       setSelectedArea(null)
       setSelectedOrgCell(null)
@@ -2167,11 +2204,33 @@ function HomePanel({
     }
   }
 
-  // Compras puro (sem subáreas/processos de portal) segue no formulário dedicado.
+  // Compras puro (sem subáreas/processos de portal) segue no formulário dedicado —
+  // exceto se estiver bloqueado por férias: só Agenda.
+  if (isVacationBlocked) {
+    return (
+      <main className="shell">
+        <section className="home-card area-screen-card">
+          <TopActionBar onLogout={onLogout} />
+          <p className="section-tag">Agenda · Acesso restrito</p>
+          <h2>Agenda</h2>
+          <AgendaPanel
+            locked
+            vacationStatus={currentUser.vacationStatus}
+            vacationDeadlineAt={currentUser.vacationDeadlineAt}
+            nextVacationStart={currentUser.nextVacationStart}
+            nextVacationEnd={currentUser.nextVacationEnd}
+            onSaved={refreshCurrentUser}
+          />
+        </section>
+      </main>
+    )
+  }
+
   if (
     currentUser.role === 'compras' &&
     !(currentUser.accessAreas?.length) &&
-    !(currentUser.accessProcesses?.length)
+    !(currentUser.accessProcesses?.length) &&
+    currentUser.vacationStatus === 'ok'
   ) {
     return (
       <HomologationRequestPortal
@@ -2186,6 +2245,25 @@ function HomePanel({
   }
 
   if (selectedArea) {
+    if (selectedArea.title === 'Agenda') {
+      return (
+        <main className="shell">
+          <section className="home-card area-screen-card">
+            <TopActionBar onBack={exitToHome} onHome={exitToHome} onLogout={onLogout} />
+            <p className="section-tag">Área</p>
+            <h2>Agenda</h2>
+            <AgendaPanel
+              vacationStatus={currentUser.vacationStatus}
+              vacationDeadlineAt={currentUser.vacationDeadlineAt}
+              nextVacationStart={currentUser.nextVacationStart}
+              nextVacationEnd={currentUser.nextVacationEnd}
+              onSaved={refreshCurrentUser}
+            />
+          </section>
+        </main>
+      )
+    }
+
     if (selectedArea.title === 'Gestão') {
       const activeCell = selectedOrgCell ? getOrgCell(selectedOrgCell, orgCells) : null
       const cellSubcells = selectedOrgCell ? visibleSubcellsForCell(selectedOrgCell) : []
@@ -3504,6 +3582,33 @@ function HomePanel({
         <p className="section-tag">Home</p>
         <h2>Bem-vindo ao portal, {currentUser.name}</h2>
 
+        {currentUser.role !== 'admin' && currentUser.vacationStatus === 'pendente' ? (
+          <div className="agenda-alert agenda-alert-pending" role="status">
+            <strong>Férias pendentes.</strong> Acesse a Agenda e registre o próximo período de
+            férias
+            {currentUser.vacationDeadlineAt
+              ? ` até ${new Date(currentUser.vacationDeadlineAt).toLocaleString('pt-BR')}`
+              : ' nos próximos 7 dias'}
+            . Depois disso o perfil será bloqueado.
+            {agendaArea ? (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => {
+                    setSelectedOrgCell(null)
+                    setSelectedOrgSubcell(null)
+                    setSelectedArea(agendaArea)
+                  }}
+                >
+                  Ir para a Agenda
+                </button>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+
         {isAdmin ? (
           <div className="profile-preview-bar">
             <label>
@@ -3983,6 +4088,10 @@ function getAreaCardClassName(title: string) {
 
   if (title === 'Cadastros') {
     return 'area-card-cadastros'
+  }
+
+  if (title === 'Agenda') {
+    return 'area-card-agenda'
   }
 
   return ''

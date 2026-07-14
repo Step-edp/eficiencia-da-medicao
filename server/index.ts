@@ -26,6 +26,7 @@ import {
 import { catalogOptionRoutes } from './routes/catalog-options.js'
 import { processAssignmentRoutes } from './routes/process-assignments.js'
 import { orgCellRoutes } from './routes/org-cells.js'
+import { vacationRoutes } from './routes/vacation.js'
 import { listAuditLogs } from './routes/audit-logs.js'
 import {
   countMeterSchedules,
@@ -143,6 +144,9 @@ async function start() {
   app.patch('/api/org-area', ...wrap(orgCellRoutes.updateArea))
   app.post('/api/org-cells', ...wrap(orgCellRoutes.create))
   app.patch('/api/org-cells/:id', ...wrap(orgCellRoutes.update))
+
+  app.get('/api/agenda/vacations', ...wrap(vacationRoutes.getMine))
+  app.put('/api/agenda/vacations', ...wrap(vacationRoutes.upsertMine))
 
   app.get('/api/audit-logs', requireAuth, listAuditLogs)
 

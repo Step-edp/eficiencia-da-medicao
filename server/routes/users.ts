@@ -8,6 +8,10 @@ import {
   portalAreasFromProcesses,
 } from '../engineer-access.js'
 import { isMailConfigured, sendRegistrationRejectedEmail } from '../mail.js'
+import {
+  attachVacationMeta,
+  getVacationMetaForUser,
+} from './vacation.js'
 
 type UserRow = {
   id: string
@@ -78,6 +82,12 @@ function mapUser(row: UserRow) {
   }
 }
 
+async function mapUserWithVacation(row: UserRow) {
+  const base = mapUser(row)
+  const meta = await getVacationMetaForUser(row.id, row.role)
+  return attachVacationMeta(base, meta)
+}
+
 async function findUserById(id: string) {
   const result = await query<UserRow>('SELECT * FROM users WHERE id = $1', [id])
   return result.rows[0] ?? null
@@ -115,7 +125,7 @@ export async function login(req: Request, res: Response) {
 
   const token = signToken({ id: user.id, registration: user.registration, role: user.role })
   setAuthCookie(res, token)
-  res.json({ user: mapUser(user), token })
+  res.json({ user: await mapUserWithVacation(user), token })
 }
 
 export async function register(req: Request, res: Response) {
@@ -305,7 +315,7 @@ export async function me(req: Request, res: Response) {
     res.status(401).json({ error: 'Usuário não encontrado.' })
     return
   }
-  res.json({ user: mapUser(user) })
+  res.json({ user: await mapUserWithVacation(user) })
 }
 
 export function logout(_req: Request, res: Response) {
@@ -345,12 +355,13 @@ export async function exchangeSsoToken(req: Request, res: Response) {
 
   const token = signToken({ id: user.id, registration: user.registration, role: user.role })
   setAuthCookie(res, token)
-  res.json({ user: mapUser(user) })
+  res.json({ user: await mapUserWithVacation(user) })
 }
 
 export async function listUsers(_req: Request, res: Response) {
   const result = await query<UserRow>('SELECT * FROM users ORDER BY requested_at DESC')
-  res.json({ users: result.rows.map(mapUser) })
+  const users = await Promise.all(result.rows.map((row) => mapUserWithVacation(row)))
+  res.json({ users })
 }
 
 export async function approveUser(req: Request, res: Response) {
@@ -481,7 +492,8 @@ export async function approveUser(req: Request, res: Response) {
          third_party_company = $2,
          work_subtype = $3,
          access_areas = $4::jsonb,
-         access_processes = $5::jsonb
+         access_processes = $5::jsonb,
+         vacation_required_since = COALESCE(vacation_required_since, NOW())
      WHERE id = $1 AND role = 'compras'
      RETURNING *`,
     [
@@ -493,7 +505,7 @@ export async function approveUser(req: Request, res: Response) {
     ],
   )
 
-  const user = mapUser(result.rows[0])
+  const user = await mapUserWithVacation(result.rows[0])
 
   await writeAuditLog(req, {
     action: 'approve',
@@ -613,7 +625,7 @@ export async function updateUser(req: Request, res: Response) {
         ],
       )
 
-      const user = mapUser(result.rows[0])
+      const user = await mapUserWithVacation(result.rows[0])
       await writeAuditLog(req, {
         action: 'update',
         entityType: 'user',
@@ -836,7 +848,7 @@ export async function updateUser(req: Request, res: Response) {
       ],
     )
 
-    const user = mapUser(result.rows[0])
+    const user = await mapUserWithVacation(result.rows[0])
     await writeAuditLog(req, {
       action: 'update',
       entityType: 'user',
