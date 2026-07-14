@@ -13,6 +13,23 @@ import {
   getVacationMetaForUser,
 } from './vacation.js'
 
+/** Portais da home derivados do escopo do técnico (alinhado aos perfis de cadastro). */
+function accessAreasForTechnician(workArea: string, subtype: string): string[] {
+  if (workArea === 'Medição' && subtype === 'Laboratório de Medição') {
+    return ['Laboratório de Medição']
+  }
+  if (workArea === 'Medição' && subtype === 'Atividades administrativas da Medição') {
+    return ['Medição']
+  }
+  if (workArea === 'CSD' && subtype === 'Lavratura de TOI - Ponto Focal') {
+    return ['Equipe de campo', 'Laboratório de Medição']
+  }
+  if (workArea === 'CSD') {
+    return ['Equipe de campo']
+  }
+  return []
+}
+
 type UserRow = {
   id: string
   name: string
@@ -449,6 +466,7 @@ export async function approveUser(req: Request, res: Response) {
       return
     }
     storedSubtype = normalizedSubtype
+    storedAccessAreas = accessAreasForTechnician(workArea, normalizedSubtype)
   } else if (jobTitle === 'Engenheiro') {
     if (!allowedEngineerSubtypes.includes(normalizedSubtype)) {
       res.status(400).json({ error: 'Selecione a abrangência do engenheiro antes de aprovar.' })
@@ -767,6 +785,10 @@ export async function updateUser(req: Request, res: Response) {
         return
       }
       storedSubtype = normalizedSubtype
+      storedAccessAreas = accessAreasForTechnician(
+        normalizedWorkArea,
+        normalizedSubtype,
+      )
     }
   } else if (normalizedJobTitle === 'Engenheiro') {
     if (!allowedEngineerSubtypes.includes(normalizedSubtype)) {

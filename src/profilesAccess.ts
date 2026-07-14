@@ -234,6 +234,10 @@ export function getHomeAreasForRole(role: UserRole): readonly PortalArea[] {
 export function getAccessiblePortals(user: {
   role: UserRole
   accessAreas?: string[] | null
+  workArea?: string | null
+  jobTitle?: string | null
+  workSubtype?: string | null
+  approvalStatus?: string
 }): readonly PortalArea[] {
   const assigned = (user.accessAreas ?? []).filter((area): area is PortalArea =>
     (PORTAL_AREAS as readonly string[]).includes(area),
@@ -243,8 +247,21 @@ export function getAccessiblePortals(user: {
   if (assigned.length > 0) {
     portals = PORTAL_AREAS.filter((area) => assigned.includes(area))
   } else {
-    const areas = SYSTEM_ROLE_ACCESS[user.role]?.areas ?? []
-    portals = PORTAL_AREAS.filter((area) => areas.includes(area))
+    const matchedProfile = CADASTRO_PROFILES.find((profile) =>
+      userMatchesCadastroProfile(
+        {
+          ...user,
+          approvalStatus: user.approvalStatus ?? 'approved',
+        },
+        profile,
+      ),
+    )
+    if (matchedProfile) {
+      portals = PORTAL_AREAS.filter((area) => matchedProfile.areas.includes(area))
+    } else {
+      const areas = SYSTEM_ROLE_ACCESS[user.role]?.areas ?? []
+      portals = PORTAL_AREAS.filter((area) => areas.includes(area))
+    }
   }
 
   if (!portals.includes('Agenda')) {
@@ -257,6 +274,10 @@ export function getAccessiblePortals(user: {
 export function getHomeAreasForUser(user: {
   role: UserRole
   accessAreas?: string[] | null
+  workArea?: string | null
+  jobTitle?: string | null
+  workSubtype?: string | null
+  approvalStatus?: string
 }): readonly PortalArea[] {
   return portalsToHomeCards(getAccessiblePortals(user))
 }
