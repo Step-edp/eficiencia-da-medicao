@@ -201,9 +201,14 @@ export async function register(req: Request, res: Response) {
     const insert = await query<UserRow>(
       `INSERT INTO users (
         id, name, registration, password_hash, email, role, approval_status,
+        requested_at,
         birth_date, job_title, cpf, personal_description, hobby, whatsapp,
         employment_type, third_party_company, work_area, work_subtype, locality, edp_unit
-      ) VALUES ($1,$2,$3,$4,$5,'compras','pending',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+      ) VALUES (
+        $1,$2,$3,$4,$5,'compras','pending',
+        NOW(),
+        $6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
+      )
       RETURNING *`,
       [
         id,
@@ -226,15 +231,19 @@ export async function register(req: Request, res: Response) {
       ],
     )
 
+    const stampedUser = mapUser(insert.rows[0])
+
     await writeAuditLog(req, {
       action: 'register',
       entityType: 'user',
-      entityId: insert.rows[0].id,
-      summary: `Cadastro solicitado: ${insert.rows[0].registration}`,
-      newData: mapUser(insert.rows[0]),
+      entityId: stampedUser.id,
+      summary: `Cadastro solicitado: ${stampedUser.registration}`,
+      newData: stampedUser,
     })
 
-    res.status(201).json({ user: mapUser(insert.rows[0]) })
+    // Carimbo fica só no banco/admin; não devolve a data ao solicitante.
+    const { requestedAt: _requestedAt, approvedAt: _approvedAt, ...publicUser } = stampedUser
+    res.status(201).json({ user: publicUser })
   } catch (error) {
     const pgError = error as { code?: string }
     if (pgError.code === '23505') {

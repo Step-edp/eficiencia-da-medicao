@@ -1824,7 +1824,7 @@ function HomePanel({
                           <dd>{formatValue(selectedUserDetail.locality)}</dd>
                         </div>
                         <div>
-                          <dt>Solicitado em</dt>
+                          <dt>Data do cadastro</dt>
                           <dd>
                             {new Date(selectedUserDetail.requestedAt).toLocaleString('pt-BR')}
                           </dd>
