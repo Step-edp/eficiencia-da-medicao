@@ -337,15 +337,17 @@ export function listUsersForCadastroProfile<T extends {
 
 /** Áreas da home na pré-visualização de um perfil de negócio (admin). */
 export function getHomeAreasForProfilePreview(profileId: string): readonly PortalArea[] {
+  // Visão completa do administrador: todos os cards, sem colapsar em Gestão Operacional.
   if (!profileId || profileId === ADMIN_PREVIEW_PROFILE_ID) {
-    return portalsToHomeCards(PORTAL_AREAS)
+    return [...PORTAL_AREAS]
   }
 
   const profile = getCadastroProfile(profileId)
-  if (!profile) return portalsToHomeCards(PORTAL_AREAS)
+  if (!profile) return [...PORTAL_AREAS]
 
   const areas = PORTAL_AREAS.filter(
     (area) => profile.areas.includes(area) || area === 'Agenda',
   )
+  // Pré-visualização de perfil segue o mesmo agrupamento da home do usuário.
   return portalsToHomeCards(areas)
 }
