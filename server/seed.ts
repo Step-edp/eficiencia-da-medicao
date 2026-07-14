@@ -30,7 +30,11 @@ const DEMO_MATERIAL_OLD_CODES = [
 ] as const
 
 async function removeDemoData() {
-  await query(`DELETE FROM csds WHERE id = ANY($1::text[])`, [DEMO_CSD_IDS])
+  // Remove CSDs ligados aos usuários demo (seed + quaisquer criados depois).
+  await query(`DELETE FROM csds WHERE id = ANY($1::text[]) OR responsible_user_id = ANY($2::text[])`, [
+    DEMO_CSD_IDS,
+    DEMO_USER_IDS,
+  ])
   await query(`DELETE FROM materials WHERE old_code = ANY($1::text[])`, [DEMO_MATERIAL_OLD_CODES])
   await query(`DELETE FROM homologation_requests WHERE requester_user_id = ANY($1::text[])`, [DEMO_USER_IDS])
 
