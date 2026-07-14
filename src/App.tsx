@@ -5,6 +5,7 @@ import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
+import { UsersDashboard } from './UsersDashboard'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
   CADASTRO_PROFILES,
@@ -1070,7 +1071,9 @@ function HomePanel({
     useState<string | null>(null)
   const [openingFieldApp, setOpeningFieldApp] = useState(false)
   const [selectedUserDetail, setSelectedUserDetail] = useState<AppUser | null>(null)
-  const [usersView, setUsersView] = useState<'usuarios' | 'pendentes'>('usuarios')
+  const [usersView, setUsersView] = useState<'usuarios' | 'pendentes' | 'dashboard'>(
+    'usuarios',
+  )
   const [terceiraOptions, setTerceiraOptions] = useState<string[]>([...THIRD_PARTY_COMPANIES])
   const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
 
@@ -1880,9 +1883,9 @@ function HomePanel({
             <p className="section-tag">Usuários</p>
             <h2>Gestão de usuários</h2>
             <p>
-              Consulte os usuários com acesso ao portal e os cadastros ainda
-              pendentes de aprovação. Clique em um usuário para ver todos os
-              dados e editar as informações preenchidas.
+              Consulte os usuários com acesso ao portal, os cadastros pendentes e o
+              dashboard de distribuição. Clique em um usuário para ver os dados e
+              editar as informações.
             </p>
 
             {passwordFeedback ? (
@@ -1918,6 +1921,15 @@ function HomePanel({
                     Cadastros pendentes
                     <span className="users-view-count">{pendingApprovalUsers.length}</span>
                   </button>
+                  <button
+                    className={usersView === 'dashboard' ? 'active' : ''}
+                    type="button"
+                    role="tab"
+                    aria-selected={usersView === 'dashboard'}
+                    onClick={() => setUsersView('dashboard')}
+                  >
+                    Dashboard
+                  </button>
                 </div>
 
                 {usersView === 'pendentes' ? (
@@ -1945,6 +1957,12 @@ function HomePanel({
                       </p>
                     )}
                   </div>
+                ) : usersView === 'dashboard' ? (
+                  <UsersDashboard
+                    users={users}
+                    pendingCount={pendingApprovalUsers.length}
+                    approvedCount={registeredUsers.length}
+                  />
                 ) : (
                   <>
                     <p className="consultar-summary">
