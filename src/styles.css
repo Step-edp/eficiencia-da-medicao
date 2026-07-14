@@ -177,6 +177,7 @@ button {
   display: block;
   width: min(220px, 100%);
   height: auto;
+  object-fit: contain;
 }
 
 .edp-logo-compact {

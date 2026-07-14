@@ -1,9 +1,7 @@
 # Logo EDP
 
-Coloque neste pasta o arquivo da logo com o nome:
+Arquivo usado pelo app:
 
-**`edp-logo.svg`**
+**`edp-logo.png`** — logo EDP branca (`Logso edp branca.png`)
 
-(Se a logo for PNG, salve como `edp-logo.svg` não serve — use SVG, ou avise para habilitar PNG.)
-
-Depois de substituir, avise ou faça commit/push para atualizar em produção.
+Para trocar, substitua `edp-logo.png` nesta pasta e avise para publicar.
