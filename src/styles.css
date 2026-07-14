@@ -1440,16 +1440,12 @@ button {
   line-height: 1.45;
 }
 
-.approval-item div {
-  display: grid;
-  gap: 6px;
-}
-
 .approval-item strong {
   color: var(--text-main);
 }
 
-.approval-item span {
+.approval-item-details span,
+.approval-item-details-grid dd {
   color: var(--text-soft);
 }
 
@@ -1471,7 +1467,7 @@ button {
   margin: 8px 0 4px;
 }
 
-.approval-completion-fields label {
+.approval-completion-fields > label {
   display: grid;
   gap: 6px;
   color: var(--text-soft);
@@ -1480,42 +1476,66 @@ button {
 
 .approval-subareas {
   margin: 0;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-radius: 14px;
   border: 1px solid rgba(158, 183, 203, 0.22);
   background: rgba(4, 17, 32, 0.35);
+  display: grid;
+  gap: 12px;
 }
 
 .approval-subareas legend {
   padding: 0 6px;
   color: var(--text-main);
-  font-size: 0.92rem;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .approval-subareas-hint {
-  margin: 0 0 10px;
+  margin: 0;
   color: var(--text-soft);
   font-size: 0.86rem;
+  line-height: 1.4;
 }
 
 .approval-subareas-grid {
   display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
 }
 
 .approval-subarea-option {
-  display: flex !important;
-  align-items: center;
-  gap: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   margin: 0;
-  color: var(--text-main) !important;
+  padding: 12px 14px;
+  min-height: 52px;
+  border-radius: 12px;
+  border: 1px solid rgba(158, 183, 203, 0.2);
+  background: rgba(5, 26, 44, 0.72);
+  color: var(--text-main);
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.approval-subarea-option input {
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+.approval-subarea-option span {
+  color: var(--text-main);
+  word-break: break-word;
 }
 
 .approval-process-group {
-  margin-top: 12px;
+  margin-top: 4px;
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .approval-process-group-title {
@@ -1523,6 +1543,12 @@ button {
   color: var(--text-main);
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .approval-subareas-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .users-section-heading {
