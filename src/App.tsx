@@ -11,6 +11,7 @@ import {
   CADASTRO_PROFILES,
   getHomeAreasForProfilePreview,
   getHomeAreasForUser,
+  listUsersForCadastroProfile,
   roleLabel,
 } from './profilesAccess'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
@@ -1261,6 +1262,10 @@ function HomePanel({
     isAdmin && previewProfileId !== ADMIN_PREVIEW_PROFILE_ID
       ? CADASTRO_PROFILES.find((profile) => profile.id === previewProfileId)
       : null
+
+  const previewProfileUsers = previewProfile
+    ? listUsersForCadastroProfile(registeredUsers, previewProfile.id)
+    : []
 
   useEffect(() => {
     if (!previewProfile || !selectedArea) return
@@ -3081,6 +3086,43 @@ function HomePanel({
           <p className="generated-password-empty">
             Este perfil não possui áreas de acesso na home.
           </p>
+        ) : null}
+
+        {previewProfile ? (
+          <div className="profile-preview-people" aria-label={`Pessoas com o perfil ${previewProfile.name}`}>
+            <h3>Pessoas com este perfil</h3>
+            <p className="profile-preview-note">
+              {previewProfileUsers.length
+                ? `${previewProfileUsers.length} usuário(s) aprovado(s) com o perfil ${previewProfile.name}.`
+                : `Nenhum usuário aprovado cadastrado com o perfil ${previewProfile.name}.`}
+            </p>
+            {previewProfileUsers.length ? (
+              <div className="entrada-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Matrícula</th>
+                      <th>E-mail</th>
+                      <th>Cidade</th>
+                      <th>Tipo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewProfileUsers.map((user) => (
+                      <tr key={user.id}>
+                        <td>{user.name}</td>
+                        <td>{user.registration}</td>
+                        <td>{user.email}</td>
+                        <td>{user.locality || '—'}</td>
+                        <td>{user.employmentType || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </section>
     </main>

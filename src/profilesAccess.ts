@@ -25,6 +25,14 @@ export type CadastroProfile = {
   name: string
   description: string
   areas: PortalArea[]
+  /** Critérios para localizar usuários reais com esse perfil. */
+  match: {
+    workArea: string
+    jobTitle: string
+    workSubtype?: string
+    /** Engenheiro Sub-área: exige esta área na home. */
+    accessArea?: PortalArea
+  }
 }
 
 export const CADASTRO_PROFILES: CadastroProfile[] = [
@@ -34,6 +42,10 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     description:
       'Permite realizar o agendamento de medidores em nome das equipes de campo para equipamentos provenientes de lavratura de TOI, com suspeita de fraude ou defeito, que necessitem de ensaio no Laboratório de Medição da EDP SP.',
     areas: ['Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Analista',
+    },
   },
   {
     id: 'tecnico-inspecao',
@@ -41,6 +53,11 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     description:
       'Permite realizar o agendamento de medidores provenientes de lavratura de TOI, com suspeita de fraude ou defeito, destinados à realização de ensaios no Laboratório de Medição da EDP SP.',
     areas: ['Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Técnico',
+      workSubtype: 'Lavratura de TOI',
+    },
   },
   {
     id: 'ponto-focal-inspecao',
@@ -48,6 +65,11 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     description:
       'Permite realizar o agendamento de medidores em nome das equipes de campo para equipamentos provenientes de lavratura de TOI, com suspeita de fraude ou defeito, destinados ao Laboratório de Medição da EDP SP. Além disso, é responsável pelo controle, acompanhamento e entrega desses medidores ao laboratório.',
     areas: ['Equipe de campo', 'Laboratório de Medição'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Técnico',
+      workSubtype: 'Lavratura de TOI - Ponto Focal',
+    },
   },
   {
     id: 'tecnico-laboratorio-medicao',
@@ -55,6 +77,11 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     description:
       'Permite executar todas as atividades operacionais relacionadas ao Laboratório de Medição, incluindo o processamento, análise e registro dos ensaios realizados.',
     areas: ['Laboratório de Medição'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Técnico',
+      workSubtype: 'Laboratório de Medição',
+    },
   },
   {
     id: 'engenheiro-responsavel-laboratorio-medicao',
@@ -62,6 +89,12 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     description:
       'Permite gerenciar e controlar as atividades do Laboratório de Medição, acompanhando sua execução, sem realizar diretamente as atividades operacionais.',
     areas: ['Laboratório de Medição'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Sub-área',
+      accessArea: 'Laboratório de Medição',
+    },
   },
   {
     id: 'engenheiro-responsavel-medicao',
@@ -69,6 +102,12 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     description:
       'Possui acesso à visualização e acompanhamento de todas as atividades relacionadas à subárea de Medição.',
     areas: ['Medição'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Sub-área',
+      accessArea: 'Medição',
+    },
   },
   {
     id: 'engenheiro-responsavel-telemedicao',
@@ -76,6 +115,12 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     description:
       'Possui acesso à visualização e acompanhamento de todas as atividades relacionadas à subárea de Telemedição.',
     areas: ['Telemedição'],
+    match: {
+      workArea: 'Telemedição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Sub-área',
+      accessArea: 'Telemedição',
+    },
   },
   {
     id: 'engenheiro-dono-area-medicao',
@@ -83,6 +128,11 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     description:
       'Possui controle sobre todas as atividades da área de Medição, incluindo gestão, acompanhamento e tomada de decisão.',
     areas: ['Gestão', 'Medição', 'Laboratório de Medição', 'Equipe de campo'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Área',
+    },
   },
   {
     id: 'engenheiro-dono-area-telemedicao',
@@ -90,6 +140,11 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     description:
       'Possui controle sobre todas as atividades da área de Telemedição, incluindo gestão, acompanhamento e tomada de decisão.',
     areas: ['Gestão', 'Telemedição'],
+    match: {
+      workArea: 'Telemedição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Área',
+    },
   },
   {
     id: 'gestor-medicao',
@@ -97,6 +152,10 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     description:
       'Possui acesso aos indicadores e dashboards consolidados de todas as áreas de Medição sob sua concessão, permitindo o acompanhamento gerencial dos resultados.',
     areas: ['Gestão', 'Medição'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Gestor',
+    },
   },
   {
     id: 'analista-medicao',
@@ -104,6 +163,10 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     description:
       'Possui acesso apenas às atividades atribuídas ao seu usuário, podendo executá-las e acompanhar seu andamento.',
     areas: ['Medição'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Analista',
+    },
   },
 ]
 
@@ -155,6 +218,55 @@ export function getHomeAreasForUser(user: {
 
 export function getCadastroProfile(profileId: string): CadastroProfile | undefined {
   return CADASTRO_PROFILES.find((profile) => profile.id === profileId)
+}
+
+export function userMatchesCadastroProfile(
+  user: {
+    approvalStatus?: string
+    role?: string
+    workArea?: string | null
+    jobTitle?: string | null
+    workSubtype?: string | null
+    accessAreas?: string[] | null
+  },
+  profile: CadastroProfile,
+): boolean {
+  if (user.role === 'admin') return false
+  if (user.approvalStatus && user.approvalStatus !== 'approved') return false
+
+  const workArea = user.workArea?.trim() ?? ''
+  const jobTitle = user.jobTitle?.trim() ?? ''
+  const workSubtype = user.workSubtype?.trim() ?? ''
+  const accessAreas = user.accessAreas ?? []
+
+  if (workArea !== profile.match.workArea) return false
+  if (jobTitle !== profile.match.jobTitle) return false
+
+  if (profile.match.workSubtype) {
+    if (workSubtype !== profile.match.workSubtype) return false
+  }
+
+  if (profile.match.accessArea) {
+    if (!accessAreas.includes(profile.match.accessArea)) return false
+  }
+
+  return true
+}
+
+export function listUsersForCadastroProfile<T extends {
+  approvalStatus?: string
+  role?: string
+  workArea?: string | null
+  jobTitle?: string | null
+  workSubtype?: string | null
+  accessAreas?: string[] | null
+  name: string
+}>(users: T[], profileId: string): T[] {
+  const profile = getCadastroProfile(profileId)
+  if (!profile) return []
+  return users
+    .filter((user) => userMatchesCadastroProfile(user, profile))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 }
 
 /** Áreas da home na pré-visualização de um perfil de negócio (admin). */
