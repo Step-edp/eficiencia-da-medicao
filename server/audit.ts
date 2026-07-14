@@ -22,6 +22,7 @@ export type AuditEntityType =
   | 'satisfaction_survey'
   | 'meter_schedule'
   | 'demm_document'
+  | 'catalog_option'
 
 export type AuditLogEntry = {
   action: AuditAction

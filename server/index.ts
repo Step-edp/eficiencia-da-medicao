@@ -23,6 +23,7 @@ import {
   listCsds,
   listInspectionUsers,
 } from './routes/csds.js'
+import { catalogOptionRoutes } from './routes/catalog-options.js'
 import { listAuditLogs } from './routes/audit-logs.js'
 import {
   countMeterSchedules,
@@ -125,6 +126,10 @@ async function start() {
   app.post('/api/csds', requireAuth, createCsd)
   app.delete('/api/csds/:id', requireAuth, deleteCsd)
   app.get('/api/field-team/inspection-users', requireAuth, listInspectionUsers)
+
+  app.get('/api/catalog-options', ...catalogOptionRoutes.list)
+  app.post('/api/catalog-options', ...catalogOptionRoutes.create)
+  app.delete('/api/catalog-options/:id', ...catalogOptionRoutes.remove)
 
   app.get('/api/audit-logs', requireAuth, listAuditLogs)
 

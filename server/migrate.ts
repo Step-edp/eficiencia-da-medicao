@@ -176,6 +176,16 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_meter_registry_meter ON meter_registry (meter);
     CREATE INDEX IF NOT EXISTS idx_meter_registry_status ON meter_registry (status);
     CREATE INDEX IF NOT EXISTS idx_meter_registry_trail_step ON meter_registry (trail_step);
+
+    CREATE TABLE IF NOT EXISTS catalog_options (
+      id SERIAL PRIMARY KEY,
+      catalog_key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      UNIQUE (catalog_key, value)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_catalog_options_key ON catalog_options (catalog_key);
   `)
 
   await query(`

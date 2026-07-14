@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { EnsaiarForm } from './EnsaiarForm'
+import { CadastrosPanel } from './CadastrosPanel'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
 import { SatisfactionSurveyPage } from './ratm/SatisfactionSurveyPage'
 import { mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
@@ -1680,6 +1681,23 @@ function HomePanel({
       )
     }
 
+    if (selectedArea.title === 'Cadastros') {
+      return (
+        <main className="shell">
+          <section className="home-card area-screen-card">
+            <TopActionBar
+              onBack={() => setSelectedArea(null)}
+              onHome={() => setSelectedArea(null)}
+              onLogout={onLogout}
+            />
+            <p className="section-tag">Cadastros</p>
+            <h2>Listas suspensas</h2>
+            <CadastrosPanel isAdmin={isAdmin} />
+          </section>
+        </main>
+      )
+    }
+
     if (selectedArea.title === 'Medição' && selectedMeasurementSection) {
       if (selectedMeasurementSection === 'Geração de senha' && selectedPasswordAction) {
         if (selectedPasswordAction === 'fabricante') {
@@ -3081,10 +3099,36 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
   const [whatsapp, setWhatsapp] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [cargoOptions, setCargoOptions] = useState<string[]>([
+    'Técnico',
+    'Analista',
+    'Engenheiro',
+  ])
+  const [areaOptions, setAreaOptions] = useState<string[]>([...AREA_OPTIONS])
+  const [tipoOptions, setTipoOptions] = useState<string[]>(['Própria', 'Terceira'])
+  const [terceiraOptions, setTerceiraOptions] = useState<string[]>([...THIRD_PARTY_COMPANIES])
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
+
+  useEffect(() => {
+    void api
+      .listCatalogOptions()
+      .then(({ catalogs }) => {
+        const byKey = Object.fromEntries(
+          catalogs.map((catalog) => [catalog.key, catalog.options.map((item) => item.value)]),
+        ) as Partial<Record<'cargo' | 'area' | 'tipo' | 'terceira', string[]>>
+
+        if (byKey.cargo?.length) setCargoOptions(byKey.cargo)
+        if (byKey.area?.length) setAreaOptions(byKey.area)
+        if (byKey.tipo?.length) setTipoOptions(byKey.tipo)
+        if (byKey.terceira?.length) setTerceiraOptions(byKey.terceira)
+      })
+      .catch(() => {
+        // Mantém fallback local se a API estiver indisponível no cadastro público.
+      })
+  }, [])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -3241,9 +3285,11 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             <option value="" disabled>
               Selecione o cargo
             </option>
-            <option value="Técnico">Técnico</option>
-            <option value="Analista">Analista</option>
-            <option value="Engenheiro">Engenheiro</option>
+            {cargoOptions.map((cargo) => (
+              <option key={cargo} value={cargo}>
+                {cargo}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -3257,7 +3303,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             <option value="" disabled>
               Selecione a área
             </option>
-            {AREA_OPTIONS.map((area) => (
+            {areaOptions.map((area) => (
               <option key={area} value={area}>
                 {area}
               </option>
@@ -3281,8 +3327,11 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             <option value="" disabled>
               Selecione o tipo
             </option>
-            <option value="Própria">Própria</option>
-            <option value="Terceira">Terceira</option>
+            {tipoOptions.map((tipo) => (
+              <option key={tipo} value={tipo}>
+                {tipo}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -3297,7 +3346,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
               <option value="" disabled>
                 Selecione a empresa
               </option>
-              {THIRD_PARTY_COMPANIES.map((company) => (
+              {terceiraOptions.map((company) => (
                 <option key={company} value={company}>
                   {company}
                 </option>

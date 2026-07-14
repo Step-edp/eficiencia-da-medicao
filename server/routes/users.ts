@@ -109,13 +109,15 @@ export async function register(req: Request, res: Response) {
   const normalizedThirdParty =
     normalizedEmploymentType === 'Terceira' ? thirdPartyCompany?.trim() ?? '' : ''
   const normalizedWorkArea = workArea?.trim() ?? ''
+  const normalizedJobTitle = jobTitle?.trim() ?? ''
+  const normalizedWhatsapp = whatsapp?.trim() ?? ''
 
   if (
     !name?.trim() ||
     !registration?.trim() ||
     !birthDate ||
     !email?.trim() ||
-    !jobTitle?.trim() ||
+    !normalizedJobTitle ||
     !cpf?.trim() ||
     !password
   ) {
@@ -123,24 +125,46 @@ export async function register(req: Request, res: Response) {
     return
   }
 
-  const allowedAreas = [
-    'Medição',
-    'CSD',
-    'Consumo Irregular',
-    'Grandes Clientes',
-    'Qualidade',
-  ]
+  const catalogValues = await query<{ catalog_key: string; value: string }>(
+    `SELECT catalog_key, value FROM catalog_options
+     WHERE catalog_key = ANY($1::text[])`,
+    [['cargo', 'area', 'tipo', 'terceira']],
+  )
+  const valuesByKey = catalogValues.rows.reduce<Record<string, string[]>>((acc, row) => {
+    acc[row.catalog_key] = acc[row.catalog_key] ?? []
+    acc[row.catalog_key].push(row.value)
+    return acc
+  }, {})
+
+  const allowedAreas = valuesByKey.area?.length
+    ? valuesByKey.area
+    : ['Medição', 'CSD', 'Consumo Irregular', 'Grandes Clientes', 'Qualidade']
+  const allowedCargos = valuesByKey.cargo?.length
+    ? valuesByKey.cargo
+    : ['Técnico', 'Analista', 'Engenheiro']
+  const allowedTipos = valuesByKey.tipo?.length ? valuesByKey.tipo : ['Própria', 'Terceira']
+  const allowedTerceiras = valuesByKey.terceira ?? []
+
+  if (!allowedCargos.includes(normalizedJobTitle)) {
+    res.status(400).json({ error: 'Selecione um cargo válido.' })
+    return
+  }
+
   if (!allowedAreas.includes(normalizedWorkArea)) {
     res.status(400).json({ error: 'Selecione a área.' })
     return
   }
 
-  if (normalizedEmploymentType !== 'Própria' && normalizedEmploymentType !== 'Terceira') {
+  if (!allowedTipos.includes(normalizedEmploymentType)) {
     res.status(400).json({ error: 'Selecione o tipo: Própria ou Terceira.' })
     return
   }
 
-  if (normalizedEmploymentType === 'Terceira' && !normalizedThirdParty) {
+  if (
+    normalizedEmploymentType === 'Terceira' &&
+    (!normalizedThirdParty ||
+      (allowedTerceiras.length > 0 && !allowedTerceiras.includes(normalizedThirdParty)))
+  ) {
     res.status(400).json({ error: 'Selecione a empresa terceira.' })
     return
   }
@@ -165,11 +189,11 @@ export async function register(req: Request, res: Response) {
         passwordHash,
         normalizedEmail,
         birthDate,
-        jobTitle.trim(),
+        normalizedJobTitle,
         cpf.trim(),
         personalDescription?.trim() ?? '',
         hobby ?? '',
-        whatsapp?.trim() ?? '',
+        normalizedWhatsapp,
         normalizedEmploymentType,
         normalizedThirdParty,
         normalizedWorkArea,

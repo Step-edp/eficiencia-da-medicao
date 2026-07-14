@@ -147,6 +147,63 @@ button {
   order: 8;
 }
 
+.catalogs-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.catalog-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  background: rgba(5, 26, 44, 0.74);
+}
+
+.catalog-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.catalog-card-header h3 {
+  margin: 0;
+  color: var(--text-main);
+}
+
+.catalog-card-header span {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.catalog-option-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.catalog-option-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(158, 183, 203, 0.16);
+  background: rgba(4, 17, 32, 0.55);
+  color: var(--text-main);
+}
+
+.catalog-add-form {
+  display: grid;
+  gap: 10px;
+}
+
 .area-card-title {
   display: inline-flex;
   align-items: center;
@@ -2349,6 +2406,10 @@ input[type='file'] {
 }
 
 @media (max-width: 720px) {
+  .catalogs-grid {
+    grid-template-columns: 1fr;
+  }
+
   .search-input-row {
     grid-template-columns: 1fr;
   }

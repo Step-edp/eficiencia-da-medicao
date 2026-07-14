@@ -22,6 +22,22 @@ export type AppUser = {
   thirdPartyCompany?: string
 }
 
+export type CatalogKey = 'cargo' | 'area' | 'tipo' | 'terceira'
+
+export type CatalogOption = {
+  id: number
+  catalogKey: CatalogKey
+  value: string
+  sortOrder: number
+  label: string
+}
+
+export type CatalogGroup = {
+  key: CatalogKey
+  label: string
+  options: CatalogOption[]
+}
+
 export type HomologationRequestItem = {
   equipmentType: string
   materialCode: string
@@ -331,6 +347,16 @@ export const api = {
       },
     ),
   listCsds: () => request<{ csds: CsdRecord[] }>('/api/csds'),
+  listCatalogOptions: () => request<{ catalogs: CatalogGroup[] }>('/api/catalog-options'),
+  createCatalogOption: (catalogKey: CatalogKey, value: string) =>
+    request<{ option: CatalogOption }>('/api/catalog-options', {
+      method: 'POST',
+      body: JSON.stringify({ catalogKey, value }),
+    }),
+  deleteCatalogOption: (id: number) =>
+    request<{ ok: boolean; id: number }>(`/api/catalog-options/${id}`, {
+      method: 'DELETE',
+    }),
   createCsd: (payload: {
     name: string
     address: string

@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import { query } from './db.js'
 import { ensureMeterRegistryImported } from './import-meter-registry.js'
 import { syncMeterRegistryTrailSteps } from './routes/meter-registry.js'
+import { ensureCatalogOptionsSeeded } from './routes/catalog-options.js'
 
 const demoUsers = [
   {
@@ -221,6 +222,8 @@ export async function seed() {
       )
     }
   }
+
+  await ensureCatalogOptionsSeeded()
 
   try {
     const imported = await ensureMeterRegistryImported()
