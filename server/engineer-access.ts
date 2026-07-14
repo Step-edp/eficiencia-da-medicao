@@ -99,6 +99,41 @@ export function isValidCrossAreaProcess(_ownWorkArea: string, encoded: string): 
   return isValidHomeSubareaProcess(encoded)
 }
 
+export const ENGINEER_SUBTYPES = [
+  'Responsável de área',
+  'Responsável por sub-célula',
+] as const
+
+/** Aceita rótulos novos e legados na base. */
+export function isEngineerAreaSubtype(value: string | null | undefined) {
+  const normalized = value?.trim() ?? ''
+  return normalized === 'Responsável de área' || normalized === 'Área'
+}
+
+export function isEngineerSubcellSubtype(value: string | null | undefined) {
+  const normalized = value?.trim() ?? ''
+  return normalized === 'Responsável por sub-célula' || normalized === 'Sub-área'
+}
+
+export function isEngineerProcessSubtype(value: string | null | undefined) {
+  return (value?.trim() ?? '') === 'Processos específicos'
+}
+
+export function normalizeEngineerSubtype(value: string | null | undefined) {
+  const normalized = value?.trim() ?? ''
+  if (normalized === 'Área') return 'Responsável de área'
+  if (normalized === 'Sub-área') return 'Responsável por sub-célula'
+  return normalized
+}
+
+export function isAllowedEngineerSubtype(value: string | null | undefined) {
+  const normalized = normalizeEngineerSubtype(value)
+  return (
+    (ENGINEER_SUBTYPES as readonly string[]).includes(normalized) ||
+    isEngineerProcessSubtype(normalized)
+  )
+}
+
 export function portalAreasFromProcesses(
   _ownWorkArea: string,
   accessProcesses: string[],

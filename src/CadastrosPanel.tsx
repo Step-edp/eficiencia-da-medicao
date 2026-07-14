@@ -281,7 +281,7 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
           </section>
           <section className="catalog-card">
             <header className="catalog-card-header">
-              <h3>Subáreas / subcélulas (engenheiro Sub-área)</h3>
+              <h3>Subáreas / subcélulas (Responsável por sub-célula)</h3>
             </header>
             <ul className="catalog-option-list">
               {ENGINEER_HOME_SUBAREAS.map((option) => (

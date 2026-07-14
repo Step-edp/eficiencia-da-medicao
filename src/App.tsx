@@ -45,6 +45,8 @@ import {
   encodeAccessProcess,
   ENGINEER_HOME_SUBAREAS,
   getHomeSubareaProcessGroups,
+  isEngineerProcessSubtype,
+  isEngineerSubcellSubtype,
   parseAccessProcess,
   subtypesForCargo,
 } from './registrationOptions'
@@ -786,9 +788,10 @@ function PendingApprovalItem({
   const subtypeOptions = subtypesForCargo(user.jobTitle, user.workArea ?? '')
   const needsCompany = user.employmentType === 'Terceira'
   const needsSubtype = subtypeOptions.length > 0
-  const needsHomeSubareas = user.jobTitle === 'Engenheiro' && workSubtype === 'Sub-área'
+  const needsHomeSubareas =
+    user.jobTitle === 'Engenheiro' && isEngineerSubcellSubtype(workSubtype)
   const needsSpecificProcesses =
-    user.jobTitle === 'Engenheiro' && workSubtype === 'Processos específicos'
+    user.jobTitle === 'Engenheiro' && isEngineerProcessSubtype(workSubtype)
   const homeSubareaProcesses = getHomeSubareaProcessGroups()
   const processLabel = selectedProcesses
     .map((encoded) => {

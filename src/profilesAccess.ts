@@ -1,4 +1,8 @@
 import type { UserRole } from './api'
+import {
+  isEngineerAreaSubtype,
+  isEngineerSubcellSubtype,
+} from './registrationOptions'
 
 /** Áreas do portal (portas/telas navegáveis). */
 export const PORTAL_AREAS = [
@@ -60,7 +64,7 @@ export type CadastroProfile = {
     workArea: string
     jobTitle: string
     workSubtype?: string
-    /** Engenheiro Sub-área: exige esta área na home. */
+    /** Engenheiro responsável por sub-célula: exige esta área na home. */
     accessArea?: PortalArea
   }
 }
@@ -122,7 +126,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     match: {
       workArea: 'Medição',
       jobTitle: 'Engenheiro',
-      workSubtype: 'Sub-área',
+      workSubtype: 'Responsável por sub-célula',
       accessArea: 'Laboratório de Medição',
     },
   },
@@ -135,7 +139,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     match: {
       workArea: 'Medição',
       jobTitle: 'Engenheiro',
-      workSubtype: 'Sub-área',
+      workSubtype: 'Responsável por sub-célula',
       accessArea: 'Medição',
     },
   },
@@ -148,7 +152,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     match: {
       workArea: 'Telemedição',
       jobTitle: 'Engenheiro',
-      workSubtype: 'Sub-área',
+      workSubtype: 'Responsável por sub-célula',
       accessArea: 'Telemedição',
     },
   },
@@ -161,7 +165,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     match: {
       workArea: 'Medição',
       jobTitle: 'Engenheiro',
-      workSubtype: 'Área',
+      workSubtype: 'Responsável de área',
     },
   },
   {
@@ -173,7 +177,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     match: {
       workArea: 'Telemedição',
       jobTitle: 'Engenheiro',
-      workSubtype: 'Área',
+      workSubtype: 'Responsável de área',
     },
   },
   {
@@ -309,7 +313,14 @@ export function userMatchesCadastroProfile(
   if (jobTitle !== profile.match.jobTitle) return false
 
   if (profile.match.workSubtype) {
-    if (workSubtype !== profile.match.workSubtype) return false
+    const expected = profile.match.workSubtype
+    if (isEngineerAreaSubtype(expected)) {
+      if (!isEngineerAreaSubtype(workSubtype)) return false
+    } else if (isEngineerSubcellSubtype(expected)) {
+      if (!isEngineerSubcellSubtype(workSubtype)) return false
+    } else if (workSubtype !== expected) {
+      return false
+    }
   }
 
   if (profile.match.accessArea) {

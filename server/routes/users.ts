@@ -4,7 +4,11 @@ import { query } from '../db.js'
 import { clearAuthCookie, requireAdmin, requireAuth, setAuthCookie, signSsoToken, signToken, verifySsoToken } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 import {
+  isAllowedEngineerSubtype,
+  isEngineerProcessSubtype,
+  isEngineerSubcellSubtype,
   isValidHomeSubareaProcess,
+  normalizeEngineerSubtype,
   portalAreasFromProcesses,
 } from '../engineer-access.js'
 import { isMailConfigured, sendRegistrationRejectedEmail } from '../mail.js'
@@ -424,7 +428,6 @@ export async function approveUser(req: Request, res: Response) {
       'Leituras de faturamento',
     ],
   }
-  const allowedEngineerSubtypes = ['Área', 'Sub-área', 'Processos específicos']
   const allowedEngineerHomeSubareas = [
     'Medição',
     'Laboratório de Medição',
@@ -468,13 +471,13 @@ export async function approveUser(req: Request, res: Response) {
     storedSubtype = normalizedSubtype
     storedAccessAreas = accessAreasForTechnician(workArea, normalizedSubtype)
   } else if (jobTitle === 'Engenheiro') {
-    if (!allowedEngineerSubtypes.includes(normalizedSubtype)) {
+    if (!isAllowedEngineerSubtype(normalizedSubtype)) {
       res.status(400).json({ error: 'Selecione a abrangência do engenheiro antes de aprovar.' })
       return
     }
-    storedSubtype = normalizedSubtype
+    storedSubtype = normalizeEngineerSubtype(normalizedSubtype)
 
-    if (normalizedSubtype === 'Sub-área') {
+    if (isEngineerSubcellSubtype(storedSubtype)) {
       const invalid = requestedAccessAreas.filter(
         (area) => !allowedEngineerHomeSubareas.includes(area),
       )
@@ -487,7 +490,7 @@ export async function approveUser(req: Request, res: Response) {
       storedAccessAreas = requestedAccessAreas
     }
 
-    if (normalizedSubtype === 'Processos específicos') {
+    if (isEngineerProcessSubtype(storedSubtype)) {
       const invalid = requestedAccessProcesses.filter(
         (item) => !isValidHomeSubareaProcess(item),
       )
@@ -762,7 +765,6 @@ export async function updateUser(req: Request, res: Response) {
       'Leituras de faturamento',
     ],
   }
-  const allowedEngineerSubtypes = ['Área', 'Sub-área', 'Processos específicos']
   const allowedEngineerHomeSubareas = [
     'Medição',
     'Laboratório de Medição',
@@ -791,12 +793,12 @@ export async function updateUser(req: Request, res: Response) {
       )
     }
   } else if (normalizedJobTitle === 'Engenheiro') {
-    if (!allowedEngineerSubtypes.includes(normalizedSubtype)) {
+    if (!isAllowedEngineerSubtype(normalizedSubtype)) {
       res.status(400).json({ error: 'Selecione a abrangência do engenheiro.' })
       return
     }
-    storedSubtype = normalizedSubtype
-    if (normalizedSubtype === 'Sub-área') {
+    storedSubtype = normalizeEngineerSubtype(normalizedSubtype)
+    if (isEngineerSubcellSubtype(storedSubtype)) {
       const invalid = requestedAccessAreas.filter(
         (area) => !allowedEngineerHomeSubareas.includes(area),
       )
@@ -808,7 +810,7 @@ export async function updateUser(req: Request, res: Response) {
       }
       storedAccessAreas = requestedAccessAreas
     }
-    if (normalizedSubtype === 'Processos específicos') {
+    if (isEngineerProcessSubtype(storedSubtype)) {
       const invalid = requestedAccessProcesses.filter(
         (item) => !isValidHomeSubareaProcess(item),
       )

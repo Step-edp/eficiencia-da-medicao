@@ -13,6 +13,9 @@ import {
   encodeAccessProcess,
   ENGINEER_HOME_SUBAREAS,
   getHomeSubareaProcessGroups,
+  isEngineerProcessSubtype,
+  isEngineerSubcellSubtype,
+  normalizeEngineerSubtype,
   parseAccessProcess,
   subtypesForCargo,
 } from './registrationOptions'
@@ -95,7 +98,11 @@ export function UserDetailModal({
   const [edpUnit, setEdpUnit] = useState(user.edpUnit ?? '')
   const [locality, setLocality] = useState(user.locality ?? '')
   const [thirdPartyCompany, setThirdPartyCompany] = useState(user.thirdPartyCompany ?? '')
-  const [workSubtype, setWorkSubtype] = useState(user.workSubtype ?? '')
+  const [workSubtype, setWorkSubtype] = useState(
+    user.jobTitle === 'Engenheiro'
+      ? normalizeEngineerSubtype(user.workSubtype)
+      : (user.workSubtype ?? ''),
+  )
   const [accessAreas, setAccessAreas] = useState<string[]>(user.accessAreas ?? [])
   const [accessProcesses, setAccessProcesses] = useState<string[]>(user.accessProcesses ?? [])
   const [selectedProcessAreas, setSelectedProcessAreas] = useState<string[]>(() =>
@@ -136,7 +143,11 @@ export function UserDetailModal({
     setEdpUnit(user.edpUnit ?? '')
     setLocality(user.locality ?? '')
     setThirdPartyCompany(user.thirdPartyCompany ?? '')
-    setWorkSubtype(user.workSubtype ?? '')
+    setWorkSubtype(
+      user.jobTitle === 'Engenheiro'
+        ? normalizeEngineerSubtype(user.workSubtype)
+        : (user.workSubtype ?? ''),
+    )
     setAccessAreas(user.accessAreas ?? [])
     setAccessProcesses(user.accessProcesses ?? [])
     setSelectedProcessAreas(
@@ -148,10 +159,21 @@ export function UserDetailModal({
     setEditing(startInEditMode)
   }, [user, startInEditMode])
 
-  const subtypeOptions = subtypesForCargo(jobTitle, workArea)
+  const subtypeOptions = (() => {
+    const base = [...subtypesForCargo(jobTitle, workArea)]
+    if (
+      jobTitle === 'Engenheiro' &&
+      isEngineerProcessSubtype(workSubtype) &&
+      !base.includes(workSubtype)
+    ) {
+      base.push(workSubtype)
+    }
+    return base
+  })()
   const needsCompany = employmentType === 'Terceira'
-  const needsHomeSubareas = jobTitle === 'Engenheiro' && workSubtype === 'Sub-área'
-  const needsSpecificProcesses = jobTitle === 'Engenheiro' && workSubtype === 'Processos específicos'
+  const needsHomeSubareas = jobTitle === 'Engenheiro' && isEngineerSubcellSubtype(workSubtype)
+  const needsSpecificProcesses =
+    jobTitle === 'Engenheiro' && isEngineerProcessSubtype(workSubtype)
   const homeSubareaProcesses = getHomeSubareaProcessGroups()
 
   const resetDraft = () => {
@@ -167,7 +189,11 @@ export function UserDetailModal({
     setEdpUnit(user.edpUnit ?? '')
     setLocality(user.locality ?? '')
     setThirdPartyCompany(user.thirdPartyCompany ?? '')
-    setWorkSubtype(user.workSubtype ?? '')
+    setWorkSubtype(
+      user.jobTitle === 'Engenheiro'
+        ? normalizeEngineerSubtype(user.workSubtype)
+        : (user.workSubtype ?? ''),
+    )
     setAccessAreas(user.accessAreas ?? [])
     setAccessProcesses(user.accessProcesses ?? [])
     setSelectedProcessAreas(

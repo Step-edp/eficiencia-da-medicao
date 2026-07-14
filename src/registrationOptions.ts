@@ -19,10 +19,32 @@ export const TECHNICIAN_SUBTYPES = [
 ] as const
 
 export const ENGINEER_SUBTYPES = [
-  'Área',
-  'Sub-área',
-  'Processos específicos',
+  'Responsável de área',
+  'Responsável por sub-célula',
 ] as const
+
+/** Aceita rótulos novos e legados na base. */
+export function isEngineerAreaSubtype(value: string | null | undefined) {
+  const normalized = value?.trim() ?? ''
+  return normalized === 'Responsável de área' || normalized === 'Área'
+}
+
+export function isEngineerSubcellSubtype(value: string | null | undefined) {
+  const normalized = value?.trim() ?? ''
+  return normalized === 'Responsável por sub-célula' || normalized === 'Sub-área'
+}
+
+export function isEngineerProcessSubtype(value: string | null | undefined) {
+  return (value?.trim() ?? '') === 'Processos específicos'
+}
+
+/** Converte rótulos legados para os atuais usados no cadastro. */
+export function normalizeEngineerSubtype(value: string | null | undefined) {
+  const normalized = value?.trim() ?? ''
+  if (normalized === 'Área') return 'Responsável de área'
+  if (normalized === 'Sub-área') return 'Responsável por sub-célula'
+  return normalized
+}
 
 export {
   ENGINEER_HOME_SUBAREAS,
@@ -187,17 +209,17 @@ export function countResponsibleProcesses(user: {
   const workSubtype = user.workSubtype?.trim() ?? ''
 
   if (jobTitle === 'Engenheiro') {
-    if (workSubtype === 'Área') {
+    if (isEngineerAreaSubtype(workSubtype)) {
       const portals = BUSINESS_AREA_TO_HOME_PORTALS[workArea] ?? []
       return portals.reduce((sum, portal) => sum + processCountForHomePortal(portal), 0)
     }
-    if (workSubtype === 'Sub-área') {
+    if (isEngineerSubcellSubtype(workSubtype)) {
       return (user.accessAreas ?? []).reduce(
         (sum, portal) => sum + processCountForHomePortal(portal),
         0,
       )
     }
-    if (workSubtype === 'Processos específicos') {
+    if (isEngineerProcessSubtype(workSubtype)) {
       return user.accessProcesses?.length ?? 0
     }
   }
