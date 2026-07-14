@@ -1260,7 +1260,9 @@ function HomePanel({
   const pendingApprovalUsers = users.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'pending',
   )
-  const registeredUsers = users.filter((user) => user.approvalStatus === 'approved')
+  const registeredUsers = users.filter(
+    (user) => user.role !== 'admin' && user.approvalStatus === 'approved',
+  )
   const measurementSections = [
     'Faturamento de clientes livres',
     'Faturamento de clientes cativos',
@@ -2104,7 +2106,7 @@ function HomePanel({
                   </div>
                 ) : usersView === 'dashboard' ? (
                   <UsersDashboard
-                    users={users}
+                    users={users.filter((user) => user.role !== 'admin')}
                     pendingCount={pendingApprovalUsers.length}
                     approvedCount={registeredUsers.length}
                   />

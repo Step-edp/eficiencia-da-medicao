@@ -147,7 +147,7 @@ export function UsersDashboard({
   approvedCount,
 }: UsersDashboardProps) {
   const approvedUsers = users.filter((user) => user.approvalStatus === 'approved')
-  const assignableUsers = approvedUsers.filter((user) => user.role !== 'admin')
+  const assignableUsers = approvedUsers
 
   const [assignments, setAssignments] = useState<ProcessAssignment[]>([])
   const [areaFilter, setAreaFilter] = useState('')
