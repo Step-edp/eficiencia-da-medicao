@@ -1215,6 +1215,7 @@ function HomePanel({
   const [usersView, setUsersView] = useState<'usuarios' | 'pendentes' | 'dashboard'>(
     'usuarios',
   )
+  const [gestaoHomeTab, setGestaoHomeTab] = useState<'dash' | 'celulas'>('dash')
   const [terceiraOptions, setTerceiraOptions] = useState<string[]>([...THIRD_PARTY_COMPANIES])
   const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(null)
@@ -2327,6 +2328,7 @@ function HomePanel({
                   ? () => {
                       setSelectedOrgCell(null)
                       setSelectedOrgSubcell(null)
+                      setGestaoHomeTab('celulas')
                     }
                   : isGestorView
                     ? undefined
@@ -2344,56 +2346,99 @@ function HomePanel({
 
             {!selectedOrgCell ? (
               <>
-                <GestaoDashboard
-                  area={orgArea}
-                  cells={orgCells}
-                  candidateUsers={registeredUsers}
-                  canManage={canManageOrgCells}
-                  busy={orgCellsBusy}
-                  error={orgCellsError}
-                  onUpdateArea={handleUpdateOrgArea}
-                  onCreateCell={handleCreateOrgCell}
-                />
-
-                <h3 className="lab-other-heading">Células</h3>
-                <div className="home-areas" aria-label="Células da área Gestão">
-                  {visibleOrgCells.map((cell) => (
-                    <button
-                      key={cell.id}
-                      className={`area-card ${getAreaCardClassName(cell.id)}`}
-                      type="button"
-                      onClick={() => {
-                        setSelectedOrgCell(cell.id)
-                        setSelectedOrgSubcell(null)
-                      }}
-                    >
-                      <span className="area-card-title">
-                        <ItemIcon title={cell.id} />
-                        <span>{cell.label}</span>
-                      </span>
-                      <span
-                        className={`gestao-cell-status-badge ${
-                          cell.status === 'ativa' ? 'is-ativa' : 'is-pendente'
-                        }`}
-                      >
-                        {cell.status === 'ativa' ? 'Ativa' : 'Pendente'}
-                      </span>
-                      {cell.responsibleName ? (
-                        <span className="gestao-cell-card-owner">
-                          Resp.: {cell.responsibleName}
-                          {cell.substituteName ? ` · Subst.: ${cell.substituteName}` : ''}
-                        </span>
-                      ) : (
-                        <span className="gestao-cell-card-owner is-empty">Sem responsável</span>
-                      )}
-                    </button>
-                  ))}
+                <div
+                  className="panel-switch gestao-home-switch"
+                  role="tablist"
+                  aria-label="Home Gestão"
+                >
+                  <button
+                    className={gestaoHomeTab === 'dash' ? 'active' : ''}
+                    type="button"
+                    role="tab"
+                    aria-selected={gestaoHomeTab === 'dash'}
+                    onClick={() => setGestaoHomeTab('dash')}
+                  >
+                    Dash
+                  </button>
+                  <button
+                    className={gestaoHomeTab === 'celulas' ? 'active' : ''}
+                    type="button"
+                    role="tab"
+                    aria-selected={gestaoHomeTab === 'celulas'}
+                    onClick={() => setGestaoHomeTab('celulas')}
+                  >
+                    Células
+                  </button>
                 </div>
-                {!visibleOrgCells.length ? (
-                  <p className="generated-password-empty">
-                    Nenhuma célula disponível para o seu perfil.
-                  </p>
-                ) : null}
+
+                {gestaoHomeTab === 'dash' ? (
+                  <GestaoDashboard
+                    view="dash"
+                    area={orgArea}
+                    cells={orgCells}
+                    candidateUsers={registeredUsers}
+                    canManage={canManageOrgCells}
+                    busy={orgCellsBusy}
+                    error={orgCellsError}
+                    onUpdateArea={handleUpdateOrgArea}
+                    onCreateCell={handleCreateOrgCell}
+                  />
+                ) : (
+                  <>
+                    <GestaoDashboard
+                      view="celulas"
+                      area={orgArea}
+                      cells={orgCells}
+                      candidateUsers={registeredUsers}
+                      canManage={canManageOrgCells}
+                      busy={orgCellsBusy}
+                      error={orgCellsError}
+                      onUpdateArea={handleUpdateOrgArea}
+                      onCreateCell={handleCreateOrgCell}
+                    />
+                    <h3 className="lab-other-heading">Células</h3>
+                    <div className="home-areas" aria-label="Células da área Gestão">
+                      {visibleOrgCells.map((cell) => (
+                        <button
+                          key={cell.id}
+                          className={`area-card ${getAreaCardClassName(cell.id)}`}
+                          type="button"
+                          onClick={() => {
+                            setSelectedOrgCell(cell.id)
+                            setSelectedOrgSubcell(null)
+                          }}
+                        >
+                          <span className="area-card-title">
+                            <ItemIcon title={cell.id} />
+                            <span>{cell.label}</span>
+                          </span>
+                          <span
+                            className={`gestao-cell-status-badge ${
+                              cell.status === 'ativa' ? 'is-ativa' : 'is-pendente'
+                            }`}
+                          >
+                            {cell.status === 'ativa' ? 'Ativa' : 'Pendente'}
+                          </span>
+                          {cell.responsibleName ? (
+                            <span className="gestao-cell-card-owner">
+                              Resp.: {cell.responsibleName}
+                              {cell.substituteName ? ` · Subst.: ${cell.substituteName}` : ''}
+                            </span>
+                          ) : (
+                            <span className="gestao-cell-card-owner is-empty">
+                              Sem responsável
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    {!visibleOrgCells.length ? (
+                      <p className="generated-password-empty">
+                        Nenhuma célula disponível para o seu perfil.
+                      </p>
+                    ) : null}
+                  </>
+                )}
               </>
             ) : (
               <>

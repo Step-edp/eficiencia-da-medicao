@@ -19,6 +19,8 @@ type GestaoDashboardProps = {
   canManage: boolean
   busy?: boolean
   error?: string | null
+  /** Aba ativa na home Gestão: dashboard ou gestão de células. */
+  view?: 'dash' | 'celulas'
   onUpdateArea: (payload: LeadershipPayload) => Promise<void>
   onCreateCell: (
     payload: LeadershipPayload & { label: string; description: string },
@@ -52,6 +54,7 @@ export function GestaoDashboard({
   canManage,
   busy = false,
   error = null,
+  view = 'dash',
   onUpdateArea,
   onCreateCell,
 }: GestaoDashboardProps) {
@@ -102,39 +105,10 @@ export function GestaoDashboard({
     }
   }
 
-  return (
-    <div className="gestao-dashboard" aria-label="Dashboard gerencial">
-      <div className="users-dashboard-kpis gestao-dashboard-kpis">
-        <article className="users-dashboard-kpi">
-          <p className="users-dashboard-kpi-label">Células</p>
-          <p className="users-dashboard-kpi-value">{stats.cellCount}</p>
-        </article>
-        <article className="users-dashboard-kpi">
-          <p className="users-dashboard-kpi-label">Pendentes</p>
-          <p className="users-dashboard-kpi-value">{stats.pendingCellCount}</p>
-        </article>
-        <article className="users-dashboard-kpi">
-          <p className="users-dashboard-kpi-label">Subcélulas</p>
-          <p className="users-dashboard-kpi-value">{stats.subcellCount}</p>
-        </article>
-        <article className="users-dashboard-kpi">
-          <p className="users-dashboard-kpi-label">Processos</p>
-          <p className="users-dashboard-kpi-value">{stats.processCount}</p>
-        </article>
-      </div>
-
-      <AreaLeadershipEditor
-        key={`${area.responsibleUserId ?? 'none'}:${area.substituteUserId ?? 'none'}`}
-        title="Liderança da Gestão"
-        hint="A área Gestão tem 1 responsável e 1 substituto para períodos de ausência. Sem responsável, a área fica pendente."
-        area={area}
-        candidateUsers={candidateUsers}
-        canManage={canManage}
-        busy={busy}
-        onSave={onUpdateArea}
-      />
-
-      {canManage ? (
+  if (view === 'celulas') {
+    if (!canManage) return null
+    return (
+      <div className="gestao-dashboard" aria-label="Gestão de células">
         <div className="users-dashboard-card gestao-create-cell">
           {!showCreateForm ? (
             <button
@@ -229,7 +203,41 @@ export function GestaoDashboard({
             </>
           )}
         </div>
-      ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="gestao-dashboard" aria-label="Dashboard gerencial">
+      <div className="users-dashboard-kpis gestao-dashboard-kpis">
+        <article className="users-dashboard-kpi">
+          <p className="users-dashboard-kpi-label">Células</p>
+          <p className="users-dashboard-kpi-value">{stats.cellCount}</p>
+        </article>
+        <article className="users-dashboard-kpi">
+          <p className="users-dashboard-kpi-label">Pendentes</p>
+          <p className="users-dashboard-kpi-value">{stats.pendingCellCount}</p>
+        </article>
+        <article className="users-dashboard-kpi">
+          <p className="users-dashboard-kpi-label">Subcélulas</p>
+          <p className="users-dashboard-kpi-value">{stats.subcellCount}</p>
+        </article>
+        <article className="users-dashboard-kpi">
+          <p className="users-dashboard-kpi-label">Processos</p>
+          <p className="users-dashboard-kpi-value">{stats.processCount}</p>
+        </article>
+      </div>
+
+      <AreaLeadershipEditor
+        key={`${area.responsibleUserId ?? 'none'}:${area.substituteUserId ?? 'none'}`}
+        title="Liderança da Gestão"
+        hint="A área Gestão tem 1 responsável e 1 substituto para períodos de ausência. Sem responsável, a área fica pendente."
+        area={area}
+        candidateUsers={candidateUsers}
+        canManage={canManage}
+        busy={busy}
+        onSave={onUpdateArea}
+      />
 
       <div className="users-dashboard-card gestao-dashboard-breakdown">
         <h3>Processos por subcélula</h3>

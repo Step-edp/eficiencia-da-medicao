@@ -1626,6 +1626,11 @@ button {
   width: min(760px, 100%);
 }
 
+.gestao-home-switch {
+  margin: 16px 0 12px;
+  width: min(360px, 100%);
+}
+
 .users-view-switch button {
   display: inline-flex;
   align-items: center;
