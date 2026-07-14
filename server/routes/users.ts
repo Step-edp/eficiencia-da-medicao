@@ -24,6 +24,7 @@ type UserRow = {
   employment_type: string
   third_party_company: string
   locality: string
+  edp_unit: string
 }
 
 function mapUser(row: UserRow) {
@@ -47,6 +48,7 @@ function mapUser(row: UserRow) {
     employmentType: row.employment_type,
     thirdPartyCompany: row.third_party_company,
     locality: row.locality,
+    edpUnit: row.edp_unit,
   }
 }
 
@@ -107,6 +109,7 @@ export async function register(req: Request, res: Response) {
     workArea,
     workSubtype,
     locality,
+    edpUnit,
   } = req.body as Record<string, string | undefined>
 
   const normalizedEmploymentType = employmentType?.trim() ?? ''
@@ -116,6 +119,7 @@ export async function register(req: Request, res: Response) {
   const normalizedWorkSubtype = workSubtype?.trim() ?? ''
   const normalizedLocality = locality?.trim() ?? ''
   const normalizedWhatsapp = whatsapp?.trim() ?? ''
+  const normalizedEdpUnit = edpUnit?.trim() ?? ''
 
   if (
     !name?.trim() ||
@@ -157,7 +161,7 @@ export async function register(req: Request, res: Response) {
   const allowedTipos = valuesByKey.tipo?.length ? valuesByKey.tipo : ['Própria', 'Terceira']
   const allowedTerceiras = valuesByKey.terceira ?? []
   const allowedLocalities = valuesByKey.localidade ?? []
-  const allowedEdpUnits = ['EDP SP', 'EDP ES']
+  const allowedThirdPartyEdpUnits = ['EDP SP', 'EDP ES', 'Transversal']
   const allowedTechnicianSubtypes = [
     'Medição',
     'Laboratório de Medição',
@@ -181,17 +185,26 @@ export async function register(req: Request, res: Response) {
     return
   }
 
+  let storedEmployer = ''
+  let storedEdpUnit = ''
+
   if (normalizedEmploymentType === 'Própria') {
-    if (!allowedEdpUnits.includes(normalizedEmployer)) {
-      res.status(400).json({ error: 'Selecione EDP SP ou EDP ES.' })
+    storedEmployer = ''
+    storedEdpUnit = 'EDP SP'
+  } else {
+    if (
+      !normalizedEmployer ||
+      (allowedTerceiras.length > 0 && !allowedTerceiras.includes(normalizedEmployer))
+    ) {
+      res.status(400).json({ error: 'Selecione a empresa terceira.' })
       return
     }
-  } else if (
-    !normalizedEmployer ||
-    (allowedTerceiras.length > 0 && !allowedTerceiras.includes(normalizedEmployer))
-  ) {
-    res.status(400).json({ error: 'Selecione a empresa terceira.' })
-    return
+    if (!allowedThirdPartyEdpUnits.includes(normalizedEdpUnit)) {
+      res.status(400).json({ error: 'Selecione EDP SP, EDP ES ou Transversal.' })
+      return
+    }
+    storedEmployer = normalizedEmployer
+    storedEdpUnit = normalizedEdpUnit
   }
 
   if (
@@ -225,8 +238,8 @@ export async function register(req: Request, res: Response) {
       `INSERT INTO users (
         id, name, registration, password_hash, email, role, approval_status,
         birth_date, job_title, cpf, personal_description, hobby, whatsapp,
-        employment_type, third_party_company, work_area, work_subtype, locality
-      ) VALUES ($1,$2,$3,$4,$5,'compras','pending',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        employment_type, third_party_company, work_area, work_subtype, locality, edp_unit
+      ) VALUES ($1,$2,$3,$4,$5,'compras','pending',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
       RETURNING *`,
       [
         id,
@@ -241,10 +254,11 @@ export async function register(req: Request, res: Response) {
         hobby ?? '',
         normalizedWhatsapp,
         normalizedEmploymentType,
-        normalizedEmployer,
+        storedEmployer,
         normalizedWorkArea,
         normalizedJobTitle === 'Analista' ? '' : normalizedWorkSubtype,
         normalizedLocality,
+        storedEdpUnit,
       ],
     )
 

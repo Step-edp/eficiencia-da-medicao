@@ -1,5 +1,10 @@
 export const EDP_UNITS = ['EDP SP', 'EDP ES'] as const
 
+/** Abrangência exigida para cadastros de empresa terceira. */
+export const THIRD_PARTY_EDP_UNITS = ['EDP SP', 'EDP ES', 'Transversal'] as const
+
+export const OWN_COMPANY_DEFAULT = 'EDP SP' as const
+
 export const TECHNICIAN_SUBTYPES = [
   'Medição',
   'Laboratório de Medição',

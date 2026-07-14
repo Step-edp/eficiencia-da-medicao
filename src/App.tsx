@@ -28,8 +28,9 @@ import {
   buildRequestedProfile,
   DEFAULT_AREA_OPTIONS,
   DEFAULT_LOCALITIES,
-  EDP_UNITS,
+  OWN_COMPANY_DEFAULT,
   subtypesForCargo,
+  THIRD_PARTY_EDP_UNITS,
 } from './registrationOptions'
 
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
@@ -165,6 +166,7 @@ export default function App() {
     workArea: string
     workSubtype: string
     locality: string
+    edpUnit: string
   }) => {
     await api.register(payload)
   }
@@ -1627,13 +1629,22 @@ function HomePanel({
                           <dd>{formatValue(selectedUserDetail.employmentType)}</dd>
                         </div>
                         <div>
-                          <dt>
-                            {selectedUserDetail.employmentType === 'Terceira'
-                              ? 'Empresa terceira'
-                              : 'Empresa'}
-                          </dt>
-                          <dd>{formatValue(selectedUserDetail.thirdPartyCompany)}</dd>
+                          <dt>Abrangência</dt>
+                          <dd>
+                            {formatValue(
+                              selectedUserDetail.edpUnit ||
+                                (selectedUserDetail.employmentType === 'Própria'
+                                  ? OWN_COMPANY_DEFAULT
+                                  : ''),
+                            )}
+                          </dd>
                         </div>
+                        {selectedUserDetail.employmentType === 'Terceira' ? (
+                          <div>
+                            <dt>Empresa terceira</dt>
+                            <dd>{formatValue(selectedUserDetail.thirdPartyCompany)}</dd>
+                          </div>
+                        ) : null}
                         <div>
                           <dt>CPF</dt>
                           <dd>{formatValue(selectedUserDetail.cpf)}</dd>
@@ -3104,6 +3115,7 @@ type RegisterPanelProps = {
     workArea: string
     workSubtype: string
     locality: string
+    edpUnit: string
   }) => Promise<void>
   onRegistered: () => void
 }
@@ -3118,6 +3130,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
   const [workSubtype, setWorkSubtype] = useState('')
   const [employmentType, setEmploymentType] = useState('')
   const [employerCompany, setEmployerCompany] = useState('')
+  const [edpUnit, setEdpUnit] = useState('')
   const [locality, setLocality] = useState('')
   const [cpf, setCpf] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
@@ -3170,7 +3183,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       !jobTitle.trim() ||
       !workArea ||
       !employmentType ||
-      !employerCompany ||
+      (employmentType === 'Terceira' && (!employerCompany || !edpUnit)) ||
       !locality ||
       !cpf.trim() ||
       !whatsapp.trim() ||
@@ -3216,10 +3229,11 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         hobby: '',
         whatsapp: whatsapp.trim(),
         employmentType,
-        thirdPartyCompany: employerCompany,
+        thirdPartyCompany: employmentType === 'Terceira' ? employerCompany : '',
         workArea,
         workSubtype: jobTitle === 'Analista' ? '' : workSubtype,
         locality,
+        edpUnit: employmentType === 'Própria' ? OWN_COMPANY_DEFAULT : edpUnit,
       })
 
       setFeedback({
@@ -3236,6 +3250,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setWorkSubtype('')
       setEmploymentType('')
       setEmployerCompany('')
+      setEdpUnit('')
       setLocality('')
       setCpf('')
       setWhatsapp('')
@@ -3281,6 +3296,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
               const nextType = event.target.value
               setEmploymentType(nextType)
               setEmployerCompany('')
+              setEdpUnit('')
             }}
             required
           >
@@ -3293,40 +3309,40 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           </select>
         </label>
 
-        {employmentType === 'Própria' ? (
-          <label>
-            Empresa EDP
-            <select
-              value={employerCompany}
-              onChange={(event) => setEmployerCompany(event.target.value)}
-              required
-            >
-              <option value="" disabled hidden />
-              {EDP_UNITS.map((unit) => (
-                <option key={unit} value={unit}>
-                  {unit}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-
         {employmentType === 'Terceira' ? (
-          <label>
-            Empresa terceira
-            <select
-              value={employerCompany}
-              onChange={(event) => setEmployerCompany(event.target.value)}
-              required
-            >
-              <option value="" disabled hidden />
-              {terceiraOptions.map((company) => (
-                <option key={company} value={company}>
-                  {company}
-                </option>
-              ))}
-            </select>
-          </label>
+          <>
+            <label>
+              Empresa terceira
+              <select
+                value={employerCompany}
+                onChange={(event) => setEmployerCompany(event.target.value)}
+                required
+              >
+                <option value="" disabled hidden />
+                {terceiraOptions.map((company) => (
+                  <option key={company} value={company}>
+                    {company}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Abrangência
+              <select
+                value={edpUnit}
+                onChange={(event) => setEdpUnit(event.target.value)}
+                required
+              >
+                <option value="" disabled hidden />
+                {THIRD_PARTY_EDP_UNITS.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {unit}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
         ) : null}
 
         <label>
