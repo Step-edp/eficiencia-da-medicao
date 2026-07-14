@@ -2,8 +2,12 @@ import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { requireAuth } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
+import {
+  findSubstitutesForResponsible,
+  listActiveCoversForSubstitute,
+} from '../vacation-coverage.js'
 
-export type VacationStatus = 'ok' | 'pendente' | 'bloqueado'
+export type VacationStatus = 'ok' | 'pendente' | 'bloqueado' | 'em_ferias'
 
 export type VacationPeriodRow = {
   id: number
@@ -22,11 +26,23 @@ export type VacationPeriodView = {
   updatedAt: string
 }
 
+export type VacationCoverSummary = {
+  userId: string
+  name: string
+  registration: string
+  vacationStart: string
+  vacationEnd: string
+  sources: string[]
+}
+
 export type VacationMeta = {
   vacationStatus: VacationStatus
   vacationDeadlineAt: string | null
   vacationRequiredSince: string | null
   nextVacation: VacationPeriodView | null
+  vacationSubstituteUserId: string | null
+  vacationSubstituteName: string | null
+  coveringFor: VacationCoverSummary[]
 }
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
@@ -78,25 +94,60 @@ async function findNextVacation(userId: string) {
   return result.rows[0] ? toPeriodView(result.rows[0]) : null
 }
 
+function isActiveVacation(period: VacationPeriodView) {
+  const today = todayIso()
+  return period.startDate <= today && period.endDate >= today
+}
+
 /**
  * Garante o relógio de 7 dias quando não há próximo período de férias.
- * Admin fica isento.
+ * Admin fica isento de pendente/bloqueado; pode ter em_ferias só informativo.
  */
 export async function getVacationMetaForUser(
   userId: string,
   role: string,
 ): Promise<VacationMeta> {
+  const covering = await listActiveCoversForSubstitute(userId)
+  const coveringFor: VacationCoverSummary[] = covering.map((item) => ({
+    userId: item.titular.userId,
+    name: item.titular.name,
+    registration: item.titular.registration,
+    vacationStart: item.vacationStart,
+    vacationEnd: item.vacationEnd,
+    sources: item.sources,
+  }))
+
+  const nextVacation = await findNextVacation(userId)
+
   if (role === 'admin') {
-    const nextVacation = await findNextVacation(userId)
     return {
       vacationStatus: 'ok',
       vacationDeadlineAt: null,
       vacationRequiredSince: null,
       nextVacation,
+      vacationSubstituteUserId: null,
+      vacationSubstituteName: null,
+      coveringFor,
     }
   }
 
-  const nextVacation = await findNextVacation(userId)
+  if (nextVacation && isActiveVacation(nextVacation)) {
+    await query(
+      `UPDATE users SET vacation_required_since = NULL WHERE id = $1 AND vacation_required_since IS NOT NULL`,
+      [userId],
+    )
+    const substitute = await findSubstitutesForResponsible(userId)
+    return {
+      vacationStatus: 'em_ferias',
+      vacationDeadlineAt: null,
+      vacationRequiredSince: null,
+      nextVacation,
+      vacationSubstituteUserId: substitute?.substituteUserId ?? null,
+      vacationSubstituteName: substitute?.substituteName ?? null,
+      coveringFor,
+    }
+  }
+
   if (nextVacation) {
     await query(
       `UPDATE users SET vacation_required_since = NULL WHERE id = $1 AND vacation_required_since IS NOT NULL`,
@@ -107,6 +158,9 @@ export async function getVacationMetaForUser(
       vacationDeadlineAt: null,
       vacationRequiredSince: null,
       nextVacation,
+      vacationSubstituteUserId: null,
+      vacationSubstituteName: null,
+      coveringFor,
     }
   }
 
@@ -136,6 +190,9 @@ export async function getVacationMetaForUser(
     vacationDeadlineAt: deadline.toISOString(),
     vacationRequiredSince: since.toISOString(),
     nextVacation: null,
+    vacationSubstituteUserId: null,
+    vacationSubstituteName: null,
+    coveringFor,
   }
 }
 
@@ -150,10 +207,13 @@ export function attachVacationMeta<T extends Record<string, unknown>>(
     vacationRequiredSince: meta.vacationRequiredSince,
     nextVacationStart: meta.nextVacation?.startDate ?? null,
     nextVacationEnd: meta.nextVacation?.endDate ?? null,
+    vacationSubstituteUserId: meta.vacationSubstituteUserId,
+    vacationSubstituteName: meta.vacationSubstituteName,
+    coveringFor: meta.coveringFor,
   }
 }
 
-function parseDateInput(raw: unknown, fieldLabel: string): string | null {
+function parseDateInput(raw: unknown): string | null {
   if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
     return null
   }
@@ -162,8 +222,6 @@ function parseDateInput(raw: unknown, fieldLabel: string): string | null {
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
     return null
   }
-  // silence unused - fieldLabel for errors at call site
-  void fieldLabel
   return value
 }
 
@@ -184,8 +242,8 @@ export async function upsertMyNextVacation(req: Request, res: Response) {
   const userId = req.user!.id
   const role = req.user!.role
 
-  const startDate = parseDateInput(req.body?.startDate, 'início')
-  const endDate = parseDateInput(req.body?.endDate, 'fim')
+  const startDate = parseDateInput(req.body?.startDate)
+  const endDate = parseDateInput(req.body?.endDate)
 
   if (!startDate || !endDate) {
     res.status(400).json({
@@ -204,7 +262,6 @@ export async function upsertMyNextVacation(req: Request, res: Response) {
     return
   }
 
-  // Substitui períodos futuros/atuais pelo próximo único período exigido.
   await query(
     `DELETE FROM user_vacation_periods
      WHERE user_id = $1 AND end_date >= CURRENT_DATE`,

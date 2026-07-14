@@ -208,7 +208,9 @@ export function UsersDashboard({
     const counts = new Map<string, number>()
     for (const item of assignments) {
       const userId =
-        role === 'responsavel' ? item.responsavelUserId : item.executorUserId
+        role === 'responsavel'
+          ? item.responsavelActingUserId ?? item.responsavelUserId
+          : item.executorActingUserId ?? item.executorUserId
       if (!userId) continue
       counts.set(userId, (counts.get(userId) ?? 0) + 1)
     }
@@ -384,6 +386,11 @@ export function UsersDashboard({
                           </option>
                         ))}
                       </select>
+                      {item.responsavelCoveredBySubstitute && item.responsavelActingName ? (
+                        <p className="users-dashboard-cover-note">
+                          Em férias → {item.responsavelActingName}
+                        </p>
+                      ) : null}
                     </td>
                     <td>
                       <select
@@ -405,6 +412,11 @@ export function UsersDashboard({
                           </option>
                         ))}
                       </select>
+                      {item.executorCoveredBySubstitute && item.executorActingName ? (
+                        <p className="users-dashboard-cover-note">
+                          Em férias → {item.executorActingName}
+                        </p>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
@@ -417,12 +429,12 @@ export function UsersDashboard({
       <div className="users-dashboard-rankings-grid">
         <RoleRanking
           title="Ranking por responsabilidade"
-          hint="Quantidade de processos em que a pessoa é a responsável."
+          hint="Quantidade de processos em que a pessoa é a responsável (substituto conta durante férias do titular)."
           rows={responsavelRanking}
         />
         <RoleRanking
           title="Ranking por execução"
-          hint="Quantidade de processos em que a pessoa é a executora."
+          hint="Quantidade de processos em que a pessoa é a executora (substituto conta durante férias do titular)."
           rows={executorRanking}
         />
       </div>

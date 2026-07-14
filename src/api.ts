@@ -1,6 +1,15 @@
 export type UserRole = 'admin' | 'compras' | 'field'
 export type ApprovalStatus = 'approved' | 'pending'
-export type VacationStatus = 'ok' | 'pendente' | 'bloqueado'
+export type VacationStatus = 'ok' | 'pendente' | 'bloqueado' | 'em_ferias'
+
+export type VacationCoverFor = {
+  userId: string
+  name: string
+  registration: string
+  vacationStart: string
+  vacationEnd: string
+  sources: string[]
+}
 
 export type AppUser = {
   id: string
@@ -31,6 +40,9 @@ export type AppUser = {
   vacationRequiredSince?: string | null
   nextVacationStart?: string | null
   nextVacationEnd?: string | null
+  vacationSubstituteUserId?: string | null
+  vacationSubstituteName?: string | null
+  coveringFor?: VacationCoverFor[]
 }
 
 export type VacationPeriod = {
@@ -47,6 +59,9 @@ export type VacationAgendaResponse = {
   vacationDeadlineAt: string | null
   vacationRequiredSince: string | null
   nextVacation: VacationPeriod | null
+  vacationSubstituteUserId?: string | null
+  vacationSubstituteName?: string | null
+  coveringFor?: VacationCoverFor[]
   period?: VacationPeriod | null
 }
 
@@ -97,9 +112,15 @@ export type ProcessAssignment = {
   responsavelUserId: string | null
   responsavelName: string | null
   responsavelRegistration: string | null
+  responsavelActingUserId?: string | null
+  responsavelActingName?: string | null
+  responsavelCoveredBySubstitute?: boolean
   executorUserId: string | null
   executorName: string | null
   executorRegistration: string | null
+  executorActingUserId?: string | null
+  executorActingName?: string | null
+  executorCoveredBySubstitute?: boolean
 }
 
 export type CatalogKey = 'cargo' | 'area' | 'tipo' | 'terceira' | 'localidade'

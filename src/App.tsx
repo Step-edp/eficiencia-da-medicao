@@ -1472,6 +1472,9 @@ function HomePanel({
 
   const isVacationBlocked =
     currentUser.role !== 'admin' && currentUser.vacationStatus === 'bloqueado'
+  const isOnVacation =
+    currentUser.role !== 'admin' && currentUser.vacationStatus === 'em_ferias'
+  const coveringFor = currentUser.coveringFor ?? []
 
   const isGestorView =
     (!isAdmin && currentUser.jobTitle === 'Gestor') ||
@@ -1493,6 +1496,9 @@ function HomePanel({
     setSelectedOrgCell(null)
     setSelectedOrgSubcell(null)
     clearAreaSections()
+    if (isOnVacation) {
+      return
+    }
     if (isVacationBlocked && agendaArea) {
       setSelectedArea(agendaArea)
       return
@@ -1520,13 +1526,13 @@ function HomePanel({
   }, [isVacationBlocked, agendaArea, selectedArea?.title])
 
   useEffect(() => {
-    if (!isGestorView || !gestaoArea || isVacationBlocked) return
+    if (!isGestorView || !gestaoArea || isVacationBlocked || isOnVacation) return
     if (!selectedArea) {
       setSelectedArea(gestaoArea)
       setSelectedOrgCell(null)
       setSelectedOrgSubcell(null)
     }
-  }, [isGestorView, gestaoArea, selectedArea, isVacationBlocked])
+  }, [isGestorView, gestaoArea, selectedArea, isVacationBlocked, isOnVacation])
 
   const returnToOrgCell = () => {
     if (!gestaoArea || !selectedOrgCell) {
@@ -2202,6 +2208,47 @@ function HomePanel({
         message: 'Não foi possível copiar o link automaticamente.',
       })
     }
+  }
+
+  // Em férias: portal bloqueado; atividades ficam com o substituto.
+  if (isOnVacation) {
+    const start = currentUser.nextVacationStart
+    const end = currentUser.nextVacationEnd
+    const periodLabel =
+      start && end
+        ? `${start.slice(8, 10)}/${start.slice(5, 7)}/${start.slice(0, 4)} a ${end.slice(8, 10)}/${end.slice(5, 7)}/${end.slice(0, 4)}`
+        : null
+
+    return (
+      <main className="shell">
+        <section className="home-card area-screen-card">
+          <TopActionBar onLogout={onLogout} />
+          <p className="section-tag">Portal · Férias</p>
+          <h2>Bloqueado devido a férias</h2>
+          <div className="agenda-alert agenda-alert-blocked" role="alert">
+            <strong>Seu acesso ao portal está bloqueado durante as férias.</strong>
+            {periodLabel ? ` Período: ${periodLabel}.` : null}
+            {currentUser.vacationSubstituteName ? (
+              <>
+                {' '}
+                As suas atividades estão atreladas ao substituto{' '}
+                <strong>{currentUser.vacationSubstituteName}</strong> até o retorno.
+              </>
+            ) : (
+              <>
+                {' '}
+                Cadastre um substituto na liderança da área/célula para cobertura automática das
+                atividades.
+              </>
+            )}
+          </div>
+          <p>
+            Ao término do período, o acesso é restabelecido automaticamente. Se precisar
+            atualizar o próximo período de férias depois do retorno, use a Agenda.
+          </p>
+        </section>
+      </main>
+    )
   }
 
   // Compras puro (sem subáreas/processos de portal) segue no formulário dedicado —
@@ -3581,6 +3628,20 @@ function HomePanel({
         <TopActionBar onLogout={onLogout} />
         <p className="section-tag">Home</p>
         <h2>Bem-vindo ao portal, {currentUser.name}</h2>
+
+        {coveringFor.length ? (
+          <div className="agenda-alert agenda-alert-ok" role="status">
+            <strong>Cobertura de férias.</strong> Você está atuando como substituto de{' '}
+            {coveringFor.map((item, index) => (
+              <span key={item.userId}>
+                {index > 0 ? '; ' : null}
+                <strong>{item.name}</strong>
+                {` (${item.vacationStart.slice(8, 10)}/${item.vacationStart.slice(5, 7)} a ${item.vacationEnd.slice(8, 10)}/${item.vacationEnd.slice(5, 7)})`}
+              </span>
+            ))}
+            . As atividades desses titulares estão atreladas a você neste período.
+          </div>
+        ) : null}
 
         {currentUser.role !== 'admin' && currentUser.vacationStatus === 'pendente' ? (
           <div className="agenda-alert agenda-alert-pending" role="status">

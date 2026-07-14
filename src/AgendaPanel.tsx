@@ -120,6 +120,16 @@ export function AgendaPanel({
         </div>
       ) : null}
 
+      {displayStatus === 'em_ferias' ? (
+        <div className="agenda-alert agenda-alert-blocked" role="alert">
+          <strong>Bloqueado devido a férias.</strong>
+          {startDate && endDate
+            ? ` Período atual: ${formatDateBr(startDate)} a ${formatDateBr(endDate)}.`
+            : null}{' '}
+          As atividades ficam com o substituto cadastrado na liderança da área/célula.
+        </div>
+      ) : null}
+
       {displayStatus === 'pendente' ? (
         <div className="agenda-alert agenda-alert-pending" role="status">
           <strong>Férias pendentes.</strong> Registre o próximo período de férias

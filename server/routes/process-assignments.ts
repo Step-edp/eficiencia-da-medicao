@@ -3,6 +3,7 @@ import { query } from '../db.js'
 import { requireAdmin, requireAuth } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 import { encodeAccessProcess, PROCESSES_BY_AREA } from '../engineer-access.js'
+import { buildVacationSubstituteMap } from '../vacation-coverage.js'
 
 export type ProcessRole = 'responsavel' | 'executor'
 
@@ -18,12 +19,20 @@ export type ProcessAssignmentView = {
   processKey: string
   area: string
   process: string
+  /** Titular cadastrado (sempre o valor persistido). */
   responsavelUserId: string | null
   responsavelName: string | null
   responsavelRegistration: string | null
+  /** Quem está atuando agora (substituto se titular em férias). */
+  responsavelActingUserId: string | null
+  responsavelActingName: string | null
+  responsavelCoveredBySubstitute: boolean
   executorUserId: string | null
   executorName: string | null
   executorRegistration: string | null
+  executorActingUserId: string | null
+  executorActingName: string | null
+  executorCoveredBySubstitute: boolean
 }
 
 function catalogProcessKeys(): Array<{ processKey: string; area: string; process: string }> {
@@ -40,14 +49,65 @@ function isValidProcessKey(processKey: string) {
   return catalogProcessKeys().some((item) => item.processKey === processKey)
 }
 
+function applyVacationCover(
+  view: ProcessAssignmentView,
+  role: ProcessRole,
+  coverMap: Awaited<ReturnType<typeof buildVacationSubstituteMap>>,
+) {
+  const titularId =
+    role === 'responsavel' ? view.responsavelUserId : view.executorUserId
+  const titularName =
+    role === 'responsavel' ? view.responsavelName : view.executorName
+
+  if (!titularId) {
+    if (role === 'responsavel') {
+      view.responsavelActingUserId = null
+      view.responsavelActingName = null
+      view.responsavelCoveredBySubstitute = false
+    } else {
+      view.executorActingUserId = null
+      view.executorActingName = null
+      view.executorCoveredBySubstitute = false
+    }
+    return
+  }
+
+  const cover = coverMap.get(titularId)
+  if (!cover) {
+    if (role === 'responsavel') {
+      view.responsavelActingUserId = titularId
+      view.responsavelActingName = titularName
+      view.responsavelCoveredBySubstitute = false
+    } else {
+      view.executorActingUserId = titularId
+      view.executorActingName = titularName
+      view.executorCoveredBySubstitute = false
+    }
+    return
+  }
+
+  if (role === 'responsavel') {
+    view.responsavelActingUserId = cover.substituteUserId
+    view.responsavelActingName = `${cover.substituteName} (subst. de ${titularName ?? 'titular'})`
+    view.responsavelCoveredBySubstitute = true
+  } else {
+    view.executorActingUserId = cover.substituteUserId
+    view.executorActingName = `${cover.substituteName} (subst. de ${titularName ?? 'titular'})`
+    view.executorCoveredBySubstitute = true
+  }
+}
+
 export async function listProcessAssignments(_req: Request, res: Response) {
-  const result = await query<AssignmentRow>(
-    `SELECT pa.process_key, pa.role, pa.user_id,
-            u.name AS user_name, u.registration AS user_registration
-     FROM process_assignments pa
-     LEFT JOIN users u ON u.id = pa.user_id
-     ORDER BY pa.process_key, pa.role`,
-  )
+  const [result, coverMap] = await Promise.all([
+    query<AssignmentRow>(
+      `SELECT pa.process_key, pa.role, pa.user_id,
+              u.name AS user_name, u.registration AS user_registration
+       FROM process_assignments pa
+       LEFT JOIN users u ON u.id = pa.user_id
+       ORDER BY pa.process_key, pa.role`,
+    ),
+    buildVacationSubstituteMap(),
+  ])
 
   const byKey = new Map<string, ProcessAssignmentView>()
 
@@ -59,9 +119,15 @@ export async function listProcessAssignments(_req: Request, res: Response) {
       responsavelUserId: null,
       responsavelName: null,
       responsavelRegistration: null,
+      responsavelActingUserId: null,
+      responsavelActingName: null,
+      responsavelCoveredBySubstitute: false,
       executorUserId: null,
       executorName: null,
       executorRegistration: null,
+      executorActingUserId: null,
+      executorActingName: null,
+      executorCoveredBySubstitute: false,
     })
   }
 
@@ -77,6 +143,11 @@ export async function listProcessAssignments(_req: Request, res: Response) {
       current.executorName = row.user_name
       current.executorRegistration = row.user_registration
     }
+  }
+
+  for (const view of byKey.values()) {
+    applyVacationCover(view, 'responsavel', coverMap)
+    applyVacationCover(view, 'executor', coverMap)
   }
 
   res.json({ assignments: [...byKey.values()] })
@@ -157,7 +228,6 @@ export async function upsertProcessAssignment(req: Request, res: Response) {
     newData: { processKey, role, userId },
   })
 
-  // Reaproveita listagem completa para resposta consistente.
   await listProcessAssignments(req, res)
 }
 
