@@ -62,11 +62,18 @@ export type OrgCellView = {
   substituteUserId: string | null
   substituteName: string | null
   substituteRegistration: string | null
-  /** Sem responsável = pendente. */
+  /** Sem responsável ou sem substituto = pendente. */
   status: LeadershipStatus
   sortOrder: number
   createdAt: string
   updatedAt: string
+}
+
+function leadershipStatus(
+  responsibleUserId: string | null,
+  substituteUserId: string | null,
+): LeadershipStatus {
+  return responsibleUserId && substituteUserId ? 'ativa' : 'pendente'
 }
 
 function toAreaView(row: OrgAreaRow): OrgAreaView {
@@ -80,7 +87,7 @@ function toAreaView(row: OrgAreaRow): OrgAreaView {
     substituteUserId: row.substitute_user_id,
     substituteName: row.substitute_name,
     substituteRegistration: row.substitute_registration,
-    status: row.responsible_user_id ? 'ativa' : 'pendente',
+    status: leadershipStatus(row.responsible_user_id, row.substitute_user_id),
     updatedAt: row.updated_at.toISOString(),
   }
 }
@@ -97,7 +104,8 @@ function toCellView(row: OrgCellRow): OrgCellView {
     substituteUserId: row.substitute_user_id,
     substituteName: row.substitute_name,
     substituteRegistration: row.substitute_registration,
-    status: row.responsible_user_id ? 'ativa' : 'pendente',
+    /** Sem responsável ou sem substituto = pendente. */
+    status: leadershipStatus(row.responsible_user_id, row.substitute_user_id),
     sortOrder: row.sort_order,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
@@ -298,7 +306,7 @@ export async function createOrgArea(req: Request, res: Response) {
     entityType: 'org_area',
     entityId: label,
     summary: responsibleUserId
-      ? `Gestão operacional "${label}" criada com responsável${substituteUserId ? ' e substituto' : ''}.`
+      ? `Gestão operacional "${label}" criada com responsável${substituteUserId ? ' e substituto' : ' (pendente: sem substituto)'}.`
       : `Gestão operacional "${label}" criada como pendente (sem responsável).`,
     newData: { label, description, responsibleUserId, substituteUserId },
   })
@@ -397,9 +405,9 @@ export async function updateOrgArea(req: Request, res: Response) {
     summary:
       label !== current.label
         ? `Gestão operacional renomeada para "${label}".`
-        : responsibleUserId
+        : responsibleUserId && substituteUserId
           ? `Liderança da área "${label}" atualizada (responsável e substituto).`
-          : `Área "${label}" ficou pendente (sem responsável).`,
+          : `Área "${label}" ficou pendente (faltam responsável e/ou substituto).`,
     oldData: {
       label: current.label,
       responsibleUserId: current.responsible_user_id,
@@ -481,7 +489,7 @@ export async function createOrgCell(req: Request, res: Response) {
     entityType: 'org_cell',
     entityId: label,
     summary: responsibleUserId
-      ? `Célula "${label}" criada em "${area.label}" com responsável${substituteUserId ? ' e substituto' : ''}.`
+      ? `Célula "${label}" criada em "${area.label}" com responsável${substituteUserId ? ' e substituto' : ' (pendente: sem substituto)'}.`
       : `Célula "${label}" criada em "${area.label}" como pendente (sem responsável).`,
     newData: { label, description, areaId, responsibleUserId, substituteUserId },
   })
@@ -572,9 +580,9 @@ export async function updateOrgCell(req: Request, res: Response) {
     action: 'update',
     entityType: 'org_cell',
     entityId: cellId,
-    summary: responsibleUserId
+    summary: responsibleUserId && substituteUserId
       ? `Liderança da célula "${cellId}" atualizada.`
-      : `Célula "${cellId}" ficou pendente (sem responsável).`,
+      : `Célula "${cellId}" ficou pendente (faltam responsável e/ou substituto).`,
     oldData: {
       description: current.rows[0].description,
       responsibleUserId: current.rows[0].responsible_user_id,

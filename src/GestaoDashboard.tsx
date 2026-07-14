@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react'
 import type { AppUser } from './api'
 import {
   getGestaoDashboardStats,
+  leadershipPendingReason,
   type OrgAreaLeadership,
   type OrgCell,
 } from './orgStructure'
@@ -127,9 +128,9 @@ export function CreateOrgAreaForm({
         <>
           <h3>Nova gestão operacional</h3>
           <p className="users-dashboard-ranking-hint">
-            Informe um nome único para a gestão. Ela terá 1 responsável e 1
-            substituto para ausência. Sem responsável, a área fica pendente. Células
-            ficam vinculadas a esta área.
+            Informe um nome único para a gestão. Ela precisa de 1 responsável e 1
+            substituto; sem qualquer um dos dois, a área fica pendente. Células ficam
+            vinculadas a esta área.
           </p>
           <form className="gestao-create-cell-form" onSubmit={handleCreate}>
             <label>
@@ -176,7 +177,7 @@ export function CreateOrgAreaForm({
                 onChange={(event) => setSubstituteUserId(event.target.value)}
                 disabled={busy || !responsibleUserId}
               >
-                <option value="">Sem substituto</option>
+                <option value="">Sem substituto — pendente</option>
                 <UserOptions users={candidateUsers} excludeId={responsibleUserId || undefined} />
               </select>
             </label>
@@ -287,8 +288,8 @@ export function GestaoDashboard({
             <>
               <h3>Nova célula</h3>
               <p className="users-dashboard-ranking-hint">
-                Cada célula tem 1 responsável e 1 substituto para ausência. Sem responsável,
-                a célula fica pendente.
+                Cada célula precisa de 1 responsável e 1 substituto. Sem qualquer um
+                dos dois, a célula fica pendente e as subcélulas ficam bloqueadas.
               </p>
               <form className="gestao-create-cell-form" onSubmit={handleCreate}>
                 <label>
@@ -335,7 +336,7 @@ export function GestaoDashboard({
                     onChange={(event) => setSubstituteUserId(event.target.value)}
                     disabled={busy || !responsibleUserId}
                   >
-                    <option value="">Sem substituto</option>
+                    <option value="">Sem substituto — pendente</option>
                     <UserOptions users={candidateUsers} excludeId={responsibleUserId || undefined} />
                   </select>
                 </label>
@@ -392,7 +393,7 @@ export function GestaoDashboard({
       <AreaLeadershipEditor
         key={`${area.id}:${area.label}:${area.responsibleUserId ?? 'none'}:${area.substituteUserId ?? 'none'}`}
         title={`Liderança · ${area.label}`}
-        hint="Toda gestão operacional precisa ter um nome. Defina também 1 responsável e 1 substituto para períodos de ausência. Sem responsável, a área fica pendente."
+        hint="Toda gestão operacional precisa ter um nome, 1 responsável e 1 substituto. Sem responsável ou sem substituto, a área fica pendente."
         area={area}
         candidateUsers={candidateUsers}
         canManage={canManage}
@@ -515,9 +516,18 @@ export function AreaLeadershipEditor({
               {' '}
               · Substituto: <strong>{area.substituteName}</strong>
             </>
-          ) : null}
+          ) : (
+            <> · Sem substituto</>
+          )}
         </span>
       </div>
+      {status === 'pendente' ? (
+        <div className="agenda-alert agenda-alert-pending" role="status">
+          <strong>Liderança incompleta.</strong>{' '}
+          {leadershipPendingReason(area.responsibleUserId, area.substituteUserId)}.
+          Defina responsável e substituto para liberar a área.
+        </div>
+      ) : null}
       {canManage ? (
         <div className="gestao-cell-responsible-form">
           <label>
@@ -553,7 +563,7 @@ export function AreaLeadershipEditor({
               onChange={(event) => setSubstituteUserId(event.target.value)}
               disabled={busy || !responsibleUserId}
             >
-              <option value="">Sem substituto</option>
+                    <option value="">Sem substituto — pendente</option>
               <UserOptions users={candidateUsers} excludeId={responsibleUserId || undefined} />
             </select>
           </label>
@@ -595,6 +605,10 @@ export function CellResponsibleEditor({
   const [substituteUserId, setSubstituteUserId] = useState(cell.substituteUserId ?? '')
   const [error, setError] = useState<string | null>(null)
   const status = cell.status === 'ativa' ? 'ativa' : 'pendente'
+  const pendingReason = leadershipPendingReason(
+    cell.responsibleUserId,
+    cell.substituteUserId,
+  )
 
   const handleSave = async () => {
     setError(null)
@@ -626,16 +640,24 @@ export function CellResponsibleEditor({
               Responsável: <strong>{cell.responsibleName}</strong>
             </>
           ) : (
-            'Sem responsável — célula pendente'
+            'Sem responsável'
           )}
           {cell.substituteName ? (
             <>
               {' '}
               · Substituto: <strong>{cell.substituteName}</strong>
             </>
-          ) : null}
+          ) : (
+            <> · Sem substituto</>
+          )}
         </span>
       </div>
+      {pendingReason ? (
+        <div className="agenda-alert agenda-alert-pending" role="status">
+          <strong>Célula pendente.</strong> {pendingReason}. Subcélulas e processos ficam
+          bloqueados até completar a liderança.
+        </div>
+      ) : null}
       {canManage ? (
         <div className="gestao-cell-responsible-form">
           <label>
@@ -660,7 +682,7 @@ export function CellResponsibleEditor({
               onChange={(event) => setSubstituteUserId(event.target.value)}
               disabled={busy || !responsibleUserId}
             >
-              <option value="">Sem substituto</option>
+                    <option value="">Sem substituto — pendente</option>
               <UserOptions users={candidateUsers} excludeId={responsibleUserId || undefined} />
             </select>
           </label>

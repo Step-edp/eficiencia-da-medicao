@@ -52,6 +52,7 @@ import {
   buildOrgCellsFromRecords,
   DEFAULT_ORG_AREA_LEADERSHIP,
   getOrgCell,
+  leadershipPendingReason,
   ORG_STRUCTURE,
   type OrgAreaLeadership,
 } from './orgStructure'
@@ -2524,14 +2525,17 @@ function HomePanel({
                       >
                         {area.status === 'ativa' ? 'Ativa' : 'Pendente'}
                       </span>
-                      {area.responsibleName ? (
+                      {area.responsibleName && area.substituteName ? (
                         <span className="gestao-cell-card-owner">
                           Resp.: {area.responsibleName}
-                          {area.substituteName ? ` · Subst.: ${area.substituteName}` : ''}
+                          {` · Subst.: ${area.substituteName}`}
                         </span>
                       ) : (
                         <span className="gestao-cell-card-owner is-empty">
-                          Sem responsável
+                          {leadershipPendingReason(
+                            area.responsibleUserId,
+                            area.substituteUserId,
+                          )}
                         </span>
                       )}
                     </button>
@@ -2621,14 +2625,17 @@ function HomePanel({
                           >
                             {cell.status === 'ativa' ? 'Ativa' : 'Pendente'}
                           </span>
-                          {cell.responsibleName ? (
+                          {cell.responsibleName && cell.substituteName ? (
                             <span className="gestao-cell-card-owner">
                               Resp.: {cell.responsibleName}
-                              {cell.substituteName ? ` · Subst.: ${cell.substituteName}` : ''}
+                              {` · Subst.: ${cell.substituteName}`}
                             </span>
                           ) : (
                             <span className="gestao-cell-card-owner is-empty">
-                              Sem responsável
+                              {leadershipPendingReason(
+                                cell.responsibleUserId,
+                                cell.substituteUserId,
+                              )}
                             </span>
                           )}
                         </button>
@@ -2661,7 +2668,17 @@ function HomePanel({
                   />
                 ) : null}
                 <h3 className="lab-other-heading">Subcélulas</h3>
-                {cellSubcells.length ? (
+                {activeCell?.status !== 'ativa' ? (
+                  <div className="agenda-alert agenda-alert-blocked" role="alert">
+                    <strong>Subcélulas bloqueadas.</strong>{' '}
+                    {leadershipPendingReason(
+                      activeCell?.responsibleUserId,
+                      activeCell?.substituteUserId,
+                    ) ?? 'Liderança incompleta'}
+                    . Defina responsável e substituto para liberar o acesso.
+                  </div>
+                ) : null}
+                {activeCell?.status === 'ativa' && cellSubcells.length ? (
                   <div
                     className="home-areas"
                     aria-label={`Subcélulas de ${activeCell?.label}`}
@@ -2680,11 +2697,11 @@ function HomePanel({
                       </button>
                     ))}
                   </div>
-                ) : (
+                ) : activeCell?.status === 'ativa' ? (
                   <p className="generated-password-empty">
                     Esta célula ainda não possui subcélulas cadastradas.
                   </p>
-                )}
+                ) : null}
               </>
             )}
           </section>

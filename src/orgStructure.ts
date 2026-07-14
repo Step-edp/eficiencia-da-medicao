@@ -27,6 +27,20 @@ export type OrgSubcell = {
 
 export type OrgCellStatus = 'pendente' | 'ativa'
 
+export function leadershipPendingReason(
+  responsibleUserId: string | null | undefined,
+  substituteUserId: string | null | undefined,
+): string | null {
+  const hasResponsible = Boolean(responsibleUserId)
+  const hasSubstitute = Boolean(substituteUserId)
+  if (hasResponsible && hasSubstitute) return null
+  if (!hasResponsible && !hasSubstitute) {
+    return 'Sem responsável e sem substituto'
+  }
+  if (!hasResponsible) return 'Sem responsável'
+  return 'Sem substituto'
+}
+
 export type OrgCell = {
   id: OrgCellId
   areaId?: string
@@ -39,7 +53,7 @@ export type OrgCell = {
   responsibleName?: string | null
   substituteUserId?: string | null
   substituteName?: string | null
-  /** Sem responsável = pendente. */
+  /** Sem responsável ou sem substituto = pendente. */
   status?: OrgCellStatus
 }
 
