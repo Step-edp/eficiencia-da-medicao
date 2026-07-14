@@ -3170,12 +3170,18 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
 
         <label>
           Cargo
-          <input
-            type="text"
-            placeholder="Seu cargo atual"
+          <select
             value={jobTitle}
             onChange={(event) => setJobTitle(event.target.value)}
-          />
+            required
+          >
+            <option value="" disabled>
+              Selecione o cargo
+            </option>
+            <option value="Técnico">Técnico</option>
+            <option value="Analista">Analista</option>
+            <option value="Engenheiro">Engenheiro</option>
+          </select>
         </label>
 
         <label>
