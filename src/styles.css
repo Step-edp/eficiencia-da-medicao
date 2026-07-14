@@ -143,6 +143,10 @@ button {
   order: 7;
 }
 
+.area-card-cadastros {
+  order: 8;
+}
+
 .area-card-title {
   display: inline-flex;
   align-items: center;

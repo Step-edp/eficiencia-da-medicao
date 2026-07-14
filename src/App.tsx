@@ -571,6 +571,7 @@ function ItemIcon({ title }: { title: string }) {
     'Código de materiais': 'code',
     'Equipe de campo': 'truck',
     Usuários: 'users',
+    Cadastros: 'archive',
     Consultar: 'search',
   }
 
@@ -805,6 +806,12 @@ function HomePanel({
       description: 'Cadastros, aprovações e perfis de acesso ao portal.',
       details:
         'Consulte usuários cadastrados, aprove solicitações pendentes e acompanhe o perfil de cada matrícula.',
+    },
+    {
+      title: 'Cadastros',
+      description: 'Cadastros operacionais e dados de apoio do portal.',
+      details:
+        'Centralize cadastros de apoio da área de Medição, como bases, parâmetros e informações operacionais.',
     },
   ]
 
@@ -3032,6 +3039,10 @@ function getAreaCardClassName(title: string) {
 
   if (title === 'Usuários') {
     return 'area-card-usuarios'
+  }
+
+  if (title === 'Cadastros') {
+    return 'area-card-cadastros'
   }
 
   return ''
