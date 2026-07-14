@@ -223,10 +223,6 @@ export default function App() {
           <div>
             <p className="eyebrow">Eficiência da Medição</p>
             <h1>Changing tomorrow now.</h1>
-            <p className="lead">
-              Plataforma para centralizar autenticação, cadastro de usuários e
-              governança de acesso com aprovação do administrador.
-            </p>
           </div>
 
           <div className="status-card">
