@@ -204,6 +204,85 @@ button {
   gap: 10px;
 }
 
+.profiles-section {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.profiles-section-header h3 {
+  margin: 0 0 6px;
+  color: var(--text-main);
+}
+
+.profiles-section-header p {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.profiles-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.profile-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  background: rgba(5, 26, 44, 0.74);
+}
+
+.profile-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-card-header h4 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 1.05rem;
+}
+
+.profile-card-header span {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.profile-card-description {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
+.profile-card-areas-label {
+  margin: 0;
+  color: #9fdff0;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.profile-areas-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.profile-areas-list li {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(158, 183, 203, 0.16);
+  background: rgba(4, 17, 32, 0.55);
+  color: var(--text-main);
+}
+
 .area-card-title {
   display: inline-flex;
   align-items: center;
@@ -2405,8 +2484,18 @@ input[type='file'] {
   background: rgba(255, 255, 255, 0.88);
 }
 
+@media (max-width: 980px) {
+  .profiles-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 720px) {
   .catalogs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profiles-grid {
     grid-template-columns: 1fr;
   }
 

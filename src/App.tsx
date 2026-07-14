@@ -4,6 +4,7 @@ import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
+import { getHomeAreasForRole, roleLabel } from './profilesAccess'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
 import { SatisfactionSurveyPage } from './ratm/SatisfactionSurveyPage'
 import { mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
@@ -760,7 +761,7 @@ function HomePanel({
     }
   }
 
-  const areas: Area[] = [
+  const allAreas: Area[] = [
     {
       title: 'Gestão',
       description:
@@ -787,7 +788,7 @@ function HomePanel({
         'Ambiente para testes controlados, homologações e documentação de resultados.',
       details:
         'Execute cenários de homologação, registre evidências e mantenha documentação de conformidade dos processos.',
-    },
+      },
     {
       title: 'Telemedição',
       description:
@@ -815,6 +816,11 @@ function HomePanel({
         'Centralize cadastros de apoio da área de Medição, como bases, parâmetros e informações operacionais.',
     },
   ]
+
+  const allowedHomeAreas = getHomeAreasForRole(currentUser.role)
+  const areas = allAreas.filter((area) =>
+    allowedHomeAreas.includes(area.title as (typeof allowedHomeAreas)[number]),
+  )
 
   const handleRatmFinish = async (forms: RatmFormData[]) => {
     const response = await api.createRatmLaudos(forms)
@@ -1403,12 +1409,6 @@ function HomePanel({
     }
 
     if (selectedArea.title === 'Usuários') {
-      const roleLabel = (role: AppUser['role']) => {
-        if (role === 'admin') return 'Administrador'
-        if (role === 'field') return 'Equipe de campo'
-        return 'Compras'
-      }
-
       const statusLabel = (status: AppUser['approvalStatus']) =>
         status === 'approved' ? 'Aprovado' : 'Pendente'
 
@@ -1691,7 +1691,7 @@ function HomePanel({
               onLogout={onLogout}
             />
             <p className="section-tag">Cadastros</p>
-            <h2>Listas suspensas</h2>
+            <h2>Perfis e listas suspensas</h2>
             <CadastrosPanel isAdmin={isAdmin} />
           </section>
         </main>

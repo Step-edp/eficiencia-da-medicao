@@ -5,6 +5,7 @@ import {
   type CatalogGroup,
   type CatalogKey,
 } from './api'
+import { PROFILE_DEFINITIONS } from './profilesAccess'
 
 const FALLBACK_CATALOGS: CatalogGroup[] = [
   {
@@ -128,8 +129,37 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
 
   return (
     <>
+      <section className="profiles-section" aria-labelledby="cadastros-perfis-title">
+        <header className="profiles-section-header">
+          <div>
+            <h3 id="cadastros-perfis-title">Perfis</h3>
+            <p>
+              Perfis do portal e as áreas às quais cada um tem acesso.
+            </p>
+          </div>
+        </header>
+
+        <div className="profiles-grid">
+          {PROFILE_DEFINITIONS.map((profile) => (
+            <article key={profile.role} className="profile-card">
+              <header className="profile-card-header">
+                <h4>{profile.label}</h4>
+                <span>{profile.areas.length} área(s)</span>
+              </header>
+              <p className="profile-card-description">{profile.description}</p>
+              <p className="profile-card-areas-label">Áreas com acesso</p>
+              <ul className="profile-areas-list">
+                {profile.areas.map((area) => (
+                  <li key={area}>{area}</li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <p>
-        Aqui ficam todas as listas suspensas usadas no cadastro de usuários. O
+        Abaixo ficam as listas suspensas usadas no cadastro de usuários. O
         administrador pode incluir novas opções.
       </p>
 
