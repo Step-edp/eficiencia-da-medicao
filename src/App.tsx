@@ -84,6 +84,10 @@ export default function App() {
   const [registeredUsers, setRegisteredUsers] = useState<AppUser[]>([])
   const [authenticatedUser, setAuthenticatedUser] = useState<AppUser | null>(null)
   const [homologationRequests, setHomologationRequests] = useState<HomologationRequest[]>([])
+  const [authBannerFeedback, setAuthBannerFeedback] = useState<{
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
 
   const loadAdminData = useCallback(async () => {
     const [usersResponse, requestsResponse] = await Promise.all([
@@ -272,7 +276,9 @@ export default function App() {
         <div className="panel-column">
           {activePanel === 'login' ? (
             <LoginPanel
+              bannerFeedback={authBannerFeedback}
               onLoginSuccess={(user) => {
+                setAuthBannerFeedback(null)
                 setAuthenticatedUser(user)
                 if (user.role === 'admin') {
                   void loadAdminData()
@@ -283,7 +289,15 @@ export default function App() {
             <RegisterPanel
               activeRoute={activeRoute}
               onRegister={handleRegisterUser}
-              onRegistered={() => setActivePanel('login')}
+              onRegistered={(message) => {
+                setAuthBannerFeedback({
+                  type: 'success',
+                  message:
+                    message ||
+                    'Cadastro enviado para aprovação. Aguarde a liberação do ADM para entrar.',
+                })
+                setActivePanel('login')
+              }}
             />
           )}
         </div>
@@ -294,6 +308,7 @@ export default function App() {
 
 type LoginPanelProps = {
   onLoginSuccess: (user: AppUser) => void
+  bannerFeedback?: { type: 'success' | 'error'; message: string } | null
 }
 
 type PasswordInputProps = {
@@ -361,14 +376,20 @@ function PasswordInput({
   )
 }
 
-function LoginPanel({ onLoginSuccess }: LoginPanelProps) {
+function LoginPanel({ onLoginSuccess, bannerFeedback = null }: LoginPanelProps) {
   const [registration, setRegistration] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
-  } | null>(null)
+  } | null>(bannerFeedback)
+
+  useEffect(() => {
+    if (bannerFeedback) {
+      setFeedback(bannerFeedback)
+    }
+  }, [bannerFeedback])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -393,6 +414,12 @@ function LoginPanel({ onLoginSuccess }: LoginPanelProps) {
 
   return (
     <section className="auth-panel">
+      {feedback ? (
+        <div className={`login-feedback ${feedback.type}`} role="status">
+          {feedback.message}
+        </div>
+      ) : null}
+
       <form className="form-grid" onSubmit={handleSubmit}>
         <label>
           Matrícula
@@ -417,12 +444,6 @@ function LoginPanel({ onLoginSuccess }: LoginPanelProps) {
           {submitting ? 'Entrando...' : 'Entrar'}
         </button>
       </form>
-
-      {feedback ? (
-        <div className={`login-feedback ${feedback.type}`} role="status">
-          {feedback.message}
-        </div>
-      ) : null}
     </section>
   )
 }
@@ -3352,7 +3373,7 @@ type RegisterPanelProps = {
     edpUnit: string
     profilePhoto: string
   }) => Promise<void>
-  onRegistered: () => void
+  onRegistered: (message?: string) => void
 }
 
 function readImageAsDataUrl(file: File): Promise<string> {
@@ -3408,6 +3429,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
     type: 'success' | 'error'
     message: string
   } | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     void api
@@ -3447,7 +3469,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
     ) {
       setFeedback({
         type: 'error',
-        message: 'Preencha os campos obrigatórios antes de enviar o cadastro.',
+        message: 'Preencha todos os campos obrigatórios antes de enviar o cadastro.',
       })
       return
     }
@@ -3459,6 +3481,9 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       })
       return
     }
+
+    setSubmitting(true)
+    setFeedback(null)
 
     try {
       await onRegister({
@@ -3481,11 +3506,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         profilePhoto,
       })
 
-      setFeedback({
-        type: 'success',
-        message:
-          'Cadastro enviado para aprovação. O responsável definirá escopo, abrangência do engenheiro e empresa terceira na aprovação.',
-      })
+      const successMessage =
+        'Cadastro enviado para aprovação. Aguarde a liberação do ADM para entrar.'
       setName('')
       setRegistration('')
       setBirthDate('')
@@ -3501,7 +3523,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setConfirmPassword('')
       setProfilePhoto('')
       setProfilePhotoName('')
-      onRegistered()
+      onRegistered(successMessage)
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -3510,6 +3532,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             ? error.message
             : 'Não foi possível concluir o cadastro.',
       })
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -3532,15 +3556,14 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         </div>
       ) : null}
 
-      <form className="form-grid register-grid" onSubmit={handleSubmit}>
+      <form className="form-grid register-grid" onSubmit={handleSubmit} noValidate>
         <label>
           Tipo
           <select
             value={employmentType}
             onChange={(event) => setEmploymentType(event.target.value)}
-            required
           >
-            <option value="" disabled hidden />
+            <option value="">Selecione</option>
             {tipoOptions.map((tipo) => (
               <option key={tipo} value={tipo}>
                 {tipo}
@@ -3554,9 +3577,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           <select
             value={edpUnit}
             onChange={(event) => setEdpUnit(event.target.value)}
-            required
           >
-            <option value="" disabled hidden />
+            <option value="">Selecione</option>
             {EDP_SCOPE_OPTIONS.map((unit) => (
               <option key={unit} value={unit}>
                 {unit}
@@ -3570,9 +3592,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           <select
             value={workArea}
             onChange={(event) => setWorkArea(event.target.value)}
-            required
           >
-            <option value="" disabled hidden />
+            <option value="">Selecione</option>
             {areaOptions.map((area) => (
               <option key={area} value={area}>
                 {area}
@@ -3586,9 +3607,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           <select
             value={jobTitle}
             onChange={(event) => setJobTitle(event.target.value)}
-            required
           >
-            <option value="" disabled hidden />
+            <option value="">Selecione</option>
             {cargoOptions.map((cargo) => (
               <option key={cargo} value={cargo}>
                 {cargo}
@@ -3602,9 +3622,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           <select
             value={locality}
             onChange={(event) => setLocality(event.target.value)}
-            required
           >
-            <option value="" disabled hidden />
+            <option value="">Selecione</option>
             {localityOptions.map((city) => (
               <option key={city} value={city}>
                 {city}
@@ -3728,8 +3747,12 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           ) : null}
         </label>
 
-        <button className="primary-button login-enter-button" type="submit">
-          Enviar cadastro para aprovação
+        <button
+          className="primary-button login-enter-button"
+          type="submit"
+          disabled={submitting}
+        >
+          {submitting ? 'Enviando cadastro...' : 'Enviar cadastro para aprovação'}
         </button>
       </form>
     </section>

@@ -1838,7 +1838,14 @@ body.laudo-viewer-open {
 .brand-column,
 .auth-panel {
   position: relative;
+}
+
+.brand-column {
   overflow: hidden;
+}
+
+.register-panel {
+  overflow: visible;
 }
 
 .brand-column {
