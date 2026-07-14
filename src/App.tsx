@@ -22,15 +22,6 @@ import {
   type PasswordType,
 } from './api'
 
-const hobbyOptions = [
-  'Esportes',
-  'Leitura',
-  'Música',
-  'Tecnologia',
-  'Viagens',
-  'Fotografia',
-]
-
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
 const FIELD_APP_URL =
   (import.meta.env.VITE_FIELD_APP_URL as string | undefined)?.trim() ||
@@ -2910,8 +2901,6 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
   const [cpf, setCpf] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [personalDescription, setPersonalDescription] = useState('')
-  const [hobby, setHobby] = useState('')
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -2954,8 +2943,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         jobTitle: jobTitle.trim(),
         cpf: cpf.trim(),
         password,
-        personalDescription: personalDescription.trim(),
-        hobby,
+        personalDescription: '',
+        hobby: '',
       })
 
       setFeedback({
@@ -2971,8 +2960,6 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setCpf('')
       setPassword('')
       setConfirmPassword('')
-      setPersonalDescription('')
-      setHobby('')
       onRegistered()
     } catch (error) {
       setFeedback({
@@ -3088,35 +3075,6 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         <label>
           Foto de perfil
           <input type="file" accept="image/*" />
-        </label>
-
-        <label>
-          Fotos de pessoas que você ama
-          <input type="file" accept="image/*" multiple />
-        </label>
-
-        <label className="full-width">
-          Quem é você na vida pessoal
-          <textarea
-            rows={4}
-            placeholder="Descreva um pouco sobre você fora do trabalho"
-            value={personalDescription}
-            onChange={(event) => setPersonalDescription(event.target.value)}
-          />
-        </label>
-
-        <label className="full-width">
-          Hobby
-          <select value={hobby} onChange={(event) => setHobby(event.target.value)}>
-            <option value="" disabled>
-              Selecione um hobby
-            </option>
-            {hobbyOptions.map((hobby) => (
-              <option key={hobby} value={hobby}>
-                {hobby}
-              </option>
-            ))}
-          </select>
         </label>
 
         <button className="primary-button" type="submit">
