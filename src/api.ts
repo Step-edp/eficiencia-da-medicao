@@ -18,6 +18,8 @@ export type AppUser = {
   workArea?: string
   workSubtype?: string
   whatsapp?: string
+  employmentType?: string
+  thirdPartyCompany?: string
 }
 
 export type HomologationRequestItem = {
@@ -240,6 +242,8 @@ export const api = {
     personalDescription?: string
     hobby?: string
     whatsapp?: string
+    employmentType?: string
+    thirdPartyCompany?: string
   }) =>
     request<{ user: AppUser }>('/api/auth/register', {
       method: 'POST',

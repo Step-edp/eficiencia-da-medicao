@@ -28,6 +28,15 @@ const FIELD_APP_URL =
   (import.meta.env.VITE_FIELD_APP_URL as string | undefined)?.trim() ||
   'https://agendamento-lab-med-production.up.railway.app'
 
+const THIRD_PARTY_COMPANIES = [
+  'Cennatech',
+  'Ecori',
+  'Landis+Gyr',
+  'Metta Brasil',
+  'SEW',
+  'Steenge',
+] as const
+
 type Panel = 'login' | 'cadastro'
 type AppRoute = 'default' | 'compras-homologacao' | 'pesquisa-satisfacao'
 
@@ -140,6 +149,8 @@ export default function App() {
     personalDescription: string
     hobby: string
     whatsapp: string
+    employmentType: string
+    thirdPartyCompany: string
   }) => {
     await api.register(payload)
   }
@@ -1587,6 +1598,16 @@ function HomePanel({
                           <dd>{formatValue(selectedUserDetail.jobTitle)}</dd>
                         </div>
                         <div>
+                          <dt>Tipo</dt>
+                          <dd>{formatValue(selectedUserDetail.employmentType)}</dd>
+                        </div>
+                        {selectedUserDetail.employmentType === 'Terceira' ? (
+                          <div>
+                            <dt>Empresa terceira</dt>
+                            <dd>{formatValue(selectedUserDetail.thirdPartyCompany)}</dd>
+                          </div>
+                        ) : null}
+                        <div>
                           <dt>CPF</dt>
                           <dd>{formatValue(selectedUserDetail.cpf)}</dd>
                         </div>
@@ -3020,6 +3041,8 @@ type RegisterPanelProps = {
     personalDescription: string
     hobby: string
     whatsapp: string
+    employmentType: string
+    thirdPartyCompany: string
   }) => Promise<void>
   onRegistered: () => void
 }
@@ -3030,6 +3053,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
   const [birthDate, setBirthDate] = useState('')
   const [email, setEmail] = useState('')
   const [jobTitle, setJobTitle] = useState('')
+  const [employmentType, setEmploymentType] = useState('')
+  const [thirdPartyCompany, setThirdPartyCompany] = useState('')
   const [cpf, setCpf] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [password, setPassword] = useState('')
@@ -3048,6 +3073,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       !birthDate ||
       !email.trim() ||
       !jobTitle.trim() ||
+      !employmentType ||
       !cpf.trim() ||
       !whatsapp.trim() ||
       !password ||
@@ -3056,6 +3082,14 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setFeedback({
         type: 'error',
         message: 'Preencha os campos obrigatórios antes de enviar o cadastro.',
+      })
+      return
+    }
+
+    if (employmentType === 'Terceira' && !thirdPartyCompany) {
+      setFeedback({
+        type: 'error',
+        message: 'Selecione a empresa terceira.',
       })
       return
     }
@@ -3080,6 +3114,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         personalDescription: '',
         hobby: '',
         whatsapp: whatsapp.trim(),
+        employmentType,
+        thirdPartyCompany: employmentType === 'Terceira' ? thirdPartyCompany : '',
       })
 
       setFeedback({
@@ -3092,6 +3128,8 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setBirthDate('')
       setEmail('')
       setJobTitle('')
+      setEmploymentType('')
+      setThirdPartyCompany('')
       setCpf('')
       setWhatsapp('')
       setPassword('')
@@ -3183,6 +3221,47 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             <option value="Engenheiro">Engenheiro</option>
           </select>
         </label>
+
+        <label>
+          Tipo
+          <select
+            value={employmentType}
+            onChange={(event) => {
+              const nextType = event.target.value
+              setEmploymentType(nextType)
+              if (nextType !== 'Terceira') {
+                setThirdPartyCompany('')
+              }
+            }}
+            required
+          >
+            <option value="" disabled>
+              Selecione o tipo
+            </option>
+            <option value="Própria">Própria</option>
+            <option value="Terceira">Terceira</option>
+          </select>
+        </label>
+
+        {employmentType === 'Terceira' ? (
+          <label className="full-width">
+            Empresa terceira
+            <select
+              value={thirdPartyCompany}
+              onChange={(event) => setThirdPartyCompany(event.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Selecione a empresa
+              </option>
+              {THIRD_PARTY_COMPANIES.map((company) => (
+                <option key={company} value={company}>
+                  {company}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
 
         <label>
           CPF

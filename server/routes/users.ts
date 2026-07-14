@@ -21,6 +21,8 @@ type UserRow = {
   work_area: string
   work_subtype: string
   whatsapp: string
+  employment_type: string
+  third_party_company: string
 }
 
 function mapUser(row: UserRow) {
@@ -41,6 +43,8 @@ function mapUser(row: UserRow) {
     workArea: row.work_area,
     workSubtype: row.work_subtype,
     whatsapp: row.whatsapp,
+    employmentType: row.employment_type,
+    thirdPartyCompany: row.third_party_company,
   }
 }
 
@@ -96,7 +100,13 @@ export async function register(req: Request, res: Response) {
     personalDescription,
     hobby,
     whatsapp,
+    employmentType,
+    thirdPartyCompany,
   } = req.body as Record<string, string | undefined>
+
+  const normalizedEmploymentType = employmentType?.trim() ?? ''
+  const normalizedThirdParty =
+    normalizedEmploymentType === 'Terceira' ? thirdPartyCompany?.trim() ?? '' : ''
 
   if (
     !name?.trim() ||
@@ -111,6 +121,16 @@ export async function register(req: Request, res: Response) {
     return
   }
 
+  if (normalizedEmploymentType !== 'Própria' && normalizedEmploymentType !== 'Terceira') {
+    res.status(400).json({ error: 'Selecione o tipo: Própria ou Terceira.' })
+    return
+  }
+
+  if (normalizedEmploymentType === 'Terceira' && !normalizedThirdParty) {
+    res.status(400).json({ error: 'Selecione a empresa terceira.' })
+    return
+  }
+
   const normalizedRegistration = registration.trim().toUpperCase()
   const normalizedEmail = email.trim().toLowerCase()
   const id = `${Date.now()}-${normalizedRegistration}`
@@ -120,8 +140,9 @@ export async function register(req: Request, res: Response) {
     const insert = await query<UserRow>(
       `INSERT INTO users (
         id, name, registration, password_hash, email, role, approval_status,
-        birth_date, job_title, cpf, personal_description, hobby, whatsapp
-      ) VALUES ($1,$2,$3,$4,$5,'compras','pending',$6,$7,$8,$9,$10,$11)
+        birth_date, job_title, cpf, personal_description, hobby, whatsapp,
+        employment_type, third_party_company
+      ) VALUES ($1,$2,$3,$4,$5,'compras','pending',$6,$7,$8,$9,$10,$11,$12,$13)
       RETURNING *`,
       [
         id,
@@ -135,6 +156,8 @@ export async function register(req: Request, res: Response) {
         personalDescription?.trim() ?? '',
         hobby ?? '',
         whatsapp?.trim() ?? '',
+        normalizedEmploymentType,
+        normalizedThirdParty,
       ],
     )
 
