@@ -3135,7 +3135,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
     message: string
   } | null>(null)
 
-  const subtypeOptions = subtypesForCargo(jobTitle)
+  const subtypeOptions = subtypesForCargo(jobTitle, workArea)
   const requestedProfile = buildRequestedProfile(jobTitle, workSubtype, workArea)
 
   useEffect(() => {
@@ -3332,7 +3332,10 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           Área
           <select
             value={workArea}
-            onChange={(event) => setWorkArea(event.target.value)}
+            onChange={(event) => {
+              setWorkArea(event.target.value)
+              setWorkSubtype('')
+            }}
             required
           >
             <option value="" disabled hidden />

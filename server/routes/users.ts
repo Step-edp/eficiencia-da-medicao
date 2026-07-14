@@ -161,13 +161,14 @@ export async function register(req: Request, res: Response) {
   const allowedTipos = valuesByKey.tipo?.length ? valuesByKey.tipo : ['Própria', 'Terceira']
   const allowedTerceiras = valuesByKey.terceira ?? []
   const allowedLocalities = valuesByKey.localidade ?? []
-  const allowedTechnicianSubtypes = [
-    'Atividades administrativas da Medição',
-    'Laboratório de Medição',
-    'Lavratura de TOI',
-    'Leituras de faturamento',
-  ]
   const allowedEngineerSubtypes = ['Área', 'Sub-área', 'Processos específicos']
+  const technicianScopesByArea: Record<string, string[]> = {
+    Medição: [
+      'Atividades administrativas da Medição',
+      'Laboratório de Medição',
+    ],
+    CSD: ['Lavratura de TOI', 'Leituras de faturamento'],
+  }
 
   if (!allowedCargos.includes(normalizedJobTitle)) {
     res.status(400).json({ error: 'Selecione um cargo válido.' })
@@ -184,14 +185,12 @@ export async function register(req: Request, res: Response) {
     return
   }
 
-  let storedEmployer = ''
-  let storedEdpUnit = ''
-
   if (!['EDP SP', 'EDP ES', 'Transversal'].includes(normalizedEdpUnit)) {
     res.status(400).json({ error: 'Selecione EDP SP, EDP ES ou Transversal.' })
     return
   }
-  storedEdpUnit = normalizedEdpUnit
+  const storedEdpUnit = normalizedEdpUnit
+  let storedEmployer = ''
 
   if (normalizedEmploymentType === 'Própria') {
     storedEmployer = ''
@@ -216,8 +215,14 @@ export async function register(req: Request, res: Response) {
   }
 
   if (normalizedJobTitle === 'Técnico') {
-    if (!allowedTechnicianSubtypes.includes(normalizedWorkSubtype)) {
-      res.status(400).json({ error: 'Selecione o escopo.' })
+    const allowedScopes = technicianScopesByArea[normalizedWorkArea] ?? []
+    if (!allowedScopes.includes(normalizedWorkSubtype)) {
+      res.status(400).json({
+        error:
+          allowedScopes.length === 0
+            ? 'Para técnico, selecione a área Medição ou CSD.'
+            : 'Selecione o escopo.',
+      })
       return
     }
   } else if (normalizedJobTitle === 'Engenheiro') {

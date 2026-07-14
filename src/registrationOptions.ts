@@ -1,11 +1,17 @@
 /** Abrangência do cadastro (própria ou terceira). */
 export const EDP_SCOPE_OPTIONS = ['EDP SP', 'EDP ES', 'Transversal'] as const
 
+export const TECHNICIAN_SCOPES_BY_AREA: Record<string, readonly string[]> = {
+  Medição: [
+    'Atividades administrativas da Medição',
+    'Laboratório de Medição',
+  ],
+  CSD: ['Lavratura de TOI', 'Leituras de faturamento'],
+}
+
 export const TECHNICIAN_SUBTYPES = [
-  'Atividades administrativas da Medição',
-  'Laboratório de Medição',
-  'Lavratura de TOI',
-  'Leituras de faturamento',
+  ...TECHNICIAN_SCOPES_BY_AREA.Medição,
+  ...TECHNICIAN_SCOPES_BY_AREA.CSD,
 ] as const
 
 export const ENGINEER_SUBTYPES = [
@@ -54,9 +60,11 @@ export const DEFAULT_LOCALITIES = [
   'Tremembé',
 ] as const
 
-export function subtypesForCargo(jobTitle: string): readonly string[] {
-  if (jobTitle === 'Técnico') return TECHNICIAN_SUBTYPES
+export function subtypesForCargo(jobTitle: string, workArea = ''): readonly string[] {
   if (jobTitle === 'Engenheiro') return ENGINEER_SUBTYPES
+  if (jobTitle === 'Técnico') {
+    return TECHNICIAN_SCOPES_BY_AREA[workArea] ?? []
+  }
   return []
 }
 
