@@ -6,7 +6,7 @@ import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
 import { UsersDashboard } from './UsersDashboard'
-import { GestaoDashboard, CellResponsibleEditor } from './GestaoDashboard'
+import { GestaoDashboard, CellResponsibleEditor, CreateOrgAreaForm } from './GestaoDashboard'
 import { AgendaPanel } from './AgendaPanel'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
@@ -1221,7 +1221,9 @@ function HomePanel({
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(null)
   const [, setSelectedOrgSubcell] = useState<string | null>(null)
   const [orgCells, setOrgCells] = useState(() => [...ORG_STRUCTURE.cells])
+  const [orgAreas, setOrgAreas] = useState<OrgAreaLeadership[]>([DEFAULT_ORG_AREA_LEADERSHIP])
   const [orgArea, setOrgArea] = useState<OrgAreaLeadership>(DEFAULT_ORG_AREA_LEADERSHIP)
+  const [selectedOrgAreaId, setSelectedOrgAreaId] = useState<string | null>(null)
   const [orgCellsBusy, setOrgCellsBusy] = useState(false)
   const [orgCellsError, setOrgCellsError] = useState<string | null>(null)
 
@@ -1240,25 +1242,37 @@ function HomePanel({
   }, [])
 
   useEffect(() => {
+    const mapArea = (area: {
+      id: string
+      label: string
+      description: string
+      responsibleUserId: string | null
+      responsibleName: string | null
+      substituteUserId: string | null
+      substituteName: string | null
+      status: 'pendente' | 'ativa'
+    }): OrgAreaLeadership => ({
+      id: area.id,
+      label: area.label,
+      description: area.description,
+      responsibleUserId: area.responsibleUserId,
+      responsibleName: area.responsibleName,
+      substituteUserId: area.substituteUserId,
+      substituteName: area.substituteName,
+      status: area.status,
+    })
+
     void api
       .listOrgCells()
-      .then(({ area, cells }) => {
-        if (area) {
-          setOrgArea({
-            id: 'Gestão Operacional',
-            label: area.label,
-            description: area.description,
-            responsibleUserId: area.responsibleUserId,
-            responsibleName: area.responsibleName,
-            substituteUserId: area.substituteUserId,
-            substituteName: area.substituteName,
-            status: area.status,
-          })
-        }
+      .then(({ areas, area, cells }) => {
+        const mappedAreas = (areas?.length ? areas : area ? [area] : []).map(mapArea)
+        const nextAreas = mappedAreas.length ? mappedAreas : [DEFAULT_ORG_AREA_LEADERSHIP]
+        setOrgAreas(nextAreas)
         setOrgCells(
           buildOrgCellsFromRecords(
             cells.map((cell) => ({
               id: cell.id,
+              areaId: cell.areaId,
               label: cell.label,
               description: cell.description,
               responsibleUserId: cell.responsibleUserId,
@@ -1269,12 +1283,21 @@ function HomePanel({
             })),
           ),
         )
+
+        const adminUser = currentUser.role === 'admin'
+        if (!adminUser && nextAreas.length === 1) {
+          setSelectedOrgAreaId(nextAreas[0].id)
+          setOrgArea(nextAreas[0])
+        } else if (nextAreas.length === 1) {
+          setOrgArea(nextAreas[0])
+        }
       })
       .catch(() => {
+        setOrgAreas([DEFAULT_ORG_AREA_LEADERSHIP])
         setOrgArea(DEFAULT_ORG_AREA_LEADERSHIP)
         setOrgCells([...ORG_STRUCTURE.cells])
       })
-  }, [])
+  }, [currentUser.role])
   const [trailStepCounts, setTrailStepCounts] = useState<Record<string, number>>({})
   const [ratmLaudos, setRatmLaudos] = useState<RatmLaudo[]>([])
   const [selectedCodeMaterialsAction, setSelectedCodeMaterialsAction] = useState<
@@ -1498,18 +1521,27 @@ function HomePanel({
   const exitToHome = () => {
     setSelectedOrgCell(null)
     setSelectedOrgSubcell(null)
+    setGestaoHomeTab('dash')
     clearAreaSections()
     if (isOnAbsence) {
       return
     }
     if (isVacationBlocked && agendaArea) {
+      setSelectedOrgAreaId(null)
       setSelectedArea(agendaArea)
       return
     }
     if (isGestorView && gestaoArea) {
       setSelectedArea(gestaoArea)
+      if (!isAdmin && orgAreas.length === 1) {
+        setSelectedOrgAreaId(orgAreas[0].id)
+        setOrgArea(orgAreas[0])
+      } else {
+        setSelectedOrgAreaId(null)
+      }
       return
     }
+    setSelectedOrgAreaId(null)
     setSelectedArea(null)
   }
 
@@ -1534,8 +1566,20 @@ function HomePanel({
       setSelectedArea(gestaoArea)
       setSelectedOrgCell(null)
       setSelectedOrgSubcell(null)
+      if (!isAdmin && orgAreas.length === 1) {
+        setSelectedOrgAreaId(orgAreas[0].id)
+        setOrgArea(orgAreas[0])
+      }
     }
-  }, [isGestorView, gestaoArea, selectedArea, isVacationBlocked, isOnAbsence])
+  }, [isGestorView, gestaoArea, selectedArea, isVacationBlocked, isOnAbsence, isAdmin, orgAreas])
+
+  useEffect(() => {
+    if (selectedArea?.title !== 'Gestão Operacional') return
+    if (selectedOrgAreaId) return
+    if (isAdmin || orgAreas.length !== 1) return
+    setSelectedOrgAreaId(orgAreas[0].id)
+    setOrgArea(orgAreas[0])
+  }, [selectedArea?.title, selectedOrgAreaId, isAdmin, orgAreas])
 
   const returnToOrgCell = () => {
     if (!gestaoArea || !selectedOrgCell) {
@@ -1567,43 +1611,66 @@ function HomePanel({
   const canManageOrgCells =
     isAdmin || (!isAdmin && currentUser.jobTitle === 'Gestor')
 
-  const applyOrgStructure = (payload: {
-    area: {
-      label: string
-      description: string
-      responsibleUserId: string | null
-      responsibleName: string | null
-      substituteUserId: string | null
-      substituteName: string | null
-      status: 'pendente' | 'ativa'
-    } | null
-    cells: Array<{
-      id: string
-      label: string
-      description: string
-      responsibleUserId: string | null
-      responsibleName: string | null
-      substituteUserId: string | null
-      substituteName: string | null
-      status: 'pendente' | 'ativa'
-    }>
-  }) => {
-    if (payload.area) {
-      setOrgArea({
-        id: 'Gestão Operacional',
-        label: payload.area.label,
-        description: payload.area.description,
-        responsibleUserId: payload.area.responsibleUserId,
-        responsibleName: payload.area.responsibleName,
-        substituteUserId: payload.area.substituteUserId,
-        substituteName: payload.area.substituteName,
-        status: payload.area.status,
-      })
-    }
+  const applyOrgStructure = (
+    payload: {
+      areas?: Array<{
+        id: string
+        label: string
+        description: string
+        responsibleUserId: string | null
+        responsibleName: string | null
+        substituteUserId: string | null
+        substituteName: string | null
+        status: 'pendente' | 'ativa'
+      }>
+      area: {
+        id?: string
+        label: string
+        description: string
+        responsibleUserId: string | null
+        responsibleName: string | null
+        substituteUserId: string | null
+        substituteName: string | null
+        status: 'pendente' | 'ativa'
+      } | null
+      cells: Array<{
+        id: string
+        areaId?: string
+        label: string
+        description: string
+        responsibleUserId: string | null
+        responsibleName: string | null
+        substituteUserId: string | null
+        substituteName: string | null
+        status: 'pendente' | 'ativa'
+      }>
+    },
+    options?: { selectAreaId?: string | null },
+  ) => {
+    const mappedAreas = (
+      payload.areas?.length
+        ? payload.areas
+        : payload.area
+          ? [{ id: payload.area.id ?? payload.area.label, ...payload.area }]
+          : []
+    ).map((area) => ({
+      id: area.id,
+      label: area.label,
+      description: area.description,
+      responsibleUserId: area.responsibleUserId,
+      responsibleName: area.responsibleName,
+      substituteUserId: area.substituteUserId,
+      substituteName: area.substituteName,
+      status: area.status,
+    }))
+
+    const nextAreas = mappedAreas.length ? mappedAreas : [DEFAULT_ORG_AREA_LEADERSHIP]
+    setOrgAreas(nextAreas)
     setOrgCells(
       buildOrgCellsFromRecords(
         payload.cells.map((cell) => ({
           id: cell.id,
+          areaId: cell.areaId,
           label: cell.label,
           description: cell.description,
           responsibleUserId: cell.responsibleUserId,
@@ -1614,20 +1681,66 @@ function HomePanel({
         })),
       ),
     )
+
+    const preferredId =
+      options?.selectAreaId !== undefined
+        ? options.selectAreaId
+        : selectedOrgAreaId
+    const selected =
+      (preferredId ? nextAreas.find((area) => area.id === preferredId) : null) ??
+      (!isAdmin && nextAreas.length === 1 ? nextAreas[0] : null)
+
+    if (selected) {
+      setSelectedOrgAreaId(selected.id)
+      setOrgArea(selected)
+    } else if (options?.selectAreaId === null) {
+      setSelectedOrgAreaId(null)
+      if (nextAreas[0]) setOrgArea(nextAreas[0])
+    } else if (nextAreas[0]) {
+      setOrgArea(nextAreas[0])
+    }
   }
 
   const handleUpdateOrgArea = async (payload: {
     responsibleUserId: string | null
     substituteUserId: string | null
   }) => {
+    const areaId = selectedOrgAreaId ?? orgArea.id
     setOrgCellsBusy(true)
     setOrgCellsError(null)
     try {
-      const response = await api.updateOrgArea(payload)
-      applyOrgStructure(response)
+      const response = await api.updateOrgArea(areaId, payload)
+      applyOrgStructure(response, { selectAreaId: areaId })
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Não foi possível atualizar a liderança da Gestão Operacional.'
+        err instanceof Error
+          ? err.message
+          : 'Não foi possível atualizar a liderança da gestão operacional.'
+      setOrgCellsError(message)
+      throw new Error(message)
+    } finally {
+      setOrgCellsBusy(false)
+    }
+  }
+
+  const handleCreateOrgArea = async (payload: {
+    label: string
+    description: string
+    responsibleUserId: string | null
+    substituteUserId: string | null
+  }) => {
+    setOrgCellsBusy(true)
+    setOrgCellsError(null)
+    try {
+      const response = await api.createOrgArea(payload)
+      const createdId = response.createdArea?.id ?? payload.label
+      applyOrgStructure(response, { selectAreaId: createdId })
+      setGestaoHomeTab('dash')
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Não foi possível criar a gestão operacional.'
       setOrgCellsError(message)
       throw new Error(message)
     } finally {
@@ -1641,11 +1754,12 @@ function HomePanel({
     responsibleUserId: string | null
     substituteUserId: string | null
   }) => {
+    const areaId = selectedOrgAreaId ?? orgArea.id
     setOrgCellsBusy(true)
     setOrgCellsError(null)
     try {
-      const response = await api.createOrgCell(payload)
-      applyOrgStructure(response)
+      const response = await api.createOrgCell({ ...payload, areaId })
+      applyOrgStructure(response, { selectAreaId: areaId })
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Não foi possível criar a célula.'
@@ -1667,7 +1781,7 @@ function HomePanel({
     setOrgCellsError(null)
     try {
       const response = await api.updateOrgCell(cellId, payload)
-      applyOrgStructure(response)
+      applyOrgStructure(response, { selectAreaId: selectedOrgAreaId })
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Não foi possível salvar a liderança da célula.'
@@ -1681,7 +1795,12 @@ function HomePanel({
   const hasPortalAccess = (portalKey: string) =>
     (accessiblePortals as readonly string[]).includes(portalKey)
 
-  const visibleOrgCells = orgCells.filter((cell) => {
+  const cellsForSelectedArea = orgCells.filter((cell) => {
+    if (!selectedOrgAreaId) return true
+    return !cell.areaId || cell.areaId === selectedOrgAreaId
+  })
+
+  const visibleOrgCells = cellsForSelectedArea.filter((cell) => {
     if (isGestorView || isAdmin || hasPortalAccess('Gestão Operacional')) {
       return true
     }
@@ -2316,8 +2435,28 @@ function HomePanel({
     }
 
     if (selectedArea.title === 'Gestão Operacional') {
-      const activeCell = selectedOrgCell ? getOrgCell(selectedOrgCell, orgCells) : null
+      const activeOrgArea =
+        (selectedOrgAreaId
+          ? orgAreas.find((area) => area.id === selectedOrgAreaId)
+          : null) ?? orgArea
+      const activeCell = selectedOrgCell
+        ? getOrgCell(selectedOrgCell, cellsForSelectedArea)
+        : null
       const cellSubcells = selectedOrgCell ? visibleSubcellsForCell(selectedOrgCell) : []
+      const showAreaPicker = !selectedOrgAreaId
+      const canGoToAreaList = isAdmin || orgAreas.length > 1
+
+      const leaveSelectedArea = () => {
+        setSelectedOrgCell(null)
+        setSelectedOrgSubcell(null)
+        setGestaoHomeTab('dash')
+        if (canGoToAreaList) {
+          setSelectedOrgAreaId(null)
+          return
+        }
+        if (isGestorView) return
+        exitToHome()
+      }
 
       return (
         <main className="shell">
@@ -2330,26 +2469,85 @@ function HomePanel({
                       setSelectedOrgSubcell(null)
                       setGestaoHomeTab('celulas')
                     }
-                  : isGestorView
-                    ? undefined
-                    : exitToHome
+                  : selectedOrgAreaId
+                    ? leaveSelectedArea
+                    : isGestorView
+                      ? undefined
+                      : exitToHome
               }
               onHome={exitToHome}
               onLogout={onLogout}
             />
             <p className="section-tag">{isGestorView ? 'Home · Gestor' : 'Área'}</p>
-            <h2>{ORG_STRUCTURE.label}</h2>
+            <h2>{showAreaPicker ? 'Gestão Operacional' : activeOrgArea.label}</h2>
             <p>
-              Painel gerencial da área. Acompanhe células, subcélulas e processos sob
-              sua responsabilidade.
+              {showAreaPicker
+                ? 'Selecione uma gestão operacional ou crie uma nova (administrador).'
+                : 'Painel gerencial da área. Acompanhe células, subcélulas e processos sob sua responsabilidade.'}
             </p>
 
-            {!selectedOrgCell ? (
+            {showAreaPicker ? (
+              <>
+                {isAdmin ? (
+                  <CreateOrgAreaForm
+                    candidateUsers={registeredUsers}
+                    busy={orgCellsBusy}
+                    error={orgCellsError}
+                    onCreate={handleCreateOrgArea}
+                  />
+                ) : null}
+                <h3 className="lab-other-heading">Gestões operacionais</h3>
+                <div className="home-areas" aria-label="Gestões operacionais">
+                  {orgAreas.map((area) => (
+                    <button
+                      key={area.id}
+                      className={`area-card ${getAreaCardClassName('Gestão Operacional')}`}
+                      type="button"
+                      onClick={() => {
+                        setSelectedOrgAreaId(area.id)
+                        setOrgArea(area)
+                        setSelectedOrgCell(null)
+                        setSelectedOrgSubcell(null)
+                        setGestaoHomeTab('dash')
+                        setOrgCellsError(null)
+                      }}
+                    >
+                      <span className="area-card-title">
+                        <ItemIcon title="Gestão Operacional" />
+                        <span>{area.label}</span>
+                      </span>
+                      <span
+                        className={`gestao-cell-status-badge ${
+                          area.status === 'ativa' ? 'is-ativa' : 'is-pendente'
+                        }`}
+                      >
+                        {area.status === 'ativa' ? 'Ativa' : 'Pendente'}
+                      </span>
+                      {area.responsibleName ? (
+                        <span className="gestao-cell-card-owner">
+                          Resp.: {area.responsibleName}
+                          {area.substituteName ? ` · Subst.: ${area.substituteName}` : ''}
+                        </span>
+                      ) : (
+                        <span className="gestao-cell-card-owner is-empty">
+                          Sem responsável
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                {!orgAreas.length ? (
+                  <p className="generated-password-empty">
+                    Nenhuma gestão operacional cadastrada.
+                  </p>
+                ) : null}
+              </>
+            ) : !selectedOrgCell ? (
               <>
                 <div
                   className="panel-switch gestao-home-switch"
                   role="tablist"
-                  aria-label="Home Gestão Operacional"
+                  aria-label={`Home ${activeOrgArea.label}`}
                 >
                   <button
                     className={gestaoHomeTab === 'dash' ? 'active' : ''}
@@ -2374,8 +2572,8 @@ function HomePanel({
                 {gestaoHomeTab === 'dash' ? (
                   <GestaoDashboard
                     view="dash"
-                    area={orgArea}
-                    cells={orgCells}
+                    area={activeOrgArea}
+                    cells={cellsForSelectedArea}
                     candidateUsers={registeredUsers}
                     canManage={canManageOrgCells}
                     busy={orgCellsBusy}
@@ -2387,8 +2585,8 @@ function HomePanel({
                   <>
                     <GestaoDashboard
                       view="celulas"
-                      area={orgArea}
-                      cells={orgCells}
+                      area={activeOrgArea}
+                      cells={cellsForSelectedArea}
                       candidateUsers={registeredUsers}
                       canManage={canManageOrgCells}
                       busy={orgCellsBusy}
@@ -2397,7 +2595,10 @@ function HomePanel({
                       onCreateCell={handleCreateOrgCell}
                     />
                     <h3 className="lab-other-heading">Células</h3>
-                    <div className="home-areas" aria-label="Células da área Gestão Operacional">
+                    <div
+                      className="home-areas"
+                      aria-label={`Células da área ${activeOrgArea.label}`}
+                    >
                       {visibleOrgCells.map((cell) => (
                         <button
                           key={cell.id}

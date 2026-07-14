@@ -7,7 +7,7 @@
  * são persistidas em org_cells e mescladas em tempo de execução.
  */
 
-export type OrgAreaId = 'Gestão Operacional'
+export type OrgAreaId = string
 export type OrgCellId = string
 export type OrgSubcellId =
   | 'Medição'
@@ -29,6 +29,7 @@ export type OrgCellStatus = 'pendente' | 'ativa'
 
 export type OrgCell = {
   id: OrgCellId
+  areaId?: string
   label: string
   description: string
   /** Engenheiro Dono / responsável da célula. */
@@ -136,6 +137,7 @@ export const ORG_STRUCTURE: OrgArea = {
 
 export type OrgCellRecord = {
   id: string
+  areaId?: string
   label: string
   description: string
   responsibleUserId: string | null
@@ -148,10 +150,14 @@ export type OrgCellRecord = {
 /** Mescla células do banco com o template de subcélulas conhecidas. */
 export function buildOrgCellsFromRecords(records: OrgCellRecord[]): OrgCell[] {
   if (!records.length) {
-    return ORG_STRUCTURE.cells.map((cell) => ({ ...cell }))
+    return ORG_STRUCTURE.cells.map((cell) => ({
+      ...cell,
+      areaId: ORG_STRUCTURE.id,
+    }))
   }
   return records.map((record) => ({
     id: record.id,
+    areaId: record.areaId,
     label: record.label,
     description: record.description,
     ownerRoleLabel: 'Engenheiro Dono de Área',

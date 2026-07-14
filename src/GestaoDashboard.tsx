@@ -2,7 +2,6 @@ import { FormEvent, useState } from 'react'
 import type { AppUser } from './api'
 import {
   getGestaoDashboardStats,
-  ORG_STRUCTURE,
   type OrgAreaLeadership,
   type OrgCell,
 } from './orgStructure'
@@ -10,21 +9,6 @@ import {
 type LeadershipPayload = {
   responsibleUserId: string | null
   substituteUserId: string | null
-}
-
-type GestaoDashboardProps = {
-  area: OrgAreaLeadership
-  cells: OrgCell[]
-  candidateUsers: AppUser[]
-  canManage: boolean
-  busy?: boolean
-  error?: string | null
-  /** Aba ativa na home Gestão Operacional: dashboard ou gestão de células. */
-  view?: 'dash' | 'celulas'
-  onUpdateArea: (payload: LeadershipPayload) => Promise<void>
-  onCreateCell: (
-    payload: LeadershipPayload & { label: string; description: string },
-  ) => Promise<void>
 }
 
 function UserOptions({
@@ -44,6 +28,178 @@ function UserOptions({
           </option>
         ))}
     </>
+  )
+}
+
+type GestaoDashboardProps = {
+  area: OrgAreaLeadership
+  cells: OrgCell[]
+  candidateUsers: AppUser[]
+  canManage: boolean
+  busy?: boolean
+  error?: string | null
+  /** Aba ativa na home Gestão Operacional: dashboard ou gestão de células. */
+  view?: 'dash' | 'celulas'
+  onUpdateArea: (payload: LeadershipPayload) => Promise<void>
+  onCreateCell: (
+    payload: LeadershipPayload & { label: string; description: string },
+  ) => Promise<void>
+}
+
+type CreateOrgAreaFormProps = {
+  candidateUsers: AppUser[]
+  busy?: boolean
+  error?: string | null
+  onCreate: (
+    payload: LeadershipPayload & { label: string; description: string },
+  ) => Promise<void>
+}
+
+/** Formulário exclusivo do administrador para criar nova gestão operacional. */
+export function CreateOrgAreaForm({
+  candidateUsers,
+  busy = false,
+  error = null,
+  onCreate,
+}: CreateOrgAreaFormProps) {
+  const [label, setLabel] = useState('')
+  const [description, setDescription] = useState('')
+  const [responsibleUserId, setResponsibleUserId] = useState('')
+  const [substituteUserId, setSubstituteUserId] = useState('')
+  const [localError, setLocalError] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
+
+  const resetForm = () => {
+    setLabel('')
+    setDescription('')
+    setResponsibleUserId('')
+    setSubstituteUserId('')
+    setLocalError(null)
+  }
+
+  const handleCreate = async (event: FormEvent) => {
+    event.preventDefault()
+    setLocalError(null)
+    const trimmed = label.trim()
+    if (!trimmed) {
+      setLocalError('Informe o nome da gestão operacional.')
+      return
+    }
+    if (responsibleUserId && substituteUserId && responsibleUserId === substituteUserId) {
+      setLocalError('O substituto deve ser diferente do responsável.')
+      return
+    }
+    try {
+      await onCreate({
+        label: trimmed,
+        description: description.trim(),
+        responsibleUserId: responsibleUserId || null,
+        substituteUserId: responsibleUserId ? substituteUserId || null : null,
+      })
+      resetForm()
+      setShowForm(false)
+    } catch (err) {
+      setLocalError(
+        err instanceof Error ? err.message : 'Não foi possível criar a gestão operacional.',
+      )
+    }
+  }
+
+  return (
+    <div className="users-dashboard-card gestao-create-cell">
+      {!showForm ? (
+        <button
+          type="button"
+          className="primary-button"
+          disabled={busy}
+          onClick={() => {
+            setLocalError(null)
+            setShowForm(true)
+          }}
+        >
+          Nova gestão operacional
+        </button>
+      ) : (
+        <>
+          <h3>Nova gestão operacional</h3>
+          <p className="users-dashboard-ranking-hint">
+            Cada gestão operacional tem 1 responsável e 1 substituto para ausência. Sem
+            responsável, a área fica pendente. Células ficam vinculadas a esta área.
+          </p>
+          <form className="gestao-create-cell-form" onSubmit={handleCreate}>
+            <label>
+              Nome da gestão operacional
+              <input
+                value={label}
+                onChange={(event) => setLabel(event.target.value)}
+                placeholder="Ex.: Gestão Operacional Norte"
+                maxLength={80}
+                disabled={busy}
+                required
+              />
+            </label>
+            <label>
+              Descrição (opcional)
+              <input
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="Resumo da área"
+                disabled={busy}
+              />
+            </label>
+            <label>
+              Responsável (opcional)
+              <select
+                value={responsibleUserId}
+                onChange={(event) => {
+                  const next = event.target.value
+                  setResponsibleUserId(next)
+                  if (!next || next === substituteUserId) {
+                    setSubstituteUserId('')
+                  }
+                }}
+                disabled={busy}
+              >
+                <option value="">Sem responsável — pendente</option>
+                <UserOptions users={candidateUsers} />
+              </select>
+            </label>
+            <label>
+              Substituto (opcional)
+              <select
+                value={substituteUserId}
+                onChange={(event) => setSubstituteUserId(event.target.value)}
+                disabled={busy || !responsibleUserId}
+              >
+                <option value="">Sem substituto</option>
+                <UserOptions users={candidateUsers} excludeId={responsibleUserId || undefined} />
+              </select>
+            </label>
+            {(localError || error) && (
+              <p className="gestao-create-cell-error" role="alert">
+                {localError || error}
+              </p>
+            )}
+            <div className="gestao-create-cell-actions">
+              <button type="submit" className="primary-button" disabled={busy}>
+                {busy ? 'Criando…' : 'Criar gestão operacional'}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={busy}
+                onClick={() => {
+                  resetForm()
+                  setShowForm(false)
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -229,9 +385,9 @@ export function GestaoDashboard({
       </div>
 
       <AreaLeadershipEditor
-        key={`${area.responsibleUserId ?? 'none'}:${area.substituteUserId ?? 'none'}`}
-        title="Liderança da Gestão Operacional"
-        hint="A área Gestão Operacional tem 1 responsável e 1 substituto para períodos de ausência. Sem responsável, a área fica pendente."
+        key={`${area.id}:${area.responsibleUserId ?? 'none'}:${area.substituteUserId ?? 'none'}`}
+        title={`Liderança · ${area.label}`}
+        hint={`A área ${area.label} tem 1 responsável e 1 substituto para períodos de ausência. Sem responsável, a área fica pendente.`}
         area={area}
         candidateUsers={candidateUsers}
         canManage={canManage}
@@ -242,7 +398,7 @@ export function GestaoDashboard({
       <div className="users-dashboard-card gestao-dashboard-breakdown">
         <h3>Processos por subcélula</h3>
         <p className="users-dashboard-ranking-hint">
-          Distribuição dos processos da área {ORG_STRUCTURE.label} em cada subcélula.
+          Distribuição dos processos da área {area.label} em cada subcélula.
         </p>
         {stats.processesBySubcell.length ? (
           <ul className="users-dashboard-bars" aria-label="Processos por subcélula">

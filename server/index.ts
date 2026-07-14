@@ -141,7 +141,9 @@ async function start() {
   app.put('/api/process-assignments', ...wrap(processAssignmentRoutes.upsert))
 
   app.get('/api/org-cells', ...wrap(orgCellRoutes.list))
+  app.post('/api/org-area', ...wrap(orgCellRoutes.createArea))
   app.patch('/api/org-area', ...wrap(orgCellRoutes.updateArea))
+  app.patch('/api/org-area/:id', ...wrap(orgCellRoutes.updateArea))
   app.post('/api/org-cells', ...wrap(orgCellRoutes.create))
   app.patch('/api/org-cells/:id', ...wrap(orgCellRoutes.update))
 

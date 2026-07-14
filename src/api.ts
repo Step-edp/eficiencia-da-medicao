@@ -117,6 +117,7 @@ export type OrgAreaDto = {
 }
 
 export type OrgStructureResponse = {
+  areas: OrgAreaDto[]
   area: OrgAreaDto | null
   cells: OrgCellDto[]
 }
@@ -475,15 +476,29 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   listOrgCells: () => request<OrgStructureResponse>('/api/org-cells'),
-  updateOrgArea: (payload: {
+  createOrgArea: (payload: {
+    label: string
+    description?: string
     responsibleUserId?: string | null
     substituteUserId?: string | null
   }) =>
-    request<OrgStructureResponse>('/api/org-area', {
+    request<OrgStructureResponse & { createdArea: OrgAreaDto | null }>('/api/org-area', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateOrgArea: (
+    areaId: string,
+    payload: {
+      responsibleUserId?: string | null
+      substituteUserId?: string | null
+    },
+  ) =>
+    request<OrgStructureResponse>(`/api/org-area/${encodeURIComponent(areaId)}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
   createOrgCell: (payload: {
+    areaId?: string
     label: string
     description?: string
     responsibleUserId?: string | null

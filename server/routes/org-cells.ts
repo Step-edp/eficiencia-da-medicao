@@ -1,9 +1,10 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
-import { requireAuth, requireGestorOrAdmin } from '../auth.js'
+import { requireAuth, requireAdmin, requireGestorOrAdmin } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 
-const ORG_AREA_ID = 'Gestão Operacional'
+/** Área padrão criada no seed (não é a única permitida). */
+const DEFAULT_ORG_AREA_ID = 'Gestão Operacional'
 
 type LeadershipStatus = 'pendente' | 'ativa'
 
@@ -114,10 +115,29 @@ async function listAreaRows() {
      FROM org_areas a
      LEFT JOIN users r ON r.id = a.responsible_user_id
      LEFT JOIN users s ON s.id = a.substitute_user_id
-     WHERE a.id = $1`,
-    [ORG_AREA_ID],
+     ORDER BY
+       CASE WHEN a.id = $1 THEN 0 ELSE 1 END,
+       a.label ASC`,
+    [DEFAULT_ORG_AREA_ID],
   )
   return result.rows
+}
+
+async function getAreaRow(areaId: string) {
+  const result = await query<OrgAreaRow>(
+    `SELECT a.id, a.label, a.description,
+            a.responsible_user_id, r.name AS responsible_name,
+            r.registration AS responsible_registration,
+            a.substitute_user_id, s.name AS substitute_name,
+            s.registration AS substitute_registration,
+            a.updated_at
+     FROM org_areas a
+     LEFT JOIN users r ON r.id = a.responsible_user_id
+     LEFT JOIN users s ON s.id = a.substitute_user_id
+     WHERE a.id = $1`,
+    [areaId],
+  )
+  return result.rows[0] ?? null
 }
 
 async function listCellRows() {
@@ -138,8 +158,13 @@ async function listCellRows() {
 
 async function getStructurePayload() {
   const [areas, cells] = await Promise.all([listAreaRows(), listCellRows()])
-  const area = areas[0] ? toAreaView(areas[0]) : null
-  return { area, cells: cells.map(toCellView) }
+  const areaViews = areas.map(toAreaView)
+  return {
+    areas: areaViews,
+    /** Compatível com clientes antigos: primeira área (padrão no topo). */
+    area: areaViews[0] ?? null,
+    cells: cells.map(toCellView),
+  }
 }
 
 async function assertAssignableUser(
@@ -218,10 +243,82 @@ export async function listOrgStructure(_req: Request, res: Response) {
   res.json(await getStructurePayload())
 }
 
+export async function createOrgArea(req: Request, res: Response) {
+  const label = normalizeLabel(req.body?.label)
+  const description =
+    typeof req.body?.description === 'string' ? req.body.description.trim() : ''
+  const responsibleUserId = parseOptionalUserId(req.body?.responsibleUserId)
+  let substituteUserId = parseOptionalUserId(req.body?.substituteUserId)
+  if (!responsibleUserId) {
+    substituteUserId = null
+  }
+
+  if (!label) {
+    res.status(400).json({ error: 'Informe o nome da gestão operacional.' })
+    return
+  }
+  if (label.length > 80) {
+    res.status(400).json({
+      error: 'O nome da gestão operacional deve ter no máximo 80 caracteres.',
+    })
+    return
+  }
+
+  const pair = await validateLeadershipPair(responsibleUserId, substituteUserId)
+  if (!pair.ok) {
+    res.status(pair.status).json({ error: pair.error })
+    return
+  }
+
+  const existing = await query<{ id: string }>(
+    `SELECT id FROM org_areas WHERE lower(id) = lower($1) OR lower(label) = lower($2)`,
+    [label, label],
+  )
+  if (existing.rows[0]) {
+    res.status(409).json({ error: 'Já existe uma gestão operacional com esse nome.' })
+    return
+  }
+
+  await query(
+    `INSERT INTO org_areas (
+       id, label, description, responsible_user_id, substitute_user_id
+     ) VALUES ($1, $2, $3, $4, $5)`,
+    [
+      label,
+      label,
+      description ||
+        'Área gerencial do portal. Conta com 1 responsável e 1 substituto para períodos de ausência.',
+      responsibleUserId,
+      substituteUserId,
+    ],
+  )
+
+  await writeAuditLog(req, {
+    action: 'create',
+    entityType: 'org_area',
+    entityId: label,
+    summary: responsibleUserId
+      ? `Gestão operacional "${label}" criada com responsável${substituteUserId ? ' e substituto' : ''}.`
+      : `Gestão operacional "${label}" criada como pendente (sem responsável).`,
+    newData: { label, description, responsibleUserId, substituteUserId },
+  })
+
+  const structure = await getStructurePayload()
+  res.status(201).json({
+    ...structure,
+    createdArea: structure.areas.find((area) => area.id === label) ?? null,
+  })
+}
+
 export async function updateOrgArea(req: Request, res: Response) {
-  const areas = await listAreaRows()
-  if (!areas[0]) {
-    res.status(404).json({ error: 'Área Gestão Operacional não encontrada.' })
+  const areaId =
+    normalizeLabel(req.params.id) ||
+    normalizeLabel(req.body?.areaId) ||
+    DEFAULT_ORG_AREA_ID
+
+  const current = await getAreaRow(areaId)
+  if (!current) {
+    res.status(404).json({ error: 'Gestão operacional não encontrada.' })
     return
   }
 
@@ -239,8 +336,8 @@ export async function updateOrgArea(req: Request, res: Response) {
     return
   }
 
-  let responsibleUserId = areas[0].responsible_user_id
-  let substituteUserId = areas[0].substitute_user_id
+  let responsibleUserId = current.responsible_user_id
+  let substituteUserId = current.substitute_user_id
 
   if (hasResponsible) {
     responsibleUserId = parseOptionalUserId(req.body.responsibleUserId)
@@ -264,19 +361,19 @@ export async function updateOrgArea(req: Request, res: Response) {
          substitute_user_id = $3,
          updated_at = NOW()
      WHERE id = $1`,
-    [ORG_AREA_ID, responsibleUserId, substituteUserId],
+    [areaId, responsibleUserId, substituteUserId],
   )
 
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'org_area',
-    entityId: ORG_AREA_ID,
+    entityId: areaId,
     summary: responsibleUserId
-      ? 'Liderança da área Gestão Operacional atualizada (responsável e substituto).'
-      : 'Área Gestão Operacional ficou pendente (sem responsável).',
+      ? `Liderança da área "${current.label}" atualizada (responsável e substituto).`
+      : `Área "${current.label}" ficou pendente (sem responsável).`,
     oldData: {
-      responsibleUserId: areas[0].responsible_user_id,
-      substituteUserId: areas[0].substitute_user_id,
+      responsibleUserId: current.responsible_user_id,
+      substituteUserId: current.substitute_user_id,
     },
     newData: { responsibleUserId, substituteUserId },
   })
@@ -288,6 +385,8 @@ export async function createOrgCell(req: Request, res: Response) {
   const label = normalizeLabel(req.body?.label)
   const description =
     typeof req.body?.description === 'string' ? req.body.description.trim() : ''
+  const areaId =
+    normalizeLabel(req.body?.areaId) || DEFAULT_ORG_AREA_ID
   const responsibleUserId = parseOptionalUserId(req.body?.responsibleUserId)
   let substituteUserId = parseOptionalUserId(req.body?.substituteUserId)
   if (!responsibleUserId) {
@@ -300,6 +399,12 @@ export async function createOrgCell(req: Request, res: Response) {
   }
   if (label.length > 80) {
     res.status(400).json({ error: 'O nome da célula deve ter no máximo 80 caracteres.' })
+    return
+  }
+
+  const area = await getAreaRow(areaId)
+  if (!area) {
+    res.status(404).json({ error: 'Gestão operacional não encontrada.' })
     return
   }
 
@@ -320,7 +425,7 @@ export async function createOrgCell(req: Request, res: Response) {
 
   const maxOrder = await query<{ max: number | null }>(
     `SELECT MAX(sort_order) AS max FROM org_cells WHERE area_id = $1`,
-    [ORG_AREA_ID],
+    [areaId],
   )
   const sortOrder = (maxOrder.rows[0]?.max ?? 0) + 1
 
@@ -331,7 +436,7 @@ export async function createOrgCell(req: Request, res: Response) {
      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       label,
-      ORG_AREA_ID,
+      areaId,
       label,
       description,
       responsibleUserId,
@@ -346,9 +451,9 @@ export async function createOrgCell(req: Request, res: Response) {
     entityType: 'org_cell',
     entityId: label,
     summary: responsibleUserId
-      ? `Célula "${label}" criada com responsável${substituteUserId ? ' e substituto' : ''}.`
-      : `Célula "${label}" criada como pendente (sem responsável).`,
-    newData: { label, description, responsibleUserId, substituteUserId },
+      ? `Célula "${label}" criada em "${area.label}" com responsável${substituteUserId ? ' e substituto' : ''}.`
+      : `Célula "${label}" criada em "${area.label}" como pendente (sem responsável).`,
+    newData: { label, description, areaId, responsibleUserId, substituteUserId },
   })
 
   const structure = await getStructurePayload()
@@ -457,6 +562,7 @@ export async function updateOrgCell(req: Request, res: Response) {
 
 export const orgCellRoutes = {
   list: [requireAuth, listOrgStructure],
+  createArea: [requireAuth, requireAdmin, createOrgArea],
   updateArea: [requireAuth, requireGestorOrAdmin, updateOrgArea],
   create: [requireAuth, requireGestorOrAdmin, createOrgCell],
   update: [requireAuth, requireGestorOrAdmin, updateOrgCell],
@@ -487,7 +593,7 @@ export async function ensureOrgCellsSeeded() {
        'Área gerencial do portal. Conta com 1 responsável e 1 substituto para períodos de ausência.'
      )
      ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label`,
-    [ORG_AREA_ID],
+    [DEFAULT_ORG_AREA_ID],
   )
 
   for (const cell of DEFAULT_ORG_CELLS) {
@@ -495,7 +601,7 @@ export async function ensureOrgCellsSeeded() {
       `INSERT INTO org_cells (id, area_id, label, description, sort_order)
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (id) DO NOTHING`,
-      [cell.id, ORG_AREA_ID, cell.label, cell.description, cell.sortOrder],
+      [cell.id, DEFAULT_ORG_AREA_ID, cell.label, cell.description, cell.sortOrder],
     )
   }
 }
