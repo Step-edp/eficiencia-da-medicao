@@ -37,6 +37,14 @@ const THIRD_PARTY_COMPANIES = [
   'Steenge',
 ] as const
 
+const AREA_OPTIONS = [
+  'Medição',
+  'CSD',
+  'Consumo Irregular',
+  'Grandes Clientes',
+  'Qualidade',
+] as const
+
 type Panel = 'login' | 'cadastro'
 type AppRoute = 'default' | 'compras-homologacao' | 'pesquisa-satisfacao'
 
@@ -151,6 +159,7 @@ export default function App() {
     whatsapp: string
     employmentType: string
     thirdPartyCompany: string
+    workArea: string
   }) => {
     await api.register(payload)
   }
@@ -3043,6 +3052,7 @@ type RegisterPanelProps = {
     whatsapp: string
     employmentType: string
     thirdPartyCompany: string
+    workArea: string
   }) => Promise<void>
   onRegistered: () => void
 }
@@ -3053,6 +3063,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
   const [birthDate, setBirthDate] = useState('')
   const [email, setEmail] = useState('')
   const [jobTitle, setJobTitle] = useState('')
+  const [workArea, setWorkArea] = useState('')
   const [employmentType, setEmploymentType] = useState('')
   const [thirdPartyCompany, setThirdPartyCompany] = useState('')
   const [cpf, setCpf] = useState('')
@@ -3073,6 +3084,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       !birthDate ||
       !email.trim() ||
       !jobTitle.trim() ||
+      !workArea ||
       !employmentType ||
       !cpf.trim() ||
       !whatsapp.trim() ||
@@ -3116,6 +3128,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         whatsapp: whatsapp.trim(),
         employmentType,
         thirdPartyCompany: employmentType === 'Terceira' ? thirdPartyCompany : '',
+        workArea,
       })
 
       setFeedback({
@@ -3128,6 +3141,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setBirthDate('')
       setEmail('')
       setJobTitle('')
+      setWorkArea('')
       setEmploymentType('')
       setThirdPartyCompany('')
       setCpf('')
@@ -3219,6 +3233,24 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             <option value="Técnico">Técnico</option>
             <option value="Analista">Analista</option>
             <option value="Engenheiro">Engenheiro</option>
+          </select>
+        </label>
+
+        <label>
+          Área
+          <select
+            value={workArea}
+            onChange={(event) => setWorkArea(event.target.value)}
+            required
+          >
+            <option value="" disabled>
+              Selecione a área
+            </option>
+            {AREA_OPTIONS.map((area) => (
+              <option key={area} value={area}>
+                {area}
+              </option>
+            ))}
           </select>
         </label>
 

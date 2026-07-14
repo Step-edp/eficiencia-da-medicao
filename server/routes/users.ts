@@ -102,11 +102,13 @@ export async function register(req: Request, res: Response) {
     whatsapp,
     employmentType,
     thirdPartyCompany,
+    workArea,
   } = req.body as Record<string, string | undefined>
 
   const normalizedEmploymentType = employmentType?.trim() ?? ''
   const normalizedThirdParty =
     normalizedEmploymentType === 'Terceira' ? thirdPartyCompany?.trim() ?? '' : ''
+  const normalizedWorkArea = workArea?.trim() ?? ''
 
   if (
     !name?.trim() ||
@@ -118,6 +120,18 @@ export async function register(req: Request, res: Response) {
     !password
   ) {
     res.status(400).json({ error: 'Preencha os campos obrigatórios.' })
+    return
+  }
+
+  const allowedAreas = [
+    'Medição',
+    'CSD',
+    'Consumo Irregular',
+    'Grandes Clientes',
+    'Qualidade',
+  ]
+  if (!allowedAreas.includes(normalizedWorkArea)) {
+    res.status(400).json({ error: 'Selecione a área.' })
     return
   }
 
@@ -141,8 +155,8 @@ export async function register(req: Request, res: Response) {
       `INSERT INTO users (
         id, name, registration, password_hash, email, role, approval_status,
         birth_date, job_title, cpf, personal_description, hobby, whatsapp,
-        employment_type, third_party_company
-      ) VALUES ($1,$2,$3,$4,$5,'compras','pending',$6,$7,$8,$9,$10,$11,$12,$13)
+        employment_type, third_party_company, work_area
+      ) VALUES ($1,$2,$3,$4,$5,'compras','pending',$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *`,
       [
         id,
@@ -158,6 +172,7 @@ export async function register(req: Request, res: Response) {
         whatsapp?.trim() ?? '',
         normalizedEmploymentType,
         normalizedThirdParty,
+        normalizedWorkArea,
       ],
     )
 

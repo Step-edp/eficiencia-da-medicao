@@ -244,6 +244,7 @@ export const api = {
     whatsapp?: string
     employmentType?: string
     thirdPartyCompany?: string
+    workArea?: string
   }) =>
     request<{ user: AppUser }>('/api/auth/register', {
       method: 'POST',
