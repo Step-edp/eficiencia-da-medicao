@@ -734,7 +734,7 @@ type PendingApprovalItemProps = {
   terceiraOptions: string[]
   onApprove: (userId: string, payload: ApproveUserPayload) => Promise<void>
   onReject: (userId: string) => Promise<void>
-  onViewDetails: (user: AppUser) => void
+  onEdit: (user: AppUser) => void
   onFeedback: (feedback: { type: 'success' | 'error'; message: string }) => void
 }
 
@@ -743,7 +743,7 @@ function PendingApprovalItem({
   terceiraOptions,
   onApprove,
   onReject,
-  onViewDetails,
+  onEdit,
   onFeedback,
 }: PendingApprovalItemProps) {
   const [expanded, setExpanded] = useState(false)
@@ -917,19 +917,80 @@ function PendingApprovalItem({
 
       {expanded ? (
         <>
-          <div className="approval-item-details">
-            <span>Matrícula: {user.registration}</span>
-            <span>E-mail: {user.email}</span>
-            <span>Tipo: {user.employmentType || '—'}</span>
-            <span>Abrangência: {user.edpUnit || '—'}</span>
-            <span>Área: {user.workArea || '—'}</span>
-            <span>Cargo: {user.jobTitle || 'Não informado'}</span>
-            <span>Localidade: {user.locality || '—'}</span>
-            <span>
-              Solicitação enviada em {new Date(user.requestedAt).toLocaleString('pt-BR')}
-            </span>
-            {builtProfile ? <span>Perfil a aprovar: {builtProfile}</span> : null}
-          </div>
+          <dl className="user-detail-grid approval-item-details-grid">
+            <div>
+              <dt>Matrícula</dt>
+              <dd>{user.registration || '—'}</dd>
+            </div>
+            <div>
+              <dt>E-mail</dt>
+              <dd>{user.email || '—'}</dd>
+            </div>
+            <div>
+              <dt>WhatsApp</dt>
+              <dd>{user.whatsapp || '—'}</dd>
+            </div>
+            <div>
+              <dt>CPF</dt>
+              <dd>{user.cpf || '—'}</dd>
+            </div>
+            <div>
+              <dt>Data de nascimento</dt>
+              <dd>{user.birthDate || '—'}</dd>
+            </div>
+            <div>
+              <dt>Tipo</dt>
+              <dd>{user.employmentType || '—'}</dd>
+            </div>
+            <div>
+              <dt>Abrangência EDP</dt>
+              <dd>{user.edpUnit || '—'}</dd>
+            </div>
+            <div>
+              <dt>Área</dt>
+              <dd>{user.workArea || '—'}</dd>
+            </div>
+            <div>
+              <dt>Cargo</dt>
+              <dd>{user.jobTitle || '—'}</dd>
+            </div>
+            <div>
+              <dt>Localidade</dt>
+              <dd>{user.locality || '—'}</dd>
+            </div>
+            {user.employmentType === 'Terceira' ? (
+              <div>
+                <dt>Empresa terceira</dt>
+                <dd>{user.thirdPartyCompany || '—'}</dd>
+              </div>
+            ) : null}
+            <div>
+              <dt>{user.jobTitle === 'Engenheiro' ? 'Abrangência' : 'Escopo'}</dt>
+              <dd>{user.workSubtype || '—'}</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd>Pendente</dd>
+            </div>
+            <div>
+              <dt>Data do cadastro</dt>
+              <dd>{new Date(user.requestedAt).toLocaleString('pt-BR')}</dd>
+            </div>
+            {builtProfile ? (
+              <div className="user-detail-full">
+                <dt>Perfil a aprovar</dt>
+                <dd>{builtProfile}</dd>
+              </div>
+            ) : null}
+            <div className="user-detail-full">
+              <dt>Descrição pessoal</dt>
+              <dd>{user.personalDescription || '—'}</dd>
+            </div>
+            <div className="user-detail-full">
+              <dt>Hobby</dt>
+              <dd>{user.hobby || '—'}</dd>
+            </div>
+          </dl>
 
           <div className="approval-completion-fields">
             {needsCompany ? (
@@ -1043,9 +1104,9 @@ function PendingApprovalItem({
             <button
               className="secondary-button compact-button"
               type="button"
-              onClick={() => onViewDetails(user)}
+              onClick={() => onEdit(user)}
             >
-              Ver detalhes
+              Editar
             </button>
             <button
               className="danger-button compact-button"
@@ -1092,6 +1153,7 @@ function HomePanel({
     useState<string | null>(null)
   const [openingFieldApp, setOpeningFieldApp] = useState(false)
   const [selectedUserDetail, setSelectedUserDetail] = useState<AppUser | null>(null)
+  const [userDetailStartEditing, setUserDetailStartEditing] = useState(false)
   const [usersView, setUsersView] = useState<'usuarios' | 'pendentes' | 'dashboard'>(
     'usuarios',
   )
@@ -1847,7 +1909,10 @@ function HomePanel({
                           current?.id === userId ? null : current,
                         )
                       }}
-                      onViewDetails={setSelectedUserDetail}
+                      onEdit={(user) => {
+                        setUserDetailStartEditing(true)
+                        setSelectedUserDetail(user)
+                      }}
                       onFeedback={setPasswordFeedback}
                     />
                   ))
@@ -1868,14 +1933,20 @@ function HomePanel({
                   <UserDetailModal
                     user={selectedUserDetail}
                     terceiraOptions={terceiraOptions}
-                    onClose={() => setSelectedUserDetail(null)}
+                    startInEditMode={userDetailStartEditing}
+                    onClose={() => {
+                      setSelectedUserDetail(null)
+                      setUserDetailStartEditing(false)
+                    }}
                     onSaved={(user) => {
                       onUpdateUser(user)
                       setSelectedUserDetail(user)
+                      setUserDetailStartEditing(false)
                     }}
                     onDeleted={(userId) => {
                       onDeleteUser(userId)
                       setSelectedUserDetail(null)
+                      setUserDetailStartEditing(false)
                     }}
                     onFeedback={setPasswordFeedback}
                   />,
@@ -1893,6 +1964,7 @@ function HomePanel({
 
       const leaveUsersArea = () => {
         setSelectedUserDetail(null)
+        setUserDetailStartEditing(false)
         setUsersView('usuarios')
         setSelectedArea(null)
       }
@@ -1972,7 +2044,10 @@ function HomePanel({
                               current?.id === userId ? null : current,
                             )
                           }}
-                          onViewDetails={setSelectedUserDetail}
+                          onEdit={(user) => {
+                            setUserDetailStartEditing(true)
+                            setSelectedUserDetail(user)
+                          }}
                           onFeedback={setPasswordFeedback}
                         />
                       ))
@@ -2014,10 +2089,14 @@ function HomePanel({
                               tabIndex={0}
                               role="button"
                               aria-label={`Ver detalhes de ${user.name}`}
-                              onClick={() => setSelectedUserDetail(user)}
+                              onClick={() => {
+                                setUserDetailStartEditing(false)
+                                setSelectedUserDetail(user)
+                              }}
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter' || event.key === ' ') {
                                   event.preventDefault()
+                                  setUserDetailStartEditing(false)
                                   setSelectedUserDetail(user)
                                 }
                               }}
@@ -2064,14 +2143,20 @@ function HomePanel({
                   <UserDetailModal
                     user={selectedUserDetail}
                     terceiraOptions={terceiraOptions}
-                    onClose={() => setSelectedUserDetail(null)}
+                    startInEditMode={userDetailStartEditing}
+                    onClose={() => {
+                      setSelectedUserDetail(null)
+                      setUserDetailStartEditing(false)
+                    }}
                     onSaved={(user) => {
                       onUpdateUser(user)
                       setSelectedUserDetail(user)
+                      setUserDetailStartEditing(false)
                     }}
                     onDeleted={(userId) => {
                       onDeleteUser(userId)
                       setSelectedUserDetail(null)
+                      setUserDetailStartEditing(false)
                     }}
                     onFeedback={setPasswordFeedback}
                   />,

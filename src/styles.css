@@ -1400,6 +1400,17 @@ button {
   gap: 6px;
 }
 
+.approval-item-details-grid {
+  margin: 0;
+}
+
+.approval-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .approval-item div {
   display: grid;
   gap: 6px;
@@ -1740,12 +1751,6 @@ button {
 
 .user-edit-full {
   grid-column: 1 / -1;
-}
-
-.approval-item-actions {
-  display: grid;
-  gap: 10px;
-  justify-items: end;
 }
 
 .laudo-modal-overlay {

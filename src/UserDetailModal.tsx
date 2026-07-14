@@ -45,6 +45,7 @@ type UserDetailModalProps = {
   onSaved: (user: AppUser) => void
   onDeleted?: (userId: string) => void
   onFeedback: (feedback: { type: 'success' | 'error'; message: string }) => void
+  startInEditMode?: boolean
 }
 
 function statusLabel(status: AppUser['approvalStatus']) {
@@ -63,10 +64,11 @@ export function UserDetailModal({
   onSaved,
   onDeleted,
   onFeedback,
+  startInEditMode = false,
 }: UserDetailModalProps) {
   const isAdminUser = user.role === 'admin'
   const canDelete = !isAdminUser
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState(startInEditMode)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [cargoOptions, setCargoOptions] = useState<string[]>([
@@ -141,8 +143,8 @@ export function UserDetailModal({
     setPersonalDescription(user.personalDescription ?? '')
     setHobby(user.hobby ?? '')
     setProfilePhoto(user.profilePhoto ?? '')
-    setEditing(false)
-  }, [user])
+    setEditing(startInEditMode)
+  }, [user, startInEditMode])
 
   const subtypeOptions = subtypesForCargo(jobTitle, workArea)
   const needsCompany = employmentType === 'Terceira'
