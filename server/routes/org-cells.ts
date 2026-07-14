@@ -3,6 +3,8 @@ import { query } from '../db.js'
 import { requireAuth, requireGestorOrAdmin } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 
+const ORG_AREA_ID = 'Gestão Operacional'
+
 type LeadershipStatus = 'pendente' | 'ativa'
 
 type OrgAreaRow = {
@@ -112,7 +114,8 @@ async function listAreaRows() {
      FROM org_areas a
      LEFT JOIN users r ON r.id = a.responsible_user_id
      LEFT JOIN users s ON s.id = a.substitute_user_id
-     WHERE a.id = 'Gestão'`,
+     WHERE a.id = $1`,
+    [ORG_AREA_ID],
   )
   return result.rows
 }
@@ -218,7 +221,7 @@ export async function listOrgStructure(_req: Request, res: Response) {
 export async function updateOrgArea(req: Request, res: Response) {
   const areas = await listAreaRows()
   if (!areas[0]) {
-    res.status(404).json({ error: 'Área Gestão não encontrada.' })
+    res.status(404).json({ error: 'Área Gestão Operacional não encontrada.' })
     return
   }
 
@@ -261,16 +264,16 @@ export async function updateOrgArea(req: Request, res: Response) {
          substitute_user_id = $3,
          updated_at = NOW()
      WHERE id = $1`,
-    ['Gestão', responsibleUserId, substituteUserId],
+    [ORG_AREA_ID, responsibleUserId, substituteUserId],
   )
 
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'org_area',
-    entityId: 'Gestão',
+    entityId: ORG_AREA_ID,
     summary: responsibleUserId
-      ? 'Liderança da área Gestão atualizada (responsável e substituto).'
-      : 'Área Gestão ficou pendente (sem responsável).',
+      ? 'Liderança da área Gestão Operacional atualizada (responsável e substituto).'
+      : 'Área Gestão Operacional ficou pendente (sem responsável).',
     oldData: {
       responsibleUserId: areas[0].responsible_user_id,
       substituteUserId: areas[0].substitute_user_id,
@@ -316,7 +319,8 @@ export async function createOrgCell(req: Request, res: Response) {
   }
 
   const maxOrder = await query<{ max: number | null }>(
-    `SELECT MAX(sort_order) AS max FROM org_cells WHERE area_id = 'Gestão'`,
+    `SELECT MAX(sort_order) AS max FROM org_cells WHERE area_id = $1`,
+    [ORG_AREA_ID],
   )
   const sortOrder = (maxOrder.rows[0]?.max ?? 0) + 1
 
@@ -324,9 +328,10 @@ export async function createOrgCell(req: Request, res: Response) {
     `INSERT INTO org_cells (
        id, area_id, label, description,
        responsible_user_id, substitute_user_id, sort_order, created_by
-     ) VALUES ($1, 'Gestão', $2, $3, $4, $5, $6, $7)`,
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       label,
+      ORG_AREA_ID,
       label,
       description,
       responsibleUserId,
@@ -477,19 +482,20 @@ export async function ensureOrgCellsSeeded() {
   await query(
     `INSERT INTO org_areas (id, label, description)
      VALUES (
-       'Gestão',
-       'Gestão',
+       $1,
+       $1,
        'Área gerencial do portal. Conta com 1 responsável e 1 substituto para períodos de ausência.'
      )
-     ON CONFLICT (id) DO NOTHING`,
+     ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label`,
+    [ORG_AREA_ID],
   )
 
   for (const cell of DEFAULT_ORG_CELLS) {
     await query(
       `INSERT INTO org_cells (id, area_id, label, description, sort_order)
-       VALUES ($1, 'Gestão', $2, $3, $4)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (id) DO NOTHING`,
-      [cell.id, cell.label, cell.description, cell.sortOrder],
+      [cell.id, ORG_AREA_ID, cell.label, cell.description, cell.sortOrder],
     )
   }
 }

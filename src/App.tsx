@@ -1245,7 +1245,7 @@ function HomePanel({
       .then(({ area, cells }) => {
         if (area) {
           setOrgArea({
-            id: 'Gestão',
+            id: 'Gestão Operacional',
             label: area.label,
             description: area.description,
             responsibleUserId: area.responsibleUserId,
@@ -1384,7 +1384,7 @@ function HomePanel({
 
   const allAreas: Area[] = [
     {
-      title: 'Gestão',
+      title: 'Gestão Operacional',
       description:
         'Painel para acompanhamento de indicadores, metas e decisões operacionais.',
       details:
@@ -1468,7 +1468,7 @@ function HomePanel({
     return getAccessiblePortals(currentUser)
   })()
 
-  const gestaoArea = allAreas.find((area) => area.title === 'Gestão') ?? null
+  const gestaoArea = allAreas.find((area) => area.title === 'Gestão Operacional') ?? null
   const agendaArea = allAreas.find((area) => area.title === 'Agenda') ?? null
 
   const isVacationBlocked =
@@ -1590,7 +1590,7 @@ function HomePanel({
   }) => {
     if (payload.area) {
       setOrgArea({
-        id: 'Gestão',
+        id: 'Gestão Operacional',
         label: payload.area.label,
         description: payload.area.description,
         responsibleUserId: payload.area.responsibleUserId,
@@ -1627,7 +1627,7 @@ function HomePanel({
       applyOrgStructure(response)
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Não foi possível atualizar a liderança da Gestão.'
+        err instanceof Error ? err.message : 'Não foi possível atualizar a liderança da Gestão Operacional.'
       setOrgCellsError(message)
       throw new Error(message)
     } finally {
@@ -1682,7 +1682,7 @@ function HomePanel({
     (accessiblePortals as readonly string[]).includes(portalKey)
 
   const visibleOrgCells = orgCells.filter((cell) => {
-    if (isGestorView || isAdmin || hasPortalAccess('Gestão')) {
+    if (isGestorView || isAdmin || hasPortalAccess('Gestão Operacional')) {
       return true
     }
     if (cell.subcells.length === 0) {
@@ -1695,7 +1695,7 @@ function HomePanel({
     const cell = getOrgCell(cellId, orgCells)
     if (!cell) return []
     return cell.subcells.filter(
-      (sub) => isAdmin || hasPortalAccess(sub.portalKey) || hasPortalAccess('Gestão'),
+      (sub) => isAdmin || hasPortalAccess(sub.portalKey) || hasPortalAccess('Gestão Operacional'),
     )
   }
 
@@ -1707,7 +1707,7 @@ function HomePanel({
     if (!previewProfile || !selectedArea) return
     const allowed =
       previewProfile.areas.includes(selectedArea.title as (typeof previewProfile.areas)[number]) ||
-      selectedArea.title === 'Gestão' ||
+      selectedArea.title === 'Gestão Operacional' ||
       selectedArea.title === 'Agenda'
     if (!allowed) {
       setSelectedArea(null)
@@ -2315,7 +2315,7 @@ function HomePanel({
       )
     }
 
-    if (selectedArea.title === 'Gestão') {
+    if (selectedArea.title === 'Gestão Operacional') {
       const activeCell = selectedOrgCell ? getOrgCell(selectedOrgCell, orgCells) : null
       const cellSubcells = selectedOrgCell ? visibleSubcellsForCell(selectedOrgCell) : []
 
@@ -2349,7 +2349,7 @@ function HomePanel({
                 <div
                   className="panel-switch gestao-home-switch"
                   role="tablist"
-                  aria-label="Home Gestão"
+                  aria-label="Home Gestão Operacional"
                 >
                   <button
                     className={gestaoHomeTab === 'dash' ? 'active' : ''}
@@ -2397,7 +2397,7 @@ function HomePanel({
                       onCreateCell={handleCreateOrgCell}
                     />
                     <h3 className="lab-other-heading">Células</h3>
-                    <div className="home-areas" aria-label="Células da área Gestão">
+                    <div className="home-areas" aria-label="Células da área Gestão Operacional">
                       {visibleOrgCells.map((cell) => (
                         <button
                           key={cell.id}
@@ -4168,7 +4168,7 @@ function HomologationRequestPortal({
 }
 
 function getAreaCardClassName(title: string) {
-  if (title === 'Gestão') {
+  if (title === 'Gestão Operacional') {
     return 'area-card-gestao'
   }
 

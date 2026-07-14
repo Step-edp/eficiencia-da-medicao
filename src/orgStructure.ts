@@ -7,7 +7,7 @@
  * são persistidas em org_cells e mescladas em tempo de execução.
  */
 
-export type OrgAreaId = 'Gestão'
+export type OrgAreaId = 'Gestão Operacional'
 export type OrgCellId = string
 export type OrgSubcellId =
   | 'Medição'
@@ -108,8 +108,8 @@ export const DEFAULT_SUBCELLS_BY_CELL: Record<string, readonly OrgSubcell[]> = {
 }
 
 export const ORG_STRUCTURE: OrgArea = {
-  id: 'Gestão',
-  label: 'Gestão',
+  id: 'Gestão Operacional',
+  label: 'Gestão Operacional',
   description:
     'Área gerencial do portal. Cada área conta com um gestor; as células e subcélulas organizam a operação.',
   managerRoleLabel: 'Gestor',
@@ -165,8 +165,8 @@ export function buildOrgCellsFromRecords(records: OrgCellRecord[]): OrgCell[] {
 }
 
 export const DEFAULT_ORG_AREA_LEADERSHIP: OrgAreaLeadership = {
-  id: 'Gestão',
-  label: 'Gestão',
+  id: 'Gestão Operacional',
+  label: 'Gestão Operacional',
   description: ORG_STRUCTURE.description,
   responsibleUserId: null,
   responsibleName: null,
@@ -204,7 +204,7 @@ export type GestaoDashboardStats = {
   }>
 }
 
-/** Indicadores do dashboard gerencial da área Gestão. */
+/** Indicadores do dashboard gerencial da área Gestão Operacional. */
 export function getGestaoDashboardStats(
   cells: readonly OrgCell[] = ORG_STRUCTURE.cells,
 ): GestaoDashboardStats {

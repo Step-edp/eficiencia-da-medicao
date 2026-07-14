@@ -2,7 +2,7 @@ import type { UserRole } from './api'
 
 /** Áreas do portal (portas/telas navegáveis). */
 export const PORTAL_AREAS = [
-  'Gestão',
+  'Gestão Operacional',
   'Medição',
   'Laboratório de Medição',
   'Laboratório de Homologação',
@@ -15,7 +15,7 @@ export const PORTAL_AREAS = [
 
 export type PortalArea = (typeof PORTAL_AREAS)[number]
 
-/** Home do usuário: Gestão é a área primária quando há acesso a qualquer subcélula. */
+/** Home do usuário: Gestão Operacional é a área primária quando há acesso a qualquer subcélula. */
 const GESTAO_NESTED_PORTALS: PortalArea[] = [
   'Medição',
   'Laboratório de Medição',
@@ -30,11 +30,11 @@ export function portalsToHomeCards(portals: readonly PortalArea[]): readonly Por
   const hasAgenda = portals.includes('Agenda')
   const withoutAgenda = portals.filter((portal) => portal !== 'Agenda')
   const hasGestaoAccess =
-    withoutAgenda.includes('Gestão') ||
+    withoutAgenda.includes('Gestão Operacional') ||
     withoutAgenda.some((portal) => GESTAO_NESTED_PORTALS.includes(portal))
 
   const cards: PortalArea[] = hasGestaoAccess
-    ? ['Gestão']
+    ? ['Gestão Operacional']
     : [...withoutAgenda]
 
   if (hasAgenda && !cards.includes('Agenda')) {
@@ -157,7 +157,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     name: 'Medição – Engenheiro Dono da Área',
     description:
       'Possui controle sobre todas as atividades da área de Medição, incluindo gestão, acompanhamento e tomada de decisão.',
-    areas: ['Gestão', 'Medição', 'Laboratório de Medição', 'Equipe de campo'],
+    areas: ['Gestão Operacional', 'Medição', 'Laboratório de Medição', 'Equipe de campo'],
     match: {
       workArea: 'Medição',
       jobTitle: 'Engenheiro',
@@ -169,7 +169,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     name: 'Telemedição – Engenheiro Dono da Área',
     description:
       'Possui controle sobre todas as atividades da área de Telemedição, incluindo gestão, acompanhamento e tomada de decisão.',
-    areas: ['Gestão', 'Telemedição'],
+    areas: ['Gestão Operacional', 'Telemedição'],
     match: {
       workArea: 'Telemedição',
       jobTitle: 'Engenheiro',
@@ -181,7 +181,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     name: 'Medição – Gestor',
     description:
       'Possui acesso aos indicadores e dashboards consolidados de todas as áreas de Medição sob sua concessão, permitindo o acompanhamento gerencial dos resultados.',
-    areas: ['Gestão', 'Medição'],
+    areas: ['Gestão Operacional', 'Medição'],
     match: {
       workArea: 'Medição',
       jobTitle: 'Gestor',
@@ -230,7 +230,7 @@ export function getHomeAreasForRole(role: UserRole): readonly PortalArea[] {
   return portalsToHomeCards(PORTAL_AREAS.filter((area) => areas.includes(area)))
 }
 
-/** Portais que o usuário pode abrir (sem colapsar em Gestão). */
+/** Portais que o usuário pode abrir (sem colapsar em Gestão Operacional). */
 export function getAccessiblePortals(user: {
   role: UserRole
   accessAreas?: string[] | null
@@ -253,7 +253,7 @@ export function getAccessiblePortals(user: {
   return portals
 }
 
-/** Home do usuário: card primário Gestão quando há acesso à hierarquia. */
+/** Home do usuário: card primário Gestão Operacional quando há acesso à hierarquia. */
 export function getHomeAreasForUser(user: {
   role: UserRole
   accessAreas?: string[] | null

@@ -19,7 +19,7 @@ type GestaoDashboardProps = {
   canManage: boolean
   busy?: boolean
   error?: string | null
-  /** Aba ativa na home Gestão: dashboard ou gestão de células. */
+  /** Aba ativa na home Gestão Operacional: dashboard ou gestão de células. */
   view?: 'dash' | 'celulas'
   onUpdateArea: (payload: LeadershipPayload) => Promise<void>
   onCreateCell: (
@@ -230,8 +230,8 @@ export function GestaoDashboard({
 
       <AreaLeadershipEditor
         key={`${area.responsibleUserId ?? 'none'}:${area.substituteUserId ?? 'none'}`}
-        title="Liderança da Gestão"
-        hint="A área Gestão tem 1 responsável e 1 substituto para períodos de ausência. Sem responsável, a área fica pendente."
+        title="Liderança da Gestão Operacional"
+        hint="A área Gestão Operacional tem 1 responsável e 1 substituto para períodos de ausência. Sem responsável, a área fica pendente."
         area={area}
         candidateUsers={candidateUsers}
         canManage={canManage}

@@ -200,7 +200,7 @@ export async function migrate() {
 
     CREATE TABLE IF NOT EXISTS org_cells (
       id TEXT PRIMARY KEY,
-      area_id TEXT NOT NULL DEFAULT 'Gestão',
+      area_id TEXT NOT NULL DEFAULT 'Gestão Operacional',
       label TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       responsible_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
@@ -259,6 +259,46 @@ export async function migrate() {
 
     ALTER TABLE user_vacation_periods
       ADD COLUMN IF NOT EXISTS absence_type TEXT NOT NULL DEFAULT 'ferias';
+  `)
+
+  // Renomeia área Gestão → Gestão Operacional (dados já existentes).
+  await query(`
+    UPDATE org_cells
+    SET area_id = 'Gestão Operacional'
+    WHERE area_id = 'Gestão';
+
+    INSERT INTO org_areas (id, label, description, responsible_user_id, substitute_user_id, created_at, updated_at)
+    SELECT
+      'Gestão Operacional',
+      'Gestão Operacional',
+      description,
+      responsible_user_id,
+      substitute_user_id,
+      created_at,
+      updated_at
+    FROM org_areas
+    WHERE id = 'Gestão'
+    ON CONFLICT (id) DO UPDATE SET
+      label = EXCLUDED.label,
+      responsible_user_id = COALESCE(org_areas.responsible_user_id, EXCLUDED.responsible_user_id),
+      substitute_user_id = COALESCE(org_areas.substitute_user_id, EXCLUDED.substitute_user_id);
+
+    DELETE FROM org_areas WHERE id = 'Gestão';
+
+    UPDATE users
+    SET access_areas = (
+      SELECT COALESCE(
+        jsonb_agg(
+          CASE
+            WHEN value = 'Gestão' THEN to_jsonb('Gestão Operacional'::text)
+            ELSE to_jsonb(value)
+          END
+        ),
+        '[]'::jsonb
+      )
+      FROM jsonb_array_elements_text(access_areas) AS value
+    )
+    WHERE access_areas @> '["Gestão"]'::jsonb;
   `)
 
   // Integração com Agendamento Lab Med: perfil field + compartilhamento do mesmo Postgres

@@ -12,7 +12,7 @@ Aplicativo web inicial da área de Medição com interface moderna para login e 
 - Link fixo para o formulário de Pedidos de Homologação da área de Compras.
 - Cadastro local com aprovação do ADM antes da liberação de acesso.
 - Perfil Compras restrito somente ao formulário de Pedidos de Homologação.
-- Área de Gestão com aprovação local das solicitações pendentes.
+- Área de Gestão Operacional com aprovação local das solicitações pendentes.
 
 ## Campos do cadastro
 
@@ -39,7 +39,7 @@ Aplicativo web inicial da área de Medição com interface moderna para login e 
 
 - Link fixo interno: ao abrir a rota com hash `#/compras/pedidos-homologacao`, o usuário cai no fluxo protegido do formulário.
 - Se o usuário ainda não tiver cadastro, deve se cadastrar com perfil `Compras`.
-- O cadastro fica com status pendente até aprovação do ADM na área de Gestão.
+- O cadastro fica com status pendente até aprovação do ADM na área de Gestão Operacional.
 - Depois da aprovação, o perfil `Compras` passa a visualizar somente o formulário de Pedidos de Homologação.
 
 ## Status atual

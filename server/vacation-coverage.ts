@@ -94,7 +94,7 @@ export async function listUsersOnVacationToday() {
 }
 
 /**
- * Substitutos cadastrados para o titular (células e área Gestão).
+ * Substitutos cadastrados para o titular (células e área Gestão Operacional).
  * Preferência: célula específica; depois área.
  */
 export async function findSubstitutesForResponsible(titularUserId: string): Promise<{
