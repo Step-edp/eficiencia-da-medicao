@@ -1873,8 +1873,13 @@ button {
 
 .gestao-create-cell-error {
   margin: 0;
-  color: #b42318;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(120, 28, 28, 0.35);
+  border: 1px solid rgba(255, 140, 140, 0.45);
+  color: #ffc9c9;
   font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .gestao-cell-status-badge {
