@@ -244,7 +244,7 @@ export default function App() {
           <EdpLogo />
           <div>
             <p className="eyebrow">Eficiência da Medição</p>
-            <h1>Changing tomorrow now.</h1>
+            <h1>Changing tomorrow now</h1>
           </div>
         </div>
 
