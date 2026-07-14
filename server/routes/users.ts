@@ -4,7 +4,7 @@ import { query } from '../db.js'
 import { clearAuthCookie, requireAdmin, requireAuth, setAuthCookie, signSsoToken, signToken, verifySsoToken } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 import {
-  isValidCrossAreaProcess,
+  isValidHomeSubareaProcess,
   portalAreasFromProcesses,
 } from '../engineer-access.js'
 import { isMailConfigured, sendRegistrationRejectedEmail } from '../mail.js'
@@ -459,12 +459,12 @@ export async function approveUser(req: Request, res: Response) {
 
     if (normalizedSubtype === 'Processos específicos') {
       const invalid = requestedAccessProcesses.filter(
-        (item) => !isValidCrossAreaProcess(workArea, item),
+        (item) => !isValidHomeSubareaProcess(item),
       )
       if (requestedAccessProcesses.length === 0 || invalid.length > 0) {
         res.status(400).json({
           error:
-            'Selecione ao menos um processo específico de outra área para o engenheiro.',
+            'Selecione ao menos um processo específico dentro das subáreas da home.',
         })
         return
       }
@@ -774,12 +774,12 @@ export async function updateUser(req: Request, res: Response) {
     }
     if (normalizedSubtype === 'Processos específicos') {
       const invalid = requestedAccessProcesses.filter(
-        (item) => !isValidCrossAreaProcess(normalizedWorkArea, item),
+        (item) => !isValidHomeSubareaProcess(item),
       )
       if (requestedAccessProcesses.length === 0 || invalid.length > 0) {
         res.status(400).json({
           error:
-            'Selecione ao menos um processo específico de outra área para o engenheiro.',
+            'Selecione ao menos um processo específico dentro das subáreas da home.',
         })
         return
       }

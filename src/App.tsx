@@ -40,7 +40,7 @@ import {
   EDP_SCOPE_OPTIONS,
   encodeAccessProcess,
   ENGINEER_HOME_SUBAREAS,
-  getCrossAreaProcesses,
+  getHomeSubareaProcessGroups,
   parseAccessProcess,
   subtypesForCargo,
 } from './registrationOptions'
@@ -766,7 +766,7 @@ function PendingApprovalItem({
   const needsHomeSubareas = user.jobTitle === 'Engenheiro' && workSubtype === 'Sub-área'
   const needsSpecificProcesses =
     user.jobTitle === 'Engenheiro' && workSubtype === 'Processos específicos'
-  const crossAreaProcesses = getCrossAreaProcesses(user.workArea ?? '')
+  const homeSubareaProcesses = getHomeSubareaProcessGroups()
   const processLabel = selectedProcesses
     .map((encoded) => {
       const parsed = parseAccessProcess(encoded)
@@ -839,7 +839,7 @@ function PendingApprovalItem({
         onFeedback({
           type: 'error',
           message:
-            'Selecione a(s) área(s) e ao menos um processo específico de outra área.',
+            'Selecione a(s) subárea(s) e ao menos um processo específico dentro delas.',
         })
         return
       }
@@ -1071,13 +1071,13 @@ function PendingApprovalItem({
 
             {needsSpecificProcesses ? (
               <fieldset className="approval-subareas">
-                <legend>Áreas e processos específicos</legend>
+                <legend>Processos específicos por subárea</legend>
                 <p className="approval-subareas-hint">
-                  A área {user.workArea || 'própria'} já inclui todos os processos. Selecione outras
-                  áreas e os processos pelos quais este engenheiro será responsável.
+                  Selecione as subáreas da home e, em cada uma, os processos específicos de
+                  responsabilidade deste engenheiro.
                 </p>
                 <div className="approval-subareas-grid">
-                  {crossAreaProcesses.map(({ area }) => (
+                  {homeSubareaProcesses.map(({ area }) => (
                     <label key={area} className="approval-subarea-option">
                       <input
                         type="checkbox"
@@ -1089,7 +1089,7 @@ function PendingApprovalItem({
                   ))}
                 </div>
                 {selectedProcessAreas.map((area) => {
-                  const group = crossAreaProcesses.find((item) => item.area === area)
+                  const group = homeSubareaProcesses.find((item) => item.area === area)
                   if (!group) return null
                   return (
                     <div key={area} className="approval-process-group">

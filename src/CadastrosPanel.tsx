@@ -11,7 +11,7 @@ import {
   DEFAULT_LOCALITIES,
   ENGINEER_HOME_SUBAREAS,
   ENGINEER_SUBTYPES,
-  getCrossAreaProcesses,
+  getHomeSubareaProcessGroups,
   TECHNICIAN_SCOPES_BY_AREA,
 } from './registrationOptions'
 
@@ -285,10 +285,10 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
           </section>
           <section className="catalog-card">
             <header className="catalog-card-header">
-              <h3>Processos específicos (outras áreas)</h3>
+              <h3>Processos específicos por subárea da home</h3>
             </header>
             <ul className="catalog-option-list">
-              {getCrossAreaProcesses('').map(({ area, processes }) => (
+              {getHomeSubareaProcessGroups().map(({ area, processes }) => (
                 <li key={area}>
                   <span>
                     {area}: {processes.join(', ')}

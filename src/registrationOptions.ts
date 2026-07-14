@@ -24,7 +24,7 @@ export const ENGINEER_SUBTYPES = [
   'Processos específicos',
 ] as const
 
-/** Subáreas da home disponíveis para engenheiro com abrangência Sub-área. */
+/** Subáreas da home disponíveis para engenheiro. */
 export const ENGINEER_HOME_SUBAREAS = [
   'Gestão',
   'Medição',
@@ -36,8 +36,12 @@ export const ENGINEER_HOME_SUBAREAS = [
 
 export type EngineerHomeSubarea = (typeof ENGINEER_HOME_SUBAREAS)[number]
 
-/** Processos específicos por área de negócio (exceto a área própria do engenheiro). */
-export const PROCESSES_BY_AREA: Record<string, readonly string[]> = {
+/**
+ * Processos específicos dentro de cada subárea da home.
+ * Codificação: `Subárea::Processo`.
+ */
+export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly string[]> = {
+  Gestão: ['Indicadores', 'Dashboards', 'Metas operacionais'],
   Medição: [
     'Faturamento de clientes livres',
     'Faturamento de clientes cativos',
@@ -52,60 +56,59 @@ export const PROCESSES_BY_AREA: Record<string, readonly string[]> = {
     'Geração de número de série',
     'Sap Hana',
   ],
-  Telemedição: [
-    'Monitoramento remoto',
-    'Coleta de dados em tempo real',
-    'Gestão de alertas',
-  ],
-  CSD: [
-    'Lavratura de TOI',
-    'Lavratura de TOI - Ponto Focal',
-    'Leituras de faturamento',
-  ],
-  'Consumo Irregular': [
-    'Inspeção de irregularidade',
-    'Análise de perda',
-    'Acompanhamento de TOI',
-  ],
-  'Grandes Clientes': [
-    'Medição especial',
-    'Acompanhamento de grandes clientes',
-    'Atendimento técnico',
-  ],
-  Qualidade: [
-    'Ensaios de qualidade',
-    'Auditoria de qualidade',
-    'Acompanhamento de não conformidades',
-  ],
   'Laboratório de Medição': [
+    'Agendar',
     'Entrada de medidores',
     'Ensaiar',
     'Aprovação de RATM',
+    'Pesquisa de satisfação',
+    'Sucata',
+    'Dashboard',
+    'Consultar RATM',
     'Calendário de ensaios',
     'Auditoria',
+    'Analisadores de Tensão',
     'Inventário',
+    'Aferição de Padrões BT',
+    'Grandes Clientes',
+    'Criar Modelo',
+    'Galeria',
+    'Apresentação',
+    'Fornecedores',
+    'CSDs',
+    'Treinamentos',
+    'Softwares',
   ],
   'Laboratório de Homologação': [
     'Ensaio',
     'Pedidos de Homologação',
     'Código de materiais',
   ],
-  'Equipe de campo': ['Agendar', 'Consultar'],
-  Gestão: ['Indicadores', 'Dashboards', 'Metas operacionais'],
+  Telemedição: [
+    'Monitoramento remoto',
+    'Coleta de dados em tempo real',
+    'Gestão de alertas',
+  ],
+  'Equipe de campo': [
+    'Agendar',
+    'Consultar',
+    'Lavratura de TOI',
+    'Lavratura de TOI - Ponto Focal',
+    'Leituras de faturamento',
+  ],
 }
 
-/** Mapeia área de processo para cards da home. */
-export const AREA_TO_HOME_PORTALS: Record<string, readonly string[]> = {
-  Medição: ['Medição'],
-  Telemedição: ['Telemedição'],
+/** Alias usado em ranking/atribuições — processos por subárea da home. */
+export const PROCESSES_BY_AREA: Record<string, readonly string[]> = PROCESSES_BY_HOME_SUBAREA
+
+/** Mapeia área de negócio do cadastro para subáreas da home. */
+export const BUSINESS_AREA_TO_HOME_PORTALS: Record<string, readonly EngineerHomeSubarea[]> = {
+  Medição: ['Medição', 'Laboratório de Medição', 'Equipe de campo', 'Gestão'],
+  Telemedição: ['Telemedição', 'Gestão'],
   CSD: ['Equipe de campo'],
   'Consumo Irregular': ['Equipe de campo'],
   'Grandes Clientes': ['Medição'],
   Qualidade: ['Laboratório de Medição'],
-  'Laboratório de Medição': ['Laboratório de Medição'],
-  'Laboratório de Homologação': ['Laboratório de Homologação'],
-  'Equipe de campo': ['Equipe de campo'],
-  Gestão: ['Gestão'],
 }
 
 export type AccessProcess = {
@@ -126,31 +129,50 @@ export function parseAccessProcess(value: string): AccessProcess | null {
   return { area, process }
 }
 
-/** Áreas (e processos) disponíveis fora da área própria do engenheiro. */
-export function getCrossAreaProcesses(ownWorkArea: string): Array<{
+/** Grupos de processos por subárea da home (para UI de processos específicos). */
+export function getHomeSubareaProcessGroups(): Array<{
+  area: EngineerHomeSubarea
+  processes: readonly string[]
+}> {
+  return ENGINEER_HOME_SUBAREAS.map((area) => ({
+    area,
+    processes: PROCESSES_BY_HOME_SUBAREA[area],
+  }))
+}
+
+/** @deprecated Use getHomeSubareaProcessGroups — processos ficam nas subáreas da home. */
+export function getCrossAreaProcesses(_ownWorkArea = ''): Array<{
   area: string
   processes: readonly string[]
 }> {
-  return Object.entries(PROCESSES_BY_AREA)
-    .filter(([area]) => area !== ownWorkArea)
-    .map(([area, processes]) => ({ area, processes }))
+  return getHomeSubareaProcessGroups()
 }
 
+export function isValidHomeSubareaProcess(encoded: string): boolean {
+  const parsed = parseAccessProcess(encoded)
+  if (!parsed) return false
+  if (!(ENGINEER_HOME_SUBAREAS as readonly string[]).includes(parsed.area)) return false
+  return (PROCESSES_BY_HOME_SUBAREA[parsed.area as EngineerHomeSubarea] ?? []).includes(
+    parsed.process,
+  )
+}
+
+/** Deriva as subáreas da home a partir dos processos específicos escolhidos. */
 export function portalAreasFromProcesses(
-  ownWorkArea: string,
+  _ownWorkArea: string,
   accessProcesses: string[],
 ): string[] {
-  const portals = new Set<string>(AREA_TO_HOME_PORTALS[ownWorkArea] ?? [])
+  const portals = new Set<string>()
 
   for (const encoded of accessProcesses) {
     const parsed = parseAccessProcess(encoded)
     if (!parsed) continue
-    for (const portal of AREA_TO_HOME_PORTALS[parsed.area] ?? []) {
-      portals.add(portal)
+    if ((ENGINEER_HOME_SUBAREAS as readonly string[]).includes(parsed.area)) {
+      portals.add(parsed.area)
     }
   }
 
-  return [...portals]
+  return ENGINEER_HOME_SUBAREAS.filter((area) => portals.has(area))
 }
 
 export const DEFAULT_AREA_OPTIONS = [
@@ -201,15 +223,8 @@ export function subtypesForCargo(jobTitle: string, workArea = ''): readonly stri
   return []
 }
 
-/** Soma processos de catálogo ligados a um portal da home. */
 export function processCountForHomePortal(portal: string): number {
-  let count = 0
-  for (const [area, processes] of Object.entries(PROCESSES_BY_AREA)) {
-    if ((AREA_TO_HOME_PORTALS[area] ?? []).includes(portal)) {
-      count += processes.length
-    }
-  }
-  return count
+  return PROCESSES_BY_HOME_SUBAREA[portal as EngineerHomeSubarea]?.length ?? 0
 }
 
 /**
@@ -229,11 +244,11 @@ export function countResponsibleProcesses(user: {
   const jobTitle = user.jobTitle?.trim() ?? ''
   const workArea = user.workArea?.trim() ?? ''
   const workSubtype = user.workSubtype?.trim() ?? ''
-  const ownAreaProcesses = workArea ? (PROCESSES_BY_AREA[workArea] ?? []) : []
 
   if (jobTitle === 'Engenheiro') {
     if (workSubtype === 'Área') {
-      return ownAreaProcesses.length
+      const portals = BUSINESS_AREA_TO_HOME_PORTALS[workArea] ?? []
+      return portals.reduce((sum, portal) => sum + processCountForHomePortal(portal), 0)
     }
     if (workSubtype === 'Sub-área') {
       return (user.accessAreas ?? []).reduce(
@@ -242,23 +257,18 @@ export function countResponsibleProcesses(user: {
       )
     }
     if (workSubtype === 'Processos específicos') {
-      return ownAreaProcesses.length + (user.accessProcesses?.length ?? 0)
+      return user.accessProcesses?.length ?? 0
     }
-    return ownAreaProcesses.length
   }
 
   if (jobTitle === 'Técnico' && workSubtype) {
     return 1
   }
 
-  if (ownAreaProcesses.length > 0) {
-    return ownAreaProcesses.length
-  }
-
   return user.accessProcesses?.length ?? 0
 }
 
-/** Monta o rótulo do perfil: Área → Cargo → Escopo → demais informações. */
+/** Monta o rótulo do perfil: Área → Cargo → Escopo → demais infos. */
 export function buildRequestedProfile(
   jobTitle: string,
   workSubtype: string,

@@ -1,6 +1,18 @@
-/** Catálogo compartilhado de processos do engenheiro (validação API). */
+/** Catálogo compartilhado: processos específicos por subárea da home. */
 
-export const PROCESSES_BY_AREA: Record<string, readonly string[]> = {
+export const ENGINEER_HOME_SUBAREAS = [
+  'Gestão',
+  'Medição',
+  'Laboratório de Medição',
+  'Laboratório de Homologação',
+  'Telemedição',
+  'Equipe de campo',
+] as const
+
+export type EngineerHomeSubarea = (typeof ENGINEER_HOME_SUBAREAS)[number]
+
+export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly string[]> = {
+  Gestão: ['Indicadores', 'Dashboards', 'Metas operacionais'],
   Medição: [
     'Faturamento de clientes livres',
     'Faturamento de clientes cativos',
@@ -15,60 +27,50 @@ export const PROCESSES_BY_AREA: Record<string, readonly string[]> = {
     'Geração de número de série',
     'Sap Hana',
   ],
-  Telemedição: [
-    'Monitoramento remoto',
-    'Coleta de dados em tempo real',
-    'Gestão de alertas',
-  ],
-  CSD: [
-    'Lavratura de TOI',
-    'Lavratura de TOI - Ponto Focal',
-    'Leituras de faturamento',
-  ],
-  'Consumo Irregular': [
-    'Inspeção de irregularidade',
-    'Análise de perda',
-    'Acompanhamento de TOI',
-  ],
-  'Grandes Clientes': [
-    'Medição especial',
-    'Acompanhamento de grandes clientes',
-    'Atendimento técnico',
-  ],
-  Qualidade: [
-    'Ensaios de qualidade',
-    'Auditoria de qualidade',
-    'Acompanhamento de não conformidades',
-  ],
   'Laboratório de Medição': [
+    'Agendar',
     'Entrada de medidores',
     'Ensaiar',
     'Aprovação de RATM',
+    'Pesquisa de satisfação',
+    'Sucata',
+    'Dashboard',
+    'Consultar RATM',
     'Calendário de ensaios',
     'Auditoria',
+    'Analisadores de Tensão',
     'Inventário',
+    'Aferição de Padrões BT',
+    'Grandes Clientes',
+    'Criar Modelo',
+    'Galeria',
+    'Apresentação',
+    'Fornecedores',
+    'CSDs',
+    'Treinamentos',
+    'Softwares',
   ],
   'Laboratório de Homologação': [
     'Ensaio',
     'Pedidos de Homologação',
     'Código de materiais',
   ],
-  'Equipe de campo': ['Agendar', 'Consultar'],
-  Gestão: ['Indicadores', 'Dashboards', 'Metas operacionais'],
+  Telemedição: [
+    'Monitoramento remoto',
+    'Coleta de dados em tempo real',
+    'Gestão de alertas',
+  ],
+  'Equipe de campo': [
+    'Agendar',
+    'Consultar',
+    'Lavratura de TOI',
+    'Lavratura de TOI - Ponto Focal',
+    'Leituras de faturamento',
+  ],
 }
 
-export const AREA_TO_HOME_PORTALS: Record<string, readonly string[]> = {
-  Medição: ['Medição'],
-  Telemedição: ['Telemedição'],
-  CSD: ['Equipe de campo'],
-  'Consumo Irregular': ['Equipe de campo'],
-  'Grandes Clientes': ['Medição'],
-  Qualidade: ['Laboratório de Medição'],
-  'Laboratório de Medição': ['Laboratório de Medição'],
-  'Laboratório de Homologação': ['Laboratório de Homologação'],
-  'Equipe de campo': ['Equipe de campo'],
-  Gestão: ['Gestão'],
-}
+/** Alias para atribuições/ranking. */
+export const PROCESSES_BY_AREA: Record<string, readonly string[]> = PROCESSES_BY_HOME_SUBAREA
 
 export function parseAccessProcess(value: string): { area: string; process: string } | null {
   const separator = value.indexOf('::')
@@ -83,25 +85,33 @@ export function encodeAccessProcess(area: string, process: string): string {
   return `${area}::${process}`
 }
 
-export function isValidCrossAreaProcess(ownWorkArea: string, encoded: string): boolean {
+export function isValidHomeSubareaProcess(encoded: string): boolean {
   const parsed = parseAccessProcess(encoded)
-  if (!parsed || parsed.area === ownWorkArea) return false
-  return (PROCESSES_BY_AREA[parsed.area] ?? []).includes(parsed.process)
+  if (!parsed) return false
+  if (!(ENGINEER_HOME_SUBAREAS as readonly string[]).includes(parsed.area)) return false
+  return (PROCESSES_BY_HOME_SUBAREA[parsed.area as EngineerHomeSubarea] ?? []).includes(
+    parsed.process,
+  )
+}
+
+/** @deprecated Use isValidHomeSubareaProcess. */
+export function isValidCrossAreaProcess(_ownWorkArea: string, encoded: string): boolean {
+  return isValidHomeSubareaProcess(encoded)
 }
 
 export function portalAreasFromProcesses(
-  ownWorkArea: string,
+  _ownWorkArea: string,
   accessProcesses: string[],
 ): string[] {
-  const portals = new Set<string>(AREA_TO_HOME_PORTALS[ownWorkArea] ?? [])
+  const portals = new Set<string>()
 
   for (const encoded of accessProcesses) {
     const parsed = parseAccessProcess(encoded)
     if (!parsed) continue
-    for (const portal of AREA_TO_HOME_PORTALS[parsed.area] ?? []) {
-      portals.add(portal)
+    if ((ENGINEER_HOME_SUBAREAS as readonly string[]).includes(parsed.area)) {
+      portals.add(parsed.area)
     }
   }
 
-  return [...portals]
+  return ENGINEER_HOME_SUBAREAS.filter((area) => portals.has(area))
 }
