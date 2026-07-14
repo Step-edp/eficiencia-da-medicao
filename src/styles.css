@@ -1816,8 +1816,12 @@ body.laudo-viewer-open {
     linear-gradient(135deg, rgba(24, 216, 240, 0.08), rgba(91, 240, 0, 0.1));
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 28px;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.brand-column .edp-logo {
+  margin-bottom: 0;
 }
 
 .eyebrow,
