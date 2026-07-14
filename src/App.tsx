@@ -345,7 +345,7 @@ function LoginPanel({ onLoginSuccess }: LoginPanelProps) {
           />
         </label>
 
-        <button className="primary-button" type="submit" disabled={submitting}>
+        <button className="primary-button login-enter-button" type="submit" disabled={submitting}>
           {submitting ? 'Entrando...' : 'Entrar'}
         </button>
       </form>

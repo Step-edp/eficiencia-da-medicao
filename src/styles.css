@@ -1968,6 +1968,17 @@ input[type='file'] {
   box-shadow: 0 18px 38px rgba(10, 56, 111, 0.42);
 }
 
+.login-enter-button {
+  color: #031424;
+  background: linear-gradient(135deg, #7dff3a 0%, var(--green-500) 45%, #34b000 100%);
+  box-shadow: 0 18px 38px rgba(91, 240, 0, 0.28);
+}
+
+.login-enter-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 .helper-box,
 .privacy-note {
   margin-top: 18px;
