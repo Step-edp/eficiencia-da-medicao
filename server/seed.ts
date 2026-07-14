@@ -7,10 +7,10 @@ import { ensureCatalogOptionsSeeded } from './routes/catalog-options.js'
 const demoUsers = [
   {
     id: 'admin-demo-user',
-    registration: 'E706032',
-    password: 'Step@241',
-    name: 'Usuário de Demonstração',
-    email: 'e706032@edp.com',
+    registration: 'adm@edp',
+    password: 'edpsp2026',
+    name: 'Administrador',
+    email: 'adm@edp.com',
     role: 'admin',
     approvalStatus: 'approved',
     jobTitle: 'Administrador do Portal',
@@ -161,7 +161,10 @@ export async function seed() {
         requested_at, approved_at, job_title, work_area, work_subtype
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        registration = EXCLUDED.registration,
         password_hash = EXCLUDED.password_hash,
+        email = EXCLUDED.email,
         role = EXCLUDED.role,
         approval_status = EXCLUDED.approval_status,
         approved_at = EXCLUDED.approved_at,
