@@ -186,6 +186,17 @@ export async function migrate() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_catalog_options_key ON catalog_options (catalog_key);
+
+    CREATE TABLE IF NOT EXISTS process_assignments (
+      process_key TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('responsavel', 'executor')),
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (process_key, role)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_process_assignments_user
+      ON process_assignments (user_id);
   `)
 
   await query(`

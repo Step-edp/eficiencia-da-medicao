@@ -24,6 +24,7 @@ export type AuditEntityType =
   | 'meter_schedule'
   | 'demm_document'
   | 'catalog_option'
+  | 'process_assignment'
 
 export type AuditLogEntry = {
   action: AuditAction

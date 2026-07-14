@@ -27,6 +27,20 @@ export type AppUser = {
   accessProcesses?: string[]
 }
 
+export type ProcessRole = 'responsavel' | 'executor'
+
+export type ProcessAssignment = {
+  processKey: string
+  area: string
+  process: string
+  responsavelUserId: string | null
+  responsavelName: string | null
+  responsavelRegistration: string | null
+  executorUserId: string | null
+  executorName: string | null
+  executorRegistration: string | null
+}
+
 export type CatalogKey = 'cargo' | 'area' | 'tipo' | 'terceira' | 'localidade'
 
 export type CatalogOption = {
@@ -327,6 +341,17 @@ export const api = {
   deleteUser: (id: string) =>
     request<{ ok: boolean; id: string }>(`/api/users/${id}`, {
       method: 'DELETE',
+    }),
+  listProcessAssignments: () =>
+    request<{ assignments: ProcessAssignment[] }>('/api/process-assignments'),
+  upsertProcessAssignment: (payload: {
+    processKey: string
+    role: ProcessRole
+    userId: string | null
+  }) =>
+    request<{ assignments: ProcessAssignment[] }>('/api/process-assignments', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
     }),
   listCatalogOptions: () => request<{ catalogs: CatalogGroup[] }>('/api/catalog-options'),
   createCatalogOption: (payload: { catalogKey: CatalogKey; value: string }) =>

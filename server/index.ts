@@ -24,6 +24,7 @@ import {
   listInspectionUsers,
 } from './routes/csds.js'
 import { catalogOptionRoutes } from './routes/catalog-options.js'
+import { processAssignmentRoutes } from './routes/process-assignments.js'
 import { listAuditLogs } from './routes/audit-logs.js'
 import {
   countMeterSchedules,
@@ -74,7 +75,7 @@ async function start() {
       res.setHeader('Access-Control-Allow-Origin', origin)
       res.setHeader('Access-Control-Allow-Credentials', 'true')
     }
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS')
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
     if (req.method === 'OPTIONS') {
       res.sendStatus(204)
@@ -133,6 +134,9 @@ async function start() {
   app.get('/api/catalog-options', ...catalogOptionRoutes.list)
   app.post('/api/catalog-options', ...catalogOptionRoutes.create)
   app.delete('/api/catalog-options/:id', ...catalogOptionRoutes.remove)
+
+  app.get('/api/process-assignments', ...wrap(processAssignmentRoutes.list))
+  app.put('/api/process-assignments', ...wrap(processAssignmentRoutes.upsert))
 
   app.get('/api/audit-logs', requireAuth, listAuditLogs)
 
