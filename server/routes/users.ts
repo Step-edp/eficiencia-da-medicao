@@ -20,6 +20,7 @@ type UserRow = {
   hobby: string
   work_area: string
   work_subtype: string
+  whatsapp: string
 }
 
 function mapUser(row: UserRow) {
@@ -39,6 +40,7 @@ function mapUser(row: UserRow) {
     hobby: row.hobby,
     workArea: row.work_area,
     workSubtype: row.work_subtype,
+    whatsapp: row.whatsapp,
   }
 }
 
@@ -93,6 +95,7 @@ export async function register(req: Request, res: Response) {
     password,
     personalDescription,
     hobby,
+    whatsapp,
   } = req.body as Record<string, string | undefined>
 
   if (
@@ -117,8 +120,8 @@ export async function register(req: Request, res: Response) {
     const insert = await query<UserRow>(
       `INSERT INTO users (
         id, name, registration, password_hash, email, role, approval_status,
-        birth_date, job_title, cpf, personal_description, hobby
-      ) VALUES ($1,$2,$3,$4,$5,'compras','pending',$6,$7,$8,$9,$10)
+        birth_date, job_title, cpf, personal_description, hobby, whatsapp
+      ) VALUES ($1,$2,$3,$4,$5,'compras','pending',$6,$7,$8,$9,$10,$11)
       RETURNING *`,
       [
         id,
@@ -131,6 +134,7 @@ export async function register(req: Request, res: Response) {
         cpf.trim(),
         personalDescription?.trim() ?? '',
         hobby ?? '',
+        whatsapp?.trim() ?? '',
       ],
     )
 

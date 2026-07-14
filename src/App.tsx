@@ -139,6 +139,7 @@ export default function App() {
     password: string
     personalDescription: string
     hobby: string
+    whatsapp: string
   }) => {
     await api.register(payload)
   }
@@ -1592,6 +1593,10 @@ function HomePanel({
                           <dd>{formatValue(selectedUserDetail.email)}</dd>
                         </div>
                         <div>
+                          <dt>WhatsApp</dt>
+                          <dd>{formatValue(selectedUserDetail.whatsapp)}</dd>
+                        </div>
+                        <div>
                           <dt>Cargo</dt>
                           <dd>{formatValue(selectedUserDetail.jobTitle)}</dd>
                         </div>
@@ -3028,6 +3033,7 @@ type RegisterPanelProps = {
     password: string
     personalDescription: string
     hobby: string
+    whatsapp: string
   }) => Promise<void>
   onRegistered: () => void
 }
@@ -3039,6 +3045,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
   const [email, setEmail] = useState('')
   const [jobTitle, setJobTitle] = useState('')
   const [cpf, setCpf] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [feedback, setFeedback] = useState<{
@@ -3056,6 +3063,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       !email.trim() ||
       !jobTitle.trim() ||
       !cpf.trim() ||
+      !whatsapp.trim() ||
       !password ||
       !confirmPassword
     ) {
@@ -3085,6 +3093,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         password,
         personalDescription: '',
         hobby: '',
+        whatsapp: whatsapp.trim(),
       })
 
       setFeedback({
@@ -3098,6 +3107,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setEmail('')
       setJobTitle('')
       setCpf('')
+      setWhatsapp('')
       setPassword('')
       setConfirmPassword('')
       onRegistered()
@@ -3189,6 +3199,17 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
             placeholder="000.000.000-00"
             value={cpf}
             onChange={(event) => setCpf(event.target.value)}
+          />
+        </label>
+
+        <label>
+          WhatsApp
+          <input
+            type="tel"
+            inputMode="tel"
+            placeholder="(00) 00000-0000"
+            value={whatsapp}
+            onChange={(event) => setWhatsapp(event.target.value)}
           />
         </label>
 
