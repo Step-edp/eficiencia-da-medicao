@@ -275,6 +275,16 @@ export const api = {
     request<{ user: AppUser }>(`/api/users/${id}/approve`, {
       method: 'PATCH',
     }),
+  listCatalogOptions: () => request<{ catalogs: CatalogGroup[] }>('/api/catalog-options'),
+  createCatalogOption: (payload: { catalogKey: CatalogKey; value: string }) =>
+    request<{ option: CatalogOption }>('/api/catalog-options', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  deleteCatalogOption: (id: number) =>
+    request<{ ok: boolean; id: number }>(`/api/catalog-options/${id}`, {
+      method: 'DELETE',
+    }),
   listHomologationRequests: () =>
     request<{ requests: HomologationRequest[] }>('/api/homologation-requests'),
   createHomologationRequest: (payload: {
@@ -347,16 +357,6 @@ export const api = {
       },
     ),
   listCsds: () => request<{ csds: CsdRecord[] }>('/api/csds'),
-  listCatalogOptions: () => request<{ catalogs: CatalogGroup[] }>('/api/catalog-options'),
-  createCatalogOption: (catalogKey: CatalogKey, value: string) =>
-    request<{ option: CatalogOption }>('/api/catalog-options', {
-      method: 'POST',
-      body: JSON.stringify({ catalogKey, value }),
-    }),
-  deleteCatalogOption: (id: number) =>
-    request<{ ok: boolean; id: number }>(`/api/catalog-options/${id}`, {
-      method: 'DELETE',
-    }),
   createCsd: (payload: {
     name: string
     address: string

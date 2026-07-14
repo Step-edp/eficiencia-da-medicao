@@ -2,37 +2,77 @@ import { FormEvent, useCallback, useEffect, useState } from 'react'
 import {
   api,
   ApiError,
-  type CatalogKey,
-  type CatalogOption,
   type CatalogGroup,
+  type CatalogKey,
 } from './api'
+
+const FALLBACK_CATALOGS: CatalogGroup[] = [
+  {
+    key: 'cargo',
+    label: 'Cargo',
+    options: [
+      { id: -1, catalogKey: 'cargo', value: 'Técnico', sortOrder: 0, label: 'Cargo' },
+      { id: -2, catalogKey: 'cargo', value: 'Analista', sortOrder: 1, label: 'Cargo' },
+      { id: -3, catalogKey: 'cargo', value: 'Engenheiro', sortOrder: 2, label: 'Cargo' },
+    ],
+  },
+  {
+    key: 'area',
+    label: 'Área',
+    options: [
+      { id: -4, catalogKey: 'area', value: 'Medição', sortOrder: 0, label: 'Área' },
+      { id: -5, catalogKey: 'area', value: 'CSD', sortOrder: 1, label: 'Área' },
+      { id: -6, catalogKey: 'area', value: 'Consumo Irregular', sortOrder: 2, label: 'Área' },
+      { id: -7, catalogKey: 'area', value: 'Grandes Clientes', sortOrder: 3, label: 'Área' },
+      { id: -8, catalogKey: 'area', value: 'Qualidade', sortOrder: 4, label: 'Área' },
+    ],
+  },
+  {
+    key: 'tipo',
+    label: 'Tipo',
+    options: [
+      { id: -9, catalogKey: 'tipo', value: 'Própria', sortOrder: 0, label: 'Tipo' },
+      { id: -10, catalogKey: 'tipo', value: 'Terceira', sortOrder: 1, label: 'Tipo' },
+    ],
+  },
+  {
+    key: 'terceira',
+    label: 'Empresa terceira',
+    options: [
+      { id: -11, catalogKey: 'terceira', value: 'Cennatech', sortOrder: 0, label: 'Empresa terceira' },
+      { id: -12, catalogKey: 'terceira', value: 'Ecori', sortOrder: 1, label: 'Empresa terceira' },
+      { id: -13, catalogKey: 'terceira', value: 'Landis+Gyr', sortOrder: 2, label: 'Empresa terceira' },
+      { id: -14, catalogKey: 'terceira', value: 'Metta Brasil', sortOrder: 3, label: 'Empresa terceira' },
+      { id: -15, catalogKey: 'terceira', value: 'SEW', sortOrder: 4, label: 'Empresa terceira' },
+      { id: -16, catalogKey: 'terceira', value: 'Steenge', sortOrder: 5, label: 'Empresa terceira' },
+    ],
+  },
+]
 
 type CadastrosPanelProps = {
   isAdmin: boolean
 }
 
 export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
-  const [catalogs, setCatalogs] = useState<CatalogGroup[]>([])
+  const [catalogs, setCatalogs] = useState<CatalogGroup[]>(FALLBACK_CATALOGS)
   const [loading, setLoading] = useState(true)
-  const [drafts, setDrafts] = useState<Partial<Record<CatalogKey, string>>>({})
-  const [feedback, setFeedback] = useState<{
-    type: 'success' | 'error'
-    message: string
-  } | null>(null)
+  const [drafts, setDrafts] = useState<Record<CatalogKey, string>>({
+    cargo: '',
+    area: '',
+    tipo: '',
+    terceira: '',
+  })
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
+    null,
+  )
 
   const loadCatalogs = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await api.listCatalogOptions()
-      setCatalogs(response.catalogs)
-    } catch (error) {
-      setFeedback({
-        type: 'error',
-        message:
-          error instanceof ApiError
-            ? error.message
-            : 'Não foi possível carregar as listas.',
-      })
+      const { catalogs: rows } = await api.listCatalogOptions()
+      setCatalogs(rows)
+    } catch {
+      setCatalogs(FALLBACK_CATALOGS)
     } finally {
       setLoading(false)
     }
@@ -42,17 +82,19 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
     void loadCatalogs()
   }, [loadCatalogs])
 
-  const handleAdd = async (event: FormEvent<HTMLFormElement>, key: CatalogKey) => {
+  const handleAdd = async (catalogKey: CatalogKey, event: FormEvent) => {
     event.preventDefault()
-    const value = drafts[key]?.trim() ?? ''
+    if (!isAdmin) return
+
+    const value = drafts[catalogKey].trim()
     if (!value) {
       setFeedback({ type: 'error', message: 'Informe um valor para cadastrar.' })
       return
     }
 
     try {
-      await api.createCatalogOption(key, value)
-      setDrafts((current) => ({ ...current, [key]: '' }))
+      await api.createCatalogOption({ catalogKey, value })
+      setDrafts((current) => ({ ...current, [catalogKey]: '' }))
       setFeedback({ type: 'success', message: `Opção "${value}" cadastrada.` })
       await loadCatalogs()
     } catch (error) {
@@ -66,13 +108,12 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
     }
   }
 
-  const handleDelete = async (option: CatalogOption) => {
+  const handleDelete = async (id: number, catalogKey: CatalogKey) => {
+    if (!isAdmin || catalogKey === 'tipo') return
+
     try {
-      await api.deleteCatalogOption(option.id)
-      setFeedback({
-        type: 'success',
-        message: `Opção "${option.value}" removida.`,
-      })
+      await api.deleteCatalogOption(id)
+      setFeedback({ type: 'success', message: 'Opção removida.' })
       await loadCatalogs()
     } catch (error) {
       setFeedback({
@@ -85,16 +126,11 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
     }
   }
 
-  if (loading) {
-    return <p className="entrada-panel-empty">Carregando listas...</p>
-  }
-
   return (
     <>
       <p>
-        Aqui ficam todas as listas suspensas usadas no cadastro de usuários.
-        Você pode consultar as opções e, se for administrador, incluir ou remover
-        itens.
+        Aqui ficam todas as listas suspensas usadas no cadastro de usuários. O
+        administrador pode incluir novas opções.
       </p>
 
       {feedback ? (
@@ -103,72 +139,73 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
         </div>
       ) : null}
 
-      <div className="catalogs-grid">
-        {catalogs.map((catalog) => (
-          <section key={catalog.key} className="catalog-card">
-            <header className="catalog-card-header">
-              <h3>{catalog.label}</h3>
-              <span>{catalog.options.length} opção(ões)</span>
-            </header>
+      {loading ? (
+        <p className="entrada-panel-empty">Carregando listas...</p>
+      ) : (
+        <div className="catalogs-grid">
+          {catalogs.map((catalog) => (
+            <section key={catalog.key} className="catalog-card">
+              <header className="catalog-card-header">
+                <h3>{catalog.label}</h3>
+                <span>{catalog.options.length} opção(ões)</span>
+              </header>
 
-            <label>
-              Visualizar lista
-              <select defaultValue="" aria-label={`Lista de ${catalog.label}`}>
-                <option value="" disabled>
-                  Selecione para ver as opções
-                </option>
-                {catalog.options.map((option) => (
-                  <option key={option.id} value={option.value}>
-                    {option.value}
+              <label>
+                Pré-visualização
+                <select defaultValue="" aria-label={`Lista de ${catalog.label}`}>
+                  <option value="" disabled>
+                    Selecione...
                   </option>
+                  {catalog.options.map((option) => (
+                    <option key={option.id} value={option.value}>
+                      {option.value}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <ul className="catalog-option-list">
+                {catalog.options.map((option) => (
+                  <li key={option.id}>
+                    <span>{option.value}</span>
+                    {isAdmin && catalog.key !== 'tipo' && option.id > 0 ? (
+                      <button
+                        type="button"
+                        className="secondary-button compact-button"
+                        onClick={() => void handleDelete(option.id, catalog.key)}
+                      >
+                        Remover
+                      </button>
+                    ) : null}
+                  </li>
                 ))}
-              </select>
-            </label>
+              </ul>
 
-            <ul className="catalog-option-list">
-              {catalog.options.map((option) => (
-                <li key={option.id}>
-                  <span>{option.value}</span>
-                  {isAdmin && catalog.key !== 'tipo' ? (
-                    <button
-                      type="button"
-                      className="secondary-button compact-button"
-                      onClick={() => void handleDelete(option)}
-                    >
-                      Remover
-                    </button>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-
-            {isAdmin && catalog.key !== 'tipo' ? (
-              <form
-                className="catalog-add-form"
-                onSubmit={(event) => void handleAdd(event, catalog.key)}
-              >
-                <label>
-                  Nova opção de {catalog.label.toLowerCase()}
+              {isAdmin && catalog.key !== 'tipo' ? (
+                <form
+                  className="catalog-add-form"
+                  onSubmit={(event) => void handleAdd(catalog.key, event)}
+                >
                   <input
                     type="text"
-                    value={drafts[catalog.key] ?? ''}
+                    placeholder={`Nova opção de ${catalog.label.toLowerCase()}`}
+                    value={drafts[catalog.key]}
                     onChange={(event) =>
                       setDrafts((current) => ({
                         ...current,
                         [catalog.key]: event.target.value,
                       }))
                     }
-                    placeholder={`Digite um(a) ${catalog.label.toLowerCase()}`}
                   />
-                </label>
-                <button className="primary-button compact-button" type="submit">
-                  Adicionar
-                </button>
-              </form>
-            ) : null}
-          </section>
-        ))}
-      </div>
+                  <button className="primary-button compact-button" type="submit">
+                    Adicionar
+                  </button>
+                </form>
+              ) : null}
+            </section>
+          ))}
+        </div>
+      )}
     </>
   )
 }
