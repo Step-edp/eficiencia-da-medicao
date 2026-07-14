@@ -287,6 +287,32 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload ?? {}),
     }),
+  updateUser: (
+    id: string,
+    payload: {
+      name: string
+      registration: string
+      email: string
+      whatsapp: string
+      birthDate: string
+      cpf: string
+      jobTitle: string
+      workArea: string
+      employmentType: string
+      edpUnit: string
+      locality: string
+      thirdPartyCompany: string
+      workSubtype: string
+      accessAreas: string[]
+      personalDescription: string
+      hobby: string
+      profilePhoto: string
+    },
+  ) =>
+    request<{ user: AppUser }>(`/api/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
   listCatalogOptions: () => request<{ catalogs: CatalogGroup[] }>('/api/catalog-options'),
   createCatalogOption: (payload: { catalogKey: CatalogKey; value: string }) =>
     request<{ option: CatalogOption }>('/api/catalog-options', {

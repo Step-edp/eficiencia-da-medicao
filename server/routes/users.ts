@@ -472,6 +472,280 @@ export async function approveUser(req: Request, res: Response) {
   res.json({ user })
 }
 
+export async function updateUser(req: Request, res: Response) {
+  const { id } = req.params
+  const {
+    name,
+    registration,
+    email,
+    whatsapp,
+    birthDate,
+    cpf,
+    jobTitle,
+    workArea,
+    employmentType,
+    edpUnit,
+    locality,
+    thirdPartyCompany,
+    workSubtype,
+    accessAreas,
+    personalDescription,
+    hobby,
+    profilePhoto,
+  } = req.body as Record<string, string | string[] | undefined>
+
+  const previous = await query<UserRow>(`SELECT * FROM users WHERE id = $1`, [id])
+  if (!previous.rows[0]) {
+    res.status(404).json({ error: 'Usuário não encontrado.' })
+    return
+  }
+
+  if (previous.rows[0].role === 'admin') {
+    res.status(403).json({ error: 'O usuário administrador não pode ser editado por esta tela.' })
+    return
+  }
+
+  const normalizedName = typeof name === 'string' ? name.trim() : ''
+  const normalizedRegistration =
+    typeof registration === 'string' ? registration.trim().toUpperCase() : ''
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : ''
+  const normalizedWhatsapp = typeof whatsapp === 'string' ? whatsapp.trim() : ''
+  const normalizedBirthDate = typeof birthDate === 'string' ? birthDate.trim() : ''
+  const normalizedCpf = typeof cpf === 'string' ? cpf.trim() : ''
+  const normalizedJobTitle = typeof jobTitle === 'string' ? jobTitle.trim() : ''
+  const normalizedWorkArea = typeof workArea === 'string' ? workArea.trim() : ''
+  const normalizedEmploymentType =
+    typeof employmentType === 'string' ? employmentType.trim() : ''
+  const normalizedEdpUnit = typeof edpUnit === 'string' ? edpUnit.trim() : ''
+  const normalizedLocality = typeof locality === 'string' ? locality.trim() : ''
+  const normalizedCompany =
+    typeof thirdPartyCompany === 'string' ? thirdPartyCompany.trim() : ''
+  const normalizedSubtype = typeof workSubtype === 'string' ? workSubtype.trim() : ''
+  const normalizedDescription =
+    typeof personalDescription === 'string' ? personalDescription.trim() : ''
+  const normalizedHobby = typeof hobby === 'string' ? hobby.trim() : ''
+  const normalizedProfilePhoto =
+    typeof profilePhoto === 'string' ? profilePhoto.trim() : ''
+  const requestedAccessAreas = Array.isArray(accessAreas)
+    ? accessAreas.map((area) => String(area).trim()).filter(Boolean)
+    : []
+
+  if (
+    !normalizedName ||
+    !normalizedRegistration ||
+    !normalizedEmail ||
+    !normalizedJobTitle ||
+    !normalizedWorkArea ||
+    !normalizedEmploymentType ||
+    !normalizedEdpUnit ||
+    !normalizedLocality ||
+    !normalizedCpf ||
+    !normalizedWhatsapp ||
+    !normalizedBirthDate
+  ) {
+    res.status(400).json({ error: 'Preencha os campos obrigatórios.' })
+    return
+  }
+
+  if (
+    normalizedProfilePhoto &&
+    (!normalizedProfilePhoto.startsWith('data:image/') ||
+      normalizedProfilePhoto.length > 3_500_000)
+  ) {
+    res.status(400).json({
+      error: 'Envie uma imagem de perfil válida com até cerca de 2 MB.',
+    })
+    return
+  }
+
+  const catalogValues = await query<{ catalog_key: string; value: string }>(
+    `SELECT catalog_key, value FROM catalog_options
+     WHERE catalog_key = ANY($1::text[])`,
+    [['cargo', 'area', 'tipo', 'terceira', 'localidade']],
+  )
+  const valuesByKey = catalogValues.rows.reduce<Record<string, string[]>>((acc, row) => {
+    acc[row.catalog_key] = acc[row.catalog_key] ?? []
+    acc[row.catalog_key].push(row.value)
+    return acc
+  }, {})
+
+  const allowedAreas = valuesByKey.area?.length
+    ? valuesByKey.area
+    : [
+        'Medição',
+        'Telemedição',
+        'CSD',
+        'Consumo Irregular',
+        'Grandes Clientes',
+        'Qualidade',
+      ]
+  const allowedCargos = valuesByKey.cargo?.length
+    ? valuesByKey.cargo
+    : ['Técnico', 'Analista', 'Engenheiro', 'Gestor']
+  const allowedTipos = valuesByKey.tipo?.length ? valuesByKey.tipo : ['Própria', 'Terceira']
+  const allowedLocalities = valuesByKey.localidade ?? []
+  const allowedTerceiras = valuesByKey.terceira?.length
+    ? valuesByKey.terceira
+    : ['BMB', 'ROTARY', 'TIVIT']
+
+  if (!allowedCargos.includes(normalizedJobTitle)) {
+    res.status(400).json({ error: 'Selecione um cargo válido.' })
+    return
+  }
+  if (!allowedAreas.includes(normalizedWorkArea)) {
+    res.status(400).json({ error: 'Selecione a área.' })
+    return
+  }
+  if (!allowedTipos.includes(normalizedEmploymentType)) {
+    res.status(400).json({ error: 'Selecione o tipo: Própria ou Terceira.' })
+    return
+  }
+  if (!['EDP SP', 'EDP ES', 'Transversal'].includes(normalizedEdpUnit)) {
+    res.status(400).json({ error: 'Selecione EDP SP, EDP ES ou Transversal.' })
+    return
+  }
+  if (
+    allowedLocalities.length > 0
+      ? !allowedLocalities.includes(normalizedLocality)
+      : !normalizedLocality
+  ) {
+    res.status(400).json({ error: 'Selecione a localidade.' })
+    return
+  }
+
+  let storedCompany = ''
+  if (normalizedEmploymentType === 'Terceira') {
+    if (!normalizedCompany || !allowedTerceiras.includes(normalizedCompany)) {
+      res.status(400).json({ error: 'Selecione a empresa terceira.' })
+      return
+    }
+    storedCompany = normalizedCompany
+  }
+
+  const technicianScopesByArea: Record<string, string[]> = {
+    Medição: [
+      'Atividades administrativas da Medição',
+      'Laboratório de Medição',
+    ],
+    CSD: [
+      'Lavratura de TOI',
+      'Lavratura de TOI - Ponto Focal',
+      'Leituras de faturamento',
+    ],
+  }
+  const allowedEngineerSubtypes = ['Área', 'Sub-área', 'Processos específicos']
+  const allowedEngineerHomeSubareas = [
+    'Gestão',
+    'Medição',
+    'Laboratório de Medição',
+    'Laboratório de Homologação',
+    'Telemedição',
+    'Equipe de campo',
+  ]
+
+  let storedSubtype = ''
+  let storedAccessAreas: string[] = []
+
+  if (normalizedJobTitle === 'Técnico') {
+    const allowedScopes = technicianScopesByArea[normalizedWorkArea] ?? []
+    if (allowedScopes.length > 0) {
+      if (!allowedScopes.includes(normalizedSubtype)) {
+        res.status(400).json({ error: 'Selecione o escopo do técnico.' })
+        return
+      }
+      storedSubtype = normalizedSubtype
+    }
+  } else if (normalizedJobTitle === 'Engenheiro') {
+    if (!allowedEngineerSubtypes.includes(normalizedSubtype)) {
+      res.status(400).json({ error: 'Selecione a abrangência do engenheiro.' })
+      return
+    }
+    storedSubtype = normalizedSubtype
+    if (normalizedSubtype === 'Sub-área') {
+      const invalid = requestedAccessAreas.filter(
+        (area) => !allowedEngineerHomeSubareas.includes(area),
+      )
+      if (requestedAccessAreas.length === 0 || invalid.length > 0) {
+        res.status(400).json({
+          error: 'Selecione ao menos uma subárea da home para o engenheiro.',
+        })
+        return
+      }
+      storedAccessAreas = requestedAccessAreas
+    }
+  }
+
+  try {
+    const result = await query<UserRow>(
+      `UPDATE users SET
+        name = $2,
+        registration = $3,
+        email = $4,
+        whatsapp = $5,
+        birth_date = $6,
+        cpf = $7,
+        job_title = $8,
+        work_area = $9,
+        employment_type = $10,
+        edp_unit = $11,
+        locality = $12,
+        third_party_company = $13,
+        work_subtype = $14,
+        access_areas = $15::jsonb,
+        personal_description = $16,
+        hobby = $17,
+        profile_photo = $18
+       WHERE id = $1
+       RETURNING *`,
+      [
+        id,
+        normalizedName,
+        normalizedRegistration,
+        normalizedEmail,
+        normalizedWhatsapp,
+        normalizedBirthDate,
+        normalizedCpf,
+        normalizedJobTitle,
+        normalizedWorkArea,
+        normalizedEmploymentType,
+        normalizedEdpUnit,
+        normalizedLocality,
+        storedCompany,
+        storedSubtype,
+        JSON.stringify(storedAccessAreas),
+        normalizedDescription,
+        normalizedHobby,
+        normalizedProfilePhoto,
+      ],
+    )
+
+    const user = mapUser(result.rows[0])
+    await writeAuditLog(req, {
+      action: 'update',
+      entityType: 'user',
+      entityId: user.id,
+      summary: `Usuário atualizado: ${user.registration}`,
+      oldData: {
+        ...mapUser(previous.rows[0]),
+        profilePhoto: previous.rows[0].profile_photo ? '[imagem anexada]' : '',
+      },
+      newData: {
+        ...user,
+        profilePhoto: user.profilePhoto ? '[imagem anexada]' : '',
+      },
+    })
+
+    res.json({ user })
+  } catch (error) {
+    const pgError = error as { code?: string }
+    if (pgError.code === '23505') {
+      res.status(409).json({ error: 'Já existe um cadastro com esta matrícula ou e-mail.' })
+      return
+    }
+    throw error
+  }
+}
+
 export const authRoutes = {
   login,
   register,
@@ -481,4 +755,5 @@ export const authRoutes = {
   exchangeSsoToken,
   listUsers: [requireAuth, requireAdmin, listUsers],
   approveUser: [requireAuth, requireAdmin, approveUser],
+  updateUser: [requireAuth, requireAdmin, updateUser],
 }

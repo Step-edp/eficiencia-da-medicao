@@ -1466,6 +1466,21 @@ button {
   grid-column: 1 / -1;
 }
 
+.user-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.user-edit-grid {
+  margin-top: 12px;
+}
+
+.user-edit-full {
+  grid-column: 1 / -1;
+}
+
 .approval-item-actions {
   display: grid;
   gap: 10px;

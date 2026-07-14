@@ -4,6 +4,7 @@ import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
+import { UserDetailModal } from './UserDetailModal'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
   CADASTRO_PROFILES,
@@ -240,6 +241,9 @@ export default function App() {
         users={registeredUsers}
         homologationRequests={homologationRequests}
         onApproveUser={handleApproveUser}
+        onUpdateUser={(user) => {
+          setRegisteredUsers((prev) => prev.map((item) => (item.id === user.id ? user : item)))
+        }}
         onCreateHomologationRequest={handleCreateHomologationRequest}
         onLogout={handleLogout}
       />
@@ -456,6 +460,7 @@ type HomePanelProps = {
   users: AppUser[]
   homologationRequests: HomologationRequest[]
   onApproveUser: (userId: string, payload?: ApproveUserPayload) => Promise<void>
+  onUpdateUser: (user: AppUser) => void
   onCreateHomologationRequest: (
     payload: Omit<
       HomologationRequest,
@@ -906,6 +911,7 @@ function HomePanel({
   users,
   homologationRequests,
   onApproveUser,
+  onUpdateUser,
   onCreateHomologationRequest,
   onLogout,
 }: HomePanelProps) {
@@ -1672,6 +1678,22 @@ function HomePanel({
                 Somente o perfil administrador pode aprovar cadastros.
               </p>
             )}
+
+            {selectedUserDetail
+              ? createPortal(
+                  <UserDetailModal
+                    user={selectedUserDetail}
+                    terceiraOptions={terceiraOptions}
+                    onClose={() => setSelectedUserDetail(null)}
+                    onSaved={(user) => {
+                      onUpdateUser(user)
+                      setSelectedUserDetail(user)
+                    }}
+                    onFeedback={setPasswordFeedback}
+                  />,
+                  document.body,
+                )
+              : null}
           </section>
         </main>
       )
@@ -1680,11 +1702,6 @@ function HomePanel({
     if (selectedArea.title === 'Usuários') {
       const statusLabel = (status: AppUser['approvalStatus']) =>
         status === 'approved' ? 'Aprovado' : 'Pendente'
-
-      const formatValue = (value?: string | null) => {
-        const trimmed = value?.trim()
-        return trimmed ? trimmed : '—'
-      }
 
       const leaveUsersArea = () => {
         setSelectedUserDetail(null)
@@ -1705,7 +1722,7 @@ function HomePanel({
             <p>
               Consulte os usuários com acesso ao portal e os cadastros ainda
               pendentes de aprovação. Clique em um usuário para ver todos os
-              dados.
+              dados e editar as informações preenchidas.
             </p>
 
             {passwordFeedback ? (
@@ -1835,158 +1852,16 @@ function HomePanel({
 
             {selectedUserDetail
               ? createPortal(
-                  <div
-                    className="ensaios-block-modal-overlay"
-                    role="presentation"
-                    onClick={() => setSelectedUserDetail(null)}
-                  >
-                    <div
-                      className="ensaios-block-modal user-detail-modal"
-                      role="dialog"
-                      aria-modal="true"
-                      aria-labelledby="user-detail-title"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        className="icon-button schedule-slot-modal-close"
-                        onClick={() => setSelectedUserDetail(null)}
-                        aria-label="Fechar"
-                        title="Fechar"
-                      >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path
-                            d="M6 6l12 12M18 6L6 18"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      </button>
-
-                      <h3 id="user-detail-title">{selectedUserDetail.name}</h3>
-                      <p className="user-detail-subtitle">
-                        {roleLabel(selectedUserDetail.role)} ·{' '}
-                        {statusLabel(selectedUserDetail.approvalStatus)}
-                      </p>
-
-                      {selectedUserDetail.profilePhoto ? (
-                        <img
-                          className="profile-photo-detail"
-                          src={selectedUserDetail.profilePhoto}
-                          alt={`Foto de ${selectedUserDetail.name}`}
-                        />
-                      ) : null}
-
-                      <dl className="user-detail-grid">
-                        <div>
-                          <dt>Matrícula</dt>
-                          <dd>{formatValue(selectedUserDetail.registration)}</dd>
-                        </div>
-                        <div>
-                          <dt>E-mail</dt>
-                          <dd>{formatValue(selectedUserDetail.email)}</dd>
-                        </div>
-                        <div>
-                          <dt>WhatsApp</dt>
-                          <dd>{formatValue(selectedUserDetail.whatsapp)}</dd>
-                        </div>
-                        <div>
-                          <dt>Cargo</dt>
-                          <dd>{formatValue(selectedUserDetail.jobTitle)}</dd>
-                        </div>
-                        <div>
-                          <dt>Tipo</dt>
-                          <dd>{formatValue(selectedUserDetail.employmentType)}</dd>
-                        </div>
-                        <div>
-                          <dt>Abrangência</dt>
-                          <dd>{formatValue(selectedUserDetail.edpUnit)}</dd>
-                        </div>
-                        {selectedUserDetail.employmentType === 'Terceira' ? (
-                          <div>
-                            <dt>Empresa terceira</dt>
-                            <dd>{formatValue(selectedUserDetail.thirdPartyCompany)}</dd>
-                          </div>
-                        ) : null}
-                        <div>
-                          <dt>CPF</dt>
-                          <dd>{formatValue(selectedUserDetail.cpf)}</dd>
-                        </div>
-                        <div>
-                          <dt>Data de nascimento</dt>
-                          <dd>{formatValue(selectedUserDetail.birthDate)}</dd>
-                        </div>
-                        <div>
-                          <dt>Perfil</dt>
-                          <dd>
-                            {buildRequestedProfile(
-                              selectedUserDetail.jobTitle,
-                              selectedUserDetail.workSubtype ?? '',
-                              selectedUserDetail.workArea ?? '',
-                              selectedUserDetail.accessAreas?.length
-                                ? selectedUserDetail.accessAreas.join(', ')
-                                : undefined,
-                              selectedUserDetail.employmentType === 'Terceira'
-                                ? selectedUserDetail.thirdPartyCompany
-                                : undefined,
-                              selectedUserDetail.edpUnit,
-                              selectedUserDetail.locality,
-                            ) || roleLabel(selectedUserDetail.role)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Status</dt>
-                          <dd>{statusLabel(selectedUserDetail.approvalStatus)}</dd>
-                        </div>
-                        <div>
-                          <dt>Área</dt>
-                          <dd>{formatValue(selectedUserDetail.workArea)}</dd>
-                        </div>
-                        <div>
-                          <dt>
-                            {selectedUserDetail.jobTitle === 'Engenheiro'
-                              ? 'Abrangência'
-                              : 'Escopo'}
-                          </dt>
-                          <dd>{formatValue(selectedUserDetail.workSubtype)}</dd>
-                        </div>
-                        {selectedUserDetail.accessAreas?.length ? (
-                          <div>
-                            <dt>Subáreas da home</dt>
-                            <dd>{selectedUserDetail.accessAreas.join(', ')}</dd>
-                          </div>
-                        ) : null}
-                        <div>
-                          <dt>Localidade</dt>
-                          <dd>{formatValue(selectedUserDetail.locality)}</dd>
-                        </div>
-                        <div>
-                          <dt>Data do cadastro</dt>
-                          <dd>
-                            {new Date(selectedUserDetail.requestedAt).toLocaleString('pt-BR')}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Aprovado em</dt>
-                          <dd>
-                            {selectedUserDetail.approvedAt
-                              ? new Date(selectedUserDetail.approvedAt).toLocaleString('pt-BR')
-                              : '—'}
-                          </dd>
-                        </div>
-                        <div className="user-detail-full">
-                          <dt>Descrição pessoal</dt>
-                          <dd>{formatValue(selectedUserDetail.personalDescription)}</dd>
-                        </div>
-                        <div className="user-detail-full">
-                          <dt>Hobby</dt>
-                          <dd>{formatValue(selectedUserDetail.hobby)}</dd>
-                        </div>
-                      </dl>
-                    </div>
-                  </div>,
+                  <UserDetailModal
+                    user={selectedUserDetail}
+                    terceiraOptions={terceiraOptions}
+                    onClose={() => setSelectedUserDetail(null)}
+                    onSaved={(user) => {
+                      onUpdateUser(user)
+                      setSelectedUserDetail(user)
+                    }}
+                    onFeedback={setPasswordFeedback}
+                  />,
                   document.body,
                 )
               : null}
