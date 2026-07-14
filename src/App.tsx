@@ -268,7 +268,6 @@ export default function App() {
 
           {activePanel === 'login' ? (
             <LoginPanel
-              activeRoute={activeRoute}
               onLoginSuccess={(user) => {
                 setAuthenticatedUser(user)
                 if (user.role === 'admin') {
@@ -290,11 +289,10 @@ export default function App() {
 }
 
 type LoginPanelProps = {
-  activeRoute: AppRoute
   onLoginSuccess: (user: AppUser) => void
 }
 
-function LoginPanel({ activeRoute, onLoginSuccess }: LoginPanelProps) {
+function LoginPanel({ onLoginSuccess }: LoginPanelProps) {
   const [registration, setRegistration] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -357,15 +355,6 @@ function LoginPanel({ activeRoute, onLoginSuccess }: LoginPanelProps) {
           {feedback.message}
         </div>
       ) : null}
-
-      <div className="helper-box">
-        <strong>Status de acesso</strong>
-        <span>
-          {activeRoute === 'compras-homologacao'
-            ? 'Link fixo protegido por login e aprovação do ADM'
-            : 'Pendente de aprovação do administrador'}
-        </span>
-      </div>
     </section>
   )
 }
