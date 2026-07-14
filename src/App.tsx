@@ -289,6 +289,71 @@ type LoginPanelProps = {
   onLoginSuccess: (user: AppUser) => void
 }
 
+type PasswordInputProps = {
+  id?: string
+  label: string
+  value: string
+  placeholder?: string
+  autoComplete?: string
+  onChange: (value: string) => void
+}
+
+function PasswordInput({
+  id,
+  label,
+  value,
+  placeholder,
+  autoComplete,
+  onChange,
+}: PasswordInputProps) {
+  const [visible, setVisible] = useState(false)
+
+  return (
+    <label className="password-field" htmlFor={id}>
+      {label}
+      <div className="password-input-wrap">
+        <input
+          id={id}
+          type={visible ? 'text' : 'password'}
+          placeholder={placeholder}
+          value={value}
+          autoComplete={autoComplete}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <button
+          type="button"
+          className="password-visibility-toggle"
+          onClick={() => setVisible((current) => !current)}
+          aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
+          title={visible ? 'Ocultar senha' : 'Mostrar senha'}
+        >
+          {visible ? (
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M3 3l18 18M10.6 10.6A3 3 0 0012 15a3 3 0 002.4-4.8M9.9 5.1A10.5 10.5 0 0121 12c-1 1.7-2.3 3.1-3.8 4.1M6.1 6.1C4.5 7.3 3.2 8.9 2.1 12c2.2 3.8 5.7 6 9.9 6 1.2 0 2.3-.2 3.4-.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          )}
+        </button>
+      </div>
+    </label>
+  )
+}
+
 function LoginPanel({ onLoginSuccess }: LoginPanelProps) {
   const [registration, setRegistration] = useState('')
   const [password, setPassword] = useState('')
@@ -332,15 +397,14 @@ function LoginPanel({ onLoginSuccess }: LoginPanelProps) {
           />
         </label>
 
-        <label>
-          Senha
-          <input
-            type="password"
-            placeholder="Digite sua senha"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </label>
+        <PasswordInput
+          id="login-password"
+          label="Senha"
+          placeholder="Digite sua senha"
+          autoComplete="current-password"
+          value={password}
+          onChange={setPassword}
+        />
 
         <button className="primary-button login-enter-button" type="submit" disabled={submitting}>
           {submitting ? 'Entrando...' : 'Entrar'}
@@ -3489,25 +3553,23 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           />
         </label>
 
-        <label>
-          Senha
-          <input
-            type="password"
-            placeholder="Crie sua senha"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </label>
+        <PasswordInput
+          id="register-password"
+          label="Senha"
+          placeholder="Crie sua senha"
+          autoComplete="new-password"
+          value={password}
+          onChange={setPassword}
+        />
 
-        <label>
-          Confirmar senha
-          <input
-            type="password"
-            placeholder="Repita a senha"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-          />
-        </label>
+        <PasswordInput
+          id="register-confirm-password"
+          label="Confirmar senha"
+          placeholder="Repita a senha"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+        />
 
         <button className="primary-button login-enter-button" type="submit">
           Cadastrar para aprovação
