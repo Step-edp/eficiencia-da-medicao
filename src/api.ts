@@ -433,6 +433,11 @@ export const api = {
         body: JSON.stringify(payload),
       },
     ),
+  resetUserToPending: (id: string) =>
+    request<{ user: AppUser }>(`/api/users/${id}/pending`, {
+      method: 'PATCH',
+      body: JSON.stringify({}),
+    }),
   updateUser: (
     id: string,
     payload: {

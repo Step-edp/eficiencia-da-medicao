@@ -1113,6 +1113,60 @@ export async function rejectUser(req: Request, res: Response) {
   })
 }
 
+export async function resetUserToPending(req: Request, res: Response) {
+  const id = String(req.params.id)
+
+  const previous = await query<UserRow>(`SELECT * FROM users WHERE id = $1`, [id])
+  if (!previous.rows[0]) {
+    res.status(404).json({ error: 'Usuário não encontrado.' })
+    return
+  }
+
+  const current = previous.rows[0]
+  if (current.role === 'admin') {
+    res.status(403).json({ error: 'O administrador não pode voltar para pendente.' })
+    return
+  }
+
+  if (current.approval_status !== 'approved') {
+    res.status(400).json({ error: 'Somente usuários aprovados podem voltar para pendente.' })
+    return
+  }
+
+  const result = await query<UserRow>(
+    `UPDATE users
+     SET approval_status = 'pending',
+         approved_at = NULL,
+         work_subtype = '',
+         access_areas = '[]'::jsonb,
+         access_processes = '[]'::jsonb,
+         third_party_company = '',
+         vacation_required_since = NULL
+     WHERE id = $1
+       AND role <> 'admin'
+     RETURNING *`,
+    [id],
+  )
+
+  if (!result.rows[0]) {
+    res.status(404).json({ error: 'Usuário não encontrado.' })
+    return
+  }
+
+  const user = await mapUserWithVacation(result.rows[0])
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'user',
+    entityId: user.id,
+    summary: `Usuário voltou para pendente: ${user.registration}`,
+    oldData: mapUser(current),
+    newData: user,
+  })
+
+  res.json({ user })
+}
+
 export async function deleteUser(req: Request, res: Response) {
   const { id } = req.params
 
@@ -1188,5 +1242,6 @@ export const authRoutes = {
   approveUser: [requireAuth, requireAdmin, approveUser],
   updateUser: [requireAuth, requireAdmin, updateUser],
   rejectUser: [requireAuth, requireAdmin, rejectUser],
+  resetUserToPending: [requireAuth, requireAdmin, resetUserToPending],
   deleteUser: [requireAuth, requireAdmin, deleteUser],
 }

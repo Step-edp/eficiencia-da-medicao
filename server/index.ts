@@ -102,6 +102,7 @@ async function start() {
   app.get('/api/users', ...wrap(authRoutes.listUsers))
   app.patch('/api/users/:id/approve', ...wrap(authRoutes.approveUser))
   app.patch('/api/users/:id/reject', ...wrap(authRoutes.rejectUser))
+  app.patch('/api/users/:id/pending', ...wrap(authRoutes.resetUserToPending))
   app.patch('/api/users/:id', ...wrap(authRoutes.updateUser))
   app.delete('/api/users/:id', ...wrap(authRoutes.deleteUser))
 
