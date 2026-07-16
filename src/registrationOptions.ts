@@ -8,6 +8,7 @@ export const TECHNICIAN_SCOPES_BY_AREA: Record<string, readonly string[]> = {
   ],
   CSD: [
     'Lavratura de TOI',
+    'Lavratura de TOI - Ponto Focal',
     'Leituras de faturamento',
   ],
 }

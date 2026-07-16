@@ -64,7 +64,11 @@ const DEFAULT_OPTIONS: Record<CatalogKey, string[]> = {
     'Taubaté',
     'Tremembé',
   ],
-  escopo_csd: ['Lavratura de TOI', 'Leituras de faturamento'],
+  escopo_csd: [
+    'Lavratura de TOI',
+    'Lavratura de TOI - Ponto Focal',
+    'Leituras de faturamento',
+  ],
 }
 
 type CatalogOptionRow = {
