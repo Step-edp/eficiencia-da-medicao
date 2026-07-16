@@ -197,10 +197,49 @@ button {
   line-height: 1.45;
 }
 
+.agenda-alert-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.agenda-alert-text {
+  margin: 0;
+  flex: 1 1 220px;
+}
+
+.agenda-alert-action {
+  flex: 0 0 auto;
+  border: 1px solid rgba(251, 191, 36, 0.55);
+  border-radius: 12px;
+  padding: 10px 16px;
+  color: #fff7ed;
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(180, 83, 9, 0.28);
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+.agenda-alert-action:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 10px 22px rgba(180, 83, 9, 0.36);
+  transform: translateY(-1px);
+}
+
+.agenda-alert-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.35);
+}
+
 .agenda-alert-pending {
-  background: rgba(180, 83, 9, 0.14);
-  border: 1px solid rgba(180, 83, 9, 0.28);
-  color: #9a3412;
+  background: rgba(180, 83, 9, 0.16);
+  border: 1px solid rgba(251, 191, 36, 0.32);
+  color: #fdba74;
 }
 
 .agenda-alert-blocked {

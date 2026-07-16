@@ -4136,18 +4136,19 @@ function HomePanel({
 
         {currentUser.role !== 'admin' && currentUser.vacationStatus === 'pendente' ? (
           <div className="agenda-alert agenda-alert-pending" role="status">
-            <strong>Férias pendentes.</strong> Acesse a Agenda e registre o próximo período de
-            férias
-            {currentUser.vacationDeadlineAt
-              ? ` até ${new Date(currentUser.vacationDeadlineAt).toLocaleString('pt-BR')}`
-              : ' nos próximos 7 dias'}
-            . Depois disso o perfil será bloqueado.
-            {agendaArea ? (
-              <>
-                {' '}
+            <div className="agenda-alert-body">
+              <p className="agenda-alert-text">
+                <strong>Férias pendentes.</strong> Acesse a Agenda e registre o próximo período de
+                férias
+                {currentUser.vacationDeadlineAt
+                  ? ` até ${new Date(currentUser.vacationDeadlineAt).toLocaleString('pt-BR')}`
+                  : ' nos próximos 7 dias'}
+                . Depois disso o perfil será bloqueado.
+              </p>
+              {agendaArea ? (
                 <button
                   type="button"
-                  className="link-button"
+                  className="agenda-alert-action"
                   onClick={() => {
                     setSelectedOrgCell(null)
                     setSelectedOrgSubcell(null)
@@ -4156,8 +4157,8 @@ function HomePanel({
                 >
                   Ir para a Agenda
                 </button>
-              </>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         ) : null}
 
