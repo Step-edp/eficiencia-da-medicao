@@ -2858,7 +2858,17 @@ h2 {
 }
 
 .panel-switch.users-view-switch {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  width: min(960px, 100%);
+  grid-template-columns: none;
+}
+
+.panel-switch.users-view-switch > button {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .panel-switch button {
@@ -3711,11 +3721,13 @@ input[type='file'] {
   }
 
   .panel-switch.users-view-switch {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
     width: 100%;
+    grid-template-columns: none;
   }
 
-  .users-view-switch button {
+  .panel-switch.users-view-switch > button {
     padding: 10px 8px;
     font-size: 0.85rem;
   }
