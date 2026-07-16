@@ -3733,16 +3733,9 @@ function HomePanel({
             </p>
             <h2>{selectedFieldTeamSection}</h2>
             {selectedFieldTeamSection === 'Agendar' ? (
-              <>
-                <p>
-                  {isLavraturaBackofficeScope(currentUser.workSubtype)
-                    ? 'Preencha os dados do medidor e a equipe que lavrou o TOI.'
-                    : 'Preencha os dados do medidor para calcular a próxima data disponível.'}
-                </p>
-                <FieldTeamCadastrarForm
-                  requireToiTeam={isLavraturaBackofficeScope(currentUser.workSubtype)}
-                />
-              </>
+              <FieldTeamCadastrarForm
+                requireToiTeam={isLavraturaBackofficeScope(currentUser.workSubtype)}
+              />
             ) : selectedFieldTeamSection === 'Meus TOIs' ? (
               <FieldTeamConsultarPanel mode="mine" />
             ) : (
