@@ -4859,6 +4859,16 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       ) : null}
 
       <form className="form-grid register-grid" onSubmit={handleSubmit} noValidate>
+        <label className="register-name-field">
+          Nome completo
+          <input
+            type="text"
+            placeholder="Seu nome completo"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+
         <label>
           Tipo
           <select
@@ -4932,16 +4942,6 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
               </option>
             ))}
           </select>
-        </label>
-
-        <label className="full-width">
-          Nome completo
-          <input
-            type="text"
-            placeholder="Seu nome completo"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
         </label>
 
         <label>

@@ -459,7 +459,7 @@ export function UserDetailModal({
 
         {editing ? (
           <form className="form-grid register-grid user-edit-grid" onSubmit={handleSave} noValidate>
-            <label>
+            <label className="register-name-field">
               Nome completo
               <input type="text" value={name} onChange={(event) => setName(event.target.value)} />
             </label>

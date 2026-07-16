@@ -3015,9 +3015,19 @@ input[type='file'] {
 }
 
 .full-width,
+.register-name-field,
 .primary-button,
 .privacy-note {
   grid-column: 1 / -1;
+}
+
+.register-name-field {
+  width: 100%;
+}
+
+.register-name-field input {
+  width: 100%;
+  min-height: 48px;
 }
 
 .primary-button {
