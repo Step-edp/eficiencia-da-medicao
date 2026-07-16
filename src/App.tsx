@@ -1457,6 +1457,7 @@ function HomePanel({
     type: 'success' | 'error'
     message: string
   } | null>(null)
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const isAdmin = currentUser.role === 'admin'
   const pendingApprovalUsers = users.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'pending',
@@ -2946,6 +2947,34 @@ function HomePanel({
         handleAreaBack()
       }
 
+      const handleDeleteRegisteredUser = async (user: AppUser) => {
+        if (deletingUserId) return
+        const confirmed = window.confirm(
+          `Excluir o cadastro de "${user.name}" (${user.registration})? Esta ação não pode ser desfeita.`,
+        )
+        if (!confirmed) return
+
+        setDeletingUserId(user.id)
+        try {
+          await api.deleteUser(user.id)
+          onDeleteUser(user.id)
+          setSelectedUserDetail((current) =>
+            current?.id === user.id ? null : current,
+          )
+          setPasswordFeedback({ type: 'success', message: 'Cadastro excluído.' })
+        } catch (error) {
+          setPasswordFeedback({
+            type: 'error',
+            message:
+              error instanceof ApiError
+                ? error.message
+                : 'Não foi possível excluir o cadastro.',
+          })
+        } finally {
+          setDeletingUserId(null)
+        }
+      }
+
       return (
         <main className="shell">
           <section className="home-card area-screen-card">
@@ -3061,6 +3090,7 @@ function HomePanel({
                             <th>Perfil</th>
                             <th>Status</th>
                             <th>Solicitado em</th>
+                            <th>Ações</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3107,6 +3137,22 @@ function HomePanel({
                               <td>{statusLabel(user.approvalStatus)}</td>
                               <td>
                                 {new Date(user.requestedAt).toLocaleString('pt-BR')}
+                              </td>
+                              <td className="users-table-actions">
+                                <button
+                                  type="button"
+                                  className="danger-button users-table-delete-button"
+                                  disabled={deletingUserId === user.id}
+                                  aria-label={`Excluir cadastro de ${user.name}`}
+                                  onClick={(event) => {
+                                    event.stopPropagation()
+                                    void handleDeleteRegisteredUser(user)
+                                  }}
+                                >
+                                  {deletingUserId === user.id
+                                    ? 'Excluindo…'
+                                    : 'Excluir cadastro'}
+                                </button>
                               </td>
                             </tr>
                           ))}

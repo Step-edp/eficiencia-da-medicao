@@ -2288,6 +2288,16 @@ button {
   outline: none;
 }
 
+.users-table-actions {
+  white-space: nowrap;
+}
+
+.users-table-delete-button {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
 .user-detail-modal {
   width: min(720px, 100%);
   max-height: min(85vh, 900px);
