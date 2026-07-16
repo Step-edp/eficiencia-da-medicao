@@ -1887,7 +1887,8 @@ button {
 
 .users-view-switch {
   margin: 8px 0 20px;
-  width: min(760px, 100%);
+  width: min(920px, 100%);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .gestao-home-switch {
@@ -3704,6 +3705,16 @@ input[type='file'] {
 
   .panel-switch {
     grid-template-columns: 1fr;
+  }
+
+  .users-view-switch {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .users-view-switch button {
+    padding: 10px 8px;
+    font-size: 0.85rem;
   }
 
   .home-areas {
