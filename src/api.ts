@@ -142,7 +142,13 @@ export type ProcessAssignment = {
   executorCoveredBySubstitute?: boolean
 }
 
-export type CatalogKey = 'cargo' | 'area' | 'tipo' | 'terceira' | 'localidade'
+export type CatalogKey =
+  | 'cargo'
+  | 'area'
+  | 'tipo'
+  | 'terceira'
+  | 'localidade'
+  | 'escopo_csd'
 
 export type CatalogOption = {
   id: number

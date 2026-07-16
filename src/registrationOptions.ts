@@ -245,13 +245,18 @@ export const DEFAULT_LOCALITIES = [
   'Tremembé',
 ] as const
 
-export function subtypesForCargo(jobTitle: string, workArea = ''): readonly string[] {
+export function subtypesForCargo(
+  jobTitle: string,
+  workArea = '',
+  options?: { csdScopes?: readonly string[] },
+): readonly string[] {
   const cargo = jobTitle.trim()
   const area = workArea.trim()
   if (cargo === 'Engenheiro') return ENGINEER_SUBTYPES
   // CSD: escopo obrigatório para qualquer cargo (própria ou terceira).
   if (area === 'CSD') {
-    return TECHNICIAN_SCOPES_BY_AREA.CSD
+    const fromCatalog = options?.csdScopes?.filter((item) => item.trim()) ?? []
+    return fromCatalog.length > 0 ? fromCatalog : TECHNICIAN_SCOPES_BY_AREA.CSD
   }
   if (cargo === 'Técnico') {
     return TECHNICIAN_SCOPES_BY_AREA[area] ?? []

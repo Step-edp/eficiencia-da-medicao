@@ -52,6 +52,7 @@ import {
   mapTakenSubcellAreas,
   parseAccessProcess,
   subtypesForCargo,
+  TECHNICIAN_SCOPES_BY_AREA,
 } from './registrationOptions'
 import {
   buildOrgCellsFromRecords,
@@ -767,6 +768,7 @@ type PendingApprovalItemProps = {
     responsibleName?: string | null
   }>
   terceiraOptions: string[]
+  csdScopeOptions: string[]
   onApprove: (userId: string, payload: ApproveUserPayload) => Promise<void>
   onReject: (
     userId: string,
@@ -781,6 +783,7 @@ function PendingApprovalItem({
   approvedUsers,
   orgCells,
   terceiraOptions,
+  csdScopeOptions,
   onApprove,
   onReject,
   onEdit,
@@ -800,7 +803,7 @@ function PendingApprovalItem({
   const subtypeOptions =
     jobTitle === 'Engenheiro'
       ? ENGINEER_SUBTYPES
-      : subtypesForCargo(jobTitle, user.workArea ?? '')
+      : subtypesForCargo(jobTitle, user.workArea ?? '', { csdScopes: csdScopeOptions })
   const needsCompany = user.employmentType === 'Terceira'
   const needsSubtype = subtypeOptions.length > 0
   const needsHomeSubareas =
@@ -1300,6 +1303,9 @@ function HomePanel({
     () => savedNav?.gestaoHomeTab ?? 'dash',
   )
   const [terceiraOptions, setTerceiraOptions] = useState<string[]>([...THIRD_PARTY_COMPANIES])
+  const [csdScopeOptions, setCsdScopeOptions] = useState<string[]>([
+    ...TECHNICIAN_SCOPES_BY_AREA.CSD,
+  ])
   const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(
     () => savedNav?.selectedOrgCell ?? null,
@@ -1329,6 +1335,10 @@ function HomePanel({
         const terceira = catalogs.find((catalog) => catalog.key === 'terceira')
         if (terceira?.options.length) {
           setTerceiraOptions(terceira.options.map((option) => option.value))
+        }
+        const escopoCsd = catalogs.find((catalog) => catalog.key === 'escopo_csd')
+        if (escopoCsd?.options.length) {
+          setCsdScopeOptions(escopoCsd.options.map((option) => option.value))
         }
       })
       .catch(() => {
@@ -3013,6 +3023,7 @@ function HomePanel({
                           approvedUsers={registeredUsers}
                           orgCells={orgCells}
                           terceiraOptions={terceiraOptions}
+                          csdScopeOptions={csdScopeOptions}
                           onApprove={onApproveUser}
                           onReject={async (userId, reason) => {
                             const result = await onRejectUser(userId, reason)

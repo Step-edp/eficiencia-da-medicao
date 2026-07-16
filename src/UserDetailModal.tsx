@@ -19,6 +19,7 @@ import {
   mapTakenSubcellAreas,
   normalizeEngineerSubtype,
   parseAccessProcess,
+  TECHNICIAN_SCOPES_BY_AREA,
   subtypesForCargo,
 } from './registrationOptions'
 
@@ -123,6 +124,9 @@ export function UserDetailModal({
   const [profilePhoto, setProfilePhoto] = useState(user.profilePhoto ?? '')
   const [profilePhotoName, setProfilePhotoName] = useState('')
   const [password, setPassword] = useState(user.password ?? '')
+  const [csdScopeOptions, setCsdScopeOptions] = useState<string[]>([
+    ...TECHNICIAN_SCOPES_BY_AREA.CSD,
+  ])
   const photoInputId = `user-photo-${user.id}`
 
   useEffect(() => {
@@ -131,12 +135,15 @@ export function UserDetailModal({
       .then(({ catalogs }) => {
         const byKey = Object.fromEntries(
           catalogs.map((catalog) => [catalog.key, catalog.options.map((item) => item.value)]),
-        ) as Partial<Record<'cargo' | 'area' | 'tipo' | 'localidade', string[]>>
+        ) as Partial<
+          Record<'cargo' | 'area' | 'tipo' | 'localidade' | 'escopo_csd', string[]>
+        >
 
         if (byKey.cargo?.length) setCargoOptions(byKey.cargo)
         if (byKey.area?.length) setAreaOptions(byKey.area)
         if (byKey.tipo?.length) setTipoOptions(byKey.tipo)
         if (byKey.localidade?.length) setLocalityOptions(byKey.localidade)
+        if (byKey.escopo_csd?.length) setCsdScopeOptions(byKey.escopo_csd)
       })
       .catch(() => {
         // Mantém fallbacks locais.
@@ -174,7 +181,7 @@ export function UserDetailModal({
   }, [user, startInEditMode])
 
   const subtypeOptions = (() => {
-    const base = [...subtypesForCargo(jobTitle, workArea)]
+    const base = [...subtypesForCargo(jobTitle, workArea, { csdScopes: csdScopeOptions })]
     if (
       jobTitle === 'Engenheiro' &&
       isEngineerProcessSubtype(workSubtype) &&

@@ -13,6 +13,7 @@ import {
   portalAreasFromProcesses,
   portalsCoveredByCellResponsibility,
 } from '../engineer-access.js'
+import { listCatalogValues } from './catalog-options.js'
 import { isMailConfigured, sendRegistrationRejectedEmail } from '../mail.js'
 import {
   attachVacationMeta,
@@ -512,11 +513,8 @@ export async function approveUser(req: Request, res: Response) {
       'Atividades administrativas da Medição',
       'Laboratório de Medição',
     ],
-    CSD: [
-      'Lavratura de TOI',
-      'Leituras de faturamento',
-    ],
   }
+  const csdScopes = await listCatalogValues('escopo_csd')
   const legacyCsdScopes = ['Lavratura de TOI - Ponto Focal']
   const allowedEngineerHomeSubareas = [
     'Medição',
@@ -603,7 +601,7 @@ export async function approveUser(req: Request, res: Response) {
   } else if (workArea === 'CSD' || jobTitle === 'Técnico') {
     const allowedScopes =
       workArea === 'CSD'
-        ? [...technicianScopesByArea.CSD, ...legacyCsdScopes]
+        ? [...csdScopes, ...legacyCsdScopes]
         : (technicianScopesByArea[workArea] ?? [])
     if (!allowedScopes.includes(normalizedSubtype)) {
       res.status(400).json({
@@ -887,11 +885,8 @@ export async function updateUser(req: Request, res: Response) {
       'Atividades administrativas da Medição',
       'Laboratório de Medição',
     ],
-    CSD: [
-      'Lavratura de TOI',
-      'Leituras de faturamento',
-    ],
   }
+  const csdScopes = await listCatalogValues('escopo_csd')
   const legacyCsdScopes = ['Lavratura de TOI - Ponto Focal']
   const allowedEngineerHomeSubareas = [
     'Medição',
@@ -962,7 +957,7 @@ export async function updateUser(req: Request, res: Response) {
   } else if (normalizedWorkArea === 'CSD' || normalizedJobTitle === 'Técnico') {
     const allowedScopes =
       normalizedWorkArea === 'CSD'
-        ? [...technicianScopesByArea.CSD, ...legacyCsdScopes]
+        ? [...csdScopes, ...legacyCsdScopes]
         : (technicianScopesByArea[normalizedWorkArea] ?? [])
     if (allowedScopes.length > 0) {
       if (!allowedScopes.includes(normalizedSubtype)) {

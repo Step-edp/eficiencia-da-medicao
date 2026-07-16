@@ -3,7 +3,14 @@ import { query } from '../db.js'
 import { requireAdmin, requireAuth } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 
-export const CATALOG_KEYS = ['cargo', 'area', 'tipo', 'terceira', 'localidade'] as const
+export const CATALOG_KEYS = [
+  'cargo',
+  'area',
+  'tipo',
+  'terceira',
+  'localidade',
+  'escopo_csd',
+] as const
 export type CatalogKey = (typeof CATALOG_KEYS)[number]
 
 export const CATALOG_LABELS: Record<CatalogKey, string> = {
@@ -12,6 +19,7 @@ export const CATALOG_LABELS: Record<CatalogKey, string> = {
   tipo: 'Tipo',
   terceira: 'Empresa terceira',
   localidade: 'Localidade',
+  escopo_csd: 'Escopo · CSD',
 }
 
 const DEFAULT_OPTIONS: Record<CatalogKey, string[]> = {
@@ -56,6 +64,7 @@ const DEFAULT_OPTIONS: Record<CatalogKey, string[]> = {
     'Taubaté',
     'Tremembé',
   ],
+  escopo_csd: ['Lavratura de TOI', 'Leituras de faturamento'],
 }
 
 type CatalogOptionRow = {
@@ -94,6 +103,19 @@ export async function ensureCatalogOptionsSeeded() {
        AND value <> ALL($1::text[])`,
     [DEFAULT_OPTIONS.terceira],
   )
+}
+
+export async function listCatalogValues(catalogKey: CatalogKey): Promise<string[]> {
+  const result = await query<{ value: string }>(
+    `SELECT value FROM catalog_options
+     WHERE catalog_key = $1
+     ORDER BY sort_order ASC, value ASC`,
+    [catalogKey],
+  )
+  if (result.rows.length > 0) {
+    return result.rows.map((row) => row.value)
+  }
+  return [...DEFAULT_OPTIONS[catalogKey]]
 }
 
 export async function listCatalogOptions(_req: Request, res: Response) {

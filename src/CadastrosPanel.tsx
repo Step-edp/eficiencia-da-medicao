@@ -72,6 +72,17 @@ const FALLBACK_CATALOGS: CatalogGroup[] = [
       label: 'Localidade',
     })),
   },
+  {
+    key: 'escopo_csd',
+    label: 'Escopo · CSD',
+    options: TECHNICIAN_SCOPES_BY_AREA.CSD.map((value, index) => ({
+      id: -(200 + index),
+      catalogKey: 'escopo_csd' as const,
+      value,
+      sortOrder: index,
+      label: 'Escopo · CSD',
+    })),
+  },
 ]
 
 type CadastrosPanelProps = {
@@ -88,6 +99,7 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
     tipo: '',
     terceira: '',
     localidade: '',
+    escopo_csd: '',
   })
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
@@ -238,7 +250,10 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
         <header className="profiles-section-header">
           <div>
             <h3 id="approval-options-title">Opções de aprovação</h3>
-            <p>Escopo e abrangência do engenheiro disponíveis para o aprovador.</p>
+            <p>
+              Escopo de Medição e abrangência do engenheiro. As atividades do
+              Escopo · CSD são cadastradas na lista editável abaixo.
+            </p>
           </div>
         </header>
         <div className="catalogs-grid">
@@ -248,18 +263,6 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
             </header>
             <ul className="catalog-option-list">
               {TECHNICIAN_SCOPES_BY_AREA.Medição.map((option) => (
-                <li key={option}>
-                  <span>{option}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-          <section className="catalog-card">
-            <header className="catalog-card-header">
-              <h3>Escopo · CSD</h3>
-            </header>
-            <ul className="catalog-option-list">
-              {TECHNICIAN_SCOPES_BY_AREA.CSD.map((option) => (
                 <li key={option}>
                   <span>{option}</span>
                 </li>
@@ -348,7 +351,11 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
                 >
                   <input
                     type="text"
-                    placeholder={`Nova opção de ${catalog.label.toLowerCase()}`}
+                    placeholder={
+                      catalog.key === 'escopo_csd'
+                        ? 'Nova atividade do escopo CSD'
+                        : `Nova opção de ${catalog.label.toLowerCase()}`
+                    }
                     value={drafts[catalog.key]}
                     onChange={(event) =>
                       setDrafts((current) => ({
