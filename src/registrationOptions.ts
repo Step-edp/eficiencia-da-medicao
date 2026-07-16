@@ -8,7 +8,6 @@ export const TECHNICIAN_SCOPES_BY_AREA: Record<string, readonly string[]> = {
   ],
   CSD: [
     'Lavratura de TOI',
-    'Lavratura de TOI - Ponto Focal',
     'Leituras de faturamento',
   ],
 }
@@ -250,6 +249,10 @@ export function subtypesForCargo(jobTitle: string, workArea = ''): readonly stri
   const cargo = jobTitle.trim()
   const area = workArea.trim()
   if (cargo === 'Engenheiro') return ENGINEER_SUBTYPES
+  // CSD: escopo obrigatório para qualquer cargo (própria ou terceira).
+  if (area === 'CSD') {
+    return TECHNICIAN_SCOPES_BY_AREA.CSD
+  }
   if (cargo === 'Técnico') {
     return TECHNICIAN_SCOPES_BY_AREA[area] ?? []
   }
@@ -290,7 +293,7 @@ export function countResponsibleProcesses(user: {
     }
   }
 
-  if (jobTitle === 'Técnico' && workSubtype) {
+  if ((jobTitle === 'Técnico' || workArea === 'CSD') && workSubtype) {
     return 1
   }
 

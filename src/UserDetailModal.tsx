@@ -182,6 +182,9 @@ export function UserDetailModal({
     ) {
       base.push(workSubtype)
     }
+    if (workSubtype && !base.includes(workSubtype)) {
+      base.push(workSubtype)
+    }
     return base
   })()
   const needsCompany = employmentType === 'Terceira'

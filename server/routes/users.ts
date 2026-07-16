@@ -514,10 +514,10 @@ export async function approveUser(req: Request, res: Response) {
     ],
     CSD: [
       'Lavratura de TOI',
-      'Lavratura de TOI - Ponto Focal',
       'Leituras de faturamento',
     ],
   }
+  const legacyCsdScopes = ['Lavratura de TOI - Ponto Focal']
   const allowedEngineerHomeSubareas = [
     'Medição',
     'Laboratório de Medição',
@@ -547,20 +547,7 @@ export async function approveUser(req: Request, res: Response) {
   let storedSubtype = ''
   let storedAccessAreas: string[] = []
   let storedAccessProcesses: string[] = []
-  if (jobTitle === 'Técnico') {
-    const allowedScopes = technicianScopesByArea[workArea] ?? []
-    if (!allowedScopes.includes(normalizedSubtype)) {
-      res.status(400).json({
-        error:
-          allowedScopes.length === 0
-            ? 'Este técnico está em uma área sem escopo configurado.'
-            : 'Selecione o escopo antes de aprovar.',
-      })
-      return
-    }
-    storedSubtype = normalizedSubtype
-    storedAccessAreas = accessAreasForTechnician(workArea, normalizedSubtype)
-  } else if (jobTitle === 'Engenheiro') {
+  if (jobTitle === 'Engenheiro') {
     if (!isAllowedEngineerSubtype(normalizedSubtype)) {
       res.status(400).json({ error: 'Selecione a abrangência do engenheiro antes de aprovar.' })
       return
@@ -613,6 +600,22 @@ export async function approveUser(req: Request, res: Response) {
       storedAccessProcesses = requestedAccessProcesses
       storedAccessAreas = portalAreasFromProcesses(workArea, storedAccessProcesses)
     }
+  } else if (workArea === 'CSD' || jobTitle === 'Técnico') {
+    const allowedScopes =
+      workArea === 'CSD'
+        ? [...technicianScopesByArea.CSD, ...legacyCsdScopes]
+        : (technicianScopesByArea[workArea] ?? [])
+    if (!allowedScopes.includes(normalizedSubtype)) {
+      res.status(400).json({
+        error:
+          allowedScopes.length === 0
+            ? 'Este cadastro está em uma área sem escopo configurado.'
+            : 'Selecione o escopo antes de aprovar.',
+      })
+      return
+    }
+    storedSubtype = normalizedSubtype
+    storedAccessAreas = accessAreasForTechnician(workArea, normalizedSubtype)
   }
 
   const result = await query<UserRow>(
@@ -886,10 +889,10 @@ export async function updateUser(req: Request, res: Response) {
     ],
     CSD: [
       'Lavratura de TOI',
-      'Lavratura de TOI - Ponto Focal',
       'Leituras de faturamento',
     ],
   }
+  const legacyCsdScopes = ['Lavratura de TOI - Ponto Focal']
   const allowedEngineerHomeSubareas = [
     'Medição',
     'Laboratório de Medição',
@@ -904,20 +907,7 @@ export async function updateUser(req: Request, res: Response) {
   let storedAccessAreas: string[] = []
   let storedAccessProcesses: string[] = []
 
-  if (normalizedJobTitle === 'Técnico') {
-    const allowedScopes = technicianScopesByArea[normalizedWorkArea] ?? []
-    if (allowedScopes.length > 0) {
-      if (!allowedScopes.includes(normalizedSubtype)) {
-        res.status(400).json({ error: 'Selecione o escopo do técnico.' })
-        return
-      }
-      storedSubtype = normalizedSubtype
-      storedAccessAreas = accessAreasForTechnician(
-        normalizedWorkArea,
-        normalizedSubtype,
-      )
-    }
-  } else if (normalizedJobTitle === 'Engenheiro') {
+  if (normalizedJobTitle === 'Engenheiro') {
     if (!isAllowedEngineerSubtype(normalizedSubtype)) {
       res.status(400).json({ error: 'Selecione a abrangência do engenheiro.' })
       return
@@ -968,6 +958,22 @@ export async function updateUser(req: Request, res: Response) {
       }
       storedAccessProcesses = requestedAccessProcesses
       storedAccessAreas = portalAreasFromProcesses(normalizedWorkArea, storedAccessProcesses)
+    }
+  } else if (normalizedWorkArea === 'CSD' || normalizedJobTitle === 'Técnico') {
+    const allowedScopes =
+      normalizedWorkArea === 'CSD'
+        ? [...technicianScopesByArea.CSD, ...legacyCsdScopes]
+        : (technicianScopesByArea[normalizedWorkArea] ?? [])
+    if (allowedScopes.length > 0) {
+      if (!allowedScopes.includes(normalizedSubtype)) {
+        res.status(400).json({ error: 'Selecione o escopo.' })
+        return
+      }
+      storedSubtype = normalizedSubtype
+      storedAccessAreas = accessAreasForTechnician(
+        normalizedWorkArea,
+        normalizedSubtype,
+      )
     }
   }
 
