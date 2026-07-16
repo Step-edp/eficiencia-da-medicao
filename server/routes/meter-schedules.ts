@@ -66,6 +66,28 @@ export async function listMeterSchedules(req: Request, res: Response) {
     typeof req.query.trailStep === 'string' && req.query.trailStep.trim()
       ? req.query.trailStep.trim()
       : ENTRADA_TRAIL_STEP
+  const mineOnly =
+    req.query.mine === '1' ||
+    req.query.mine === 'true' ||
+    req.query.mine === 'yes'
+
+  const params: unknown[] = [trailStep]
+  let mineFilter = ''
+
+  if (mineOnly) {
+    if (!req.user?.id) {
+      res.status(401).json({ error: 'Autenticação necessária.' })
+      return
+    }
+    const registration = (req.user.registration ?? '').trim().toUpperCase()
+    params.push(req.user.id, registration)
+    mineFilter = `
+      AND (
+        ms.created_by_user_id = $2
+        OR UPPER(TRIM(ms.toi_collaborator1_registration)) = $3
+        OR UPPER(TRIM(ms.toi_collaborator2_registration)) = $3
+      )`
+  }
 
   const result = await query<MeterScheduleRow>(
     `SELECT ms.*, u.registration AS created_by_registration,
@@ -81,8 +103,9 @@ export async function listMeterSchedules(req: Request, res: Response) {
        LIMIT 1
      ) d ON true
      WHERE ms.trail_step = $1
+     ${mineFilter}
      ORDER BY ms.scheduled_at ASC, ms.created_at DESC`,
-    [trailStep],
+    params,
   )
 
   res.json({

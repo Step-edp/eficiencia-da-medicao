@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError, type MeterScheduleRecord } from './api'
 
-export function FieldTeamConsultarPanel() {
+type FieldTeamSchedulesPanelProps = {
+  mode?: 'all' | 'mine'
+}
+
+export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPanelProps) {
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
+  const isMine = mode === 'mine'
 
   const load = useCallback(async () => {
     setLoading(true)
     setFeedback(null)
     try {
-      const { schedules: rows } = await api.listMeterSchedules()
+      const { schedules: rows } = await api.listMeterSchedules(undefined, {
+        mine: isMine,
+      })
       setSchedules(rows)
     } catch (error) {
       setSchedules([])
@@ -21,12 +28,14 @@ export function FieldTeamConsultarPanel() {
         message:
           error instanceof ApiError
             ? error.message
-            : 'Não foi possível carregar os agendamentos.',
+            : isMine
+              ? 'Não foi possível carregar seus TOIs.'
+              : 'Não foi possível carregar os agendamentos.',
       })
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [isMine])
 
   useEffect(() => {
     void load()
@@ -35,7 +44,11 @@ export function FieldTeamConsultarPanel() {
   return (
     <div className="entrada-panel">
       <div className="entrada-panel-header">
-        <p>Consulta dos medidores agendados pela equipe de campo.</p>
+        <p>
+          {isMine
+            ? 'TOIs que você agendou ou em que aparece como colaborador da lavratura.'
+            : 'Consulta dos medidores agendados pela equipe de campo.'}
+        </p>
         <div className="entrada-panel-actions">
           <button
             type="button"
@@ -55,9 +68,13 @@ export function FieldTeamConsultarPanel() {
       ) : null}
 
       {loading ? (
-        <p className="entrada-panel-empty">Carregando agendamentos...</p>
+        <p className="entrada-panel-empty">
+          {isMine ? 'Carregando seus TOIs...' : 'Carregando agendamentos...'}
+        </p>
       ) : schedules.length === 0 ? (
-        <p className="entrada-panel-empty">Nenhum agendamento encontrado.</p>
+        <p className="entrada-panel-empty">
+          {isMine ? 'Nenhum TOI encontrado para o seu usuário.' : 'Nenhum agendamento encontrado.'}
+        </p>
       ) : (
         <div className="entrada-table-wrap">
           <table className="data-table entrada-table">

@@ -62,7 +62,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'tecnico-inspecao',
     name: 'CSD – Técnico – Inspeção',
     description:
-      'Permite agendar e consultar medidores na Equipe de campo (Agendar e Consultar), provenientes de lavratura de TOI com suspeita de fraude ou defeito, destinados a ensaios no Laboratório de Medição da EDP SP.',
+      'Permite agendar, consultar e acompanhar Meus TOIs na Equipe de campo, para medidores provenientes de lavratura de TOI com suspeita de fraude ou defeito, destinados a ensaios no Laboratório de Medição da EDP SP.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -74,7 +74,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'analista-lavratura-toi',
     name: 'CSD – Analista – Lavratura de TOI',
     description:
-      'Permite agendar e consultar medidores na Equipe de campo (Agendar e Consultar) para equipamentos provenientes de lavratura de TOI.',
+      'Permite agendar, consultar e acompanhar Meus TOIs na Equipe de campo para equipamentos provenientes de lavratura de TOI.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -86,7 +86,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'ponto-focal-inspecao',
     name: 'CSD – Ponto Focal – Inspeção',
     description:
-      'Permite realizar o agendamento de medidores em nome das equipes de campo para equipamentos provenientes de lavratura de TOI, com suspeita de fraude ou defeito, destinados ao Laboratório de Medição da EDP SP. Além disso, é responsável pelo controle, acompanhamento e entrega desses medidores ao laboratório.',
+      'Permite agendar, consultar e acompanhar Meus TOIs na Equipe de campo, além do Laboratório de Medição, para equipamentos provenientes de lavratura de TOI. Também é responsável pelo controle, acompanhamento e entrega desses medidores ao laboratório.',
     areas: ['Equipe de campo', 'Laboratório de Medição'],
     match: {
       workArea: 'CSD',
@@ -98,7 +98,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'backoffice-inspecao',
     name: 'CSD – BackOffice – Lavratura de TOI',
     description:
-      'Permite agendar e consultar medidores na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI.',
+      'Permite agendar, consultar e acompanhar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',

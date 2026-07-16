@@ -690,6 +690,7 @@ function ItemIcon({ title }: { title: string }) {
     Cadastros: 'archive',
     Agenda: 'calendar',
     Consultar: 'search',
+    'Meus TOIs': 'inbox',
   }
 
   const icon = iconByTitle[title] ?? 'star'
@@ -1501,7 +1502,6 @@ function HomePanel({
     'Pedidos de Homologação',
     'Código de materiais',
   ]
-  const fieldTeamSections = ['Agendar', 'Consultar']
 
   const allAreas: Area[] = [
     {
@@ -1576,6 +1576,13 @@ function HomePanel({
     isAdmin && previewProfileId !== ADMIN_PREVIEW_PROFILE_ID
       ? CADASTRO_PROFILES.find((profile) => profile.id === previewProfileId)
       : null
+
+  const fieldTeamSections =
+    isFieldTeamCsdScope(currentUser.workSubtype) ||
+    isFieldTeamCsdScope(previewProfile?.match.workSubtype) ||
+    (isAdmin && previewProfileId === ADMIN_PREVIEW_PROFILE_ID)
+      ? ['Agendar', 'Consultar', 'Meus TOIs']
+      : ['Agendar', 'Consultar']
 
   const accessiblePortals = (() => {
     if (isAdmin && previewProfileId === ADMIN_PREVIEW_PROFILE_ID) {
@@ -3597,6 +3604,8 @@ function HomePanel({
                   requireToiTeam={isLavraturaBackofficeScope(currentUser.workSubtype)}
                 />
               </>
+            ) : selectedFieldTeamSection === 'Meus TOIs' ? (
+              <FieldTeamConsultarPanel mode="mine" />
             ) : (
               <FieldTeamConsultarPanel />
             )}
@@ -4110,8 +4119,8 @@ function HomePanel({
           {selectedArea.title === 'Equipe de campo' ? (
             <div className="measurement-sections" aria-label="Funções da equipe de campo">
               <p>
-                Perfis de <strong>Lavratura de TOI</strong> têm acesso a Agendar e Consultar
-                nesta área.
+                Perfis de <strong>Lavratura de TOI</strong> têm acesso a Agendar, Consultar e
+                Meus TOIs nesta área.
               </p>
               {fieldTeamSections.map((section) => (
                 <button

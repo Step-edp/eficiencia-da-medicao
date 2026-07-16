@@ -655,9 +655,10 @@ export const api = {
       `/api/audit-logs${queryString ? `?${queryString}` : ''}`,
     )
   },
-  listMeterSchedules: (trailStep?: string) => {
+  listMeterSchedules: (trailStep?: string, options?: { mine?: boolean }) => {
     const search = new URLSearchParams()
     if (trailStep) search.set('trailStep', trailStep)
+    if (options?.mine) search.set('mine', '1')
     const queryString = search.toString()
     return request<{ schedules: MeterScheduleRecord[]; total: number }>(
       `/api/meter-schedules${queryString ? `?${queryString}` : ''}`,
