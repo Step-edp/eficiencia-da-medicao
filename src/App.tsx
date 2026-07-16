@@ -3731,7 +3731,9 @@ function HomePanel({
             <p className="section-tag">
               {flattenFieldTeamHome ? 'Portal' : 'Equipe de campo'}
             </p>
-            <h2>{selectedFieldTeamSection}</h2>
+            {selectedFieldTeamSection !== 'Agendar' ? (
+              <h2>{selectedFieldTeamSection}</h2>
+            ) : null}
             {selectedFieldTeamSection === 'Agendar' ? (
               <FieldTeamCadastrarForm
                 requireToiTeam={isLavraturaBackofficeScope(currentUser.workSubtype)}
