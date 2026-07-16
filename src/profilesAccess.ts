@@ -19,25 +19,13 @@ export const PORTAL_AREAS = [
 
 export type PortalArea = (typeof PORTAL_AREAS)[number]
 
-/** Home do usuário: Gestão Operacional é a área primária quando há acesso a qualquer subcélula. */
-const GESTAO_NESTED_PORTALS: PortalArea[] = [
-  'Medição',
-  'Laboratório de Medição',
-  'Laboratório de Homologação',
-  'Telemedição',
-  'Equipe de campo',
-  'Usuários',
-  'Cadastros',
-]
-
 export function portalsToHomeCards(portals: readonly PortalArea[]): readonly PortalArea[] {
   const hasAgenda = portals.includes('Agenda')
   const withoutAgenda = portals.filter((portal) => portal !== 'Agenda')
-  const hasGestaoAccess =
-    withoutAgenda.includes('Gestão Operacional') ||
-    withoutAgenda.some((portal) => GESTAO_NESTED_PORTALS.includes(portal))
 
-  const cards: PortalArea[] = hasGestaoAccess
+  // Gestão Operacional só como card único quando o perfil tem esse acesso explícito
+  // (gestor / responsável pela célula). Responsáveis por subcélula veem as áreas atribuídas.
+  const cards: PortalArea[] = withoutAgenda.includes('Gestão Operacional')
     ? ['Gestão Operacional']
     : [...withoutAgenda]
 
