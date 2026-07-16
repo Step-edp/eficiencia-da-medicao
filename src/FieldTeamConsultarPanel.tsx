@@ -86,6 +86,7 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
                 <th>Nota</th>
                 <th>CSD</th>
                 <th>Equipe TOI</th>
+                <th>Motivo (Backoffice)</th>
                 <th>Data agendada</th>
                 <th>Etapa</th>
                 <th>Criado por</th>
@@ -113,6 +114,7 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
                           .join(' · ')
                       : '—'}
                   </td>
+                  <td>{item.toiTeamReason?.trim() || '—'}</td>
                   <td>{item.scheduledAtLabel || '—'}</td>
                   <td>{item.trailStep || '—'}</td>
                   <td>{item.createdByRegistration || '—'}</td>

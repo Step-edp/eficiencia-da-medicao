@@ -23,6 +23,7 @@ type MeterScheduleRow = {
   toi_collaborator1_registration: string
   toi_collaborator2_name: string
   toi_collaborator2_registration: string
+  toi_team_reason: string
   scheduled_at: Date
   trail_step: string
   source: string
@@ -48,6 +49,7 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     toiCollaborator1Registration: row.toi_collaborator1_registration || '',
     toiCollaborator2Name: row.toi_collaborator2_name || '',
     toiCollaborator2Registration: row.toi_collaborator2_registration || '',
+    toiTeamReason: row.toi_team_reason || '',
     scheduledAt: row.scheduled_at.toISOString(),
     scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
     trailStep: row.trail_step,
@@ -141,6 +143,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     toiCollaborator1Registration,
     toiCollaborator2Name,
     toiCollaborator2Registration,
+    toiTeamReason,
   } = req.body as {
     meter?: string
     installation?: string
@@ -153,6 +156,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     toiCollaborator1Registration?: string
     toiCollaborator2Name?: string
     toiCollaborator2Registration?: string
+    toiTeamReason?: string
   }
 
   const normalized = {
@@ -167,6 +171,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     toiCollaborator1Registration: toiCollaborator1Registration?.trim() ?? '',
     toiCollaborator2Name: toiCollaborator2Name?.trim() ?? '',
     toiCollaborator2Registration: toiCollaborator2Registration?.trim() ?? '',
+    toiTeamReason: toiTeamReason?.trim() ?? '',
   }
 
   for (const [value, field] of [
@@ -214,6 +219,12 @@ export async function createMeterSchedule(req: Request, res: Response) {
       })
       return
     }
+    if (!normalized.toiTeamReason) {
+      res.status(400).json({
+        error: 'Informe o motivo pelo qual está agendando pela equipe.',
+      })
+      return
+    }
   }
 
   const duplicate = await query<{ id: string }>(
@@ -251,8 +262,9 @@ export async function createMeterSchedule(req: Request, res: Response) {
       scheduling_notes,
       toi_collaborator1_name, toi_collaborator1_registration,
       toi_collaborator2_name, toi_collaborator2_registration,
+      toi_team_reason,
       scheduled_at, trail_step, source, created_by_user_id
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'field_team',$15)
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'field_team',$16)
     RETURNING *`,
     [
       id,
@@ -267,6 +279,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
       normalized.toiCollaborator1Registration,
       normalized.toiCollaborator2Name,
       normalized.toiCollaborator2Registration,
+      normalized.toiTeamReason,
       nextSlot.toISOString(),
       ENTRADA_TRAIL_STEP,
       req.user?.id ?? null,

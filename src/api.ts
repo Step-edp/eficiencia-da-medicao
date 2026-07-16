@@ -273,6 +273,7 @@ export type MeterScheduleRecord = {
   toiCollaborator1Registration?: string
   toiCollaborator2Name?: string
   toiCollaborator2Registration?: string
+  toiTeamReason?: string
   scheduledAt: string
   scheduledAtLabel: string
   trailStep: string
@@ -686,6 +687,7 @@ export const api = {
     toiCollaborator1Registration?: string
     toiCollaborator2Name?: string
     toiCollaborator2Registration?: string
+    toiTeamReason?: string
   }) =>
     request<{ schedule: MeterScheduleRecord }>('/api/meter-schedules', {
       method: 'POST',

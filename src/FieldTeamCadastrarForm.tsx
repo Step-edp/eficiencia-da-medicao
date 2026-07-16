@@ -33,7 +33,8 @@ type FieldTeamFieldErrors = Partial<
     | 'collaborator1Name'
     | 'collaborator1Registration'
     | 'collaborator2Name'
-    | 'collaborator2Registration',
+    | 'collaborator2Registration'
+    | 'teamReason',
     string
   >
 >
@@ -55,6 +56,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
   const [collaborator1Registration, setCollaborator1Registration] = useState('')
   const [collaborator2Name, setCollaborator2Name] = useState('')
   const [collaborator2Registration, setCollaborator2Registration] = useState('')
+  const [teamReason, setTeamReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [slotModal, setSlotModal] = useState<{
     meter: string
@@ -114,6 +116,9 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       if (!collaborator2Registration.trim()) {
         nextErrors.collaborator2Registration = 'Informe a matrícula do colaborador 2.'
       }
+      if (!teamReason.trim()) {
+        nextErrors.teamReason = 'Informe o motivo pelo qual está agendando pela equipe.'
+      }
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -140,6 +145,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
               toiCollaborator1Registration: collaborator1Registration.trim(),
               toiCollaborator2Name: collaborator2Name.trim(),
               toiCollaborator2Registration: collaborator2Registration.trim(),
+              toiTeamReason: teamReason.trim(),
             }
           : {}),
       })
@@ -159,6 +165,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       setCollaborator1Registration('')
       setCollaborator2Name('')
       setCollaborator2Registration('')
+      setTeamReason('')
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -381,6 +388,22 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                   aria-invalid={Boolean(fieldErrors.collaborator2Registration)}
                 />
                 <FormFieldError message={fieldErrors.collaborator2Registration} />
+              </label>
+              <label
+                className={`full-width${fieldErrors.teamReason ? ' has-field-error' : ''}`}
+              >
+                <RequiredLabel>Motivo pelo qual está agendando pela equipe</RequiredLabel>
+                <textarea
+                  rows={3}
+                  value={teamReason}
+                  onChange={(event) => {
+                    setTeamReason(event.target.value)
+                    clearFieldError('teamReason')
+                  }}
+                  placeholder="Descreva o motivo do agendamento em nome da equipe"
+                  aria-invalid={Boolean(fieldErrors.teamReason)}
+                />
+                <FormFieldError message={fieldErrors.teamReason} />
               </label>
             </div>
           </fieldset>
