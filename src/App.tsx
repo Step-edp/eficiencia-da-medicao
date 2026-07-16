@@ -2,6 +2,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
+import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
+import { FieldTeamConsultarPanel } from './FieldTeamConsultarPanel'
 import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
@@ -14,6 +16,7 @@ import {
   getHomeAreasForProfilePreview,
   getHomeAreasForUser,
   getAccessiblePortals,
+  isFieldTeamCsdScope,
   listUsersForCadastroProfile,
   PORTAL_AREAS,
   roleLabel,
@@ -71,9 +74,6 @@ import {
 } from './homeNavState'
 
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
-const FIELD_APP_URL =
-  (import.meta.env.VITE_FIELD_APP_URL as string | undefined)?.trim() ||
-  'https://agendamento-lab-med-production.up.railway.app'
 
 const THIRD_PARTY_COMPANIES = ['BMB', 'ROTARY', 'TIVIT'] as const
 
@@ -1290,10 +1290,10 @@ function HomePanel({
   const [selectedLabMeasurementSection, setSelectedLabMeasurementSection] = useState<
     string | null
   >(() => savedNav?.selectedLabMeasurementSection ?? null)
+  const [selectedFieldTeamSection, setSelectedFieldTeamSection] = useState<string | null>(null)
   const [selectedHomologationSection, setSelectedHomologationSection] = useState<string | null>(
     () => savedNav?.selectedHomologationSection ?? null,
   )
-  const [openingFieldApp, setOpeningFieldApp] = useState(false)
   const [selectedUserDetail, setSelectedUserDetail] = useState<AppUser | null>(null)
   const [userDetailStartEditing, setUserDetailStartEditing] = useState(false)
   const [usersView, setUsersView] = useState<UsersViewTab>(
@@ -1502,26 +1502,6 @@ function HomePanel({
   ]
   const fieldTeamSections = ['Agendar', 'Consultar']
 
-  const openFieldApp = async (section: string) => {
-    setOpeningFieldApp(true)
-    setPasswordFeedback(null)
-    try {
-      const { ssoToken } = await api.createEmbedToken()
-      const url = new URL(FIELD_APP_URL)
-      url.hash = `sso=${encodeURIComponent(ssoToken)}&section=${encodeURIComponent(section)}`
-      window.location.assign(url.toString())
-    } catch (error) {
-      setOpeningFieldApp(false)
-      setPasswordFeedback({
-        type: 'error',
-        message:
-          error instanceof ApiError
-            ? error.message
-            : 'Não foi possível abrir o Agendamento Lab Med.',
-      })
-    }
-  }
-
   const allAreas: Area[] = [
     {
       title: 'Gestão Operacional',
@@ -1560,9 +1540,9 @@ function HomePanel({
     {
       title: 'Equipe de campo',
       description:
-        'Agendar e consultar medidores no Agendamento Lab Med (mesmo banco do laboratório).',
+        'Agendar e consultar medidores provenientes de lavratura de TOI e demais atividades de campo.',
       details:
-        'Abre o aplicativo Agendamento Lab Med com login automático. Os agendamentos entram direto na trilha Entrada de medidores.',
+        'Use Agendar para cadastrar medidores e Consultar para acompanhar os agendamentos registrados.',
     },
     {
       title: 'Usuários',
@@ -1627,6 +1607,7 @@ function HomePanel({
   const clearAreaSections = () => {
     setSelectedMeasurementSection(null)
     setSelectedLabMeasurementSection(null)
+    setSelectedFieldTeamSection(null)
     setSelectedHomologationSection(null)
     setSelectedPasswordAction(null)
     setSelectedCodeMaterialsAction(null)
@@ -2606,6 +2587,10 @@ function HomePanel({
     currentUser.role === 'compras' &&
     !(currentUser.accessAreas?.length) &&
     !(currentUser.accessProcesses?.length) &&
+    !(
+      currentUser.workArea?.trim() === 'CSD' &&
+      isFieldTeamCsdScope(currentUser.workSubtype)
+    ) &&
     currentUser.vacationStatus === 'ok'
   ) {
     return (
@@ -3585,14 +3570,29 @@ function HomePanel({
 
     if (
       selectedArea.title === 'Equipe de campo' &&
-      openingFieldApp
+      selectedFieldTeamSection
     ) {
       return (
         <main className="shell">
           <section className="home-card area-screen-card">
+            <TopActionBar
+              onBack={() => setSelectedFieldTeamSection(null)}
+              onHome={() => {
+                setSelectedFieldTeamSection(null)
+                setSelectedArea(null)
+              }}
+              onLogout={onLogout}
+            />
             <p className="section-tag">Equipe de campo</p>
-            <h2>Abrindo Agendamento Lab Med...</h2>
-            <p>Você será redirecionado para o aplicativo de agendamento.</p>
+            <h2>{selectedFieldTeamSection}</h2>
+            {selectedFieldTeamSection === 'Agendar' ? (
+              <>
+                <p>Preencha os dados do medidor para calcular a próxima data disponível.</p>
+                <FieldTeamCadastrarForm />
+              </>
+            ) : (
+              <FieldTeamConsultarPanel />
+            )}
           </section>
         </main>
       )
@@ -4102,27 +4102,20 @@ function HomePanel({
           ) : null}
           {selectedArea.title === 'Equipe de campo' ? (
             <div className="measurement-sections" aria-label="Funções da equipe de campo">
-              {passwordFeedback ? (
-                <div className={`login-feedback ${passwordFeedback.type}`} role="status">
-                  {passwordFeedback.message}
-                </div>
-              ) : null}
               <p>
-                Agendar e consultar abrem o aplicativo{' '}
-                <strong>Agendamento Lab Med</strong>, integrado ao mesmo banco do
-                laboratório.
+                Perfis de <strong>Lavratura de TOI</strong> têm acesso a Agendar e Consultar
+                nesta área.
               </p>
               {fieldTeamSections.map((section) => (
                 <button
                   key={section}
                   className="measurement-item"
                   type="button"
-                  disabled={openingFieldApp}
-                  onClick={() => void openFieldApp(section)}
+                  onClick={() => setSelectedFieldTeamSection(section)}
                 >
                   <span className="item-with-icon">
                     <ItemIcon title={section} />
-                    <span>{openingFieldApp ? 'Abrindo...' : section}</span>
+                    <span>{section}</span>
                   </span>
                 </button>
               ))}

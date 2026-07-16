@@ -59,25 +59,26 @@ export type CadastroProfile = {
 
 export const CADASTRO_PROFILES: CadastroProfile[] = [
   {
-    id: 'backoffice-inspecao',
-    name: 'CSD – BackOffice – Inspeção',
-    description:
-      'Permite realizar o agendamento de medidores em nome das equipes de campo para equipamentos provenientes de lavratura de TOI, com suspeita de fraude ou defeito, que necessitem de ensaio no Laboratório de Medição da EDP SP.',
-    areas: ['Equipe de campo'],
-    match: {
-      workArea: 'CSD',
-      jobTitle: 'Analista',
-    },
-  },
-  {
     id: 'tecnico-inspecao',
     name: 'CSD – Técnico – Inspeção',
     description:
-      'Permite realizar o agendamento de medidores provenientes de lavratura de TOI, com suspeita de fraude ou defeito, destinados à realização de ensaios no Laboratório de Medição da EDP SP.',
+      'Permite agendar e consultar medidores na Equipe de campo (Agendar e Consultar), provenientes de lavratura de TOI com suspeita de fraude ou defeito, destinados a ensaios no Laboratório de Medição da EDP SP.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
       jobTitle: 'Técnico',
+      workSubtype: 'Lavratura de TOI',
+    },
+  },
+  {
+    id: 'analista-lavratura-toi',
+    name: 'CSD – Analista – Lavratura de TOI',
+    description:
+      'Permite agendar e consultar medidores na Equipe de campo (Agendar e Consultar) para equipamentos provenientes de lavratura de TOI.',
+    areas: ['Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Analista',
       workSubtype: 'Lavratura de TOI',
     },
   },
@@ -91,6 +92,17 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
       workArea: 'CSD',
       jobTitle: 'Técnico',
       workSubtype: 'Lavratura de TOI - Ponto Focal',
+    },
+  },
+  {
+    id: 'backoffice-inspecao',
+    name: 'CSD – BackOffice – Inspeção',
+    description:
+      'Permite realizar o agendamento de medidores em nome das equipes de campo para equipamentos provenientes de lavratura de TOI, com suspeita de fraude ou defeito, que necessitem de ensaio no Laboratório de Medição da EDP SP.',
+    areas: ['Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Analista',
     },
   },
   {
@@ -222,6 +234,15 @@ export function getHomeAreasForRole(role: UserRole): readonly PortalArea[] {
   return portalsToHomeCards(PORTAL_AREAS.filter((area) => areas.includes(area)))
 }
 
+/** Escopos CSD que liberam Equipe de campo (Agendar / Consultar). */
+export function isFieldTeamCsdScope(workSubtype?: string | null) {
+  const normalized = workSubtype?.trim() ?? ''
+  return (
+    normalized === 'Lavratura de TOI' ||
+    normalized === 'Lavratura de TOI - Ponto Focal'
+  )
+}
+
 /** Portais que o usuário pode abrir (sem colapsar em Gestão Operacional). */
 export function getAccessiblePortals(user: {
   role: UserRole
@@ -254,6 +275,15 @@ export function getAccessiblePortals(user: {
       const areas = SYSTEM_ROLE_ACCESS[user.role]?.areas ?? []
       portals = PORTAL_AREAS.filter((area) => areas.includes(area))
     }
+  }
+
+  // Lavratura de TOI (e Ponto Focal) sempre acessam Equipe de campo → Agendar/Consultar.
+  if (
+    user.workArea?.trim() === 'CSD' &&
+    isFieldTeamCsdScope(user.workSubtype) &&
+    !portals.includes('Equipe de campo')
+  ) {
+    portals = [...portals, 'Equipe de campo']
   }
 
   if (!portals.includes('Agenda')) {
@@ -309,6 +339,9 @@ export function userMatchesCadastroProfile(
     } else if (workSubtype !== expected) {
       return false
     }
+  } else if (isFieldTeamCsdScope(workSubtype)) {
+    // BackOffice genérico não inclui quem já tem escopo Lavratura / Ponto Focal.
+    return false
   }
 
   if (profile.match.accessArea) {
