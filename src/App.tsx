@@ -3153,17 +3153,32 @@ function HomePanel({
                               <td className="users-table-actions">
                                 <button
                                   type="button"
-                                  className="danger-button users-table-delete-button"
+                                  className="users-table-delete-button"
                                   disabled={deletingUserId === user.id}
-                                  aria-label={`Excluir cadastro de ${user.name}`}
+                                  aria-label={
+                                    deletingUserId === user.id
+                                      ? `Excluindo cadastro de ${user.name}`
+                                      : `Excluir cadastro de ${user.name}`
+                                  }
+                                  title={
+                                    deletingUserId === user.id
+                                      ? 'Excluindo…'
+                                      : 'Excluir cadastro'
+                                  }
                                   onClick={(event) => {
                                     event.stopPropagation()
                                     void handleDeleteRegisteredUser(user)
                                   }}
                                 >
-                                  {deletingUserId === user.id
-                                    ? 'Excluindo…'
-                                    : 'Excluir cadastro'}
+                                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                      d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                    />
+                                  </svg>
                                 </button>
                               </td>
                             </tr>
