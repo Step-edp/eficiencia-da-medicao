@@ -193,8 +193,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
   }
 
   if (normalized.clientPresent !== 'sim' && normalized.clientPresent !== 'nao') {
-    res.status(400).json({ error: 'Informe se o cliente está presente.' })
-    return
+    normalized.clientPresent = 'nao'
   }
 
   let requiresToiTeam = false

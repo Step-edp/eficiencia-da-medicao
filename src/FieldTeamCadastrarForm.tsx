@@ -29,7 +29,6 @@ type FieldTeamFieldErrors = Partial<
   Record<
     | NumericFieldKey
     | 'csd'
-    | 'clientPresent'
     | 'collaborator1Name'
     | 'collaborator1Registration'
     | 'collaborator2Name'
@@ -50,7 +49,6 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
   const [toi, setToi] = useState('')
   const [note, setNote] = useState('')
   const [csd, setCsd] = useState('')
-  const [clientPresent, setClientPresent] = useState<'sim' | 'nao' | ''>('')
   const [schedulingNotes, setSchedulingNotes] = useState('')
   const [collaborator1Name, setCollaborator1Name] = useState('')
   const [collaborator1Registration, setCollaborator1Registration] = useState('')
@@ -99,10 +97,6 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       nextErrors.csd = 'Selecione um CSD.'
     }
 
-    if (!clientPresent) {
-      nextErrors.clientPresent = 'Informe se o cliente está presente.'
-    }
-
     if (requireToiTeam) {
       if (!collaborator1Name.trim()) {
         nextErrors.collaborator1Name = 'Informe o nome do colaborador 1.'
@@ -137,7 +131,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
         toi,
         note,
         csd,
-        clientPresent: clientPresent as 'sim' | 'nao',
+        clientPresent: 'nao',
         schedulingNotes,
         ...(requireToiTeam
           ? {
@@ -159,7 +153,6 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       setToi('')
       setNote('')
       setCsd('')
-      setClientPresent('')
       setSchedulingNotes('')
       setCollaborator1Name('')
       setCollaborator1Registration('')
@@ -408,46 +401,6 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
             </div>
           </fieldset>
         ) : null}
-
-        <fieldset
-          className={`radio-fieldset full-width${fieldErrors.clientPresent ? ' has-field-error' : ''}`}
-        >
-          <legend>
-            <RequiredLabel>Cliente presente?</RequiredLabel>
-          </legend>
-          <div className="radio-group">
-            <label className="radio-option">
-              <input
-                type="radio"
-                name="client-present"
-                value="sim"
-                checked={clientPresent === 'sim'}
-                onChange={() => {
-                  setClientPresent('sim')
-                  clearFieldError('clientPresent')
-                }}
-              />
-              <span>Sim</span>
-            </label>
-            <label className="radio-option">
-              <input
-                type="radio"
-                name="client-present"
-                value="nao"
-                checked={clientPresent === 'nao'}
-                onChange={() => {
-                  setClientPresent('nao')
-                  clearFieldError('clientPresent')
-                }}
-              />
-              <span>Não</span>
-            </label>
-          </div>
-          <FormFieldError
-            id="field-team-client-present-error"
-            message={fieldErrors.clientPresent}
-          />
-        </fieldset>
 
         <label className="full-width">
           Observações de agendamento
