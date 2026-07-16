@@ -48,6 +48,7 @@ import {
   getHomeSubareaProcessGroups,
   isEngineerProcessSubtype,
   isEngineerSubcellSubtype,
+  mapTakenSubcellAreas,
   parseAccessProcess,
   subtypesForCargo,
 } from './registrationOptions'
@@ -758,6 +759,7 @@ type ApproveUserPayload = {
 
 type PendingApprovalItemProps = {
   user: AppUser
+  approvedUsers: AppUser[]
   terceiraOptions: string[]
   onApprove: (userId: string, payload: ApproveUserPayload) => Promise<void>
   onReject: (
@@ -770,6 +772,7 @@ type PendingApprovalItemProps = {
 
 function PendingApprovalItem({
   user,
+  approvedUsers,
   terceiraOptions,
   onApprove,
   onReject,
@@ -797,6 +800,7 @@ function PendingApprovalItem({
     jobTitle === 'Engenheiro' && isEngineerSubcellSubtype(workSubtype)
   const needsSpecificProcesses =
     jobTitle === 'Engenheiro' && isEngineerProcessSubtype(workSubtype)
+  const takenSubcellAreas = mapTakenSubcellAreas(approvedUsers)
   const homeSubareaProcesses = getHomeSubareaProcessGroups()
   const processLabel = selectedProcesses
     .map((encoded) => {
@@ -864,6 +868,16 @@ function PendingApprovalItem({
         message: 'Selecione ao menos uma subárea da home para o engenheiro.',
       })
       return
+    }
+    if (needsHomeSubareas) {
+      const conflict = selectedSubareas.find((area) => takenSubcellAreas.has(area))
+      if (conflict) {
+        onFeedback({
+          type: 'error',
+          message: `A subárea "${conflict}" já possui responsável: ${takenSubcellAreas.get(conflict)}.`,
+        })
+        return
+      }
     }
     if (needsSpecificProcesses) {
       if (selectedProcessAreas.length === 0 || selectedProcesses.length === 0) {
@@ -1087,19 +1101,37 @@ function PendingApprovalItem({
               <fieldset className="approval-subareas">
                 <legend>Subáreas da home</legend>
                 <p className="approval-subareas-hint">
-                  Selecione as áreas que este engenheiro poderá ver na tela inicial.
+                  Cada subárea pode ter apenas um responsável por sub-célula.
                 </p>
                 <div className="approval-subareas-grid">
-                  {ENGINEER_HOME_SUBAREAS.map((area) => (
-                    <label key={area} className="approval-subarea-option">
-                      <input
-                        type="checkbox"
-                        checked={selectedSubareas.includes(area)}
-                        onChange={() => toggleSubarea(area)}
-                      />
-                      <span>{area}</span>
-                    </label>
-                  ))}
+                  {ENGINEER_HOME_SUBAREAS.map((area) => {
+                    const takenBy = takenSubcellAreas.get(area)
+                    const isTaken = Boolean(takenBy)
+                    return (
+                      <label
+                        key={area}
+                        className={`approval-subarea-option${isTaken ? ' is-taken' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedSubareas.includes(area)}
+                          disabled={isTaken}
+                          onChange={() => {
+                            if (isTaken) return
+                            toggleSubarea(area)
+                          }}
+                        />
+                        <span>
+                          {area}
+                          {isTaken ? (
+                            <small className="approval-subarea-taken">
+                              Já responsável: {takenBy}
+                            </small>
+                          ) : null}
+                        </span>
+                      </label>
+                    )
+                  })}
                 </div>
               </fieldset>
             ) : null}
@@ -2956,6 +2988,7 @@ function HomePanel({
                         <PendingApprovalItem
                           key={user.id}
                           user={user}
+                          approvedUsers={registeredUsers}
                           terceiraOptions={terceiraOptions}
                           onApprove={onApproveUser}
                           onReject={async (userId, reason) => {
@@ -3063,6 +3096,7 @@ function HomePanel({
               ? createPortal(
                   <UserDetailModal
                     user={selectedUserDetail}
+                    approvedUsers={registeredUsers}
                     terceiraOptions={terceiraOptions}
                     startInEditMode={userDetailStartEditing}
                     onClose={() => {

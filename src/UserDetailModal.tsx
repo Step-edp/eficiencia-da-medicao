@@ -15,6 +15,7 @@ import {
   getHomeSubareaProcessGroups,
   isEngineerProcessSubtype,
   isEngineerSubcellSubtype,
+  mapTakenSubcellAreas,
   normalizeEngineerSubtype,
   parseAccessProcess,
   subtypesForCargo,
@@ -43,6 +44,7 @@ export type UserUpdatePayload = {
 
 type UserDetailModalProps = {
   user: AppUser
+  approvedUsers: AppUser[]
   terceiraOptions: string[]
   onClose: () => void
   onSaved: (user: AppUser) => void
@@ -62,6 +64,7 @@ function formatValue(value?: string | null) {
 
 export function UserDetailModal({
   user,
+  approvedUsers,
   terceiraOptions,
   onClose,
   onSaved,
@@ -174,6 +177,7 @@ export function UserDetailModal({
   const needsHomeSubareas = jobTitle === 'Engenheiro' && isEngineerSubcellSubtype(workSubtype)
   const needsSpecificProcesses =
     jobTitle === 'Engenheiro' && isEngineerProcessSubtype(workSubtype)
+  const takenSubcellAreas = mapTakenSubcellAreas(approvedUsers, user.id)
   const homeSubareaProcesses = getHomeSubareaProcessGroups()
 
   const resetDraft = () => {
@@ -286,6 +290,17 @@ export function UserDetailModal({
         message: 'Selecione ao menos uma subárea da home.',
       })
       return
+    }
+
+    if (!isAdminUser && needsHomeSubareas) {
+      const conflict = accessAreas.find((area) => takenSubcellAreas.has(area))
+      if (conflict) {
+        onFeedback({
+          type: 'error',
+          message: `A subárea "${conflict}" já possui responsável: ${takenSubcellAreas.get(conflict)}.`,
+        })
+        return
+      }
     }
 
     if (
@@ -588,17 +603,44 @@ export function UserDetailModal({
                 {needsHomeSubareas ? (
                   <fieldset className="approval-subareas user-edit-full">
                     <legend>Subáreas da home</legend>
+                    <p className="approval-subareas-hint">
+                      Cada subárea pode ter apenas um responsável por sub-célula.
+                    </p>
                     <div className="approval-subareas-grid">
-                      {ENGINEER_HOME_SUBAREAS.map((area) => (
-                        <label key={area} className="approval-subarea-option">
-                          <input
-                            type="checkbox"
-                            checked={accessAreas.includes(area)}
-                            onChange={() => toggleSubarea(area)}
-                          />
-                          <span>{area}</span>
-                        </label>
-                      ))}
+                      {ENGINEER_HOME_SUBAREAS.map((area) => {
+                        const takenBy = takenSubcellAreas.get(area)
+                        const isSelected = accessAreas.includes(area)
+                        const isLocked = Boolean(takenBy) && !isSelected
+                        return (
+                          <label
+                            key={area}
+                            className={`approval-subarea-option${isLocked ? ' is-taken' : ''}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              disabled={isLocked}
+                              onChange={() => {
+                                if (isLocked) return
+                                toggleSubarea(area)
+                              }}
+                            />
+                            <span>
+                              {area}
+                              {takenBy && !isSelected ? (
+                                <small className="approval-subarea-taken">
+                                  Já responsável: {takenBy}
+                                </small>
+                              ) : null}
+                              {takenBy && isSelected ? (
+                                <small className="approval-subarea-taken">
+                                  Conflito com {takenBy} — desmarque para corrigir
+                                </small>
+                              ) : null}
+                            </span>
+                          </label>
+                        )
+                      })}
                     </div>
                   </fieldset>
                 ) : null}

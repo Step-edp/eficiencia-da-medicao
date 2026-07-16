@@ -57,6 +57,33 @@ export function normalizeEngineerSubtype(value: string | null | undefined) {
   return normalized
 }
 
+/** Subáreas já atribuídas a outro engenheiro responsável por sub-célula. */
+export function mapTakenSubcellAreas(
+  users: Array<{
+    id: string
+    name: string
+    approvalStatus?: string
+    jobTitle?: string | null
+    workSubtype?: string | null
+    accessAreas?: string[] | null
+  }>,
+  excludeUserId?: string,
+): Map<string, string> {
+  const taken = new Map<string, string>()
+  for (const user of users) {
+    if (excludeUserId && user.id === excludeUserId) continue
+    if (user.approvalStatus && user.approvalStatus !== 'approved') continue
+    if ((user.jobTitle?.trim() ?? '') !== 'Engenheiro') continue
+    if (!isEngineerSubcellSubtype(user.workSubtype)) continue
+    for (const area of user.accessAreas ?? []) {
+      const normalized = area.trim()
+      if (!normalized || taken.has(normalized)) continue
+      taken.set(normalized, user.name)
+    }
+  }
+  return taken
+}
+
 export {
   ENGINEER_HOME_SUBAREAS,
   PROCESSES_BY_HOME_SUBAREA,

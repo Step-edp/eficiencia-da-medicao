@@ -34,6 +34,59 @@ function accessAreasForTechnician(workArea: string, subtype: string): string[] {
   return []
 }
 
+async function findSubcellResponsibilityConflicts(
+  areas: string[],
+  excludeUserId?: string,
+): Promise<Array<{ area: string; responsibleName: string }>> {
+  const requested = [...new Set(areas.map((area) => area.trim()).filter(Boolean))]
+  if (requested.length === 0) return []
+
+  const result = await query<{
+    name: string
+    access_areas: unknown
+  }>(
+    `SELECT name, access_areas
+     FROM users
+     WHERE approval_status = 'approved'
+       AND job_title = 'Engenheiro'
+       AND work_subtype IN ('Responsável por sub-célula', 'Sub-área')
+       AND ($2::text IS NULL OR id <> $2)
+       AND EXISTS (
+         SELECT 1
+         FROM jsonb_array_elements_text(access_areas) AS area(value)
+         WHERE area.value = ANY($1::text[])
+       )`,
+    [requested, excludeUserId ?? null],
+  )
+
+  const conflicts: Array<{ area: string; responsibleName: string }> = []
+  const claimed = new Set<string>()
+
+  for (const row of result.rows) {
+    const owned = parseAccessAreas(row.access_areas)
+    for (const area of requested) {
+      if (claimed.has(area) || !owned.includes(area)) continue
+      claimed.add(area)
+      conflicts.push({ area, responsibleName: row.name })
+    }
+  }
+
+  return conflicts
+}
+
+function formatSubcellConflictError(
+  conflicts: Array<{ area: string; responsibleName: string }>,
+): string {
+  if (conflicts.length === 1) {
+    const [item] = conflicts
+    return `A subárea "${item.area}" já possui responsável: ${item.responsibleName}.`
+  }
+  return conflicts
+    .map((item) => `"${item.area}" (${item.responsibleName})`)
+    .join('; ')
+    .replace(/^/, 'Estas subáreas já possuem responsável: ')
+}
+
 type UserRow = {
   id: string
   name: string
@@ -487,6 +540,11 @@ export async function approveUser(req: Request, res: Response) {
         })
         return
       }
+      const conflicts = await findSubcellResponsibilityConflicts(requestedAccessAreas)
+      if (conflicts.length > 0) {
+        res.status(409).json({ error: formatSubcellConflictError(conflicts) })
+        return
+      }
       storedAccessAreas = requestedAccessAreas
     }
 
@@ -541,7 +599,7 @@ export async function approveUser(req: Request, res: Response) {
 }
 
 export async function updateUser(req: Request, res: Response) {
-  const { id } = req.params
+  const id = String(req.params.id)
   const {
     name,
     registration,
@@ -806,6 +864,14 @@ export async function updateUser(req: Request, res: Response) {
         res.status(400).json({
           error: 'Selecione ao menos uma subárea da home para o engenheiro.',
         })
+        return
+      }
+      const conflicts = await findSubcellResponsibilityConflicts(
+        requestedAccessAreas,
+        id,
+      )
+      if (conflicts.length > 0) {
+        res.status(409).json({ error: formatSubcellConflictError(conflicts) })
         return
       }
       storedAccessAreas = requestedAccessAreas
