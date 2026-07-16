@@ -319,8 +319,8 @@ export async function migrate() {
 
   // Abrangência do engenheiro: novos rótulos no cadastro.
   await query(`
-    UPDATE users SET work_subtype = 'Responsável de célula'
-    WHERE work_subtype IN ('Área', 'Responsável de área');
+    UPDATE users SET work_subtype = 'Responsável por célula'
+    WHERE work_subtype IN ('Área', 'Responsável de área', 'Responsável de célula');
     UPDATE users SET work_subtype = 'Responsável por sub-célula'
     WHERE work_subtype = 'Sub-área';
   `)

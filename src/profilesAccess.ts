@@ -165,7 +165,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     match: {
       workArea: 'Medição',
       jobTitle: 'Engenheiro',
-      workSubtype: 'Responsável de célula',
+      workSubtype: 'Responsável por célula',
     },
   },
   {
@@ -177,7 +177,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     match: {
       workArea: 'Telemedição',
       jobTitle: 'Engenheiro',
-      workSubtype: 'Responsável de célula',
+      workSubtype: 'Responsável por célula',
     },
   },
   {

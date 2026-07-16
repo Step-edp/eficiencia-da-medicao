@@ -291,20 +291,6 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
               ))}
             </ul>
           </section>
-          <section className="catalog-card">
-            <header className="catalog-card-header">
-              <h3>Processos específicos por subcélula</h3>
-            </header>
-            <ul className="catalog-option-list">
-              {getHomeSubareaProcessGroups().map(({ area, processes }) => (
-                <li key={area}>
-                  <span>
-                    {area}: {processes.join(', ')}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
         </div>
       </section>
 

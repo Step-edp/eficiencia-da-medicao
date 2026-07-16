@@ -44,6 +44,7 @@ import {
   EDP_SCOPE_OPTIONS,
   encodeAccessProcess,
   ENGINEER_HOME_SUBAREAS,
+  ENGINEER_SUBTYPES,
   getHomeSubareaProcessGroups,
   isEngineerProcessSubtype,
   isEngineerSubcellSubtype,
@@ -785,13 +786,17 @@ function PendingApprovalItem({
   const [selectedProcessAreas, setSelectedProcessAreas] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [rejecting, setRejecting] = useState(false)
-  const subtypeOptions = subtypesForCargo(user.jobTitle, user.workArea ?? '')
+  const jobTitle = user.jobTitle?.trim() ?? ''
+  const subtypeOptions =
+    jobTitle === 'Engenheiro'
+      ? ENGINEER_SUBTYPES
+      : subtypesForCargo(jobTitle, user.workArea ?? '')
   const needsCompany = user.employmentType === 'Terceira'
   const needsSubtype = subtypeOptions.length > 0
   const needsHomeSubareas =
-    user.jobTitle === 'Engenheiro' && isEngineerSubcellSubtype(workSubtype)
+    jobTitle === 'Engenheiro' && isEngineerSubcellSubtype(workSubtype)
   const needsSpecificProcesses =
-    user.jobTitle === 'Engenheiro' && isEngineerProcessSubtype(workSubtype)
+    jobTitle === 'Engenheiro' && isEngineerProcessSubtype(workSubtype)
   const homeSubareaProcesses = getHomeSubareaProcessGroups()
   const processLabel = selectedProcesses
     .map((encoded) => {
@@ -847,7 +852,7 @@ function PendingApprovalItem({
       onFeedback({
         type: 'error',
         message:
-          user.jobTitle === 'Engenheiro'
+          jobTitle === 'Engenheiro'
             ? 'Selecione a abrangência do engenheiro antes de aprovar.'
             : 'Selecione o escopo antes de aprovar.',
       })
@@ -1007,7 +1012,7 @@ function PendingApprovalItem({
               </div>
             ) : null}
             <div>
-              <dt>{user.jobTitle === 'Engenheiro' ? 'Abrangência' : 'Escopo'}</dt>
+              <dt>{jobTitle === 'Engenheiro' ? 'Abrangência' : 'Escopo'}</dt>
               <dd>{user.workSubtype || '—'}</dd>
             </div>
             <div>
@@ -1054,7 +1059,7 @@ function PendingApprovalItem({
 
             {needsSubtype ? (
               <label>
-                {user.jobTitle === 'Engenheiro' ? 'Abrangência do engenheiro' : 'Escopo'}
+                {jobTitle === 'Engenheiro' ? 'Abrangência do engenheiro' : 'Escopo'}
                 <select
                   value={workSubtype}
                   onChange={(event) => {
@@ -1064,7 +1069,11 @@ function PendingApprovalItem({
                     setSelectedProcesses([])
                   }}
                 >
-                  <option value="" disabled hidden />
+                  <option value="" disabled>
+                    {jobTitle === 'Engenheiro'
+                      ? 'Selecione a abrangência'
+                      : 'Selecione o escopo'}
+                  </option>
                   {subtypeOptions.map((option) => (
                     <option key={option} value={option}>
                       {option}

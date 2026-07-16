@@ -19,7 +19,7 @@ export const TECHNICIAN_SUBTYPES = [
 ] as const
 
 export const ENGINEER_SUBTYPES = [
-  'Responsável de célula',
+  'Responsável por célula',
   'Responsável por sub-célula',
 ] as const
 
@@ -27,6 +27,7 @@ export const ENGINEER_SUBTYPES = [
 export function isEngineerAreaSubtype(value: string | null | undefined) {
   const normalized = value?.trim() ?? ''
   return (
+    normalized === 'Responsável por célula' ||
     normalized === 'Responsável de célula' ||
     normalized === 'Responsável de área' ||
     normalized === 'Área'
@@ -45,8 +46,12 @@ export function isEngineerProcessSubtype(value: string | null | undefined) {
 /** Converte rótulos legados para os atuais usados no cadastro. */
 export function normalizeEngineerSubtype(value: string | null | undefined) {
   const normalized = value?.trim() ?? ''
-  if (normalized === 'Área' || normalized === 'Responsável de área') {
-    return 'Responsável de célula'
+  if (
+    normalized === 'Área' ||
+    normalized === 'Responsável de área' ||
+    normalized === 'Responsável de célula'
+  ) {
+    return 'Responsável por célula'
   }
   if (normalized === 'Sub-área') return 'Responsável por sub-célula'
   return normalized
@@ -189,9 +194,11 @@ export const DEFAULT_LOCALITIES = [
 ] as const
 
 export function subtypesForCargo(jobTitle: string, workArea = ''): readonly string[] {
-  if (jobTitle === 'Engenheiro') return ENGINEER_SUBTYPES
-  if (jobTitle === 'Técnico') {
-    return TECHNICIAN_SCOPES_BY_AREA[workArea] ?? []
+  const cargo = jobTitle.trim()
+  const area = workArea.trim()
+  if (cargo === 'Engenheiro') return ENGINEER_SUBTYPES
+  if (cargo === 'Técnico') {
+    return TECHNICIAN_SCOPES_BY_AREA[area] ?? []
   }
   return []
 }
