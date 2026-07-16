@@ -118,8 +118,6 @@ export function UserDetailModal({
   const [selectedProcessAreas, setSelectedProcessAreas] = useState<string[]>(() =>
     [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
   )
-  const [personalDescription, setPersonalDescription] = useState(user.personalDescription ?? '')
-  const [hobby, setHobby] = useState(user.hobby ?? '')
   const [profilePhoto, setProfilePhoto] = useState(user.profilePhoto ?? '')
 
   useEffect(() => {
@@ -163,8 +161,6 @@ export function UserDetailModal({
     setSelectedProcessAreas(
       [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
     )
-    setPersonalDescription(user.personalDescription ?? '')
-    setHobby(user.hobby ?? '')
     setProfilePhoto(user.profilePhoto ?? '')
     setEditing(startInEditMode)
   }, [user, startInEditMode])
@@ -219,8 +215,6 @@ export function UserDetailModal({
     setSelectedProcessAreas(
       [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
     )
-    setPersonalDescription(user.personalDescription ?? '')
-    setHobby(user.hobby ?? '')
     setProfilePhoto(user.profilePhoto ?? '')
   }
 
@@ -365,8 +359,8 @@ export function UserDetailModal({
           : needsSpecificProcesses
             ? accessProcesses
             : [],
-        personalDescription: personalDescription.trim(),
-        hobby: hobby.trim(),
+        personalDescription: user.personalDescription ?? '',
+        hobby: user.hobby ?? '',
         profilePhoto,
       })
       onSaved(updated)
@@ -721,19 +715,6 @@ export function UserDetailModal({
               </p>
             )}
 
-            <label className="user-edit-full">
-              Descrição pessoal
-              <textarea
-                rows={3}
-                value={personalDescription}
-                onChange={(event) => setPersonalDescription(event.target.value)}
-              />
-            </label>
-            <label className="user-edit-full">
-              Hobby
-              <input type="text" value={hobby} onChange={(event) => setHobby(event.target.value)} />
-            </label>
-
             <label className="register-photo-field user-edit-full">
               Foto de perfil
               <input
@@ -891,14 +872,6 @@ export function UserDetailModal({
                     ? new Date(user.approvedAt).toLocaleString('pt-BR')
                     : '—'}
                 </dd>
-              </div>
-              <div className="user-detail-full">
-                <dt>Descrição pessoal</dt>
-                <dd>{formatValue(user.personalDescription)}</dd>
-              </div>
-              <div className="user-detail-full">
-                <dt>Hobby</dt>
-                <dd>{formatValue(user.hobby)}</dd>
               </div>
             </dl>
 

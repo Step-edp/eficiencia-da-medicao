@@ -1060,14 +1060,6 @@ function PendingApprovalItem({
                 <dd>{builtProfile}</dd>
               </div>
             ) : null}
-            <div className="user-detail-full">
-              <dt>Descrição pessoal</dt>
-              <dd>{user.personalDescription || '—'}</dd>
-            </div>
-            <div className="user-detail-full">
-              <dt>Hobby</dt>
-              <dd>{user.hobby || '—'}</dd>
-            </div>
           </dl>
 
           <div className="approval-completion-fields">
