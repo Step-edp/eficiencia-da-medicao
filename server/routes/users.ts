@@ -269,25 +269,28 @@ export async function register(req: Request, res: Response) {
   const normalizedProfilePhoto = profilePhoto?.trim() ?? ''
 
   if (
-    normalizedProfilePhoto &&
-    (!normalizedProfilePhoto.startsWith('data:image/') || normalizedProfilePhoto.length > 3_500_000)
-  ) {
-    res.status(400).json({
-      error: 'Envie uma imagem de perfil válida com até cerca de 2 MB.',
-    })
-    return
-  }
-
-  if (
     !name?.trim() ||
     !registration?.trim() ||
     !birthDate ||
     !email?.trim() ||
     !normalizedJobTitle ||
     !cpf?.trim() ||
-    !password
+    !password ||
+    !normalizedWhatsapp ||
+    !personalDescription?.trim() ||
+    !normalizedProfilePhoto
   ) {
     res.status(400).json({ error: 'Preencha os campos obrigatórios.' })
+    return
+  }
+
+  if (
+    !normalizedProfilePhoto.startsWith('data:image/') ||
+    normalizedProfilePhoto.length > 3_500_000
+  ) {
+    res.status(400).json({
+      error: 'Envie uma imagem de perfil válida com até cerca de 2 MB.',
+    })
     return
   }
 

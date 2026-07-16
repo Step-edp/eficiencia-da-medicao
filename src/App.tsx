@@ -365,6 +365,7 @@ type PasswordInputProps = {
   value: string
   placeholder?: string
   autoComplete?: string
+  required?: boolean
   onChange: (value: string) => void
 }
 
@@ -374,13 +375,23 @@ function PasswordInput({
   value,
   placeholder,
   autoComplete,
+  required = false,
   onChange,
 }: PasswordInputProps) {
   const [visible, setVisible] = useState(false)
 
   return (
     <label className="password-field" htmlFor={id}>
-      {label}
+      {required ? (
+        <span className="required-label">
+          <span className="required-mark" aria-hidden="true">
+            *
+          </span>
+          {label}
+        </span>
+      ) : (
+        label
+      )}
       <div className="password-input-wrap">
         <input
           id={id}
@@ -388,6 +399,7 @@ function PasswordInput({
           placeholder={placeholder}
           value={value}
           autoComplete={autoComplete}
+          required={required}
           onChange={(event) => onChange(event.target.value)}
         />
         <button
@@ -4842,7 +4854,9 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       !cpf.trim() ||
       !whatsapp.trim() ||
       !password ||
-      !confirmPassword
+      !confirmPassword ||
+      !observation.trim() ||
+      !profilePhoto.trim()
     ) {
       setFeedback({
         type: 'error',
@@ -4936,20 +4950,32 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
 
       <form className="form-grid register-grid" onSubmit={handleSubmit} noValidate>
         <label className="register-name-field">
-          Nome completo
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            Nome completo
+          </span>
           <input
             type="text"
             placeholder="Seu nome completo"
             value={name}
             onChange={(event) => setName(event.target.value)}
+            required
           />
         </label>
 
         <label>
-          Tipo
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            Tipo
+          </span>
           <select
             value={employmentType}
             onChange={(event) => setEmploymentType(event.target.value)}
+            required
           >
             <option value="">Selecione</option>
             {tipoOptions.map((tipo) => (
@@ -4961,10 +4987,16 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         </label>
 
         <label>
-          Abrangência
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            Abrangência
+          </span>
           <select
             value={edpUnit}
             onChange={(event) => setEdpUnit(event.target.value)}
+            required
           >
             <option value="">Selecione</option>
             {EDP_SCOPE_OPTIONS.map((unit) => (
@@ -4976,10 +5008,16 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         </label>
 
         <label>
-          Área
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            Área
+          </span>
           <select
             value={workArea}
             onChange={(event) => setWorkArea(event.target.value)}
+            required
           >
             <option value="">Selecione</option>
             {areaOptions.map((area) => (
@@ -4991,10 +5029,16 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         </label>
 
         <label>
-          Cargo
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            Cargo
+          </span>
           <select
             value={jobTitle}
             onChange={(event) => setJobTitle(event.target.value)}
+            required
           >
             <option value="">Selecione</option>
             {cargoOptions.map((cargo) => (
@@ -5006,10 +5050,16 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         </label>
 
         <label>
-          Localidade
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            Localidade
+          </span>
           <select
             value={locality}
             onChange={(event) => setLocality(event.target.value)}
+            required
           >
             <option value="">Selecione</option>
             {localityOptions.map((city) => (
@@ -5021,48 +5071,82 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         </label>
 
         <label>
-          Matrícula
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            Matrícula
+          </span>
           <input
             type="text"
             placeholder="Sua matrícula"
             value={registration}
             onChange={(event) => setRegistration(event.target.value)}
+            required
           />
         </label>
 
         <label>
-          Data de nascimento
-          <input type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} />
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            Data de nascimento
+          </span>
+          <input
+            type="date"
+            value={birthDate}
+            onChange={(event) => setBirthDate(event.target.value)}
+            required
+          />
         </label>
 
         <label>
-          E-mail corporativo
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            E-mail corporativo
+          </span>
           <input
             type="email"
             placeholder="nome@edp.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            required
           />
         </label>
 
         <label>
-          CPF
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            CPF
+          </span>
           <input
             type="text"
             placeholder="000.000.000-00"
             value={cpf}
             onChange={(event) => setCpf(event.target.value)}
+            required
           />
         </label>
 
         <label>
-          WhatsApp
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            WhatsApp
+          </span>
           <input
             type="tel"
             inputMode="tel"
             placeholder="(00) 00000-0000"
             value={whatsapp}
             onChange={(event) => setWhatsapp(event.target.value)}
+            required
           />
         </label>
 
@@ -5073,6 +5157,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           autoComplete="new-password"
           value={password}
           onChange={setPassword}
+          required
         />
 
         <PasswordInput
@@ -5082,26 +5167,39 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           autoComplete="new-password"
           value={confirmPassword}
           onChange={setConfirmPassword}
+          required
         />
 
         <label className="register-photo-field">
-          Observação
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            Observação
+          </span>
           <textarea
             rows={3}
             value={observation}
             onChange={(event) => setObservation(event.target.value)}
-            placeholder="Observações (opcional)"
+            placeholder="Informe uma observação"
+            required
           />
         </label>
 
         <div className="register-photo-field">
-          <span>Foto de perfil</span>
+          <span className="required-label">
+            <span className="required-mark" aria-hidden="true">
+              *
+            </span>
+            Foto de perfil
+          </span>
           <div className="file-picker">
             <input
               id="register-profile-photo"
               className="file-picker-input"
               type="file"
               accept="image/*"
+              required={!profilePhoto}
               onChange={(event) => {
                 const file = event.target.files?.[0]
                 if (!file) {
