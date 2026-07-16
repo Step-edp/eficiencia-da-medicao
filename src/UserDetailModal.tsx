@@ -118,7 +118,10 @@ export function UserDetailModal({
   const [selectedProcessAreas, setSelectedProcessAreas] = useState<string[]>(() =>
     [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
   )
+  const [observation, setObservation] = useState(user.personalDescription ?? '')
   const [profilePhoto, setProfilePhoto] = useState(user.profilePhoto ?? '')
+  const [profilePhotoName, setProfilePhotoName] = useState('')
+  const photoInputId = `user-photo-${user.id}`
 
   useEffect(() => {
     void api
@@ -161,7 +164,9 @@ export function UserDetailModal({
     setSelectedProcessAreas(
       [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
     )
+    setObservation(user.personalDescription ?? '')
     setProfilePhoto(user.profilePhoto ?? '')
+    setProfilePhotoName('')
     setEditing(startInEditMode)
   }, [user, startInEditMode])
 
@@ -215,7 +220,9 @@ export function UserDetailModal({
     setSelectedProcessAreas(
       [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
     )
+    setObservation(user.personalDescription ?? '')
     setProfilePhoto(user.profilePhoto ?? '')
+    setProfilePhotoName('')
   }
 
   const toggleSubarea = (area: string) => {
@@ -359,7 +366,7 @@ export function UserDetailModal({
           : needsSpecificProcesses
             ? accessProcesses
             : [],
-        personalDescription: user.personalDescription ?? '',
+        personalDescription: observation.trim(),
         hobby: user.hobby ?? '',
         profilePhoto,
       })
@@ -715,32 +722,59 @@ export function UserDetailModal({
               </p>
             )}
 
-            <label className="register-photo-field user-edit-full">
-              Foto de perfil
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  if (!file) return
-                  if (!file.type.startsWith('image/') || file.size > 2_000_000) {
-                    onFeedback({
-                      type: 'error',
-                      message: 'Envie uma imagem válida com até 2 MB.',
-                    })
-                    event.target.value = ''
-                    return
-                  }
-                  const reader = new FileReader()
-                  reader.onload = () => {
-                    if (typeof reader.result === 'string') {
-                      setProfilePhoto(reader.result)
-                    }
-                  }
-                  reader.readAsDataURL(file)
-                }}
+            <label className="user-edit-full">
+              Observação
+              <textarea
+                rows={3}
+                value={observation}
+                onChange={(event) => setObservation(event.target.value)}
+                placeholder="Observações sobre o usuário (opcional)"
               />
             </label>
+
+            <div className="register-photo-field user-edit-full">
+              <span>Foto de perfil</span>
+              <div className="file-picker">
+                <input
+                  id={photoInputId}
+                  className="file-picker-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (!file) return
+                    if (!file.type.startsWith('image/') || file.size > 2_000_000) {
+                      onFeedback({
+                        type: 'error',
+                        message: 'Envie uma imagem válida com até 2 MB.',
+                      })
+                      event.target.value = ''
+                      return
+                    }
+                    const reader = new FileReader()
+                    reader.onload = () => {
+                      if (typeof reader.result === 'string') {
+                        setProfilePhoto(reader.result)
+                        setProfilePhotoName(file.name)
+                      }
+                    }
+                    reader.readAsDataURL(file)
+                  }}
+                />
+                <label htmlFor={photoInputId} className="file-picker-button">
+                  Escolher imagem
+                </label>
+                <span className="file-picker-name">
+                  {profilePhotoName ||
+                    (profilePhoto ? 'Imagem atual mantida' : 'Nenhuma imagem selecionada')}
+                </span>
+              </div>
+              {profilePhoto ? (
+                <span className="register-photo-preview">
+                  <img src={profilePhoto} alt="Pré-visualização da foto de perfil" />
+                </span>
+              ) : null}
+            </div>
 
             <div className="user-detail-actions">
               <button
@@ -873,6 +907,12 @@ export function UserDetailModal({
                     : '—'}
                 </dd>
               </div>
+              {user.personalDescription?.trim() ? (
+                <div className="user-detail-full">
+                  <dt>Observação</dt>
+                  <dd>{user.personalDescription}</dd>
+                </div>
+              ) : null}
             </dl>
 
             <div className="user-detail-actions">

@@ -4714,6 +4714,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
   const [confirmPassword, setConfirmPassword] = useState('')
   const [profilePhoto, setProfilePhoto] = useState('')
   const [profilePhotoName, setProfilePhotoName] = useState('')
+  const [observation, setObservation] = useState('')
   const [cargoOptions, setCargoOptions] = useState<string[]>([
     'Técnico',
     'Analista',
@@ -4794,7 +4795,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         jobTitle: jobTitle.trim(),
         cpf: cpf.trim(),
         password,
-        personalDescription: '',
+        personalDescription: observation.trim(),
         hobby: '',
         whatsapp: whatsapp.trim(),
         employmentType,
@@ -4821,6 +4822,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       setWhatsapp('')
       setPassword('')
       setConfirmPassword('')
+      setObservation('')
       setProfilePhoto('')
       setProfilePhotoName('')
       onRegistered(successMessage)
@@ -5007,45 +5009,64 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
         />
 
         <label className="register-photo-field">
-          Foto de perfil
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              if (!file) {
-                setProfilePhoto('')
-                setProfilePhotoName('')
-                return
-              }
+          Observação
+          <textarea
+            rows={3}
+            value={observation}
+            onChange={(event) => setObservation(event.target.value)}
+            placeholder="Observações (opcional)"
+          />
+        </label>
 
-              void readImageAsDataUrl(file)
-                .then((dataUrl) => {
-                  setProfilePhoto(dataUrl)
-                  setProfilePhotoName(file.name)
-                  setFeedback(null)
-                })
-                .catch((error: unknown) => {
+        <div className="register-photo-field">
+          <span>Foto de perfil</span>
+          <div className="file-picker">
+            <input
+              id="register-profile-photo"
+              className="file-picker-input"
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (!file) {
                   setProfilePhoto('')
                   setProfilePhotoName('')
-                  event.target.value = ''
-                  setFeedback({
-                    type: 'error',
-                    message:
-                      error instanceof Error
-                        ? error.message
-                        : 'Não foi possível carregar a foto de perfil.',
+                  return
+                }
+
+                void readImageAsDataUrl(file)
+                  .then((dataUrl) => {
+                    setProfilePhoto(dataUrl)
+                    setProfilePhotoName(file.name)
+                    setFeedback(null)
                   })
-                })
-            }}
-          />
+                  .catch((error: unknown) => {
+                    setProfilePhoto('')
+                    setProfilePhotoName('')
+                    event.target.value = ''
+                    setFeedback({
+                      type: 'error',
+                      message:
+                        error instanceof Error
+                          ? error.message
+                          : 'Não foi possível carregar a foto de perfil.',
+                    })
+                  })
+              }}
+            />
+            <label htmlFor="register-profile-photo" className="file-picker-button">
+              Escolher imagem
+            </label>
+            <span className="file-picker-name">
+              {profilePhotoName || 'Nenhuma imagem selecionada'}
+            </span>
+          </div>
           {profilePhoto ? (
             <span className="register-photo-preview">
               <img src={profilePhoto} alt="Pré-visualização da foto de perfil" />
-              <small>{profilePhotoName || 'Imagem selecionada'}</small>
             </span>
           ) : null}
-        </label>
+        </div>
 
         <button
           className="primary-button login-enter-button"
