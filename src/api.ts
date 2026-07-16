@@ -44,6 +44,8 @@ export type AppUser = {
   profilePhoto?: string
   accessAreas?: string[]
   accessProcesses?: string[]
+  /** Visível apenas para o administrador (não vem no login do próprio usuário). */
+  password?: string
   vacationStatus?: VacationStatus
   vacationDeadlineAt?: string | null
   vacationRequiredSince?: string | null
@@ -459,6 +461,7 @@ export const api = {
       personalDescription: string
       hobby: string
       profilePhoto: string
+      password?: string
     },
   ) =>
     request<{ user: AppUser }>(`/api/users/${id}`, {

@@ -2344,6 +2344,13 @@ button {
   grid-column: 1 / -1;
 }
 
+.user-password-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
+  color: #d9f7ff;
+  word-break: break-all;
+}
+
 .laudo-modal-overlay {
   position: fixed;
   inset: 0;

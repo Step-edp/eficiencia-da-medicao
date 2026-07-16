@@ -41,6 +41,7 @@ export type UserUpdatePayload = {
   personalDescription: string
   hobby: string
   profilePhoto: string
+  password?: string
 }
 
 type UserDetailModalProps = {
@@ -121,6 +122,7 @@ export function UserDetailModal({
   const [observation, setObservation] = useState(user.personalDescription ?? '')
   const [profilePhoto, setProfilePhoto] = useState(user.profilePhoto ?? '')
   const [profilePhotoName, setProfilePhotoName] = useState('')
+  const [password, setPassword] = useState(user.password ?? '')
   const photoInputId = `user-photo-${user.id}`
 
   useEffect(() => {
@@ -167,6 +169,7 @@ export function UserDetailModal({
     setObservation(user.personalDescription ?? '')
     setProfilePhoto(user.profilePhoto ?? '')
     setProfilePhotoName('')
+    setPassword(user.password ?? '')
     setEditing(startInEditMode)
   }, [user, startInEditMode])
 
@@ -223,6 +226,7 @@ export function UserDetailModal({
     setObservation(user.personalDescription ?? '')
     setProfilePhoto(user.profilePhoto ?? '')
     setProfilePhotoName('')
+    setPassword(user.password ?? '')
   }
 
   const toggleSubarea = (area: string) => {
@@ -369,6 +373,7 @@ export function UserDetailModal({
         personalDescription: observation.trim(),
         hobby: user.hobby ?? '',
         profilePhoto,
+        ...(password.trim() ? { password: password.trim() } : {}),
       })
       onSaved(updated)
       setEditing(false)
@@ -723,6 +728,17 @@ export function UserDetailModal({
             )}
 
             <label className="user-edit-full">
+              Senha de acesso
+              <input
+                type="text"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Senha do usuário"
+                autoComplete="off"
+              />
+            </label>
+
+            <label className="user-edit-full">
               Observação
               <textarea
                 rows={3}
@@ -803,6 +819,12 @@ export function UserDetailModal({
               <div>
                 <dt>Matrícula</dt>
                 <dd>{formatValue(user.registration)}</dd>
+              </div>
+              <div>
+                <dt>Senha</dt>
+                <dd className="user-password-value">
+                  {user.password?.trim() ? user.password : 'Indisponível (cadastro antigo)'}
+                </dd>
               </div>
               <div>
                 <dt>E-mail</dt>

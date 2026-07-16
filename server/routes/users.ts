@@ -141,6 +141,7 @@ type UserRow = {
   profile_photo: string
   access_areas: unknown
   access_processes: unknown
+  password_plain?: string
 }
 
 function parseAccessAreas(value: unknown): string[] {
@@ -158,7 +159,7 @@ function parseAccessAreas(value: unknown): string[] {
   return []
 }
 
-function mapUser(row: UserRow) {
+function mapUser(row: UserRow, options?: { includePassword?: boolean }) {
   return {
     id: row.id,
     name: row.name,
@@ -183,11 +184,14 @@ function mapUser(row: UserRow) {
     profilePhoto: row.profile_photo || '',
     accessAreas: parseAccessAreas(row.access_areas),
     accessProcesses: parseAccessAreas(row.access_processes),
+    ...(options?.includePassword
+      ? { password: row.password_plain?.trim() ? row.password_plain : '' }
+      : {}),
   }
 }
 
-async function mapUserWithVacation(row: UserRow) {
-  const base = mapUser(row)
+async function mapUserWithVacation(row: UserRow, options?: { includePassword?: boolean }) {
+  const base = mapUser(row, options)
   const meta = await getVacationMetaForUser(row.id, row.role)
   return attachVacationMeta(base, meta)
 }
@@ -352,15 +356,15 @@ export async function register(req: Request, res: Response) {
   try {
     const insert = await query<UserRow>(
       `INSERT INTO users (
-        id, name, registration, password_hash, email, role, approval_status,
+        id, name, registration, password_hash, password_plain, email, role, approval_status,
         requested_at,
         birth_date, job_title, cpf, personal_description, hobby, whatsapp,
         employment_type, third_party_company, work_area, work_subtype, locality, edp_unit,
         profile_photo
       ) VALUES (
-        $1,$2,$3,$4,$5,'compras','pending',
+        $1,$2,$3,$4,$5,$6,'compras','pending',
         NOW(),
-        $6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
+        $7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
       )
       RETURNING *`,
       [
@@ -368,6 +372,7 @@ export async function register(req: Request, res: Response) {
         name.trim(),
         normalizedRegistration,
         passwordHash,
+        password,
         normalizedEmail,
         birthDate,
         normalizedJobTitle,
@@ -464,7 +469,9 @@ export async function exchangeSsoToken(req: Request, res: Response) {
 
 export async function listUsers(_req: Request, res: Response) {
   const result = await query<UserRow>('SELECT * FROM users ORDER BY requested_at DESC')
-  const users = await Promise.all(result.rows.map((row) => mapUserWithVacation(row)))
+  const users = await Promise.all(
+    result.rows.map((row) => mapUserWithVacation(row, { includePassword: true })),
+  )
   res.json({ users })
 }
 
@@ -628,7 +635,7 @@ export async function approveUser(req: Request, res: Response) {
     ],
   )
 
-  const user = await mapUserWithVacation(result.rows[0])
+  const user = await mapUserWithVacation(result.rows[0], { includePassword: true })
 
   await writeAuditLog(req, {
     action: 'approve',
@@ -663,6 +670,7 @@ export async function updateUser(req: Request, res: Response) {
     personalDescription,
     hobby,
     profilePhoto,
+    password,
   } = req.body as Record<string, string | string[] | undefined>
 
   const previous = await query<UserRow>(`SELECT * FROM users WHERE id = $1`, [id])
@@ -695,12 +703,23 @@ export async function updateUser(req: Request, res: Response) {
   const normalizedHobby = typeof hobby === 'string' ? hobby.trim() : ''
   const normalizedProfilePhoto =
     typeof profilePhoto === 'string' ? profilePhoto.trim() : ''
+  const normalizedPassword = typeof password === 'string' ? password.trim() : ''
   const requestedAccessAreas = Array.isArray(accessAreas)
     ? accessAreas.map((area) => String(area).trim()).filter(Boolean)
     : []
   const requestedAccessProcesses = Array.isArray(accessProcesses)
     ? accessProcesses.map((item) => String(item).trim()).filter(Boolean)
     : []
+
+  if (normalizedPassword && normalizedPassword.length < 4) {
+    res.status(400).json({ error: 'A senha precisa ter pelo menos 4 caracteres.' })
+    return
+  }
+
+  const nextPasswordHash = normalizedPassword
+    ? await bcrypt.hash(normalizedPassword, 10)
+    : null
+  const nextPasswordPlain = normalizedPassword || null
 
   if (
     normalizedProfilePhoto &&
@@ -731,7 +750,9 @@ export async function updateUser(req: Request, res: Response) {
           cpf = $7,
           personal_description = $8,
           hobby = $9,
-          profile_photo = $10
+          profile_photo = $10,
+          password_hash = COALESCE($11, password_hash),
+          password_plain = COALESCE($12, password_plain)
          WHERE id = $1 AND role = 'admin'
          RETURNING *`,
         [
@@ -745,10 +766,12 @@ export async function updateUser(req: Request, res: Response) {
           normalizedDescription,
           normalizedHobby,
           normalizedProfilePhoto,
+          nextPasswordHash,
+          nextPasswordPlain,
         ],
       )
 
-      const user = await mapUserWithVacation(result.rows[0])
+      const user = await mapUserWithVacation(result.rows[0], { includePassword: true })
       await writeAuditLog(req, {
         action: 'update',
         entityType: 'user',
@@ -968,7 +991,9 @@ export async function updateUser(req: Request, res: Response) {
         access_processes = $16::jsonb,
         personal_description = $17,
         hobby = $18,
-        profile_photo = $19
+        profile_photo = $19,
+        password_hash = COALESCE($20, password_hash),
+        password_plain = COALESCE($21, password_plain)
        WHERE id = $1
        RETURNING *`,
       [
@@ -991,10 +1016,12 @@ export async function updateUser(req: Request, res: Response) {
         normalizedDescription,
         normalizedHobby,
         normalizedProfilePhoto,
+        nextPasswordHash,
+        nextPasswordPlain,
       ],
     )
 
-    const user = await mapUserWithVacation(result.rows[0])
+    const user = await mapUserWithVacation(result.rows[0], { includePassword: true })
     await writeAuditLog(req, {
       action: 'update',
       entityType: 'user',
@@ -1153,7 +1180,7 @@ export async function resetUserToPending(req: Request, res: Response) {
     return
   }
 
-  const user = await mapUserWithVacation(result.rows[0])
+  const user = await mapUserWithVacation(result.rows[0], { includePassword: true })
 
   await writeAuditLog(req, {
     action: 'update',

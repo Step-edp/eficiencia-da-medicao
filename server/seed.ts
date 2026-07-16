@@ -63,13 +63,14 @@ export async function seed() {
   const hash = await bcrypt.hash(adminUser.password, 10)
   await query(
     `INSERT INTO users (
-      id, name, registration, password_hash, email, role, approval_status,
+      id, name, registration, password_hash, password_plain, email, role, approval_status,
       requested_at, approved_at, job_title, work_area, work_subtype
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name,
       registration = EXCLUDED.registration,
       password_hash = EXCLUDED.password_hash,
+      password_plain = EXCLUDED.password_plain,
       email = EXCLUDED.email,
       role = EXCLUDED.role,
       approval_status = EXCLUDED.approval_status,
@@ -82,6 +83,7 @@ export async function seed() {
       adminUser.name,
       adminUser.registration,
       hash,
+      adminUser.password,
       adminUser.email,
       adminUser.role,
       adminUser.approvalStatus,

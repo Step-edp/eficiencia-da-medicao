@@ -1001,6 +1001,12 @@ function PendingApprovalItem({
               <dd>{user.registration || '—'}</dd>
             </div>
             <div>
+              <dt>Senha</dt>
+              <dd className="user-password-value">
+                {user.password?.trim() ? user.password : 'Indisponível (cadastro antigo)'}
+              </dd>
+            </div>
+            <div>
               <dt>E-mail</dt>
               <dd>{user.email || '—'}</dd>
             </div>
@@ -3045,6 +3051,7 @@ function HomePanel({
                           <tr>
                             <th>Nome</th>
                             <th>Matrícula</th>
+                            <th>Senha</th>
                             <th>E-mail</th>
                             <th>Cargo</th>
                             <th>Perfil</th>
@@ -3074,6 +3081,9 @@ function HomePanel({
                             >
                               <td>{user.name}</td>
                               <td>{user.registration}</td>
+                              <td className="user-password-value">
+                                {user.password?.trim() ? user.password : '—'}
+                              </td>
                               <td>{user.email}</td>
                               <td>{user.jobTitle || '—'}</td>
                               <td>

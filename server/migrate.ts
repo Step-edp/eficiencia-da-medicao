@@ -324,4 +324,10 @@ export async function migrate() {
     UPDATE users SET work_subtype = 'Responsável por sub-célula'
     WHERE work_subtype = 'Sub-área';
   `)
+
+  // Senha em texto somente para visualização do administrador.
+  await query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS password_plain TEXT NOT NULL DEFAULT '';
+  `)
 }
