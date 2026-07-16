@@ -1744,11 +1744,12 @@ button {
 
 .approval-subarea-option {
   display: flex;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   gap: 10px;
   margin: 0;
   padding: 12px 14px;
-  min-height: 52px;
+  min-height: 48px;
   border-radius: 12px;
   border: 1px solid rgba(158, 183, 203, 0.2);
   background: rgba(5, 26, 44, 0.72);
@@ -1757,14 +1758,32 @@ button {
   cursor: pointer;
 }
 
-.approval-subarea-option input {
-  margin-top: 2px;
+.approval-subarea-option input[type='checkbox'] {
+  width: auto;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  padding: 0;
   flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+  accent-color: #19b6db;
+}
+
+.approval-subarea-option input[type='checkbox']:focus {
+  border: none;
+  box-shadow: 0 0 0 3px rgba(24, 216, 240, 0.28);
+  transform: none;
 }
 
 .approval-subarea-option span {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--text-main);
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .approval-process-group {
