@@ -64,10 +64,20 @@ export function mapTakenSubcellAreas(
     name: string
     approvalStatus?: string
     jobTitle?: string | null
+    workArea?: string | null
     workSubtype?: string | null
     accessAreas?: string[] | null
   }>,
   excludeUserId?: string,
+  options?: {
+    candidateId?: string
+    candidateSubtype?: string
+    orgCells?: Array<{
+      id: string
+      responsibleUserId: string | null
+      responsibleName: string | null
+    }>
+  },
 ): Map<string, string> {
   const taken = new Map<string, string>()
   for (const user of users) {
@@ -81,6 +91,22 @@ export function mapTakenSubcellAreas(
       taken.set(normalized, user.name)
     }
   }
+
+  const candidateId = options?.candidateId
+  const candidateSubtype = options?.candidateSubtype
+  if (candidateId && isEngineerSubcellSubtype(candidateSubtype)) {
+    for (const cell of options?.orgCells ?? []) {
+      if (cell.responsibleUserId !== candidateId) continue
+      const ownerLabel = cell.responsibleName?.trim() || 'Responsável pela célula'
+      const portals = BUSINESS_AREA_TO_HOME_PORTALS[cell.id] ?? (cell.id ? [cell.id] : [])
+      for (const portal of portals) {
+        if (!taken.has(portal)) {
+          taken.set(portal, `${ownerLabel} (célula)`)
+        }
+      }
+    }
+  }
+
   return taken
 }
 

@@ -145,6 +145,30 @@ export function isAllowedEngineerSubtype(value: string | null | undefined) {
   )
 }
 
+/** Mapeia área de negócio do cadastro para portais/subáreas cobertos pelo responsável pela célula. */
+export const BUSINESS_AREA_TO_HOME_PORTALS: Record<string, readonly string[]> = {
+  Medição: [
+    'Medição',
+    'Laboratório de Medição',
+    'Laboratório de Homologação',
+    'Equipe de campo',
+    'Usuários',
+    'Cadastros',
+  ],
+  Telemedição: ['Telemedição'],
+  CSD: ['Equipe de campo'],
+  'Consumo Irregular': ['Equipe de campo'],
+  'Grandes Clientes': ['Medição'],
+  Qualidade: ['Laboratório de Medição'],
+}
+
+export function portalsCoveredByCellResponsibility(cellOrWorkArea: string): string[] {
+  const key = cellOrWorkArea.trim()
+  const fromMap = BUSINESS_AREA_TO_HOME_PORTALS[key]
+  if (fromMap?.length) return [...fromMap]
+  return key ? [key] : []
+}
+
 /** Subáreas já atribuídas a outro engenheiro responsável por sub-célula. */
 export function mapTakenSubcellAreas(
   users: Array<{
@@ -152,10 +176,20 @@ export function mapTakenSubcellAreas(
     name: string
     approvalStatus?: string
     jobTitle?: string | null
+    workArea?: string | null
     workSubtype?: string | null
     accessAreas?: string[] | null
   }>,
   excludeUserId?: string,
+  options?: {
+    candidateId?: string
+    candidateSubtype?: string
+    orgCells?: Array<{
+      id: string
+      responsibleUserId: string | null
+      responsibleName: string | null
+    }>
+  },
 ): Map<string, string> {
   const taken = new Map<string, string>()
   for (const user of users) {
@@ -169,6 +203,21 @@ export function mapTakenSubcellAreas(
       taken.set(normalized, user.name)
     }
   }
+
+  const candidateId = options?.candidateId
+  const candidateSubtype = options?.candidateSubtype
+  if (candidateId && isEngineerSubcellSubtype(candidateSubtype)) {
+    for (const cell of options?.orgCells ?? []) {
+      if (cell.responsibleUserId !== candidateId) continue
+      const ownerLabel = cell.responsibleName?.trim() || 'Responsável pela célula'
+      for (const portal of portalsCoveredByCellResponsibility(cell.id)) {
+        if (!taken.has(portal)) {
+          taken.set(portal, `${ownerLabel} (célula)`)
+        }
+      }
+    }
+  }
+
   return taken
 }
 

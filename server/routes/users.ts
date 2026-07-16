@@ -5,11 +5,13 @@ import { clearAuthCookie, requireAdmin, requireAuth, setAuthCookie, signSsoToken
 import { writeAuditLog } from '../audit.js'
 import {
   isAllowedEngineerSubtype,
+  isEngineerAreaSubtype,
   isEngineerProcessSubtype,
   isEngineerSubcellSubtype,
   isValidHomeSubareaProcess,
   normalizeEngineerSubtype,
   portalAreasFromProcesses,
+  portalsCoveredByCellResponsibility,
 } from '../engineer-access.js'
 import { isMailConfigured, sendRegistrationRejectedEmail } from '../mail.js'
 import {
@@ -85,6 +87,34 @@ function formatSubcellConflictError(
     .map((item) => `"${item.area}" (${item.responsibleName})`)
     .join('; ')
     .replace(/^/, 'Estas subáreas já possuem responsável: ')
+}
+
+async function findOrgCellOwnerSubareaConflict(
+  userId: string,
+  accessAreas: string[],
+): Promise<string | null> {
+  const requested = [...new Set(accessAreas.map((area) => area.trim()).filter(Boolean))]
+  if (requested.length === 0) return null
+
+  const result = await query<{ id: string; label: string }>(
+    `SELECT id, label FROM org_cells WHERE responsible_user_id = $1`,
+    [userId],
+  )
+  if (result.rows.length === 0) return null
+
+  const blocked = new Set<string>()
+  const cellLabels: string[] = []
+  for (const cell of result.rows) {
+    cellLabels.push(cell.label || cell.id)
+    for (const portal of portalsCoveredByCellResponsibility(cell.id)) {
+      blocked.add(portal)
+    }
+  }
+
+  const hits = requested.filter((area) => blocked.has(area))
+  if (hits.length === 0) return null
+
+  return `Responsável pela célula (${cellLabels.join(', ')}) não pode ser responsável por subáreas dentro dela (${hits.join(', ')}).`
 }
 
 type UserRow = {
@@ -439,7 +469,7 @@ export async function listUsers(_req: Request, res: Response) {
 }
 
 export async function approveUser(req: Request, res: Response) {
-  const { id } = req.params
+  const id = String(req.params.id)
   const { thirdPartyCompany, workSubtype, accessAreas, accessProcesses } = req.body as {
     thirdPartyCompany?: string
     workSubtype?: string
@@ -530,6 +560,12 @@ export async function approveUser(req: Request, res: Response) {
     }
     storedSubtype = normalizeEngineerSubtype(normalizedSubtype)
 
+    if (isEngineerAreaSubtype(storedSubtype)) {
+      // Responsável pela célula cobre a área inteira; não acumula subáreas.
+      storedAccessAreas = []
+      storedAccessProcesses = []
+    }
+
     if (isEngineerSubcellSubtype(storedSubtype)) {
       const invalid = requestedAccessAreas.filter(
         (area) => !allowedEngineerHomeSubareas.includes(area),
@@ -543,6 +579,14 @@ export async function approveUser(req: Request, res: Response) {
       const conflicts = await findSubcellResponsibilityConflicts(requestedAccessAreas)
       if (conflicts.length > 0) {
         res.status(409).json({ error: formatSubcellConflictError(conflicts) })
+        return
+      }
+      const cellOwnerConflict = await findOrgCellOwnerSubareaConflict(
+        id,
+        requestedAccessAreas,
+      )
+      if (cellOwnerConflict) {
+        res.status(409).json({ error: cellOwnerConflict })
         return
       }
       storedAccessAreas = requestedAccessAreas
@@ -856,6 +900,10 @@ export async function updateUser(req: Request, res: Response) {
       return
     }
     storedSubtype = normalizeEngineerSubtype(normalizedSubtype)
+    if (isEngineerAreaSubtype(storedSubtype)) {
+      storedAccessAreas = []
+      storedAccessProcesses = []
+    }
     if (isEngineerSubcellSubtype(storedSubtype)) {
       const invalid = requestedAccessAreas.filter(
         (area) => !allowedEngineerHomeSubareas.includes(area),
@@ -872,6 +920,14 @@ export async function updateUser(req: Request, res: Response) {
       )
       if (conflicts.length > 0) {
         res.status(409).json({ error: formatSubcellConflictError(conflicts) })
+        return
+      }
+      const cellOwnerConflict = await findOrgCellOwnerSubareaConflict(
+        id,
+        requestedAccessAreas,
+      )
+      if (cellOwnerConflict) {
+        res.status(409).json({ error: cellOwnerConflict })
         return
       }
       storedAccessAreas = requestedAccessAreas

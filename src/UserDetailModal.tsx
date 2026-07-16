@@ -13,6 +13,7 @@ import {
   encodeAccessProcess,
   ENGINEER_HOME_SUBAREAS,
   getHomeSubareaProcessGroups,
+  isEngineerAreaSubtype,
   isEngineerProcessSubtype,
   isEngineerSubcellSubtype,
   mapTakenSubcellAreas,
@@ -45,6 +46,11 @@ export type UserUpdatePayload = {
 type UserDetailModalProps = {
   user: AppUser
   approvedUsers: AppUser[]
+  orgCells: Array<{
+    id: string
+    responsibleUserId?: string | null
+    responsibleName?: string | null
+  }>
   terceiraOptions: string[]
   onClose: () => void
   onSaved: (user: AppUser) => void
@@ -65,6 +71,7 @@ function formatValue(value?: string | null) {
 export function UserDetailModal({
   user,
   approvedUsers,
+  orgCells,
   terceiraOptions,
   onClose,
   onSaved,
@@ -175,9 +182,18 @@ export function UserDetailModal({
   })()
   const needsCompany = employmentType === 'Terceira'
   const needsHomeSubareas = jobTitle === 'Engenheiro' && isEngineerSubcellSubtype(workSubtype)
+  const isCellOwnerSubtype = jobTitle === 'Engenheiro' && isEngineerAreaSubtype(workSubtype)
   const needsSpecificProcesses =
     jobTitle === 'Engenheiro' && isEngineerProcessSubtype(workSubtype)
-  const takenSubcellAreas = mapTakenSubcellAreas(approvedUsers, user.id)
+  const takenSubcellAreas = mapTakenSubcellAreas(approvedUsers, user.id, {
+    candidateId: user.id,
+    candidateSubtype: workSubtype,
+    orgCells: orgCells.map((cell) => ({
+      id: cell.id,
+      responsibleUserId: cell.responsibleUserId ?? null,
+      responsibleName: cell.responsibleName ?? null,
+    })),
+  })
   const homeSubareaProcesses = getHomeSubareaProcessGroups()
 
   const resetDraft = () => {
@@ -598,6 +614,13 @@ export function UserDetailModal({
                       ))}
                     </select>
                   </label>
+                ) : null}
+
+                {isCellOwnerSubtype ? (
+                  <p className="approval-subareas-hint user-edit-full" role="note">
+                    Como responsável pela célula, este engenheiro cobre todas as subáreas da
+                    área e não pode ser responsável por subárea individual.
+                  </p>
                 ) : null}
 
                 {needsHomeSubareas ? (

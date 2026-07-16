@@ -48,6 +48,7 @@ import {
   getHomeSubareaProcessGroups,
   isEngineerProcessSubtype,
   isEngineerSubcellSubtype,
+  isEngineerAreaSubtype,
   mapTakenSubcellAreas,
   parseAccessProcess,
   subtypesForCargo,
@@ -760,6 +761,11 @@ type ApproveUserPayload = {
 type PendingApprovalItemProps = {
   user: AppUser
   approvedUsers: AppUser[]
+  orgCells: Array<{
+    id: string
+    responsibleUserId?: string | null
+    responsibleName?: string | null
+  }>
   terceiraOptions: string[]
   onApprove: (userId: string, payload: ApproveUserPayload) => Promise<void>
   onReject: (
@@ -773,6 +779,7 @@ type PendingApprovalItemProps = {
 function PendingApprovalItem({
   user,
   approvedUsers,
+  orgCells,
   terceiraOptions,
   onApprove,
   onReject,
@@ -798,9 +805,19 @@ function PendingApprovalItem({
   const needsSubtype = subtypeOptions.length > 0
   const needsHomeSubareas =
     jobTitle === 'Engenheiro' && isEngineerSubcellSubtype(workSubtype)
+  const isCellOwnerSubtype =
+    jobTitle === 'Engenheiro' && isEngineerAreaSubtype(workSubtype)
   const needsSpecificProcesses =
     jobTitle === 'Engenheiro' && isEngineerProcessSubtype(workSubtype)
-  const takenSubcellAreas = mapTakenSubcellAreas(approvedUsers)
+  const takenSubcellAreas = mapTakenSubcellAreas(approvedUsers, undefined, {
+    candidateId: user.id,
+    candidateSubtype: workSubtype,
+    orgCells: orgCells.map((cell) => ({
+      id: cell.id,
+      responsibleUserId: cell.responsibleUserId ?? null,
+      responsibleName: cell.responsibleName ?? null,
+    })),
+  })
   const homeSubareaProcesses = getHomeSubareaProcessGroups()
   const processLabel = selectedProcesses
     .map((encoded) => {
@@ -1095,6 +1112,13 @@ function PendingApprovalItem({
                   ))}
                 </select>
               </label>
+            ) : null}
+
+            {isCellOwnerSubtype ? (
+              <p className="approval-subareas-hint" role="note">
+                Como responsável pela célula, este engenheiro cobre todas as subáreas da
+                área e não pode ser responsável por subárea individual.
+              </p>
             ) : null}
 
             {needsHomeSubareas ? (
@@ -2989,6 +3013,7 @@ function HomePanel({
                           key={user.id}
                           user={user}
                           approvedUsers={registeredUsers}
+                          orgCells={orgCells}
                           terceiraOptions={terceiraOptions}
                           onApprove={onApproveUser}
                           onReject={async (userId, reason) => {
@@ -3097,6 +3122,7 @@ function HomePanel({
                   <UserDetailModal
                     user={selectedUserDetail}
                     approvedUsers={registeredUsers}
+                    orgCells={orgCells}
                     terceiraOptions={terceiraOptions}
                     startInEditMode={userDetailStartEditing}
                     onClose={() => {
