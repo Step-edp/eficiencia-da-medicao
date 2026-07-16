@@ -178,8 +178,7 @@ export function CsdsPanel() {
           <fieldset className="csds-cities-fieldset full-width">
             <legend>Cidades</legend>
             <p className="csds-form-hint">
-              Selecione uma ou mais cidades atendidas por este CSD. Cidades já
-              vinculadas a outro CSD aparecem desabilitadas.
+              Cidades já vinculadas a outro CSD ficam desabilitadas.
             </p>
             <div className="csds-cities-grid">
               {CSD_CITY_OPTIONS.map((city) => {
