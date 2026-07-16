@@ -1581,9 +1581,6 @@ function HomePanel({
   const allowedHomeAreas = isAdmin
     ? getHomeAreasForProfilePreview(previewProfileId)
     : getHomeAreasForUser(currentUser)
-  const areas = allAreas.filter((area) =>
-    allowedHomeAreas.includes(area.title as (typeof allowedHomeAreas)[number]),
-  )
 
   const previewProfile =
     isAdmin && previewProfileId !== ADMIN_PREVIEW_PROFILE_ID
@@ -1596,6 +1593,23 @@ function HomePanel({
     (isAdmin && previewProfileId === ADMIN_PREVIEW_PROFILE_ID)
       ? ['Agendar', 'Consultar', 'Meus TOIs']
       : ['Agendar', 'Consultar']
+
+  /** Perfis de Lavratura: home mostra as opções direto, sem o card Equipe de campo. */
+  const flattenFieldTeamHome =
+    isFieldTeamCsdScope(currentUser.workSubtype) ||
+    isFieldTeamCsdScope(previewProfile?.match.workSubtype)
+
+  const fieldTeamArea = allAreas.find((area) => area.title === 'Equipe de campo') ?? null
+
+  const areas = allAreas.filter((area) => {
+    if (!allowedHomeAreas.includes(area.title as (typeof allowedHomeAreas)[number])) {
+      return false
+    }
+    if (flattenFieldTeamHome && area.title === 'Equipe de campo') {
+      return false
+    }
+    return true
+  })
 
   const accessiblePortals = (() => {
     if (isAdmin && previewProfileId === ADMIN_PREVIEW_PROFILE_ID) {
@@ -1734,6 +1748,13 @@ function HomePanel({
         // Mantém a sessão atual se a atualização falhar.
       })
   }, [navReady, onCurrentUserChange])
+
+  useEffect(() => {
+    if (!flattenFieldTeamHome) return
+    if (selectedArea?.title === 'Equipe de campo' && !selectedFieldTeamSection) {
+      setSelectedArea(null)
+    }
+  }, [flattenFieldTeamHome, selectedArea?.title, selectedFieldTeamSection])
 
   useEffect(() => {
     if (!navReady) return
@@ -3657,14 +3678,20 @@ function HomePanel({
         <main className="shell">
           <section className="home-card area-screen-card">
             <TopActionBar
-              onBack={() => setSelectedFieldTeamSection(null)}
+              onBack={
+                flattenFieldTeamHome
+                  ? exitToHome
+                  : () => setSelectedFieldTeamSection(null)
+              }
               onHome={() => {
                 setSelectedFieldTeamSection(null)
                 setSelectedArea(null)
               }}
               onLogout={onLogout}
             />
-            <p className="section-tag">Equipe de campo</p>
+            <p className="section-tag">
+              {flattenFieldTeamHome ? 'Portal' : 'Equipe de campo'}
+            </p>
             <h2>{selectedFieldTeamSection}</h2>
             {selectedFieldTeamSection === 'Agendar' ? (
               <>
@@ -4190,6 +4217,7 @@ function HomePanel({
             </div>
           ) : null}
           {selectedArea.title === 'Equipe de campo' ? (
+            flattenFieldTeamHome ? null : (
             <div className="measurement-sections" aria-label="Funções da equipe de campo">
               <p>
                 Perfis de <strong>Lavratura de TOI - Equipe de Campo</strong> têm acesso a
@@ -4209,6 +4237,7 @@ function HomePanel({
                 </button>
               ))}
             </div>
+            )
           ) : null}
         </section>
       </main>
@@ -4294,6 +4323,27 @@ function HomePanel({
         ) : null}
 
         <div className="home-areas" aria-label="Áreas do portal">
+          {flattenFieldTeamHome
+            ? fieldTeamSections.map((section) => (
+                <button
+                  key={section}
+                  className={`area-card ${getAreaCardClassName(section)}`}
+                  type="button"
+                  onClick={() => {
+                    if (!fieldTeamArea) return
+                    setSelectedOrgCell(null)
+                    setSelectedOrgSubcell(null)
+                    setSelectedArea(fieldTeamArea)
+                    setSelectedFieldTeamSection(section)
+                  }}
+                >
+                  <span className="area-card-title">
+                    <ItemIcon title={section} />
+                    <span>{section}</span>
+                  </span>
+                </button>
+              ))
+            : null}
           {areas.map((area) => (
             <button
               key={area.title}
@@ -4312,7 +4362,7 @@ function HomePanel({
             </button>
           ))}
         </div>
-        {!areas.length ? (
+        {!areas.length && !(flattenFieldTeamHome && fieldTeamSections.length) ? (
           <p className="generated-password-empty">
             Este perfil não possui áreas de acesso na home.
           </p>
@@ -4735,6 +4785,14 @@ function getAreaCardClassName(title: string) {
   }
 
   if (title === 'Equipe de campo') {
+    return 'area-card-equipe-campo'
+  }
+
+  if (title === 'Agendar') {
+    return 'area-card-equipe-campo'
+  }
+
+  if (title === 'Consultar' || title === 'Meus TOIs') {
     return 'area-card-equipe-campo'
   }
 
