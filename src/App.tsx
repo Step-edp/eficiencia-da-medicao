@@ -4934,7 +4934,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
           </select>
         </label>
 
-        <label>
+        <label className="full-width">
           Nome completo
           <input
             type="text"
