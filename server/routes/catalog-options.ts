@@ -65,7 +65,7 @@ const DEFAULT_OPTIONS: Record<CatalogKey, string[]> = {
     'Tremembé',
   ],
   escopo_csd: [
-    'Lavratura de TOI',
+    'Lavratura de TOI - Equipe de Campo',
     'Lavratura de TOI - Ponto Focal',
     'Lavratura de TOI - Backoffice',
     'Leituras de faturamento',
@@ -107,6 +107,14 @@ export async function ensureCatalogOptionsSeeded() {
      WHERE catalog_key = 'terceira'
        AND value <> ALL($1::text[])`,
     [DEFAULT_OPTIONS.terceira],
+  )
+
+  // Renomeia escopo legado de Lavratura de TOI.
+  await query(
+    `UPDATE catalog_options
+     SET value = 'Lavratura de TOI - Equipe de Campo'
+     WHERE catalog_key = 'escopo_csd'
+       AND value = 'Lavratura de TOI'`,
   )
 }
 

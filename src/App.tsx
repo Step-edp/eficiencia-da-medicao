@@ -4165,8 +4165,8 @@ function HomePanel({
           {selectedArea.title === 'Equipe de campo' ? (
             <div className="measurement-sections" aria-label="Funções da equipe de campo">
               <p>
-                Perfis de <strong>Lavratura de TOI</strong> têm acesso a Agendar, Consultar e
-                Meus TOIs nesta área.
+                Perfis de <strong>Lavratura de TOI - Equipe de Campo</strong> têm acesso a
+                Agendar, Consultar e Meus TOIs nesta área.
               </p>
               {fieldTeamSections.map((section) => (
                 <button

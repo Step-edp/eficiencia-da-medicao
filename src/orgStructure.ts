@@ -335,7 +335,7 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Agendar',
     'Consultar',
     'Meus TOIs',
-    'Lavratura de TOI',
+    'Lavratura de TOI - Equipe de Campo',
     'Lavratura de TOI - Ponto Focal',
     'Lavratura de TOI - Backoffice',
     'Leituras de faturamento',

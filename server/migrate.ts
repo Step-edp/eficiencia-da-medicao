@@ -340,4 +340,16 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS toi_collaborator2_registration TEXT NOT NULL DEFAULT '',
       ADD COLUMN IF NOT EXISTS toi_team_reason TEXT NOT NULL DEFAULT '';
   `)
+
+  // Renomeia escopo CSD: Lavratura de TOI → Lavratura de TOI - Equipe de Campo.
+  await query(`
+    UPDATE users
+    SET work_subtype = 'Lavratura de TOI - Equipe de Campo'
+    WHERE work_subtype = 'Lavratura de TOI';
+
+    UPDATE catalog_options
+    SET value = 'Lavratura de TOI - Equipe de Campo'
+    WHERE catalog_key = 'escopo_csd'
+      AND value = 'Lavratura de TOI';
+  `)
 }

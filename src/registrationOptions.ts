@@ -7,7 +7,7 @@ export const TECHNICIAN_SCOPES_BY_AREA: Record<string, readonly string[]> = {
     'Laboratório de Medição',
   ],
   CSD: [
-    'Lavratura de TOI',
+    'Lavratura de TOI - Equipe de Campo',
     'Lavratura de TOI - Ponto Focal',
     'Lavratura de TOI - Backoffice',
     'Leituras de faturamento',

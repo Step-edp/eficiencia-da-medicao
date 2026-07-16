@@ -67,19 +67,19 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     match: {
       workArea: 'CSD',
       jobTitle: 'Técnico',
-      workSubtype: 'Lavratura de TOI',
+      workSubtype: 'Lavratura de TOI - Equipe de Campo',
     },
   },
   {
     id: 'analista-lavratura-toi',
-    name: 'CSD – Analista – Lavratura de TOI',
+    name: 'CSD – Analista – Lavratura de TOI - Equipe de Campo',
     description:
       'Permite agendar, consultar e acompanhar Meus TOIs na Equipe de campo para equipamentos provenientes de lavratura de TOI.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
       jobTitle: 'Analista',
-      workSubtype: 'Lavratura de TOI',
+      workSubtype: 'Lavratura de TOI - Equipe de Campo',
     },
   },
   {
@@ -239,7 +239,8 @@ export function getHomeAreasForRole(role: UserRole): readonly PortalArea[] {
 export function isFieldTeamCsdScope(workSubtype?: string | null) {
   const normalized = workSubtype?.trim() ?? ''
   return (
-    normalized === 'Lavratura de TOI' ||
+    normalized === 'Lavratura de TOI - Equipe de Campo' ||
+    normalized === 'Lavratura de TOI' || // legado
     normalized === 'Lavratura de TOI - Ponto Focal' ||
     normalized === 'Lavratura de TOI - Backoffice'
   )

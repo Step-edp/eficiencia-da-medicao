@@ -515,7 +515,7 @@ export async function approveUser(req: Request, res: Response) {
     ],
   }
   const csdScopes = await listCatalogValues('escopo_csd')
-  const legacyCsdScopes = ['Lavratura de TOI - Ponto Focal']
+  const legacyCsdScopes = ['Lavratura de TOI', 'Lavratura de TOI - Ponto Focal']
   const allowedEngineerHomeSubareas = [
     'Medição',
     'Laboratório de Medição',
@@ -887,7 +887,7 @@ export async function updateUser(req: Request, res: Response) {
     ],
   }
   const csdScopes = await listCatalogValues('escopo_csd')
-  const legacyCsdScopes = ['Lavratura de TOI - Ponto Focal']
+  const legacyCsdScopes = ['Lavratura de TOI', 'Lavratura de TOI - Ponto Focal']
   const allowedEngineerHomeSubareas = [
     'Medição',
     'Laboratório de Medição',
