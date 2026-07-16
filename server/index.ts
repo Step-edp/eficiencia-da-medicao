@@ -168,8 +168,17 @@ async function start() {
   app.get('/api/demm-documents/:id/file', requireAuth, downloadDemmDocument)
 
   const distPath = path.resolve(__dirname, '../../dist')
-  app.use(express.static(distPath))
+  app.use(
+    express.static(distPath, {
+      setHeaders(res, filePath) {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+        }
+      },
+    }),
+  )
   app.get(/^(?!\/api).*/, (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
     res.sendFile(path.join(distPath, 'index.html'))
   })
 

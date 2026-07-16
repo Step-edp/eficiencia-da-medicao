@@ -11,7 +11,6 @@ import {
   DEFAULT_LOCALITIES,
   ENGINEER_HOME_SUBAREAS,
   ENGINEER_SUBTYPES,
-  getHomeSubareaProcessGroups,
   TECHNICIAN_SCOPES_BY_AREA,
 } from './registrationOptions'
 
