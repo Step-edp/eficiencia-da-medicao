@@ -1801,6 +1801,70 @@ button {
   line-height: 1.35;
 }
 
+.partner-search-control {
+  position: relative;
+}
+
+.partner-search-results {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 220px;
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(5, 26, 44, 0.98);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+}
+
+.partner-search-option {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+}
+
+.partner-search-option:hover,
+.partner-search-option:focus-visible,
+.partner-search-option.is-selected {
+  background: rgba(24, 216, 240, 0.12);
+  outline: none;
+}
+
+.partner-search-option strong {
+  font-size: 0.95rem;
+}
+
+.partner-search-option span {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.partner-search-empty {
+  padding: 10px 12px;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.partner-search-selected {
+  margin: 8px 0 0;
+  color: #9be7ff;
+  font-size: 0.88rem;
+}
+
 .approval-subareas-grid {
   display: grid;
   gap: 10px;

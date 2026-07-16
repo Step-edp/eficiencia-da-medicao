@@ -53,6 +53,8 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
   const [note, setNote] = useState('')
   const [csd, setCsd] = useState('')
   const [partnerUserId, setPartnerUserId] = useState('')
+  const [partnerQuery, setPartnerQuery] = useState('')
+  const [partnerMenuOpen, setPartnerMenuOpen] = useState(false)
   const [schedulingNotes, setSchedulingNotes] = useState('')
   const [collaborator1Name, setCollaborator1Name] = useState('')
   const [collaborator1Registration, setCollaborator1Registration] = useState('')
@@ -99,6 +101,36 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
     })
   }
 
+  const selectedPartner = partners.find((partner) => partner.id === partnerUserId) ?? null
+
+  const partnerMatches = (() => {
+    const query = partnerQuery.trim().toUpperCase()
+    if (!query) return partners.slice(0, 8)
+    return partners
+      .filter((partner) => partner.registration.toUpperCase().includes(query))
+      .slice(0, 12)
+  })()
+
+  const selectPartner = (partner: FieldPartnerOption) => {
+    setPartnerUserId(partner.id)
+    setPartnerQuery(partner.registration)
+    setPartnerMenuOpen(false)
+    clearFieldError('partner')
+  }
+
+  const resolvePartnerFromQuery = () => {
+    const query = partnerQuery.trim().toUpperCase()
+    if (!query) return null
+    const exact = partners.find(
+      (partner) => partner.registration.toUpperCase() === query,
+    )
+    if (exact) return exact
+    if (partnerUserId) {
+      return partners.find((partner) => partner.id === partnerUserId) ?? null
+    }
+    return null
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFeedback(null)
@@ -120,9 +152,13 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       nextErrors.csd = 'Selecione um CSD.'
     }
 
-    if (!partnerUserId) {
+    const resolvedPartner = resolvePartnerFromQuery()
+    if (!resolvedPartner) {
       nextErrors.partner =
-        'Selecione o parceiro. Se ele não estiver na lista, solicite que faça o cadastro no portal.'
+        'Informe a matrícula de um usuário cadastrado. Se o parceiro não estiver na lista, solicite que ele faça o cadastro no portal.'
+    } else {
+      setPartnerUserId(resolvedPartner.id)
+      setPartnerQuery(resolvedPartner.registration)
     }
 
     if (requireToiTeam) {
@@ -149,7 +185,6 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
     }
 
     setFieldErrors({})
-
     setSubmitting(true)
 
     try {
@@ -161,7 +196,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
         csd,
         clientPresent: 'nao',
         schedulingNotes,
-        partnerUserId,
+        partnerUserId: resolvedPartner!.id,
         ...(requireToiTeam
           ? {
               toiCollaborator1Name: collaborator1Name.trim(),
@@ -183,6 +218,8 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       setNote('')
       setCsd('')
       setPartnerUserId('')
+      setPartnerQuery('')
+      setPartnerMenuOpen(false)
       setSchedulingNotes('')
       setCollaborator1Name('')
       setCollaborator1Registration('')
@@ -340,32 +377,81 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
           <FormFieldError id="field-team-csd-error" message={fieldErrors.csd} />
         </label>
 
-        <label className={`full-width${fieldErrors.partner ? ' has-field-error' : ''}`}>
+        <div className={`full-width partner-search${fieldErrors.partner ? ' has-field-error' : ''}`}>
           <RequiredLabel>Parceiro</RequiredLabel>
-          <select
-            value={partnerUserId}
-            onChange={(event) => {
-              setPartnerUserId(event.target.value)
-              clearFieldError('partner')
-            }}
-            aria-invalid={Boolean(fieldErrors.partner)}
-            aria-describedby="field-team-partner-hint field-team-partner-error"
-            required
-          >
-            <option value="">
-              {partnersLoading ? 'Carregando parceiros...' : 'Selecione o parceiro'}
-            </option>
-            {partners.map((partner) => (
-              <option key={partner.id} value={partner.id}>
-                {partner.label}
-              </option>
-            ))}
-          </select>
+          <div className="partner-search-control">
+            <input
+              type="text"
+              inputMode="text"
+              autoComplete="off"
+              spellCheck={false}
+              value={partnerQuery}
+              placeholder={
+                partnersLoading
+                  ? 'Carregando usuários...'
+                  : 'Digite a matrícula do parceiro'
+              }
+              onChange={(event) => {
+                const value = event.target.value
+                setPartnerQuery(value)
+                setPartnerUserId('')
+                setPartnerMenuOpen(true)
+                clearFieldError('partner')
+              }}
+              onFocus={() => setPartnerMenuOpen(true)}
+              onBlur={() => {
+                window.setTimeout(() => setPartnerMenuOpen(false), 150)
+              }}
+              aria-invalid={Boolean(fieldErrors.partner)}
+              aria-autocomplete="list"
+              aria-expanded={partnerMenuOpen}
+              aria-controls="field-team-partner-list"
+              aria-describedby="field-team-partner-hint field-team-partner-error"
+              required
+            />
+            {partnerMenuOpen && !partnersLoading ? (
+              <ul
+                id="field-team-partner-list"
+                className="partner-search-results"
+                role="listbox"
+              >
+                {partnerMatches.length ? (
+                  partnerMatches.map((partner) => (
+                    <li key={partner.id}>
+                      <button
+                        type="button"
+                        className={
+                          partner.id === partnerUserId
+                            ? 'partner-search-option is-selected'
+                            : 'partner-search-option'
+                        }
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => selectPartner(partner)}
+                      >
+                        <strong>{partner.registration}</strong>
+                        <span>{partner.name}</span>
+                      </button>
+                    </li>
+                  ))
+                ) : (
+                  <li className="partner-search-empty">
+                    Nenhuma matrícula encontrada. Solicite que o parceiro faça o cadastro.
+                  </li>
+                )}
+              </ul>
+            ) : null}
+          </div>
+          {selectedPartner ? (
+            <p className="partner-search-selected" role="status">
+              Selecionado: {selectedPartner.registration} — {selectedPartner.name}
+            </p>
+          ) : null}
           <p id="field-team-partner-hint" className="field-hint">
-            Se o parceiro não estiver na lista, solicite que ele faça o cadastro no portal.
+            Pesquise pela matrícula do usuário cadastrado. Se o parceiro não estiver na
+            lista, solicite que ele faça o cadastro no portal.
           </p>
           <FormFieldError id="field-team-partner-error" message={fieldErrors.partner} />
-        </label>
+        </div>
 
         {requireToiTeam ? (
           <fieldset className="toi-team-fieldset full-width">

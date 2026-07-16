@@ -136,14 +136,7 @@ export async function countMeterSchedules(req: Request, res: Response) {
   res.json({ total: Number(result.rows[0]?.total ?? 0), trailStep })
 }
 
-const FIELD_PARTNER_SCOPES = [
-  'Lavratura de TOI - Equipe de Campo',
-  'Lavratura de TOI',
-  'Lavratura de TOI - Ponto Focal',
-  'Lavratura de TOI - Backoffice',
-]
-
-/** Parceiros cadastrados (aprovados) disponíveis para agendamento em campo. */
+/** Parceiros: usuários aprovados cadastrados no portal (busca por matrícula). */
 export async function listFieldPartners(req: Request, res: Response) {
   const result = await query<{
     id: string
@@ -154,11 +147,9 @@ export async function listFieldPartners(req: Request, res: Response) {
      FROM users
      WHERE approval_status = 'approved'
        AND role <> 'admin'
-       AND work_area = 'CSD'
-       AND work_subtype = ANY($1::text[])
-       AND ($2::text IS NULL OR id <> $2)
-     ORDER BY name ASC`,
-    [FIELD_PARTNER_SCOPES, req.user?.id ?? null],
+       AND ($1::text IS NULL OR id <> $1)
+     ORDER BY registration ASC, name ASC`,
+    [req.user?.id ?? null],
   )
 
   res.json({
@@ -166,7 +157,7 @@ export async function listFieldPartners(req: Request, res: Response) {
       id: row.id,
       name: row.name,
       registration: row.registration,
-      label: `${row.name} (${row.registration})`,
+      label: `${row.registration} — ${row.name}`,
     })),
   })
 }
@@ -257,10 +248,8 @@ export async function createMeterSchedule(req: Request, res: Response) {
      FROM users
      WHERE id = $1
        AND approval_status = 'approved'
-       AND role <> 'admin'
-       AND work_area = 'CSD'
-       AND work_subtype = ANY($2::text[])`,
-    [normalized.partnerUserId, FIELD_PARTNER_SCOPES],
+       AND role <> 'admin'`,
+    [normalized.partnerUserId],
   )
   const partner = partnerResult.rows[0]
   if (!partner) {
