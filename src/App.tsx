@@ -18,6 +18,7 @@ import {
   getAccessiblePortals,
   isFieldTeamCsdScope,
   isLavraturaBackofficeScope,
+  skipsVacationAgenda,
   listUsersForCadastroProfile,
   PORTAL_AREAS,
   roleLabel,
@@ -1617,8 +1618,16 @@ function HomePanel({
     }
     if (isAdmin && previewProfile) {
       const areas = [...previewProfile.areas] as Array<(typeof PORTAL_AREAS)[number]>
-      if (!areas.includes('Agenda')) areas.push('Agenda')
-      return areas
+      if (
+        !skipsVacationAgenda(previewProfile.match.workSubtype) &&
+        !areas.includes('Agenda')
+      ) {
+        areas.push('Agenda')
+      }
+      return areas.filter(
+        (area) =>
+          area !== 'Agenda' || !skipsVacationAgenda(previewProfile.match.workSubtype),
+      )
     }
     return getAccessiblePortals(currentUser)
   })()
@@ -1626,8 +1635,14 @@ function HomePanel({
   const gestaoArea = allAreas.find((area) => area.title === 'Gestão Operacional') ?? null
   const agendaArea = allAreas.find((area) => area.title === 'Agenda') ?? null
 
+  const skipsVacation =
+    skipsVacationAgenda(currentUser.workSubtype) ||
+    skipsVacationAgenda(previewProfile?.match.workSubtype)
+
   const isVacationBlocked =
-    currentUser.role !== 'admin' && currentUser.vacationStatus === 'bloqueado'
+    !skipsVacation &&
+    currentUser.role !== 'admin' &&
+    currentUser.vacationStatus === 'bloqueado'
   const isOnAbsence =
     currentUser.role !== 'admin' &&
     (currentUser.vacationStatus === 'em_ausencia' ||
@@ -4266,7 +4281,9 @@ function HomePanel({
           </div>
         ) : null}
 
-        {currentUser.role !== 'admin' && currentUser.vacationStatus === 'pendente' ? (
+        {currentUser.role !== 'admin' &&
+        !skipsVacation &&
+        currentUser.vacationStatus === 'pendente' ? (
           <div className="agenda-alert agenda-alert-pending" role="status">
             <div className="agenda-alert-body">
               <p className="agenda-alert-text">

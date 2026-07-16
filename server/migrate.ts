@@ -352,4 +352,15 @@ export async function migrate() {
     WHERE catalog_key = 'escopo_csd'
       AND value = 'Lavratura de TOI';
   `)
+
+  // Equipe de Campo e Backoffice não usam Agenda de férias.
+  await query(`
+    UPDATE users
+    SET vacation_required_since = NULL
+    WHERE work_subtype IN (
+      'Lavratura de TOI - Equipe de Campo',
+      'Lavratura de TOI - Backoffice',
+      'Lavratura de TOI'
+    );
+  `)
 }

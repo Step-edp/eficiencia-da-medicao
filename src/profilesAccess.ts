@@ -251,6 +251,16 @@ export function isLavraturaBackofficeScope(workSubtype?: string | null) {
   return (workSubtype?.trim() ?? '') === 'Lavratura de TOI - Backoffice'
 }
 
+/** Equipe de Campo e Backoffice não usam Agenda de férias. */
+export function skipsVacationAgenda(workSubtype?: string | null) {
+  const normalized = workSubtype?.trim() ?? ''
+  return (
+    normalized === 'Lavratura de TOI - Equipe de Campo' ||
+    normalized === 'Lavratura de TOI' || // legado
+    normalized === 'Lavratura de TOI - Backoffice'
+  )
+}
+
 /** Portais que o usuário pode abrir (sem colapsar em Gestão Operacional). */
 export function getAccessiblePortals(user: {
   role: UserRole
@@ -294,7 +304,9 @@ export function getAccessiblePortals(user: {
     portals = [...portals, 'Equipe de campo']
   }
 
-  if (!portals.includes('Agenda')) {
+  if (skipsVacationAgenda(user.workSubtype)) {
+    portals = portals.filter((portal) => portal !== 'Agenda')
+  } else if (!portals.includes('Agenda')) {
     portals = [...portals, 'Agenda']
   }
   return portals
@@ -386,7 +398,9 @@ export function getHomeAreasForProfilePreview(profileId: string): readonly Porta
   if (!profile) return [...PORTAL_AREAS]
 
   const areas = PORTAL_AREAS.filter(
-    (area) => profile.areas.includes(area) || area === 'Agenda',
+    (area) =>
+      profile.areas.includes(area) ||
+      (area === 'Agenda' && !skipsVacationAgenda(profile.match.workSubtype)),
   )
   // Pré-visualização de perfil segue o mesmo agrupamento da home do usuário.
   return portalsToHomeCards(areas)

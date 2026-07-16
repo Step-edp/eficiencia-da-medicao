@@ -19,6 +19,7 @@ import {
   attachVacationMeta,
   getVacationMetaForUser,
 } from './vacation.js'
+import { skipsVacationAgenda } from '../vacation-exempt.js'
 
 /** Portais da home derivados do escopo do técnico (alinhado aos perfis de cadastro). */
 function accessAreasForTechnician(workArea: string, subtype: string): string[] {
@@ -193,7 +194,7 @@ function mapUser(row: UserRow, options?: { includePassword?: boolean }) {
 
 async function mapUserWithVacation(row: UserRow, options?: { includePassword?: boolean }) {
   const base = mapUser(row, options)
-  const meta = await getVacationMetaForUser(row.id, row.role)
+  const meta = await getVacationMetaForUser(row.id, row.role, row.work_subtype)
   return attachVacationMeta(base, meta)
 }
 
@@ -627,7 +628,10 @@ export async function approveUser(req: Request, res: Response) {
          work_subtype = $3,
          access_areas = $4::jsonb,
          access_processes = $5::jsonb,
-         vacation_required_since = COALESCE(vacation_required_since, NOW())
+         vacation_required_since = CASE
+           WHEN $6::boolean THEN NULL
+           ELSE COALESCE(vacation_required_since, NOW())
+         END
      WHERE id = $1 AND role = 'compras'
      RETURNING *`,
     [
@@ -636,6 +640,7 @@ export async function approveUser(req: Request, res: Response) {
       storedSubtype,
       JSON.stringify(storedAccessAreas),
       JSON.stringify(storedAccessProcesses),
+      skipsVacationAgenda(storedSubtype),
     ],
   )
 

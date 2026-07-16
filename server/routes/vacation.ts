@@ -9,6 +9,7 @@ import {
   isAbsenceType,
   listActiveCoversForSubstitute,
 } from '../vacation-coverage.js'
+import { skipsVacationAgenda } from '../vacation-exempt.js'
 
 export type VacationStatus = 'ok' | 'pendente' | 'bloqueado' | 'em_ausencia' | 'em_ferias'
 
@@ -139,6 +140,7 @@ async function findActiveAbsence(userId: string) {
 export async function getVacationMetaForUser(
   userId: string,
   role: string,
+  workSubtype?: string | null,
 ): Promise<VacationMeta> {
   const covering = await listActiveCoversForSubstitute(userId)
   const coveringFor: VacationCoverSummary[] = covering.map((item) => ({
@@ -157,7 +159,13 @@ export async function getVacationMetaForUser(
     findActiveAbsence(userId),
   ])
 
-  if (role === 'admin') {
+  if (role === 'admin' || skipsVacationAgenda(workSubtype)) {
+    if (skipsVacationAgenda(workSubtype)) {
+      await query(
+        `UPDATE users SET vacation_required_since = NULL WHERE id = $1 AND vacation_required_since IS NOT NULL`,
+        [userId],
+      )
+    }
     return {
       vacationStatus: 'ok',
       vacationDeadlineAt: null,
@@ -272,9 +280,14 @@ function parseDateInput(raw: unknown): string | null {
 }
 
 async function agendaResponse(userId: string, role: string, extra: Record<string, unknown> = {}) {
+  const userRow = await query<{ work_subtype: string }>(
+    `SELECT work_subtype FROM users WHERE id = $1`,
+    [userId],
+  )
+  const workSubtype = userRow.rows[0]?.work_subtype ?? ''
   const [periods, meta] = await Promise.all([
     listUserVacationPeriods(userId),
-    getVacationMetaForUser(userId, role),
+    getVacationMetaForUser(userId, role, workSubtype),
   ])
   return {
     periods,
