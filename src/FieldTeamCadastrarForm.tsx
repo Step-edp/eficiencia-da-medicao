@@ -378,7 +378,13 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
         </label>
 
         <div className={`full-width partner-search${fieldErrors.partner ? ' has-field-error' : ''}`}>
-          <RequiredLabel>Parceiro</RequiredLabel>
+          <div className="partner-search-label-row">
+            <RequiredLabel>Parceiro</RequiredLabel>
+            <p id="field-team-partner-hint" className="field-hint partner-search-label-hint">
+              Pesquise pela matrícula do usuário cadastrado. Se o parceiro não estiver na
+              lista, solicite que ele faça o cadastro no portal.
+            </p>
+          </div>
           <div className="partner-search-control">
             <input
               type="text"
@@ -446,10 +452,6 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
               Selecionado: {selectedPartner.registration} — {selectedPartner.name}
             </p>
           ) : null}
-          <p id="field-team-partner-hint" className="field-hint">
-            Pesquise pela matrícula do usuário cadastrado. Se o parceiro não estiver na
-            lista, solicite que ele faça o cadastro no portal.
-          </p>
           <FormFieldError id="field-team-partner-error" message={fieldErrors.partner} />
         </div>
 

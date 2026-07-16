@@ -1801,6 +1801,19 @@ button {
   line-height: 1.35;
 }
 
+.partner-search-label-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.partner-search-label-hint {
+  margin: 0;
+  flex: 1 1 220px;
+}
+
 .partner-search-control {
   position: relative;
 }
