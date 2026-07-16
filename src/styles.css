@@ -1794,6 +1794,13 @@ button {
   line-height: 1.4;
 }
 
+.field-hint {
+  margin: 6px 0 0;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
 .approval-subareas-grid {
   display: grid;
   gap: 10px;

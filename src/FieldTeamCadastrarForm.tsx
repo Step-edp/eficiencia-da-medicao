@@ -1,6 +1,6 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, ApiError } from './api'
+import { api, ApiError, type FieldPartnerOption } from './api'
 import { FormFieldError } from './FormFieldError'
 import {
   NUMERIC_FIELD_LIMITS,
@@ -29,6 +29,7 @@ type FieldTeamFieldErrors = Partial<
   Record<
     | NumericFieldKey
     | 'csd'
+    | 'partner'
     | 'collaborator1Name'
     | 'collaborator1Registration'
     | 'collaborator2Name'
@@ -44,11 +45,14 @@ type FieldTeamCadastrarFormProps = {
 
 export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCadastrarFormProps) {
   const { options: csdOptions, loading: csdLoading } = useCsdsOptions()
+  const [partners, setPartners] = useState<FieldPartnerOption[]>([])
+  const [partnersLoading, setPartnersLoading] = useState(true)
   const [meter, setMeter] = useState('')
   const [installation, setInstallation] = useState('')
   const [toi, setToi] = useState('')
   const [note, setNote] = useState('')
   const [csd, setCsd] = useState('')
+  const [partnerUserId, setPartnerUserId] = useState('')
   const [schedulingNotes, setSchedulingNotes] = useState('')
   const [collaborator1Name, setCollaborator1Name] = useState('')
   const [collaborator1Registration, setCollaborator1Registration] = useState('')
@@ -66,6 +70,25 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
     type: 'success' | 'error'
     message: string
   } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setPartnersLoading(true)
+    void api
+      .listFieldPartners()
+      .then(({ partners: rows }) => {
+        if (!cancelled) setPartners(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setPartners([])
+      })
+      .finally(() => {
+        if (!cancelled) setPartnersLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const clearFieldError = (field: keyof FieldTeamFieldErrors) => {
     setFieldErrors((current) => {
@@ -95,6 +118,11 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
 
     if (!csd) {
       nextErrors.csd = 'Selecione um CSD.'
+    }
+
+    if (!partnerUserId) {
+      nextErrors.partner =
+        'Selecione o parceiro. Se ele não estiver na lista, solicite que faça o cadastro no portal.'
     }
 
     if (requireToiTeam) {
@@ -133,6 +161,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
         csd,
         clientPresent: 'nao',
         schedulingNotes,
+        partnerUserId,
         ...(requireToiTeam
           ? {
               toiCollaborator1Name: collaborator1Name.trim(),
@@ -153,6 +182,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       setToi('')
       setNote('')
       setCsd('')
+      setPartnerUserId('')
       setSchedulingNotes('')
       setCollaborator1Name('')
       setCollaborator1Registration('')
@@ -308,6 +338,33 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
             ))}
           </select>
           <FormFieldError id="field-team-csd-error" message={fieldErrors.csd} />
+        </label>
+
+        <label className={`full-width${fieldErrors.partner ? ' has-field-error' : ''}`}>
+          <RequiredLabel>Parceiro</RequiredLabel>
+          <select
+            value={partnerUserId}
+            onChange={(event) => {
+              setPartnerUserId(event.target.value)
+              clearFieldError('partner')
+            }}
+            aria-invalid={Boolean(fieldErrors.partner)}
+            aria-describedby="field-team-partner-hint field-team-partner-error"
+            required
+          >
+            <option value="">
+              {partnersLoading ? 'Carregando parceiros...' : 'Selecione o parceiro'}
+            </option>
+            {partners.map((partner) => (
+              <option key={partner.id} value={partner.id}>
+                {partner.label}
+              </option>
+            ))}
+          </select>
+          <p id="field-team-partner-hint" className="field-hint">
+            Se o parceiro não estiver na lista, solicite que ele faça o cadastro no portal.
+          </p>
+          <FormFieldError id="field-team-partner-error" message={fieldErrors.partner} />
         </label>
 
         {requireToiTeam ? (

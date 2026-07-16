@@ -85,6 +85,7 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
                 <th>TOI</th>
                 <th>Nota</th>
                 <th>CSD</th>
+                <th>Parceiro</th>
                 <th>Equipe TOI</th>
                 <th>Motivo (Backoffice)</th>
                 <th>Data agendada</th>
@@ -100,6 +101,13 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
                   <td>{item.toi || '—'}</td>
                   <td>{item.note || '—'}</td>
                   <td>{item.csd || '—'}</td>
+                  <td>
+                    {item.partnerName
+                      ? `${item.partnerName}${
+                          item.partnerRegistration ? ` (${item.partnerRegistration})` : ''
+                        }`
+                      : '—'}
+                  </td>
                   <td>
                     {item.toiCollaborator1Name || item.toiCollaborator2Name
                       ? [

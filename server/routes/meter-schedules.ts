@@ -24,6 +24,9 @@ type MeterScheduleRow = {
   toi_collaborator2_name: string
   toi_collaborator2_registration: string
   toi_team_reason: string
+  partner_user_id: string | null
+  partner_name: string
+  partner_registration: string
   scheduled_at: Date
   trail_step: string
   source: string
@@ -50,6 +53,9 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     toiCollaborator2Name: row.toi_collaborator2_name || '',
     toiCollaborator2Registration: row.toi_collaborator2_registration || '',
     toiTeamReason: row.toi_team_reason || '',
+    partnerUserId: row.partner_user_id ?? null,
+    partnerName: row.partner_name || '',
+    partnerRegistration: row.partner_registration || '',
     scheduledAt: row.scheduled_at.toISOString(),
     scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
     trailStep: row.trail_step,
@@ -130,6 +136,41 @@ export async function countMeterSchedules(req: Request, res: Response) {
   res.json({ total: Number(result.rows[0]?.total ?? 0), trailStep })
 }
 
+const FIELD_PARTNER_SCOPES = [
+  'Lavratura de TOI - Equipe de Campo',
+  'Lavratura de TOI',
+  'Lavratura de TOI - Ponto Focal',
+  'Lavratura de TOI - Backoffice',
+]
+
+/** Parceiros cadastrados (aprovados) disponíveis para agendamento em campo. */
+export async function listFieldPartners(req: Request, res: Response) {
+  const result = await query<{
+    id: string
+    name: string
+    registration: string
+  }>(
+    `SELECT id, name, registration
+     FROM users
+     WHERE approval_status = 'approved'
+       AND role <> 'admin'
+       AND work_area = 'CSD'
+       AND work_subtype = ANY($1::text[])
+       AND ($2::text IS NULL OR id <> $2)
+     ORDER BY name ASC`,
+    [FIELD_PARTNER_SCOPES, req.user?.id ?? null],
+  )
+
+  res.json({
+    partners: result.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      registration: row.registration,
+      label: `${row.name} (${row.registration})`,
+    })),
+  })
+}
+
 export async function createMeterSchedule(req: Request, res: Response) {
   const {
     meter,
@@ -139,6 +180,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     csd,
     clientPresent,
     schedulingNotes,
+    partnerUserId,
     toiCollaborator1Name,
     toiCollaborator1Registration,
     toiCollaborator2Name,
@@ -152,6 +194,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     csd?: string
     clientPresent?: string
     schedulingNotes?: string
+    partnerUserId?: string
     toiCollaborator1Name?: string
     toiCollaborator1Registration?: string
     toiCollaborator2Name?: string
@@ -167,6 +210,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     csd: csd?.trim() ?? '',
     clientPresent: clientPresent?.trim() ?? '',
     schedulingNotes: schedulingNotes?.trim() ?? '',
+    partnerUserId: partnerUserId?.trim() ?? '',
     toiCollaborator1Name: toiCollaborator1Name?.trim() ?? '',
     toiCollaborator1Registration: toiCollaborator1Registration?.trim() ?? '',
     toiCollaborator2Name: toiCollaborator2Name?.trim() ?? '',
@@ -194,6 +238,41 @@ export async function createMeterSchedule(req: Request, res: Response) {
 
   if (normalized.clientPresent !== 'sim' && normalized.clientPresent !== 'nao') {
     normalized.clientPresent = 'nao'
+  }
+
+  if (!normalized.partnerUserId) {
+    res.status(400).json({
+      error:
+        'Selecione o parceiro. Se ele não estiver na lista, solicite que faça o cadastro no portal.',
+    })
+    return
+  }
+
+  const partnerResult = await query<{
+    id: string
+    name: string
+    registration: string
+  }>(
+    `SELECT id, name, registration
+     FROM users
+     WHERE id = $1
+       AND approval_status = 'approved'
+       AND role <> 'admin'
+       AND work_area = 'CSD'
+       AND work_subtype = ANY($2::text[])`,
+    [normalized.partnerUserId, FIELD_PARTNER_SCOPES],
+  )
+  const partner = partnerResult.rows[0]
+  if (!partner) {
+    res.status(400).json({
+      error:
+        'Parceiro inválido. Se ele não estiver na lista, solicite que faça o cadastro no portal.',
+    })
+    return
+  }
+  if (req.user?.id && partner.id === req.user.id) {
+    res.status(400).json({ error: 'Selecione um parceiro diferente de você.' })
+    return
   }
 
   let requiresToiTeam = false
@@ -262,8 +341,9 @@ export async function createMeterSchedule(req: Request, res: Response) {
       toi_collaborator1_name, toi_collaborator1_registration,
       toi_collaborator2_name, toi_collaborator2_registration,
       toi_team_reason,
+      partner_user_id, partner_name, partner_registration,
       scheduled_at, trail_step, source, created_by_user_id
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'field_team',$16)
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'field_team',$19)
     RETURNING *`,
     [
       id,
@@ -279,6 +359,9 @@ export async function createMeterSchedule(req: Request, res: Response) {
       normalized.toiCollaborator2Name,
       normalized.toiCollaborator2Registration,
       normalized.toiTeamReason,
+      partner.id,
+      partner.name,
+      partner.registration,
       nextSlot.toISOString(),
       ENTRADA_TRAIL_STEP,
       req.user?.id ?? null,

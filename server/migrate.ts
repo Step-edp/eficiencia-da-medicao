@@ -363,4 +363,12 @@ export async function migrate() {
       'Lavratura de TOI'
     );
   `)
+
+  // Parceiro do agendamento da equipe de campo.
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS partner_user_id TEXT,
+      ADD COLUMN IF NOT EXISTS partner_name TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS partner_registration TEXT NOT NULL DEFAULT '';
+  `)
 }

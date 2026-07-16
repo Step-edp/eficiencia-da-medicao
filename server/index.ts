@@ -31,6 +31,7 @@ import { listAuditLogs } from './routes/audit-logs.js'
 import {
   countMeterSchedules,
   createMeterSchedule,
+  listFieldPartners,
   listMeterSchedules,
 } from './routes/meter-schedules.js'
 import {
@@ -158,6 +159,7 @@ async function start() {
 
   app.get('/api/meter-schedules', requireAuth, listMeterSchedules)
   app.get('/api/meter-schedules/count', requireAuth, countMeterSchedules)
+  app.get('/api/meter-schedules/partners', requireAuth, listFieldPartners)
   app.post('/api/meter-schedules', requireAuth, createMeterSchedule)
   app.get('/api/meter-registry/trail-counts', requireAuth, getMeterRegistryTrailCounts)
 

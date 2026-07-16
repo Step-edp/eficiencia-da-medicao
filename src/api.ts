@@ -274,6 +274,9 @@ export type MeterScheduleRecord = {
   toiCollaborator2Name?: string
   toiCollaborator2Registration?: string
   toiTeamReason?: string
+  partnerUserId?: string | null
+  partnerName?: string
+  partnerRegistration?: string
   scheduledAt: string
   scheduledAtLabel: string
   trailStep: string
@@ -284,6 +287,13 @@ export type MeterScheduleRecord = {
   demmDocumentId: string | null
   demmFileName: string | null
   demmMeterCount: number
+}
+
+export type FieldPartnerOption = {
+  id: string
+  name: string
+  registration: string
+  label: string
 }
 
 export type DemmDocumentRecord = {
@@ -683,6 +693,7 @@ export const api = {
     csd: string
     clientPresent: 'sim' | 'nao'
     schedulingNotes?: string
+    partnerUserId: string
     toiCollaborator1Name?: string
     toiCollaborator1Registration?: string
     toiCollaborator2Name?: string
@@ -693,6 +704,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  listFieldPartners: () =>
+    request<{ partners: FieldPartnerOption[] }>('/api/meter-schedules/partners'),
   createDemmDocument: (payload: {
     meterScheduleId?: string
     fileName: string
