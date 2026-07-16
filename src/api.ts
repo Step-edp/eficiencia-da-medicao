@@ -277,6 +277,7 @@ export type MeterScheduleRecord = {
   partnerUserId?: string | null
   partnerName?: string
   partnerRegistration?: string
+  envelopePhoto?: string
   scheduledAt: string
   scheduledAtLabel: string
   trailStep: string
@@ -694,6 +695,7 @@ export const api = {
     clientPresent: 'sim' | 'nao'
     schedulingNotes?: string
     partnerUserId: string
+    envelopePhoto: string
     toiCollaborator1Name?: string
     toiCollaborator1Registration?: string
     toiCollaborator2Name?: string

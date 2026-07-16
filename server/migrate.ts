@@ -371,4 +371,10 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS partner_name TEXT NOT NULL DEFAULT '',
       ADD COLUMN IF NOT EXISTS partner_registration TEXT NOT NULL DEFAULT '';
   `)
+
+  // Foto do número do invólucro no agendamento de campo.
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS envelope_photo TEXT NOT NULL DEFAULT '';
+  `)
 }

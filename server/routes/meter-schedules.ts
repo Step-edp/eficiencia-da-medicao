@@ -27,6 +27,7 @@ type MeterScheduleRow = {
   partner_user_id: string | null
   partner_name: string
   partner_registration: string
+  envelope_photo: string
   scheduled_at: Date
   trail_step: string
   source: string
@@ -56,6 +57,7 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     partnerUserId: row.partner_user_id ?? null,
     partnerName: row.partner_name || '',
     partnerRegistration: row.partner_registration || '',
+    envelopePhoto: row.envelope_photo || '',
     scheduledAt: row.scheduled_at.toISOString(),
     scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
     trailStep: row.trail_step,
@@ -172,6 +174,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     clientPresent,
     schedulingNotes,
     partnerUserId,
+    envelopePhoto,
     toiCollaborator1Name,
     toiCollaborator1Registration,
     toiCollaborator2Name,
@@ -186,6 +189,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     clientPresent?: string
     schedulingNotes?: string
     partnerUserId?: string
+    envelopePhoto?: string
     toiCollaborator1Name?: string
     toiCollaborator1Registration?: string
     toiCollaborator2Name?: string
@@ -202,6 +206,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     clientPresent: clientPresent?.trim() ?? '',
     schedulingNotes: schedulingNotes?.trim() ?? '',
     partnerUserId: partnerUserId?.trim() ?? '',
+    envelopePhoto: envelopePhoto?.trim() ?? '',
     toiCollaborator1Name: toiCollaborator1Name?.trim() ?? '',
     toiCollaborator1Registration: toiCollaborator1Registration?.trim() ?? '',
     toiCollaborator2Name: toiCollaborator2Name?.trim() ?? '',
@@ -224,6 +229,18 @@ export async function createMeterSchedule(req: Request, res: Response) {
 
   if (!normalized.csd) {
     res.status(400).json({ error: 'Selecione um CSD.' })
+    return
+  }
+
+  if (
+    !normalized.envelopePhoto ||
+    !normalized.envelopePhoto.startsWith('data:image/') ||
+    normalized.envelopePhoto.length > 3_500_000
+  ) {
+    res.status(400).json({
+      error:
+        'Anexe uma foto nítida do número do invólucro (até cerca de 2 MB), com o medidor visível dentro dele.',
+    })
     return
   }
 
@@ -331,8 +348,9 @@ export async function createMeterSchedule(req: Request, res: Response) {
       toi_collaborator2_name, toi_collaborator2_registration,
       toi_team_reason,
       partner_user_id, partner_name, partner_registration,
+      envelope_photo,
       scheduled_at, trail_step, source, created_by_user_id
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'field_team',$19)
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'field_team',$20)
     RETURNING *`,
     [
       id,
@@ -351,6 +369,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
       partner.id,
       partner.name,
       partner.registration,
+      normalized.envelopePhoto,
       nextSlot.toISOString(),
       ENTRADA_TRAIL_STEP,
       req.user?.id ?? null,
@@ -367,7 +386,10 @@ export async function createMeterSchedule(req: Request, res: Response) {
     entityType: 'meter_schedule',
     entityId: schedule.id,
     summary: `Medidor ${schedule.meter} agendado para ${schedule.scheduledAtLabel}`,
-    newData: schedule,
+    newData: {
+      ...schedule,
+      envelopePhoto: schedule.envelopePhoto ? '[imagem anexada]' : '',
+    },
   })
 
   res.status(201).json({ schedule })

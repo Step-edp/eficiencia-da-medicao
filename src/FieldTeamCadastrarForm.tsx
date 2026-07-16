@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useId, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, ApiError, type FieldPartnerOption } from './api'
 import { FormFieldError } from './FormFieldError'
@@ -8,6 +8,7 @@ import {
   sanitizeNumericInput,
   validateNumericField,
 } from './numericFieldValidation'
+import { readImageAsDataUrl } from './readImageAsDataUrl'
 import { useCsdsOptions } from './useCsdsOptions'
 
 type RequiredLabelProps = {
@@ -30,6 +31,7 @@ type FieldTeamFieldErrors = Partial<
     | NumericFieldKey
     | 'csd'
     | 'partner'
+    | 'envelopePhoto'
     | 'collaborator1Name'
     | 'collaborator1Registration'
     | 'collaborator2Name'
@@ -44,6 +46,7 @@ type FieldTeamCadastrarFormProps = {
 }
 
 export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCadastrarFormProps) {
+  const envelopePhotoInputId = useId()
   const { options: csdOptions, loading: csdLoading } = useCsdsOptions()
   const [partners, setPartners] = useState<FieldPartnerOption[]>([])
   const [partnersLoading, setPartnersLoading] = useState(true)
@@ -51,6 +54,8 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
   const [installation, setInstallation] = useState('')
   const [toi, setToi] = useState('')
   const [note, setNote] = useState('')
+  const [envelopePhoto, setEnvelopePhoto] = useState('')
+  const [envelopePhotoName, setEnvelopePhotoName] = useState('')
   const [csd, setCsd] = useState('')
   const [partnerUserId, setPartnerUserId] = useState('')
   const [partnerQuery, setPartnerQuery] = useState('')
@@ -152,6 +157,11 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       nextErrors.csd = 'Selecione um CSD.'
     }
 
+    if (!envelopePhoto.trim()) {
+      nextErrors.envelopePhoto =
+        'Anexe a foto do número do invólucro, com o medidor visível dentro dele.'
+    }
+
     const resolvedPartner = resolvePartnerFromQuery()
     if (!resolvedPartner) {
       nextErrors.partner =
@@ -197,6 +207,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
         clientPresent: 'nao',
         schedulingNotes,
         partnerUserId: resolvedPartner!.id,
+        envelopePhoto,
         ...(requireToiTeam
           ? {
               toiCollaborator1Name: collaborator1Name.trim(),
@@ -216,6 +227,8 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       setInstallation('')
       setToi('')
       setNote('')
+      setEnvelopePhoto('')
+      setEnvelopePhotoName('')
       setCsd('')
       setPartnerUserId('')
       setPartnerQuery('')
@@ -354,6 +367,73 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
           />
           <FormFieldError id="field-team-nota-error" message={fieldErrors.nota} />
         </label>
+
+        <div
+          className={`full-width envelope-photo-field${
+            fieldErrors.envelopePhoto ? ' has-field-error' : ''
+          }`}
+        >
+          <div className="partner-search-label-row">
+            <RequiredLabel>Número do Invólucro</RequiredLabel>
+            <p id="field-team-envelope-hint" className="field-hint partner-search-label-hint">
+              A foto deve aparecer nítidamente o número do invólucro e o medidor dentro dele.
+            </p>
+          </div>
+          <div className="file-picker">
+            <input
+              id={envelopePhotoInputId}
+              className="file-picker-input"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              required={!envelopePhoto}
+              aria-invalid={Boolean(fieldErrors.envelopePhoto)}
+              aria-describedby="field-team-envelope-hint field-team-envelope-error"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (!file) {
+                  setEnvelopePhoto('')
+                  setEnvelopePhotoName('')
+                  return
+                }
+                void readImageAsDataUrl(file)
+                  .then((dataUrl) => {
+                    setEnvelopePhoto(dataUrl)
+                    setEnvelopePhotoName(file.name)
+                    clearFieldError('envelopePhoto')
+                    setFeedback(null)
+                  })
+                  .catch((error: unknown) => {
+                    setEnvelopePhoto('')
+                    setEnvelopePhotoName('')
+                    event.target.value = ''
+                    setFeedback({
+                      type: 'error',
+                      message:
+                        error instanceof Error
+                          ? error.message
+                          : 'Não foi possível carregar a foto do invólucro.',
+                    })
+                  })
+              }}
+            />
+            <label htmlFor={envelopePhotoInputId} className="file-picker-button">
+              Tirar / escolher foto
+            </label>
+            <span className="file-picker-name">
+              {envelopePhotoName || 'Nenhuma imagem selecionada'}
+            </span>
+          </div>
+          {envelopePhoto ? (
+            <span className="envelope-photo-preview">
+              <img src={envelopePhoto} alt="Pré-visualização da foto do invólucro" />
+            </span>
+          ) : null}
+          <FormFieldError
+            id="field-team-envelope-error"
+            message={fieldErrors.envelopePhoto}
+          />
+        </div>
 
         <label className={`full-width${fieldErrors.csd ? ' has-field-error' : ''}`}>
           <RequiredLabel>CSD</RequiredLabel>

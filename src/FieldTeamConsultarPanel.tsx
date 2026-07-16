@@ -83,6 +83,7 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
                 <th>Medidor</th>
                 <th>Instalação</th>
                 <th>TOI</th>
+                <th>Invólucro</th>
                 <th>Nota</th>
                 <th>CSD</th>
                 <th>Parceiro</th>
@@ -99,6 +100,24 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
                   <td>{item.meter}</td>
                   <td>{item.installation || '—'}</td>
                   <td>{item.toi || '—'}</td>
+                  <td>
+                    {item.envelopePhoto ? (
+                      <a
+                        className="envelope-photo-link"
+                        href={item.envelopePhoto}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <img
+                          className="envelope-photo-thumb"
+                          src={item.envelopePhoto}
+                          alt={`Invólucro do medidor ${item.meter}`}
+                        />
+                      </a>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td>{item.note || '—'}</td>
                   <td>{item.csd || '—'}</td>
                   <td>
