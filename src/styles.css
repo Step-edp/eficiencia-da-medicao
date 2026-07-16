@@ -1888,7 +1888,6 @@ button {
 .users-view-switch {
   margin: 8px 0 20px;
   width: min(920px, 100%);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .gestao-home-switch {
@@ -2858,6 +2857,10 @@ h2 {
   border: 1px solid var(--border);
 }
 
+.panel-switch.users-view-switch {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .panel-switch button {
   border: 0;
   padding: 14px 18px;
@@ -3707,7 +3710,7 @@ input[type='file'] {
     grid-template-columns: 1fr;
   }
 
-  .users-view-switch {
+  .panel-switch.users-view-switch {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
   }
