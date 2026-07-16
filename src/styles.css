@@ -2887,15 +2887,7 @@ h2 {
 }
 
 .file-picker-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+  display: none !important;
 }
 
 .file-picker-button {
@@ -2922,7 +2914,8 @@ h2 {
   transform: translateY(-1px);
 }
 
-.file-picker-input:focus-visible + .file-picker-button {
+.file-picker-button:focus-visible {
+  outline: none;
   box-shadow: 0 0 0 3px rgba(24, 216, 240, 0.28);
 }
 
