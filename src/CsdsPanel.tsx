@@ -214,7 +214,7 @@ export function CsdsPanel() {
               onChange={(event) => setResponsibleUserId(event.target.value)}
               required
             >
-              <option value="">Selecione um inspetor</option>
+              <option value="">Selecione um usuário CSD</option>
               {inspectors.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.name} ({user.registration})
@@ -225,8 +225,8 @@ export function CsdsPanel() {
 
           {inspectors.length === 0 ? (
             <p className="csds-form-hint full-width">
-              Nenhum usuário da Equipe de Campo (subtipo Inspeção) encontrado. Cadastre
-              inspetores com essa classificação para vincular responsáveis.
+              Nenhum usuário com área CSD encontrado. Cadastre e aprove usuários da
+              área CSD para vincular responsáveis.
             </p>
           ) : null}
 

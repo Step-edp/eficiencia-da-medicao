@@ -62,14 +62,14 @@ export async function createCsd(req: Request, res: Response) {
     `SELECT id FROM users
      WHERE id = $1
        AND approval_status = 'approved'
-       AND work_area = 'Equipe de Campo'
-       AND work_subtype = 'Inspeção'`,
+       AND role <> 'admin'
+       AND work_area = 'CSD'`,
     [responsibleUserId.trim()],
   )
 
   if (!responsible.rows[0]) {
     res.status(400).json({
-      error: 'Responsável inválido. Selecione um inspetor da Equipe de Campo.',
+      error: 'Responsável inválido. Selecione um usuário com perfil de CSD.',
     })
     return
   }
@@ -136,8 +136,8 @@ export async function listInspectionUsers(_req: Request, res: Response) {
     `SELECT id, name, registration
      FROM users
      WHERE approval_status = 'approved'
-       AND work_area = 'Equipe de Campo'
-       AND work_subtype = 'Inspeção'
+       AND role <> 'admin'
+       AND work_area = 'CSD'
      ORDER BY name ASC`,
   )
   res.json({ users: result.rows })
