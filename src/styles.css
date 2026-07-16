@@ -3343,7 +3343,7 @@ input[type='file'] {
 
 .schedule-form-kicker {
   margin: 0;
-  color: var(--text-main);
+  color: #ffffff;
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -3352,7 +3352,7 @@ input[type='file'] {
 
 .schedule-form-subtitle {
   margin: 4px 0 0;
-  color: #39ff00;
+  color: #ffffff;
   font-size: 0.95rem;
   font-weight: 600;
 }
