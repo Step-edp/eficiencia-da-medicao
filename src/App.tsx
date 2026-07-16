@@ -18,6 +18,7 @@ import {
   getAccessiblePortals,
   isFieldTeamCsdScope,
   isLavraturaBackofficeScope,
+  isLavraturaEquipeCampoScope,
   skipsVacationAgenda,
   listUsersForCadastroProfile,
   PORTAL_AREAS,
@@ -1588,12 +1589,26 @@ function HomePanel({
       ? CADASTRO_PROFILES.find((profile) => profile.id === previewProfileId)
       : null
 
-  const fieldTeamSections =
-    isFieldTeamCsdScope(currentUser.workSubtype) ||
-    isFieldTeamCsdScope(previewProfile?.match.workSubtype) ||
-    (isAdmin && previewProfileId === ADMIN_PREVIEW_PROFILE_ID)
-      ? ['Agendar', 'Consultar', 'Meus TOIs']
-      : ['Agendar', 'Consultar']
+  const activeFieldTeamSubtype =
+    previewProfile?.match.workSubtype ?? currentUser.workSubtype
+
+  const fieldTeamSections = (() => {
+    const hasLavraturaAccess =
+      isFieldTeamCsdScope(currentUser.workSubtype) ||
+      isFieldTeamCsdScope(previewProfile?.match.workSubtype) ||
+      (isAdmin && previewProfileId === ADMIN_PREVIEW_PROFILE_ID)
+
+    if (!hasLavraturaAccess) {
+      return ['Agendar', 'Consultar']
+    }
+
+    // Equipe de Campo: só Agendar e Meus TOIs (sem Consultar geral).
+    if (isLavraturaEquipeCampoScope(activeFieldTeamSubtype)) {
+      return ['Agendar', 'Meus TOIs']
+    }
+
+    return ['Agendar', 'Consultar', 'Meus TOIs']
+  })()
 
   /** Perfis de Lavratura: home mostra as opções direto, sem o card Equipe de campo. */
   const flattenFieldTeamHome =
@@ -1770,6 +1785,15 @@ function HomePanel({
       setSelectedArea(null)
     }
   }, [flattenFieldTeamHome, selectedArea?.title, selectedFieldTeamSection])
+
+  useEffect(() => {
+    if (
+      selectedFieldTeamSection === 'Consultar' &&
+      isLavraturaEquipeCampoScope(activeFieldTeamSubtype)
+    ) {
+      setSelectedFieldTeamSection(null)
+    }
+  }, [selectedFieldTeamSection, activeFieldTeamSubtype])
 
   useEffect(() => {
     if (!navReady) return

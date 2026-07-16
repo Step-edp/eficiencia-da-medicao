@@ -246,6 +246,15 @@ export function isFieldTeamCsdScope(workSubtype?: string | null) {
   )
 }
 
+/** Escopo Lavratura de TOI - Equipe de Campo (inclui legado). */
+export function isLavraturaEquipeCampoScope(workSubtype?: string | null) {
+  const normalized = workSubtype?.trim() ?? ''
+  return (
+    normalized === 'Lavratura de TOI - Equipe de Campo' ||
+    normalized === 'Lavratura de TOI' // legado
+  )
+}
+
 /** Backoffice agenda em nome da equipe e exige colaboradores no formulário. */
 export function isLavraturaBackofficeScope(workSubtype?: string | null) {
   return (workSubtype?.trim() ?? '') === 'Lavratura de TOI - Backoffice'
