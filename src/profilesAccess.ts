@@ -96,13 +96,14 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
   {
     id: 'backoffice-inspecao',
-    name: 'CSD – BackOffice – Inspeção',
+    name: 'CSD – BackOffice – Lavratura de TOI',
     description:
-      'Permite realizar o agendamento de medidores em nome das equipes de campo para equipamentos provenientes de lavratura de TOI, com suspeita de fraude ou defeito, que necessitem de ensaio no Laboratório de Medição da EDP SP.',
+      'Permite agendar e consultar medidores na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
       jobTitle: 'Analista',
+      workSubtype: 'Lavratura de TOI - Backoffice',
     },
   },
   {
@@ -239,8 +240,14 @@ export function isFieldTeamCsdScope(workSubtype?: string | null) {
   const normalized = workSubtype?.trim() ?? ''
   return (
     normalized === 'Lavratura de TOI' ||
-    normalized === 'Lavratura de TOI - Ponto Focal'
+    normalized === 'Lavratura de TOI - Ponto Focal' ||
+    normalized === 'Lavratura de TOI - Backoffice'
   )
+}
+
+/** Backoffice agenda em nome da equipe e exige colaboradores no formulário. */
+export function isLavraturaBackofficeScope(workSubtype?: string | null) {
+  return (workSubtype?.trim() ?? '') === 'Lavratura de TOI - Backoffice'
 }
 
 /** Portais que o usuário pode abrir (sem colapsar em Gestão Operacional). */

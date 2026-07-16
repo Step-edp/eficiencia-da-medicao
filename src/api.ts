@@ -269,6 +269,10 @@ export type MeterScheduleRecord = {
   csd: string
   clientPresent: 'sim' | 'nao'
   schedulingNotes: string
+  toiCollaborator1Name?: string
+  toiCollaborator1Registration?: string
+  toiCollaborator2Name?: string
+  toiCollaborator2Registration?: string
   scheduledAt: string
   scheduledAtLabel: string
   trailStep: string
@@ -677,6 +681,10 @@ export const api = {
     csd: string
     clientPresent: 'sim' | 'nao'
     schedulingNotes?: string
+    toiCollaborator1Name?: string
+    toiCollaborator1Registration?: string
+    toiCollaborator2Name?: string
+    toiCollaborator2Registration?: string
   }) =>
     request<{ schedule: MeterScheduleRecord }>('/api/meter-schedules', {
       method: 'POST',

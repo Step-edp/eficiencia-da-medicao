@@ -26,10 +26,23 @@ function RequiredLabel({ children }: RequiredLabelProps) {
 }
 
 type FieldTeamFieldErrors = Partial<
-  Record<NumericFieldKey | 'csd' | 'clientPresent', string>
+  Record<
+    | NumericFieldKey
+    | 'csd'
+    | 'clientPresent'
+    | 'collaborator1Name'
+    | 'collaborator1Registration'
+    | 'collaborator2Name'
+    | 'collaborator2Registration',
+    string
+  >
 >
 
-export function FieldTeamCadastrarForm() {
+type FieldTeamCadastrarFormProps = {
+  requireToiTeam?: boolean
+}
+
+export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCadastrarFormProps) {
   const { options: csdOptions, loading: csdLoading } = useCsdsOptions()
   const [meter, setMeter] = useState('')
   const [installation, setInstallation] = useState('')
@@ -38,6 +51,10 @@ export function FieldTeamCadastrarForm() {
   const [csd, setCsd] = useState('')
   const [clientPresent, setClientPresent] = useState<'sim' | 'nao' | ''>('')
   const [schedulingNotes, setSchedulingNotes] = useState('')
+  const [collaborator1Name, setCollaborator1Name] = useState('')
+  const [collaborator1Registration, setCollaborator1Registration] = useState('')
+  const [collaborator2Name, setCollaborator2Name] = useState('')
+  const [collaborator2Registration, setCollaborator2Registration] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [slotModal, setSlotModal] = useState<{
     meter: string
@@ -84,6 +101,21 @@ export function FieldTeamCadastrarForm() {
       nextErrors.clientPresent = 'Informe se o cliente está presente.'
     }
 
+    if (requireToiTeam) {
+      if (!collaborator1Name.trim()) {
+        nextErrors.collaborator1Name = 'Informe o nome do colaborador 1.'
+      }
+      if (!collaborator1Registration.trim()) {
+        nextErrors.collaborator1Registration = 'Informe a matrícula do colaborador 1.'
+      }
+      if (!collaborator2Name.trim()) {
+        nextErrors.collaborator2Name = 'Informe o nome do colaborador 2.'
+      }
+      if (!collaborator2Registration.trim()) {
+        nextErrors.collaborator2Registration = 'Informe a matrícula do colaborador 2.'
+      }
+    }
+
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors)
       return
@@ -102,6 +134,14 @@ export function FieldTeamCadastrarForm() {
         csd,
         clientPresent: clientPresent as 'sim' | 'nao',
         schedulingNotes,
+        ...(requireToiTeam
+          ? {
+              toiCollaborator1Name: collaborator1Name.trim(),
+              toiCollaborator1Registration: collaborator1Registration.trim(),
+              toiCollaborator2Name: collaborator2Name.trim(),
+              toiCollaborator2Registration: collaborator2Registration.trim(),
+            }
+          : {}),
       })
 
       setSlotModal({
@@ -115,6 +155,10 @@ export function FieldTeamCadastrarForm() {
       setCsd('')
       setClientPresent('')
       setSchedulingNotes('')
+      setCollaborator1Name('')
+      setCollaborator1Registration('')
+      setCollaborator2Name('')
+      setCollaborator2Registration('')
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -265,6 +309,82 @@ export function FieldTeamCadastrarForm() {
           </select>
           <FormFieldError id="field-team-csd-error" message={fieldErrors.csd} />
         </label>
+
+        {requireToiTeam ? (
+          <fieldset className="toi-team-fieldset full-width">
+            <legend>Equipe que lavrou o TOI</legend>
+            <div className="toi-team-grid">
+              <label
+                className={fieldErrors.collaborator1Name ? 'has-field-error' : undefined}
+              >
+                <RequiredLabel>Colaborador 1 (nome)</RequiredLabel>
+                <input
+                  type="text"
+                  value={collaborator1Name}
+                  onChange={(event) => {
+                    setCollaborator1Name(event.target.value)
+                    clearFieldError('collaborator1Name')
+                  }}
+                  autoComplete="off"
+                  aria-invalid={Boolean(fieldErrors.collaborator1Name)}
+                />
+                <FormFieldError message={fieldErrors.collaborator1Name} />
+              </label>
+              <label
+                className={
+                  fieldErrors.collaborator1Registration ? 'has-field-error' : undefined
+                }
+              >
+                <RequiredLabel>Matrícula</RequiredLabel>
+                <input
+                  type="text"
+                  value={collaborator1Registration}
+                  onChange={(event) => {
+                    setCollaborator1Registration(event.target.value)
+                    clearFieldError('collaborator1Registration')
+                  }}
+                  autoComplete="off"
+                  aria-invalid={Boolean(fieldErrors.collaborator1Registration)}
+                />
+                <FormFieldError message={fieldErrors.collaborator1Registration} />
+              </label>
+              <label
+                className={fieldErrors.collaborator2Name ? 'has-field-error' : undefined}
+              >
+                <RequiredLabel>Colaborador 2 (nome)</RequiredLabel>
+                <input
+                  type="text"
+                  value={collaborator2Name}
+                  onChange={(event) => {
+                    setCollaborator2Name(event.target.value)
+                    clearFieldError('collaborator2Name')
+                  }}
+                  autoComplete="off"
+                  aria-invalid={Boolean(fieldErrors.collaborator2Name)}
+                />
+                <FormFieldError message={fieldErrors.collaborator2Name} />
+              </label>
+              <label
+                className={
+                  fieldErrors.collaborator2Registration ? 'has-field-error' : undefined
+                }
+              >
+                <RequiredLabel>Matrícula</RequiredLabel>
+                <input
+                  type="text"
+                  value={collaborator2Registration}
+                  onChange={(event) => {
+                    setCollaborator2Registration(event.target.value)
+                    clearFieldError('collaborator2Registration')
+                  }}
+                  autoComplete="off"
+                  aria-invalid={Boolean(fieldErrors.collaborator2Registration)}
+                />
+                <FormFieldError message={fieldErrors.collaborator2Registration} />
+              </label>
+            </div>
+          </fieldset>
+        ) : null}
 
         <fieldset
           className={`radio-fieldset full-width${fieldErrors.clientPresent ? ' has-field-error' : ''}`}

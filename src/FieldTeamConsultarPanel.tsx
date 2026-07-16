@@ -68,6 +68,7 @@ export function FieldTeamConsultarPanel() {
                 <th>TOI</th>
                 <th>Nota</th>
                 <th>CSD</th>
+                <th>Equipe TOI</th>
                 <th>Data agendada</th>
                 <th>Etapa</th>
                 <th>Criado por</th>
@@ -81,6 +82,20 @@ export function FieldTeamConsultarPanel() {
                   <td>{item.toi || '—'}</td>
                   <td>{item.note || '—'}</td>
                   <td>{item.csd || '—'}</td>
+                  <td>
+                    {item.toiCollaborator1Name || item.toiCollaborator2Name
+                      ? [
+                          item.toiCollaborator1Name
+                            ? `${item.toiCollaborator1Name} (${item.toiCollaborator1Registration || '—'})`
+                            : null,
+                          item.toiCollaborator2Name
+                            ? `${item.toiCollaborator2Name} (${item.toiCollaborator2Registration || '—'})`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')
+                      : '—'}
+                  </td>
                   <td>{item.scheduledAtLabel || '—'}</td>
                   <td>{item.trailStep || '—'}</td>
                   <td>{item.createdByRegistration || '—'}</td>

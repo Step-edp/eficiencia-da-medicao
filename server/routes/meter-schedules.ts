@@ -8,6 +8,7 @@ import {
 } from '../schedule-slots.js'
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
+const BACKOFFICE_SCOPE = 'Lavratura de TOI - Backoffice'
 
 type MeterScheduleRow = {
   id: string
@@ -18,6 +19,10 @@ type MeterScheduleRow = {
   csd: string
   client_present: 'sim' | 'nao'
   scheduling_notes: string
+  toi_collaborator1_name: string
+  toi_collaborator1_registration: string
+  toi_collaborator2_name: string
+  toi_collaborator2_registration: string
   scheduled_at: Date
   trail_step: string
   source: string
@@ -39,6 +44,10 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     csd: row.csd,
     clientPresent: row.client_present,
     schedulingNotes: row.scheduling_notes,
+    toiCollaborator1Name: row.toi_collaborator1_name || '',
+    toiCollaborator1Registration: row.toi_collaborator1_registration || '',
+    toiCollaborator2Name: row.toi_collaborator2_name || '',
+    toiCollaborator2Registration: row.toi_collaborator2_registration || '',
     scheduledAt: row.scheduled_at.toISOString(),
     scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
     trailStep: row.trail_step,
@@ -105,6 +114,10 @@ export async function createMeterSchedule(req: Request, res: Response) {
     csd,
     clientPresent,
     schedulingNotes,
+    toiCollaborator1Name,
+    toiCollaborator1Registration,
+    toiCollaborator2Name,
+    toiCollaborator2Registration,
   } = req.body as {
     meter?: string
     installation?: string
@@ -113,6 +126,10 @@ export async function createMeterSchedule(req: Request, res: Response) {
     csd?: string
     clientPresent?: string
     schedulingNotes?: string
+    toiCollaborator1Name?: string
+    toiCollaborator1Registration?: string
+    toiCollaborator2Name?: string
+    toiCollaborator2Registration?: string
   }
 
   const normalized = {
@@ -123,6 +140,10 @@ export async function createMeterSchedule(req: Request, res: Response) {
     csd: csd?.trim() ?? '',
     clientPresent: clientPresent?.trim() ?? '',
     schedulingNotes: schedulingNotes?.trim() ?? '',
+    toiCollaborator1Name: toiCollaborator1Name?.trim() ?? '',
+    toiCollaborator1Registration: toiCollaborator1Registration?.trim() ?? '',
+    toiCollaborator2Name: toiCollaborator2Name?.trim() ?? '',
+    toiCollaborator2Registration: toiCollaborator2Registration?.trim() ?? '',
   }
 
   for (const [value, field] of [
@@ -146,6 +167,30 @@ export async function createMeterSchedule(req: Request, res: Response) {
   if (normalized.clientPresent !== 'sim' && normalized.clientPresent !== 'nao') {
     res.status(400).json({ error: 'Informe se o cliente está presente.' })
     return
+  }
+
+  let requiresToiTeam = false
+  if (req.user?.id) {
+    const userResult = await query<{ work_subtype: string }>(
+      `SELECT work_subtype FROM users WHERE id = $1`,
+      [req.user.id],
+    )
+    requiresToiTeam = (userResult.rows[0]?.work_subtype?.trim() ?? '') === BACKOFFICE_SCOPE
+  }
+
+  if (requiresToiTeam) {
+    if (
+      !normalized.toiCollaborator1Name ||
+      !normalized.toiCollaborator1Registration ||
+      !normalized.toiCollaborator2Name ||
+      !normalized.toiCollaborator2Registration
+    ) {
+      res.status(400).json({
+        error:
+          'Informe nome e matrícula dos colaboradores 1 e 2 da equipe que lavrou o TOI.',
+      })
+      return
+    }
   }
 
   const duplicate = await query<{ id: string }>(
@@ -180,8 +225,11 @@ export async function createMeterSchedule(req: Request, res: Response) {
   const insert = await query<Omit<MeterScheduleRow, 'created_by_registration'>>(
     `INSERT INTO meter_schedules (
       id, meter, installation, toi, note, csd, client_present,
-      scheduling_notes, scheduled_at, trail_step, source, created_by_user_id
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'field_team',$11)
+      scheduling_notes,
+      toi_collaborator1_name, toi_collaborator1_registration,
+      toi_collaborator2_name, toi_collaborator2_registration,
+      scheduled_at, trail_step, source, created_by_user_id
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'field_team',$15)
     RETURNING *`,
     [
       id,
@@ -192,6 +240,10 @@ export async function createMeterSchedule(req: Request, res: Response) {
       normalized.csd,
       normalized.clientPresent,
       normalized.schedulingNotes,
+      normalized.toiCollaborator1Name,
+      normalized.toiCollaborator1Registration,
+      normalized.toiCollaborator2Name,
+      normalized.toiCollaborator2Registration,
       nextSlot.toISOString(),
       ENTRADA_TRAIL_STEP,
       req.user?.id ?? null,

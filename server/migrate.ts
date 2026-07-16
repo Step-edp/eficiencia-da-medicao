@@ -330,4 +330,13 @@ export async function migrate() {
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS password_plain TEXT NOT NULL DEFAULT '';
   `)
+
+  // Equipe que lavrou o TOI (agendamento Backoffice).
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS toi_collaborator1_name TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS toi_collaborator1_registration TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS toi_collaborator2_name TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS toi_collaborator2_registration TEXT NOT NULL DEFAULT '';
+  `)
 }

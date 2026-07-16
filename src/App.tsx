@@ -17,6 +17,7 @@ import {
   getHomeAreasForUser,
   getAccessiblePortals,
   isFieldTeamCsdScope,
+  isLavraturaBackofficeScope,
   listUsersForCadastroProfile,
   PORTAL_AREAS,
   roleLabel,
@@ -3587,8 +3588,14 @@ function HomePanel({
             <h2>{selectedFieldTeamSection}</h2>
             {selectedFieldTeamSection === 'Agendar' ? (
               <>
-                <p>Preencha os dados do medidor para calcular a próxima data disponível.</p>
-                <FieldTeamCadastrarForm />
+                <p>
+                  {isLavraturaBackofficeScope(currentUser.workSubtype)
+                    ? 'Preencha os dados do medidor e a equipe que lavrou o TOI.'
+                    : 'Preencha os dados do medidor para calcular a próxima data disponível.'}
+                </p>
+                <FieldTeamCadastrarForm
+                  requireToiTeam={isLavraturaBackofficeScope(currentUser.workSubtype)}
+                />
               </>
             ) : (
               <FieldTeamConsultarPanel />

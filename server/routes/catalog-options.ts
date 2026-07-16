@@ -67,6 +67,7 @@ const DEFAULT_OPTIONS: Record<CatalogKey, string[]> = {
   escopo_csd: [
     'Lavratura de TOI',
     'Lavratura de TOI - Ponto Focal',
+    'Lavratura de TOI - Backoffice',
     'Leituras de faturamento',
   ],
 }
