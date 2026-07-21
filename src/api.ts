@@ -29,6 +29,9 @@ export type AppUser = {
   approvalStatus: ApprovalStatus
   requestedAt: string
   approvedAt?: string
+  approvedByUserId?: string | null
+  approvedByName?: string
+  approvedByRegistration?: string
   birthDate: string
   jobTitle: string
   cpf: string

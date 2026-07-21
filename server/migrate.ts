@@ -243,6 +243,7 @@ export async function migrate() {
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS emission_date TEXT;
     ALTER TABLE org_cells ADD COLUMN IF NOT EXISTS substitute_user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_required_since TIMESTAMPTZ;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS approved_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
 
     CREATE TABLE IF NOT EXISTS user_vacation_periods (
       id SERIAL PRIMARY KEY,

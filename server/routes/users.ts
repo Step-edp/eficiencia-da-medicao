@@ -128,6 +128,9 @@ type UserRow = {
   approval_status: 'approved' | 'pending'
   requested_at: Date
   approved_at: Date | null
+  approved_by_user_id?: string | null
+  approved_by_name?: string | null
+  approved_by_registration?: string | null
   birth_date: string
   job_title: string
   cpf: string
@@ -171,6 +174,9 @@ function mapUser(row: UserRow, options?: { includePassword?: boolean }) {
     approvalStatus: row.approval_status,
     requestedAt: row.requested_at.toISOString(),
     approvedAt: row.approved_at?.toISOString(),
+    approvedByUserId: row.approved_by_user_id ?? null,
+    approvedByName: row.approved_by_name || '',
+    approvedByRegistration: row.approved_by_registration || '',
     birthDate: row.birth_date,
     jobTitle: row.job_title,
     cpf: row.cpf,
@@ -473,7 +479,14 @@ export async function exchangeSsoToken(req: Request, res: Response) {
 }
 
 export async function listUsers(_req: Request, res: Response) {
-  const result = await query<UserRow>('SELECT * FROM users ORDER BY requested_at DESC')
+  const result = await query<UserRow>(
+    `SELECT u.*,
+            a.name AS approved_by_name,
+            a.registration AS approved_by_registration
+     FROM users u
+     LEFT JOIN users a ON a.id = u.approved_by_user_id
+     ORDER BY u.requested_at DESC`,
+  )
   const users = await Promise.all(
     result.rows.map((row) => mapUserWithVacation(row, { includePassword: true })),
   )
@@ -620,10 +633,25 @@ export async function approveUser(req: Request, res: Response) {
     storedAccessAreas = accessAreasForTechnician(workArea, normalizedSubtype)
   }
 
+  const approverId = req.user?.id ?? null
+  let approverName = ''
+  let approverRegistration = req.user?.registration ?? ''
+  if (approverId) {
+    const approver = await query<{ name: string; registration: string }>(
+      `SELECT name, registration FROM users WHERE id = $1`,
+      [approverId],
+    )
+    if (approver.rows[0]) {
+      approverName = approver.rows[0].name
+      approverRegistration = approver.rows[0].registration
+    }
+  }
+
   const result = await query<UserRow>(
     `UPDATE users
      SET approval_status = 'approved',
          approved_at = NOW(),
+         approved_by_user_id = $7,
          third_party_company = $2,
          work_subtype = $3,
          access_areas = $4::jsonb,
@@ -641,10 +669,16 @@ export async function approveUser(req: Request, res: Response) {
       JSON.stringify(storedAccessAreas),
       JSON.stringify(storedAccessProcesses),
       skipsVacationAgenda(storedSubtype),
+      approverId,
     ],
   )
 
-  const user = await mapUserWithVacation(result.rows[0], { includePassword: true })
+  const user = {
+    ...(await mapUserWithVacation(result.rows[0], { includePassword: true })),
+    approvedByUserId: approverId,
+    approvedByName: approverName,
+    approvedByRegistration: approverRegistration,
+  }
 
   await writeAuditLog(req, {
     action: 'approve',
@@ -1173,6 +1207,7 @@ export async function resetUserToPending(req: Request, res: Response) {
     `UPDATE users
      SET approval_status = 'pending',
          approved_at = NULL,
+         approved_by_user_id = NULL,
          work_subtype = '',
          access_areas = '[]'::jsonb,
          access_processes = '[]'::jsonb,

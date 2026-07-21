@@ -3225,6 +3225,7 @@ function HomePanel({
                             <th>Cargo</th>
                             <th>Perfil</th>
                             <th>Status</th>
+                            <th>Aprovado por</th>
                             <th>Solicitado em</th>
                             <th>Ações</th>
                           </tr>
@@ -3314,6 +3315,15 @@ function HomePanel({
                               </td>
                               <td className="users-table-cell-nowrap">
                                 {statusLabel(user.approvalStatus)}
+                              </td>
+                              <td className="users-table-cell-compact">
+                                {user.approvedByName || user.approvedByRegistration
+                                  ? `${user.approvedByName || '—'}${
+                                      user.approvedByRegistration
+                                        ? ` (${user.approvedByRegistration})`
+                                        : ''
+                                    }`
+                                  : '—'}
                               </td>
                               <td className="users-table-cell-nowrap">
                                 {new Date(user.requestedAt).toLocaleString('pt-BR')}

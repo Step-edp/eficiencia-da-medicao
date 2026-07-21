@@ -943,6 +943,18 @@ export function UserDetailModal({
                     : '—'}
                 </dd>
               </div>
+              <div>
+                <dt>Aprovado por</dt>
+                <dd>
+                  {user.approvedByName || user.approvedByRegistration
+                    ? `${user.approvedByName || '—'}${
+                        user.approvedByRegistration
+                          ? ` (${user.approvedByRegistration})`
+                          : ''
+                      }`
+                    : '—'}
+                </dd>
+              </div>
               {user.personalDescription?.trim() ? (
                 <div className="user-detail-full">
                   <dt>Observação</dt>
