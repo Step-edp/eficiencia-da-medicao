@@ -1356,6 +1356,7 @@ function HomePanel({
   ])
   const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
   const [showSupport, setShowSupport] = useState(false)
+  const [openSupportCount, setOpenSupportCount] = useState(0)
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(
     () => savedNav?.selectedOrgCell ?? null,
   )
@@ -1394,6 +1395,34 @@ function HomePanel({
         // Mantém fallback local.
       })
   }, [])
+
+  useEffect(() => {
+    if (selectedArea?.title !== 'Laboratório de Medição') return
+
+    let cancelled = false
+    const refreshOpenSupportCount = async () => {
+      try {
+        const { tickets } = await api.listSupportTickets()
+        if (!cancelled) {
+          setOpenSupportCount(
+            tickets.filter((ticket) => ticket.status === 'aberto').length,
+          )
+        }
+      } catch {
+        if (!cancelled) setOpenSupportCount(0)
+      }
+    }
+
+    void refreshOpenSupportCount()
+    const intervalId = window.setInterval(() => {
+      void refreshOpenSupportCount()
+    }, 20000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [selectedArea?.title, selectedLabMeasurementSection])
 
   useEffect(() => {
     const mapArea = (area: {
@@ -3842,7 +3871,7 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'CSDs' ? (
               <CsdsPanel />
             ) : selectedLabMeasurementSection === 'Suporte' ? (
-              <SupportPanel />
+              <SupportPanel onOpenCountChange={setOpenSupportCount} />
             ) : selectedLabMeasurementSection === 'Auditoria' ? (
               <AuditPanel />
             ) : selectedLabMeasurementSection === ENTRADA_TRAIL_STEP ? (
@@ -4282,9 +4311,18 @@ function HomePanel({
                       type="button"
                       onClick={() => setSelectedLabMeasurementSection(section)}
                     >
-                      <span className="item-with-icon">
+                      <span className="item-with-icon measurement-item-row">
                         <ItemIcon title={section} />
                         <span>{section}</span>
+                        {section === 'Suporte' && openSupportCount > 0 ? (
+                          <span
+                            className="support-alert-badge"
+                            aria-label={`${openSupportCount} solicitação(ões) de suporte em aberto`}
+                          >
+                            Alerta
+                            {openSupportCount > 1 ? ` · ${openSupportCount}` : ''}
+                          </span>
+                        ) : null}
                       </span>
                     </button>
                   ))}

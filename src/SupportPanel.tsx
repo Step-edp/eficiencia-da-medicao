@@ -12,7 +12,11 @@ function formatDateTime(value: string | null) {
   return new Date(value).toLocaleString('pt-BR')
 }
 
-export function SupportPanel() {
+type SupportPanelProps = {
+  onOpenCountChange?: (count: number) => void
+}
+
+export function SupportPanel({ onOpenCountChange }: SupportPanelProps) {
   const [tickets, setTickets] = useState<SupportTicketRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
@@ -22,13 +26,22 @@ export function SupportPanel() {
     message: string
   } | null>(null)
 
+  const notifyOpenCount = useCallback(
+    (rows: SupportTicketRecord[]) => {
+      onOpenCountChange?.(rows.filter((ticket) => ticket.status === 'aberto').length)
+    },
+    [onOpenCountChange],
+  )
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const { tickets: rows } = await api.listSupportTickets()
       setTickets(rows)
+      notifyOpenCount(rows)
     } catch {
       setTickets([])
+      notifyOpenCount([])
       setFeedback({
         type: 'error',
         message: 'Não foi possível carregar as solicitações de suporte.',
@@ -36,7 +49,7 @@ export function SupportPanel() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [notifyOpenCount])
 
   useEffect(() => {
     void load()
@@ -55,7 +68,11 @@ export function SupportPanel() {
 
     try {
       const { ticket: updated } = await api.replySupportTicket(ticket.id, { response })
-      setTickets((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+      setTickets((prev) => {
+        const next = prev.map((item) => (item.id === updated.id ? updated : item))
+        notifyOpenCount(next)
+        return next
+      })
       setReplyDrafts((prev) => ({ ...prev, [ticket.id]: '' }))
       setFeedback({
         type: 'success',
@@ -77,7 +94,7 @@ export function SupportPanel() {
   return (
     <div className="support-panel">
       <p className="csds-form-hint">
-        Solicitações abertas pelo ícone de suporte. Responda abaixo; a resposta
+        Solicitações abertas pelo card Suporte na home. Responda abaixo; a resposta
         fica registrada no chamado.
       </p>
 
