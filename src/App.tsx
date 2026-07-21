@@ -1358,7 +1358,9 @@ function HomePanel({
   const [csdScopeOptions, setCsdScopeOptions] = useState<string[]>([
     ...TECHNICIAN_SCOPES_BY_AREA.CSD,
   ])
+  const [previewMode, setPreviewMode] = useState<'profile' | 'user'>('profile')
   const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
+  const [previewUserId, setPreviewUserId] = useState('')
   const resolvedPreviewProfileId =
     previewProfileId === ADMIN_PREVIEW_PROFILE_ID
       ? ADMIN_PREVIEW_PROFILE_ID
@@ -1549,14 +1551,27 @@ function HomePanel({
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [userPendingDelete, setUserPendingDelete] = useState<AppUser | null>(null)
   const isAdmin = currentUser.role === 'admin'
-  const canViewUserPasswords =
-    isAdmin && resolvedPreviewProfileId === ADMIN_PREVIEW_PROFILE_ID
   const pendingApprovalUsers = users.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'pending',
   )
   const registeredUsers = users.filter(
     (user) => user.role !== 'admin' && user.approvalStatus === 'approved',
   )
+  const previewUserOptions = useMemo(
+    () =>
+      [...registeredUsers].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+    [registeredUsers],
+  )
+  const previewUser =
+    isAdmin && previewMode === 'user' && previewUserId
+      ? (previewUserOptions.find((user) => user.id === previewUserId) ?? null)
+      : null
+  const isAdminFullPreview =
+    isAdmin &&
+    ((previewMode === 'profile' &&
+      resolvedPreviewProfileId === ADMIN_PREVIEW_PROFILE_ID) ||
+      (previewMode === 'user' && !previewUser))
+  const canViewUserPasswords = isAdminFullPreview
   const measurementSections = [
     'Faturamento de clientes livres',
     'Faturamento de clientes cativos',
@@ -1653,23 +1668,30 @@ function HomePanel({
     },
   ]
 
-  const allowedHomeAreas = isAdmin
-    ? getHomeAreasForProfilePreview(resolvedPreviewProfileId)
-    : getHomeAreasForUser(currentUser)
+  const allowedHomeAreas = (() => {
+    if (!isAdmin) return getHomeAreasForUser(currentUser)
+    if (previewUser) return getHomeAreasForUser(previewUser)
+    return getHomeAreasForProfilePreview(resolvedPreviewProfileId)
+  })()
 
   const previewProfile =
-    isAdmin && resolvedPreviewProfileId !== ADMIN_PREVIEW_PROFILE_ID
+    isAdmin &&
+    previewMode === 'profile' &&
+    resolvedPreviewProfileId !== ADMIN_PREVIEW_PROFILE_ID
       ? getCadastroProfile(resolvedPreviewProfileId) ?? null
       : null
 
   const activeFieldTeamSubtype =
-    previewProfile?.match.workSubtype ?? currentUser.workSubtype
+    previewUser?.workSubtype ??
+    previewProfile?.match.workSubtype ??
+    currentUser.workSubtype
 
   const fieldTeamSections = (() => {
     const hasLavraturaAccess =
       isFieldTeamCsdScope(currentUser.workSubtype) ||
+      isFieldTeamCsdScope(previewUser?.workSubtype) ||
       isFieldTeamCsdScope(previewProfile?.match.workSubtype) ||
-      (isAdmin && resolvedPreviewProfileId === ADMIN_PREVIEW_PROFILE_ID)
+      isAdminFullPreview
 
     if (!hasLavraturaAccess) {
       return ['Agendar', 'Consultar']
@@ -1691,6 +1713,7 @@ function HomePanel({
   /** Perfis de Lavratura: home mostra as opções direto, sem o card Equipe de campo. */
   const flattenFieldTeamHome =
     isFieldTeamCsdScope(currentUser.workSubtype) ||
+    isFieldTeamCsdScope(previewUser?.workSubtype) ||
     isFieldTeamCsdScope(previewProfile?.match.workSubtype)
 
   const fieldTeamArea = allAreas.find((area) => area.title === 'Equipe de campo') ?? null
@@ -1706,15 +1729,23 @@ function HomePanel({
   })
 
   const showEstagiarioProcesses =
+    (previewUser != null && isMedicaoEstagiario(previewUser)) ||
     previewProfile?.id === 'estagiario-medicao' ||
     (!isAdmin && isMedicaoEstagiario(currentUser))
 
   const estagiarioProcessLabels = (() => {
-    if (previewProfile?.id === 'estagiario-medicao') {
-      // Pré-visualização do perfil: mostra o estado vazio padrão do Estagiário.
-      return [] as string[]
-    }
-    return (currentUser.accessProcesses ?? [])
+    const sourceProcesses =
+      previewUser && isMedicaoEstagiario(previewUser)
+        ? (previewUser.accessProcesses ?? [])
+        : previewProfile?.id === 'estagiario-medicao'
+          ? []
+          : !isAdmin && isMedicaoEstagiario(currentUser)
+            ? (currentUser.accessProcesses ?? [])
+            : null
+
+    if (!sourceProcesses) return [] as string[]
+
+    return sourceProcesses
       .map((item) => {
         const parsed = parseAccessProcess(item)
         return parsed ? `${parsed.area}: ${parsed.process}` : item
@@ -1723,8 +1754,11 @@ function HomePanel({
   })()
 
   const accessiblePortals = (() => {
-    if (isAdmin && resolvedPreviewProfileId === ADMIN_PREVIEW_PROFILE_ID) {
+    if (isAdminFullPreview) {
       return [...PORTAL_AREAS]
+    }
+    if (previewUser) {
+      return [...getAccessiblePortals(previewUser)]
     }
     if (isAdmin && previewProfile) {
       const areas = [...previewProfile.areas] as Array<(typeof PORTAL_AREAS)[number]>
@@ -1747,6 +1781,7 @@ function HomePanel({
 
   const skipsVacation =
     skipsVacationAgenda(currentUser.workSubtype) ||
+    skipsVacationAgenda(previewUser?.workSubtype) ||
     skipsVacationAgenda(previewProfile?.match.workSubtype)
 
   const isVacationBlocked =
@@ -4567,13 +4602,14 @@ function HomePanel({
 
         {isAdmin ? (
           <div className="profile-preview-bar">
-            <label htmlFor="admin-preview-profile">
-              Ver como o perfil ({previewProfileOptions.length} perfis)
-              <select
-                id="admin-preview-profile"
-                value={resolvedPreviewProfileId}
-                onChange={(event) => {
-                  setPreviewProfileId(event.target.value)
+            <div className="profile-preview-mode" role="group" aria-label="Modo de pré-visualização">
+              <button
+                type="button"
+                className={`profile-preview-mode-btn${previewMode === 'profile' ? ' is-active' : ''}`}
+                aria-pressed={previewMode === 'profile'}
+                onClick={() => {
+                  setPreviewMode('profile')
+                  setPreviewUserId('')
                   setSelectedArea(null)
                   setSelectedOrgAreaId(null)
                   setSelectedOrgCell(null)
@@ -4581,20 +4617,100 @@ function HomePanel({
                   clearAreaSections()
                 }}
               >
-                <option value={ADMIN_PREVIEW_PROFILE_ID}>
-                  Administrador (visão completa)
-                </option>
-                {previewProfileOptions.map((profile) => (
-                  <option key={profile.id} value={profile.id}>
-                    {profile.name}
+                Por perfil
+              </button>
+              <button
+                type="button"
+                className={`profile-preview-mode-btn${previewMode === 'user' ? ' is-active' : ''}`}
+                aria-pressed={previewMode === 'user'}
+                onClick={() => {
+                  setPreviewMode('user')
+                  setPreviewProfileId(ADMIN_PREVIEW_PROFILE_ID)
+                  setSelectedArea(null)
+                  setSelectedOrgAreaId(null)
+                  setSelectedOrgCell(null)
+                  setSelectedOrgSubcell(null)
+                  clearAreaSections()
+                }}
+              >
+                Por usuário
+              </button>
+            </div>
+
+            {previewMode === 'profile' ? (
+              <label htmlFor="admin-preview-profile">
+                Ver como o perfil ({previewProfileOptions.length} perfis)
+                <select
+                  id="admin-preview-profile"
+                  value={resolvedPreviewProfileId}
+                  onChange={(event) => {
+                    setPreviewProfileId(event.target.value)
+                    setSelectedArea(null)
+                    setSelectedOrgAreaId(null)
+                    setSelectedOrgCell(null)
+                    setSelectedOrgSubcell(null)
+                    clearAreaSections()
+                  }}
+                >
+                  <option value={ADMIN_PREVIEW_PROFILE_ID}>
+                    Administrador (visão completa)
                   </option>
-                ))}
-              </select>
-            </label>
+                  {previewProfileOptions.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label htmlFor="admin-preview-user">
+                Ver como o usuário ({previewUserOptions.length} aprovados)
+                <select
+                  id="admin-preview-user"
+                  value={previewUserId}
+                  onChange={(event) => {
+                    setPreviewUserId(event.target.value)
+                    setSelectedArea(null)
+                    setSelectedOrgAreaId(null)
+                    setSelectedOrgCell(null)
+                    setSelectedOrgSubcell(null)
+                    clearAreaSections()
+                  }}
+                >
+                  <option value="">Selecione um usuário</option>
+                  {previewUserOptions.map((user) => {
+                    const profileLabel = buildRequestedProfile(
+                      user.jobTitle ?? '',
+                      user.workSubtype ?? '',
+                      user.workArea ?? '',
+                    )
+                    return (
+                      <option key={user.id} value={user.id}>
+                        {user.name} ({user.registration})
+                        {profileLabel ? ` — ${profileLabel}` : ''}
+                      </option>
+                    )
+                  })}
+                </select>
+              </label>
+            )}
+
             {previewProfile ? (
               <p className="profile-preview-note">
                 Pré-visualização: <strong>{previewProfile.name}</strong>. Só as áreas desse
                 perfil aparecem abaixo.
+              </p>
+            ) : null}
+            {previewUser ? (
+              <p className="profile-preview-note">
+                Pré-visualização: <strong>{previewUser.name}</strong> (
+                {previewUser.registration}
+                ). Home e processos conforme o cadastro deste usuário.
+              </p>
+            ) : null}
+            {previewMode === 'user' && !previewUser ? (
+              <p className="profile-preview-note">
+                Selecione um usuário aprovado para ver a home como ele vê.
               </p>
             ) : null}
           </div>
