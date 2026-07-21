@@ -24,8 +24,8 @@ export function portalsToHomeCards(portals: readonly PortalArea[]): readonly Por
   const hasAgenda = portals.includes('Agenda')
   const withoutAgenda = portals.filter((portal) => portal !== 'Agenda')
 
-  // Gestão Operacional só como card único quando o perfil tem esse acesso explícito
-  // (gestor / responsável pela célula). Responsáveis por subcélula veem as áreas atribuídas.
+  // Gestor: um único card Gestão Operacional. Responsável por célula vê todas as áreas
+  // (trata-se em getHomeAreasForUser / getHomeAreasForProfilePreview).
   const cards: PortalArea[] = withoutAgenda.includes('Gestão Operacional')
     ? ['Gestão Operacional']
     : [...withoutAgenda]
@@ -35,6 +35,11 @@ export function portalsToHomeCards(portals: readonly PortalArea[]): readonly Por
   }
 
   return cards
+}
+
+/** Mantém a ordem do catálogo de portais, sem colapsar em Gestão Operacional. */
+function portalsInCatalogOrder(portals: readonly PortalArea[]): readonly PortalArea[] {
+  return PORTAL_AREAS.filter((area) => portals.includes(area))
 }
 
 /** Acesso especial fora dos cards da home. */
@@ -247,7 +252,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'engenheiro-responsavel-celula-medicao',
     name: profileName('Medição', 'Engenheiro', 'Responsável por célula'),
     description:
-      'Engenheiro responsável pela célula Medição, com acesso à Gestão Operacional e às subcélulas.',
+      'Engenheiro responsável pela célula Medição: vê Gestão Operacional e todas as subáreas da célula (Medição, laboratórios, Equipe de campo, Usuários e Cadastros).',
     areas: MEDICAO_CELL_AREAS,
     match: {
       workArea: 'Medição',
@@ -539,7 +544,7 @@ export function getAccessiblePortals(user: {
   return portals
 }
 
-/** Home do usuário: card primário Gestão Operacional quando há acesso à hierarquia. */
+/** Home do usuário: gestor colapsa em Gestão Operacional; responsável por célula vê tudo da célula. */
 export function getHomeAreasForUser(user: {
   role: UserRole
   accessAreas?: string[] | null
@@ -548,7 +553,16 @@ export function getHomeAreasForUser(user: {
   workSubtype?: string | null
   approvalStatus?: string
 }): readonly PortalArea[] {
-  return portalsToHomeCards(getAccessiblePortals(user))
+  const portals = getAccessiblePortals(user)
+  const isCellOwner =
+    (user.jobTitle?.trim() ?? '') === 'Engenheiro' &&
+    isEngineerAreaSubtype(user.workSubtype)
+
+  if (isCellOwner) {
+    return portalsInCatalogOrder(portals)
+  }
+
+  return portalsToHomeCards(portals)
 }
 
 export function getCadastroProfile(profileId: string): CadastroProfile | undefined {
@@ -661,6 +675,24 @@ export function getHomeAreasForProfilePreview(profileId: string): readonly Porta
       profile.areas.includes(area) ||
       (area === 'Agenda' && !skipsVacationAgenda(profile.match.workSubtype)),
   )
+
+  // Responsável por célula: todas as áreas da célula na home (igual ao usuário real).
+  if (
+    profile.match.jobTitle === 'Engenheiro' &&
+    isEngineerAreaSubtype(profile.match.workSubtype)
+  ) {
+    const workArea = profile.match.workArea.trim()
+    const cellPortals = BUSINESS_AREA_TO_HOME_PORTALS[workArea] ?? []
+    const expanded = PORTAL_AREAS.filter(
+      (area) =>
+        areas.includes(area) ||
+        area === 'Gestão Operacional' ||
+        (cellPortals as readonly string[]).includes(area) ||
+        (area === 'Agenda' && !skipsVacationAgenda(profile.match.workSubtype)),
+    )
+    return portalsInCatalogOrder(expanded)
+  }
+
   // Pré-visualização de perfil segue o mesmo agrupamento da home do usuário.
   return portalsToHomeCards(areas)
 }
