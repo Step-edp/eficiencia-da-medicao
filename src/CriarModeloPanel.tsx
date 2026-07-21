@@ -3,7 +3,7 @@ import { api, ApiError, type MeterModelRecord } from './api'
 
 const METER_TYPE_OPTIONS = ['Monofásico', 'Bifásico', 'Trifásico', 'Outro']
 
-export function CriarModeloPanel() {
+export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [models, setModels] = useState<MeterModelRecord[]>([])
   const [manufacturers, setManufacturers] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -93,18 +93,20 @@ export function CriarModeloPanel() {
 
   return (
     <div className="criar-modelo-panel">
-      <div className="area-actions right-aligned-actions">
-        <button
-          type="button"
-          className="primary-button"
-          onClick={() => {
-            setShowForm((current) => !current)
-            setFeedback(null)
-          }}
-        >
-          {showForm ? 'Fechar formulário' : 'Criar modelo'}
-        </button>
-      </div>
+      {readOnly ? null : (
+        <div className="area-actions right-aligned-actions">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => {
+              setShowForm((current) => !current)
+              setFeedback(null)
+            }}
+          >
+            {showForm ? 'Fechar formulário' : 'Criar modelo'}
+          </button>
+        </div>
+      )}
 
       {feedback ? (
         <div className={`login-feedback ${feedback.type}`} role="status">
@@ -112,7 +114,7 @@ export function CriarModeloPanel() {
         </div>
       ) : null}
 
-      {showForm ? (
+      {!readOnly && showForm ? (
         <form className="material-form-grid criar-modelo-form" onSubmit={(event) => void handleCreate(event)}>
           <label>
             Modelo

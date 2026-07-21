@@ -388,6 +388,28 @@ export function isMedicaoEstagiario(user: {
   )
 }
 
+/** Engenheiro responsável pela célula Medição (inclui subtypes legados). */
+export function isMedicaoCellOwner(user: {
+  jobTitle?: string | null
+  workArea?: string | null
+  workSubtype?: string | null
+}) {
+  return (
+    (user.jobTitle?.trim() ?? '') === 'Engenheiro' &&
+    (user.workArea?.trim() ?? '') === 'Medição' &&
+    isEngineerAreaSubtype(user.workSubtype)
+  )
+}
+
+/** Pode abrir o Lab de Medição, mas só visualizar (sem criar/editar/executar). */
+export function isLabMedicaoViewOnly(user: {
+  jobTitle?: string | null
+  workArea?: string | null
+  workSubtype?: string | null
+}) {
+  return isMedicaoCellOwner(user)
+}
+
 /** IDs antigos → id atual (pré-visualização / favoritos do admin). */
 const CADASTRO_PROFILE_ID_ALIASES: Record<string, string> = {
   'tecnico-inspecao': 'csd-tecnico-equipe-campo',

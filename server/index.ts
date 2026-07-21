@@ -8,10 +8,15 @@ import { authRoutes } from './routes/users.js'
 import { homologationRoutes } from './routes/homologation.js'
 import { passwordRoutes } from './routes/passwords.js'
 import { materialRoutes } from './routes/materials.js'
-import { meterModelRoutes } from './routes/meter-models.js'
-import { presentationRoutes } from './routes/presentations.js'
-import { softwareRoutes } from './routes/softwares.js'
-import { ratmLaudoRoutes } from './routes/ratm-laudos.js'
+import { meterModelRoutes, createMeterModel } from './routes/meter-models.js'
+import { presentationRoutes, createPresentation } from './routes/presentations.js'
+import { softwareRoutes, createSoftware } from './routes/softwares.js'
+import {
+  ratmLaudoRoutes,
+  createRatmLaudos,
+  updateRatmLaudo,
+  approveRatmLaudo,
+} from './routes/ratm-laudos.js'
 import {
   getSatisfactionSurvey,
   submitSatisfactionSurvey,
@@ -32,6 +37,7 @@ import { processAssignmentRoutes } from './routes/process-assignments.js'
 import { orgCellRoutes } from './routes/org-cells.js'
 import { vacationRoutes } from './routes/vacation.js'
 import { listAuditLogs } from './routes/audit-logs.js'
+import { rejectLabMedicaoViewOnlyMutations } from './lab-view-only.js'
 import {
   countMeterSchedules,
   createMeterSchedule,
@@ -128,32 +134,67 @@ async function start() {
   app.post('/api/materials', ...wrap(materialRoutes.create))
 
   app.get('/api/meter-models', ...wrap(meterModelRoutes.list))
-  app.post('/api/meter-models', ...wrap(meterModelRoutes.create))
+  app.post(
+    '/api/meter-models',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    createMeterModel,
+  )
 
   app.get('/api/presentations', ...wrap(presentationRoutes.list))
-  app.post('/api/presentations', ...wrap(presentationRoutes.create))
+  app.post(
+    '/api/presentations',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    createPresentation,
+  )
   app.get('/api/presentations/:id/attachment', ...wrap(presentationRoutes.attachment))
 
   app.get('/api/softwares', ...wrap(softwareRoutes.list))
-  app.post('/api/softwares', ...wrap(softwareRoutes.create))
+  app.post(
+    '/api/softwares',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    createSoftware,
+  )
   app.get('/api/softwares/:id/attachment', ...wrap(softwareRoutes.attachment))
 
   app.get('/api/ratm-laudos', ...wrap(ratmLaudoRoutes.list))
-  app.post('/api/ratm-laudos', ...wrap(ratmLaudoRoutes.create))
-  app.patch('/api/ratm-laudos/:id', ...wrap(ratmLaudoRoutes.update))
-  app.patch('/api/ratm-laudos/:id/approve', ...wrap(ratmLaudoRoutes.approve))
+  app.post(
+    '/api/ratm-laudos',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    createRatmLaudos,
+  )
+  app.patch(
+    '/api/ratm-laudos/:id',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    updateRatmLaudo,
+  )
+  app.patch(
+    '/api/ratm-laudos/:id/approve',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    approveRatmLaudo,
+  )
   app.get('/api/ratm-laudos/:id/pdf', ...wrap(ratmLaudoRoutes.pdf))
 
   app.get('/api/public/pesquisa/:laudoId', getSatisfactionSurvey)
   app.post('/api/public/pesquisa/:laudoId', submitSatisfactionSurvey)
 
   app.get('/api/ensaios-calendar/manual-blocks', requireAuth, listManualBlocks)
-  app.post('/api/ensaios-calendar/manual-blocks', requireAuth, toggleManualBlock)
+  app.post(
+    '/api/ensaios-calendar/manual-blocks',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    toggleManualBlock,
+  )
 
   app.get('/api/csds', requireAuth, listCsds)
-  app.post('/api/csds', requireAuth, createCsd)
-  app.patch('/api/csds/:id', requireAuth, updateCsd)
-  app.delete('/api/csds/:id', requireAuth, deleteCsd)
+  app.post('/api/csds', requireAuth, rejectLabMedicaoViewOnlyMutations, createCsd)
+  app.patch('/api/csds/:id', requireAuth, rejectLabMedicaoViewOnlyMutations, updateCsd)
+  app.delete('/api/csds/:id', requireAuth, rejectLabMedicaoViewOnlyMutations, deleteCsd)
   app.get('/api/field-team/inspection-users', requireAuth, listInspectionUsers)
 
   app.get('/api/catalog-options', ...catalogOptionRoutes.list)
@@ -185,16 +226,26 @@ async function start() {
   app.post('/api/meter-schedules', requireAuth, createMeterSchedule)
   app.get('/api/meter-registry/trail-counts', requireAuth, getMeterRegistryTrailCounts)
 
-  app.post('/api/demm-documents', requireAuth, createDemmDocument)
+  app.post('/api/demm-documents', requireAuth, rejectLabMedicaoViewOnlyMutations, createDemmDocument)
   app.get('/api/demm-documents', requireAuth, listDemmDocuments)
   app.get('/api/demm-documents/meters-base', requireAuth, getDemmMetersBase)
-  app.delete('/api/demm-documents/:id', requireAuth, deleteDemmDocument)
+  app.delete(
+    '/api/demm-documents/:id',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    deleteDemmDocument,
+  )
   app.get('/api/demm-documents/:id/analysis', requireAuth, getDemmDocumentAnalysis)
   app.get('/api/demm-documents/:id/file', requireAuth, downloadDemmDocument)
 
   app.get('/api/support-tickets', requireAuth, listSupportTickets)
   app.post('/api/support-tickets', requireAuth, createSupportTicket)
-  app.patch('/api/support-tickets/:id/reply', requireAuth, replySupportTicket)
+  app.patch(
+    '/api/support-tickets/:id/reply',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    replySupportTicket,
+  )
 
   const distPath = path.resolve(__dirname, '../../dist')
   app.use(

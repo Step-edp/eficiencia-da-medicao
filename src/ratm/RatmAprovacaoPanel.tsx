@@ -6,12 +6,14 @@ type RatmAprovacaoPanelProps = {
   laudos: RatmLaudo[]
   onLaudoUpdated: (laudo: RatmLaudo) => void
   onLaudoApproved: (laudo: RatmLaudo) => void
+  readOnly?: boolean
 }
 
 export function RatmAprovacaoPanel({
   laudos,
   onLaudoUpdated,
   onLaudoApproved,
+  readOnly = false,
 }: RatmAprovacaoPanelProps) {
   const [viewingLaudo, setViewingLaudo] = useState<RatmLaudo | null>(null)
   const pendingLaudos = laudos.filter((laudo) => laudo.status === 'Pendente')
@@ -19,8 +21,9 @@ export function RatmAprovacaoPanel({
   return (
     <>
       <p>
-        Laudos oficiais de perícia metrológica aguardando aprovação. Visualize o PDF,
-        edite se necessário e aprove o laudo dentro do aplicativo.
+        {readOnly
+          ? 'Laudos de RATM pendentes de aprovação (somente visualização).'
+          : 'Laudos oficiais de perícia metrológica aguardando aprovação. Visualize o PDF, edite se necessário e aprove o laudo dentro do aplicativo.'}
       </p>
 
       <div className="approval-list" aria-label="Laudos de RATM pendentes">
@@ -57,6 +60,7 @@ export function RatmAprovacaoPanel({
       {viewingLaudo ? (
         <RatmLaudoViewer
           laudo={viewingLaudo}
+          readOnly={readOnly}
           onClose={() => setViewingLaudo(null)}
           onUpdated={(laudo) => {
             onLaudoUpdated(laudo)

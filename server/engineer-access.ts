@@ -128,6 +128,18 @@ export function isEngineerAreaSubtype(value: string | null | undefined) {
   )
 }
 
+export function isMedicaoCellOwner(user: {
+  jobTitle?: string | null
+  workArea?: string | null
+  workSubtype?: string | null
+}) {
+  return (
+    (user.jobTitle?.trim() ?? '') === 'Engenheiro' &&
+    (user.workArea?.trim() ?? '') === 'Medição' &&
+    isEngineerAreaSubtype(user.workSubtype)
+  )
+}
+
 export function isEngineerSubcellSubtype(value: string | null | undefined) {
   const normalized = value?.trim() ?? ''
   return normalized === 'Responsável por sub-célula' || normalized === 'Sub-área'

@@ -31,7 +31,7 @@ function TrashIcon() {
   )
 }
 
-export function CsdsPanel() {
+export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [csds, setCsds] = useState<CsdRecord[]>([])
   const [inspectors, setInspectors] = useState<FieldTeamUserOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -330,18 +330,20 @@ export function CsdsPanel() {
             </>
           ) : null}
         </p>
-        <button
-          type="button"
-          className="primary-button"
-          onClick={() => {
-            setShowForm((open) => !open)
-            setEditingCsd(null)
-            setEditCities([])
-            setFeedback(null)
-          }}
-        >
-          {showForm ? 'Fechar formulário' : 'Adicionar CSD'}
-        </button>
+        {readOnly ? null : (
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => {
+              setShowForm((open) => !open)
+              setEditingCsd(null)
+              setEditCities([])
+              setFeedback(null)
+            }}
+          >
+            {showForm ? 'Fechar formulário' : 'Adicionar CSD'}
+          </button>
+        )}
       </div>
 
       {feedback ? (
@@ -350,7 +352,7 @@ export function CsdsPanel() {
         </div>
       ) : null}
 
-      {showForm ? (
+      {!readOnly && showForm ? (
         <form className="form-grid csds-form-grid" onSubmit={(event) => void handleSubmit(event)}>
           <label className="full-width">
             Nome
@@ -415,7 +417,7 @@ export function CsdsPanel() {
         </form>
       ) : null}
 
-      {editingCsd ? (
+      {!readOnly && editingCsd ? (
         <div
           className="ensaios-block-modal-overlay"
           role="presentation"
@@ -523,7 +525,7 @@ export function CsdsPanel() {
                     <td>{csd.address}</td>
                     <td>{csd.cities.length > 0 ? csd.cities.join(', ') : '—'}</td>
                     <td>
-                      {isPending ? (
+                      {isPending && !readOnly ? (
                         <select
                           className="csds-assign-select"
                           value=""
@@ -544,7 +546,7 @@ export function CsdsPanel() {
                             </option>
                           ))}
                         </select>
-                      ) : (
+                      ) : csd.responsibleName ? (
                         <>
                           {csd.responsibleName}
                           <span className="csds-responsible-registration">
@@ -552,9 +554,14 @@ export function CsdsPanel() {
                             ({csd.responsibleRegistration})
                           </span>
                         </>
+                      ) : (
+                        '—'
                       )}
                     </td>
                     <td>
+                      {readOnly ? (
+                        '—'
+                      ) : (
                       <div className="csds-table-actions">
                         <button
                           type="button"
@@ -580,6 +587,7 @@ export function CsdsPanel() {
                           <TrashIcon />
                         </button>
                       </div>
+                      )}
                     </td>
                   </tr>
                 )

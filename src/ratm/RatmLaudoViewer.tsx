@@ -15,6 +15,7 @@ type RatmLaudoViewerProps = {
   onClose: () => void
   onUpdated: (laudo: RatmLaudo) => void
   onApproved: (laudo: RatmLaudo) => void
+  readOnly?: boolean
 }
 
 function laudoToFormData(laudo: RatmLaudo): RatmFormData {
@@ -29,6 +30,7 @@ export function RatmLaudoViewer({
   onClose,
   onUpdated,
   onApproved,
+  readOnly = false,
 }: RatmLaudoViewerProps) {
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [currentLaudo, setCurrentLaudo] = useState(laudo)
@@ -294,7 +296,7 @@ export function RatmLaudoViewer({
         ) : null}
 
         <div className="laudo-viewer-actions">
-          {mode === 'view' ? (
+          {readOnly ? null : mode === 'view' ? (
             <>
               <button
                 className="secondary-button"

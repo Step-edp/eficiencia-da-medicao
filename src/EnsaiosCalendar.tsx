@@ -53,7 +53,7 @@ function buildMonthGrid(year: number, month: number): CalendarCell[] {
   })
 }
 
-export function EnsaiosCalendar() {
+export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
   const today = new Date()
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
@@ -241,7 +241,7 @@ export function EnsaiosCalendar() {
           const isManual = Boolean(manualReason)
           const isBlocked = Boolean(autoReason) || isManual
           const isToday = key === toDateKey(today)
-          const canToggle = inMonth && !autoReason && !loading
+          const canToggle = !readOnly && inMonth && !autoReason && !loading
 
           let title = ''
           if (autoReason) {

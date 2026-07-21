@@ -14,9 +14,10 @@ function formatDateTime(value: string | null) {
 
 type SupportPanelProps = {
   onOpenCountChange?: (count: number) => void
+  readOnly?: boolean
 }
 
-export function SupportPanel({ onOpenCountChange }: SupportPanelProps) {
+export function SupportPanel({ onOpenCountChange, readOnly = false }: SupportPanelProps) {
   const [tickets, setTickets] = useState<SupportTicketRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -172,32 +173,34 @@ export function SupportPanel({ onOpenCountChange }: SupportPanelProps) {
                       </div>
                     ) : null}
 
-                    <form
-                      className="support-ticket-reply-form"
-                      onSubmit={(event) => void handleReply(ticket, event)}
-                    >
-                      <label>
-                        {ticket.response ? 'Atualizar resposta' : 'Responder'}
-                        <textarea
-                          value={replyDrafts[ticket.id] ?? ''}
-                          onChange={(event) =>
-                            setReplyDrafts((prev) => ({
-                              ...prev,
-                              [ticket.id]: event.target.value,
-                            }))
-                          }
-                          rows={3}
-                          placeholder="Escreva a resposta para o solicitante..."
-                        />
-                      </label>
-                      <button
-                        type="submit"
-                        className="primary-button"
-                        disabled={replyingId === ticket.id}
+                    {readOnly ? null : (
+                      <form
+                        className="support-ticket-reply-form"
+                        onSubmit={(event) => void handleReply(ticket, event)}
                       >
-                        {replyingId === ticket.id ? 'Enviando...' : 'Enviar resposta'}
-                      </button>
-                    </form>
+                        <label>
+                          {ticket.response ? 'Atualizar resposta' : 'Responder'}
+                          <textarea
+                            value={replyDrafts[ticket.id] ?? ''}
+                            onChange={(event) =>
+                              setReplyDrafts((prev) => ({
+                                ...prev,
+                                [ticket.id]: event.target.value,
+                              }))
+                            }
+                            rows={3}
+                            placeholder="Escreva a resposta para o solicitante..."
+                          />
+                        </label>
+                        <button
+                          type="submit"
+                          className="primary-button"
+                          disabled={replyingId === ticket.id}
+                        >
+                          {replyingId === ticket.id ? 'Enviando...' : 'Enviar resposta'}
+                        </button>
+                      </form>
+                    )}
                   </div>
                 ) : null}
               </article>

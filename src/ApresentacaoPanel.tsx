@@ -5,7 +5,7 @@ import { readAttachmentAsDataUrl } from './readAttachmentAsDataUrl'
 const ATTACHMENT_ACCEPT =
   '.pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.odp,.odt,.ods,image/*,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation'
 
-export function ApresentacaoPanel() {
+export function ApresentacaoPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [presentations, setPresentations] = useState<PresentationRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -121,18 +121,20 @@ export function ApresentacaoPanel() {
 
   return (
     <div className="apresentacao-panel">
-      <div className="area-actions right-aligned-actions">
-        <button
-          type="button"
-          className="primary-button"
-          onClick={() => {
-            setShowForm((current) => !current)
-            setFeedback(null)
-          }}
-        >
-          {showForm ? 'Fechar formulário' : 'Adicionar apresentação'}
-        </button>
-      </div>
+      {readOnly ? null : (
+        <div className="area-actions right-aligned-actions">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => {
+              setShowForm((current) => !current)
+              setFeedback(null)
+            }}
+          >
+            {showForm ? 'Fechar formulário' : 'Adicionar apresentação'}
+          </button>
+        </div>
+      )}
 
       {feedback ? (
         <div className={`login-feedback ${feedback.type}`} role="status">
@@ -140,7 +142,7 @@ export function ApresentacaoPanel() {
         </div>
       ) : null}
 
-      {showForm ? (
+      {!readOnly && showForm ? (
         <form
           className="material-form-grid apresentacao-form"
           onSubmit={(event) => void handleCreate(event)}

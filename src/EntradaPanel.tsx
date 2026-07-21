@@ -179,9 +179,10 @@ function DemmUploadConflicts({ conflicts }: { conflicts: DemmUploadConflictRecor
 
 type EntradaPanelProps = {
   onTrailCountsChange?: () => void
+  readOnly?: boolean
 }
 
-export function EntradaPanel({ onTrailCountsChange }: EntradaPanelProps) {
+export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaPanelProps) {
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
   const [schedules, setSchedules] = useState<Awaited<ReturnType<typeof api.listMeterSchedules>>['schedules']>([])
   const [loading, setLoading] = useState(true)
@@ -402,14 +403,16 @@ export function EntradaPanel({ onTrailCountsChange }: EntradaPanelProps) {
       <div className="entrada-panel">
         <div className="entrada-panel-header">
           <div className="entrada-panel-actions">
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() => openDemmModal()}
-              disabled={loading}
-            >
-              Nova DEMM
-            </button>
+            {readOnly ? null : (
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => openDemmModal()}
+                disabled={loading}
+              >
+                Nova DEMM
+              </button>
+            )}
             <button
               type="button"
               className="secondary-button"
@@ -492,28 +495,30 @@ export function EntradaPanel({ onTrailCountsChange }: EntradaPanelProps) {
                             Medidores
                             {document.meterCount > 0 ? ` (${document.meterCount})` : ''}
                           </button>
-                          <button
-                            type="button"
-                            className="entrada-demm-delete-button"
-                            disabled={deletingDemmId === document.id}
-                            onClick={() => void handleDeleteDemm(document)}
-                            aria-label={
-                              deletingDemmId === document.id ? 'Excluindo DEMM' : 'Excluir DEMM'
-                            }
-                            title={
-                              deletingDemmId === document.id ? 'Excluindo...' : 'Excluir DEMM'
-                            }
-                          >
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                              <path
-                                d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                              />
-                            </svg>
-                          </button>
+                          {readOnly ? null : (
+                            <button
+                              type="button"
+                              className="entrada-demm-delete-button"
+                              disabled={deletingDemmId === document.id}
+                              onClick={() => void handleDeleteDemm(document)}
+                              aria-label={
+                                deletingDemmId === document.id ? 'Excluindo DEMM' : 'Excluir DEMM'
+                              }
+                              title={
+                                deletingDemmId === document.id ? 'Excluindo...' : 'Excluir DEMM'
+                              }
+                            >
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                  d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

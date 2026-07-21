@@ -22,6 +22,7 @@ import {
   isLavraturaEquipeCampoScope,
   isLavraturaPontoFocalScope,
   isMedicaoEstagiario,
+  isLabMedicaoViewOnly,
   skipsVacationAgenda,
   listUsersForCadastroProfile,
   PORTAL_AREAS,
@@ -1740,6 +1741,18 @@ function HomePanel({
     (previewUser != null && isMedicaoEstagiario(previewUser)) ||
     previewProfile?.id === 'estagiario-medicao' ||
     (!isAdmin && isMedicaoEstagiario(currentUser))
+
+  const labMedicaoReadOnly =
+    !isAdminFullPreview &&
+    (previewUser
+      ? isLabMedicaoViewOnly(previewUser)
+      : previewProfile
+        ? isLabMedicaoViewOnly({
+            jobTitle: previewProfile.match.jobTitle,
+            workArea: previewProfile.match.workArea,
+            workSubtype: previewProfile.match.workSubtype,
+          })
+        : isLabMedicaoViewOnly(currentUser))
 
   const assignedProcessesUserId =
     previewUser?.id ?? (!isAdmin ? currentUser.id : null)
@@ -4094,6 +4107,12 @@ function HomePanel({
                 ? getLabTrailLabel(selectedLabMeasurementSection)
                 : selectedLabMeasurementSection}
             </h2>
+            {labMedicaoReadOnly ? (
+              <div className="agenda-alert agenda-alert-ok" role="status">
+                <strong>Modo visualização.</strong> Responsável por célula pode consultar os
+                dados do laboratório, sem executar cadastros, ensaios ou aprovações.
+              </div>
+            ) : null}
             {LAB_TRAIL_KEYS.has(selectedLabMeasurementSection) ? (
               <LabMeasurementTrail
                 activeStep={selectedLabMeasurementSection}
@@ -4103,11 +4122,14 @@ function HomePanel({
               />
             ) : null}
             {selectedLabMeasurementSection === 'Calendário de ensaios' ? (
-              <EnsaiosCalendar />
+              <EnsaiosCalendar readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'CSDs' ? (
-              <CsdsPanel />
+              <CsdsPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Suporte' ? (
-              <SupportPanel onOpenCountChange={setOpenSupportCount} />
+              <SupportPanel
+                readOnly={labMedicaoReadOnly}
+                onOpenCountChange={setOpenSupportCount}
+              />
             ) : selectedLabMeasurementSection === 'Auditoria' ? (
               <AuditPanel />
             ) : selectedLabMeasurementSection === 'Galeria' ? (
@@ -4115,27 +4137,45 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Consultar RATM' ? (
               <ConsultarRatmPanel />
             ) : selectedLabMeasurementSection === 'Criar Modelo' ? (
-              <CriarModeloPanel />
+              <CriarModeloPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Apresentação' ? (
-              <ApresentacaoPanel />
+              <ApresentacaoPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Softwares' ? (
-              <SoftwaresPanel />
+              <SoftwaresPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Inventário' ? (
               <InventarioPanel />
             ) : selectedLabMeasurementSection === ENTRADA_TRAIL_STEP ? (
-              <EntradaPanel onTrailCountsChange={refreshTrailStepCounts} />
+              <EntradaPanel
+                readOnly={labMedicaoReadOnly}
+                onTrailCountsChange={refreshTrailStepCounts}
+              />
             ) : selectedLabMeasurementSection === 'Agendar' ? (
-              <>
-                <p>Preencha os dados abaixo para reservar a data de agendamento.</p>
-                <ScheduleAgendarForm />
-              </>
+              labMedicaoReadOnly ? (
+                <>
+                  <p>Agendamentos realizados (visualização).</p>
+                  <FieldTeamConsultarPanel />
+                </>
+              ) : (
+                <>
+                  <p>Preencha os dados abaixo para reservar a data de agendamento.</p>
+                  <ScheduleAgendarForm />
+                </>
+              )
             ) : selectedLabMeasurementSection === 'Ensaiar' ? (
-              <>
-                <p>Escolha quantos RATMs deseja realizar de uma vez (máximo 10).</p>
-                <EnsaiarForm onFinish={handleRatmFinish} />
-              </>
+              labMedicaoReadOnly ? (
+                <p>
+                  Modo visualização: a execução de ensaios não está disponível. Consulte laudos
+                  em <strong>Consultar RATM</strong> e medidores nas demais etapas da trilha.
+                </p>
+              ) : (
+                <>
+                  <p>Escolha quantos RATMs deseja realizar de uma vez (máximo 10).</p>
+                  <EnsaiarForm onFinish={handleRatmFinish} />
+                </>
+              )
             ) : selectedLabMeasurementSection === 'Aprovação de RATM' ? (
               <RatmAprovacaoPanel
+                readOnly={labMedicaoReadOnly}
                 laudos={ratmLaudos}
                 onLaudoUpdated={(laudo) => {
                   setRatmLaudos((prev) =>
@@ -4649,7 +4689,11 @@ function HomePanel({
         <TopActionBar onLogout={onLogout} />
         <p className="section-tag">Home</p>
         <h2>
-          Bem-vindo, {currentUser.name.trim().split(/\s+/)[0] || currentUser.name}!
+          Bem-vindo,{' '}
+          {(previewUser?.name ?? currentUser.name).trim().split(/\s+/)[0] ||
+            previewUser?.name ||
+            currentUser.name}
+          !
         </h2>
 
         {coveringFor.length && !coveringAlertDismissed ? (

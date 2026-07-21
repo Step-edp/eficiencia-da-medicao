@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useId, useState } from 'react'
 import { api, ApiError, type SoftwareRecord } from './api'
 import { readAttachmentAsDataUrl } from './readAttachmentAsDataUrl'
 
-export function SoftwaresPanel() {
+export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [softwares, setSoftwares] = useState<SoftwareRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -115,18 +115,20 @@ export function SoftwaresPanel() {
 
   return (
     <div className="softwares-panel">
-      <div className="area-actions right-aligned-actions">
-        <button
-          type="button"
-          className="primary-button"
-          onClick={() => {
-            setShowForm((current) => !current)
-            setFeedback(null)
-          }}
-        >
-          {showForm ? 'Fechar formulário' : 'Novo software'}
-        </button>
-      </div>
+      {readOnly ? null : (
+        <div className="area-actions right-aligned-actions">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => {
+              setShowForm((current) => !current)
+              setFeedback(null)
+            }}
+          >
+            {showForm ? 'Fechar formulário' : 'Novo software'}
+          </button>
+        </div>
+      )}
 
       {feedback ? (
         <div className={`login-feedback ${feedback.type}`} role="status">
@@ -134,7 +136,7 @@ export function SoftwaresPanel() {
         </div>
       ) : null}
 
-      {showForm ? (
+      {!readOnly && showForm ? (
         <form
           className="material-form-grid apresentacao-form"
           onSubmit={(event) => void handleCreate(event)}
