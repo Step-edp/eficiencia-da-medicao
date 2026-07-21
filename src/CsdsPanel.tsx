@@ -75,10 +75,10 @@ export function CsdsPanel() {
   }, [loadData])
 
   const assignedCities = useMemo(() => {
-    const map = new Map<string, string>()
+    const map = new Map<string, { csdId: string; csdName: string }>()
     for (const csd of csds) {
       for (const city of csd.cities) {
-        map.set(city, csd.name)
+        map.set(city, { csdId: csd.id, csdName: csd.name })
       }
     }
     return map
@@ -123,7 +123,7 @@ export function CsdsPanel() {
     if (!editingCsd) return
 
     const owner = assignedCities.get(city)
-    if (owner && owner !== editingCsd.name) return
+    if (owner && owner.csdId !== editingCsd.id) return
 
     setEditCities((current) =>
       current.includes(city)
@@ -278,20 +278,25 @@ export function CsdsPanel() {
   const renderCitiesGrid = (
     checkedCities: string[],
     onToggle: (city: string) => void,
-    options?: { allowOwnedBy?: string },
+    options?: { allowOwnedByCsdId?: string },
   ) => (
     <div className="csds-cities-grid">
       {CSD_CITY_OPTIONS.map((city) => {
         const assignedTo = assignedCities.get(city)
         const ownedByEditor =
-          Boolean(options?.allowOwnedBy) && assignedTo === options?.allowOwnedBy
+          Boolean(options?.allowOwnedByCsdId) &&
+          assignedTo?.csdId === options?.allowOwnedByCsdId
         const isDisabled = Boolean(assignedTo) && !ownedByEditor
 
         return (
           <label
             key={city}
             className={`csds-city-option${isDisabled ? ' is-disabled' : ''}`}
-            title={isDisabled ? `Já vinculada ao ${assignedTo}` : undefined}
+            title={
+              isDisabled
+                ? `Já vinculada ao ${assignedTo?.csdName}. Não pode ser atribuída.`
+                : undefined
+            }
           >
             <input
               type="checkbox"
@@ -299,7 +304,12 @@ export function CsdsPanel() {
               disabled={isDisabled}
               onChange={() => onToggle(city)}
             />
-            <span>{city}</span>
+            <span>
+              {city}
+              {isDisabled ? (
+                <span className="csds-city-owner"> · {assignedTo?.csdName}</span>
+              ) : null}
+            </span>
           </label>
         )
       })}
@@ -367,7 +377,8 @@ export function CsdsPanel() {
           <fieldset className="csds-cities-fieldset full-width">
             <legend>Cidades</legend>
             <p className="csds-form-hint">
-              Cidades já vinculadas a outro CSD ficam desabilitadas.
+              Cidades já vinculadas a outro CSD não podem ser atribuídas e aparecem
+              desabilitadas.
             </p>
             {renderCitiesGrid(selectedCities, toggleCreateCity)}
           </fieldset>
@@ -438,8 +449,8 @@ export function CsdsPanel() {
 
             <h3 id="csds-edit-title">Editar cidades</h3>
             <p className="csds-form-hint">
-              {editingCsd.name}. Marque ou desmarque cidades. As já vinculadas a outro
-              CSD ficam desabilitadas.
+              {editingCsd.name}. Marque ou desmarque cidades. Cidades já vinculadas a
+              outro CSD não podem ser atribuídas.
             </p>
 
             <form
@@ -449,7 +460,7 @@ export function CsdsPanel() {
               <fieldset className="csds-cities-fieldset">
                 <legend>Cidades</legend>
                 {renderCitiesGrid(editCities, toggleEditCity, {
-                  allowOwnedBy: editingCsd.name,
+                  allowOwnedByCsdId: editingCsd.id,
                 })}
               </fieldset>
 

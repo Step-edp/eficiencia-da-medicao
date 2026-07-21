@@ -1464,6 +1464,12 @@ button {
   text-decoration: line-through;
 }
 
+.csds-city-owner {
+  text-decoration: none;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
 .csds-table {
   min-width: 860px;
 }
