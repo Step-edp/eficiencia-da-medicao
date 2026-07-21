@@ -476,15 +476,21 @@ button {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
 }
 
 .catalog-card {
   display: grid;
   gap: 12px;
+  align-content: start;
   padding: 16px;
   border-radius: 16px;
   border: 1px solid rgba(24, 216, 240, 0.22);
   background: rgba(5, 26, 44, 0.74);
+}
+
+.catalog-card > label {
+  align-content: start;
 }
 
 .catalog-card-header {

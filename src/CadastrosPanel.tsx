@@ -313,35 +313,27 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
                 <span>{catalog.options.length} opção(ões)</span>
               </header>
 
-              <label>
-                Pré-visualização
-                <select defaultValue="" aria-label={`Lista de ${catalog.label}`}>
-                  <option value="" disabled>
-                    Selecione...
-                  </option>
-                  {catalog.options.map((option) => (
-                    <option key={option.id} value={option.value}>
-                      {option.value}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
               <ul className="catalog-option-list">
-                {catalog.options.map((option) => (
-                  <li key={option.id}>
-                    <span>{option.value}</span>
-                    {isAdmin && catalog.key !== 'tipo' && option.id > 0 ? (
-                      <button
-                        type="button"
-                        className="secondary-button compact-button"
-                        onClick={() => void handleDelete(option.id, catalog.key)}
-                      >
-                        Remover
-                      </button>
-                    ) : null}
+                {catalog.options.length ? (
+                  catalog.options.map((option) => (
+                    <li key={option.id}>
+                      <span>{option.value}</span>
+                      {isAdmin && catalog.key !== 'tipo' && option.id > 0 ? (
+                        <button
+                          type="button"
+                          className="secondary-button compact-button"
+                          onClick={() => void handleDelete(option.id, catalog.key)}
+                        >
+                          Remover
+                        </button>
+                      ) : null}
+                    </li>
+                  ))
+                ) : (
+                  <li>
+                    <span>Nenhuma opção cadastrada.</span>
                   </li>
-                ))}
+                )}
               </ul>
 
               {isAdmin && catalog.key !== 'tipo' ? (
