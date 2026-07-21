@@ -1494,27 +1494,83 @@ button {
   max-width: 260px;
 }
 
-.csds-delete-button {
-  padding: 8px 12px;
-  border: 1px solid rgba(255, 92, 92, 0.45);
+.csds-table-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.csds-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid rgba(24, 216, 240, 0.34);
   border-radius: 10px;
-  background: rgba(255, 92, 92, 0.1);
-  color: #ffb4b4;
+  background: rgba(8, 39, 66, 0.8);
+  color: #d9f7ff;
   font: inherit;
-  font-size: 0.88rem;
   cursor: pointer;
   transition: border-color 180ms ease, background 180ms ease;
 }
 
-.csds-delete-button:hover:not(:disabled),
-.csds-delete-button:focus-visible:not(:disabled) {
+.csds-icon-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.csds-icon-button:hover:not(:disabled),
+.csds-icon-button:focus-visible:not(:disabled) {
+  border-color: rgba(24, 216, 240, 0.65);
+  background: rgba(12, 58, 92, 0.95);
+}
+
+.csds-icon-button.is-danger {
+  border-color: rgba(255, 92, 92, 0.45);
+  background: rgba(255, 92, 92, 0.1);
+  color: #ffb4b4;
+}
+
+.csds-icon-button.is-danger:hover:not(:disabled),
+.csds-icon-button.is-danger:focus-visible:not(:disabled) {
   border-color: rgba(255, 92, 92, 0.75);
   background: rgba(255, 92, 92, 0.18);
 }
 
-.csds-delete-button:disabled {
+.csds-icon-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.csds-edit-modal {
+  width: min(720px, 100%);
+  max-height: min(90vh, 820px);
+  overflow: auto;
+}
+
+.csds-edit-modal .csds-form-hint {
+  margin: 0 0 16px;
+}
+
+.csds-edit-form {
+  display: grid;
+  gap: 16px;
+}
+
+.csds-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.csds-edit-actions .primary-button,
+.csds-edit-actions .secondary-button {
+  width: auto;
+  min-width: 140px;
 }
 
 @media (max-width: 720px) {

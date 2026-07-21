@@ -2,6 +2,35 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type CsdRecord, type FieldTeamUserOption } from './api'
 import { CSD_CITY_OPTIONS } from './csdCities'
 
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20zM14.5 5l4.5 4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 export function CsdsPanel() {
   const [csds, setCsds] = useState<CsdRecord[]>([])
   const [inspectors, setInspectors] = useState<FieldTeamUserOption[]>([])
@@ -14,6 +43,9 @@ export function CsdsPanel() {
   const [submitting, setSubmitting] = useState(false)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [editingCsd, setEditingCsd] = useState<CsdRecord | null>(null)
+  const [editCities, setEditCities] = useState<string[]>([])
+  const [savingEdit, setSavingEdit] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -64,10 +96,36 @@ export function CsdsPanel() {
     setResponsibleUserId('')
   }
 
-  const toggleCity = (city: string) => {
+  const openEdit = (csd: CsdRecord) => {
+    setEditingCsd(csd)
+    setEditCities([...csd.cities])
+    setFeedback(null)
+    setShowForm(false)
+  }
+
+  const closeEdit = () => {
+    if (savingEdit) return
+    setEditingCsd(null)
+    setEditCities([])
+  }
+
+  const toggleCreateCity = (city: string) => {
     if (assignedCities.has(city)) return
 
     setSelectedCities((current) =>
+      current.includes(city)
+        ? current.filter((item) => item !== city)
+        : [...current, city].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    )
+  }
+
+  const toggleEditCity = (city: string) => {
+    if (!editingCsd) return
+
+    const owner = assignedCities.get(city)
+    if (owner && owner !== editingCsd.name) return
+
+    setEditCities((current) =>
       current.includes(city)
         ? current.filter((item) => item !== city)
         : [...current, city].sort((a, b) => a.localeCompare(b, 'pt-BR')),
@@ -117,6 +175,49 @@ export function CsdsPanel() {
     }
   }
 
+  const handleSaveEdit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!editingCsd) return
+
+    if (editCities.length === 0) {
+      setFeedback({
+        type: 'error',
+        message: 'Selecione ao menos uma cidade.',
+      })
+      return
+    }
+
+    setSavingEdit(true)
+    setFeedback(null)
+
+    try {
+      const { csd: updated } = await api.updateCsd(editingCsd.id, {
+        cities: editCities,
+      })
+      setCsds((prev) =>
+        prev
+          .map((item) => (item.id === updated.id ? updated : item))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      )
+      setFeedback({
+        type: 'success',
+        message: `Cidades do CSD "${updated.name}" atualizadas.`,
+      })
+      setEditingCsd(null)
+      setEditCities([])
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível atualizar as cidades.',
+      })
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
   const handleAssignResponsible = async (csd: CsdRecord, nextUserId: string) => {
     if (!nextUserId) return
 
@@ -156,6 +257,10 @@ export function CsdsPanel() {
     try {
       await api.deleteCsd(csd.id)
       setCsds((prev) => prev.filter((item) => item.id !== csd.id))
+      if (editingCsd?.id === csd.id) {
+        setEditingCsd(null)
+        setEditCities([])
+      }
       setFeedback({ type: 'success', message: `CSD "${csd.name}" excluído.` })
     } catch (error) {
       setFeedback({
@@ -169,6 +274,37 @@ export function CsdsPanel() {
       setDeletingId(null)
     }
   }
+
+  const renderCitiesGrid = (
+    checkedCities: string[],
+    onToggle: (city: string) => void,
+    options?: { allowOwnedBy?: string },
+  ) => (
+    <div className="csds-cities-grid">
+      {CSD_CITY_OPTIONS.map((city) => {
+        const assignedTo = assignedCities.get(city)
+        const ownedByEditor =
+          Boolean(options?.allowOwnedBy) && assignedTo === options?.allowOwnedBy
+        const isDisabled = Boolean(assignedTo) && !ownedByEditor
+
+        return (
+          <label
+            key={city}
+            className={`csds-city-option${isDisabled ? ' is-disabled' : ''}`}
+            title={isDisabled ? `Já vinculada ao ${assignedTo}` : undefined}
+          >
+            <input
+              type="checkbox"
+              checked={checkedCities.includes(city)}
+              disabled={isDisabled}
+              onChange={() => onToggle(city)}
+            />
+            <span>{city}</span>
+          </label>
+        )
+      })}
+    </div>
+  )
 
   return (
     <div className="csds-panel">
@@ -189,6 +325,8 @@ export function CsdsPanel() {
           className="primary-button"
           onClick={() => {
             setShowForm((open) => !open)
+            setEditingCsd(null)
+            setEditCities([])
             setFeedback(null)
           }}
         >
@@ -231,30 +369,7 @@ export function CsdsPanel() {
             <p className="csds-form-hint">
               Cidades já vinculadas a outro CSD ficam desabilitadas.
             </p>
-            <div className="csds-cities-grid">
-              {CSD_CITY_OPTIONS.map((city) => {
-                const assignedTo = assignedCities.get(city)
-                const isDisabled = Boolean(assignedTo)
-
-                return (
-                  <label
-                    key={city}
-                    className={`csds-city-option${isDisabled ? ' is-disabled' : ''}`}
-                    title={
-                      isDisabled ? `Já vinculada ao ${assignedTo}` : undefined
-                    }
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedCities.includes(city)}
-                      disabled={isDisabled}
-                      onChange={() => toggleCity(city)}
-                    />
-                    <span>{city}</span>
-                  </label>
-                )
-              })}
-            </div>
+            {renderCitiesGrid(selectedCities, toggleCreateCity)}
           </fieldset>
 
           <label className="full-width">
@@ -287,6 +402,77 @@ export function CsdsPanel() {
             {submitting ? 'Salvando...' : 'Salvar CSD'}
           </button>
         </form>
+      ) : null}
+
+      {editingCsd ? (
+        <div
+          className="ensaios-block-modal-overlay"
+          role="presentation"
+          onClick={closeEdit}
+        >
+          <div
+            className="ensaios-block-modal csds-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="csds-edit-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="icon-button schedule-slot-modal-close"
+              onClick={closeEdit}
+              aria-label="Fechar"
+              title="Fechar"
+              disabled={savingEdit}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+
+            <h3 id="csds-edit-title">Editar cidades</h3>
+            <p className="csds-form-hint">
+              {editingCsd.name}. Marque ou desmarque cidades. As já vinculadas a outro
+              CSD ficam desabilitadas.
+            </p>
+
+            <form
+              className="csds-edit-form"
+              onSubmit={(event) => void handleSaveEdit(event)}
+            >
+              <fieldset className="csds-cities-fieldset">
+                <legend>Cidades</legend>
+                {renderCitiesGrid(editCities, toggleEditCity, {
+                  allowOwnedBy: editingCsd.name,
+                })}
+              </fieldset>
+
+              <div className="csds-edit-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={closeEdit}
+                  disabled={savingEdit}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={savingEdit}
+                >
+                  {savingEdit ? 'Salvando...' : 'Salvar cidades'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       ) : null}
 
       <div className="table-wrap" aria-label="Lista de CSDs">
@@ -358,14 +544,31 @@ export function CsdsPanel() {
                       )}
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        className="csds-delete-button"
-                        disabled={deletingId === csd.id}
-                        onClick={() => void handleDelete(csd)}
-                      >
-                        {deletingId === csd.id ? 'Excluindo...' : 'Excluir'}
-                      </button>
+                      <div className="csds-table-actions">
+                        <button
+                          type="button"
+                          className="csds-icon-button"
+                          aria-label={`Editar cidades do ${csd.name}`}
+                          title="Editar cidades"
+                          onClick={() => openEdit(csd)}
+                        >
+                          <PencilIcon />
+                        </button>
+                        <button
+                          type="button"
+                          className="csds-icon-button is-danger"
+                          disabled={deletingId === csd.id}
+                          aria-label={
+                            deletingId === csd.id
+                              ? `Excluindo ${csd.name}`
+                              : `Excluir ${csd.name}`
+                          }
+                          title={deletingId === csd.id ? 'Excluindo…' : 'Excluir'}
+                          onClick={() => void handleDelete(csd)}
+                        >
+                          <TrashIcon />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )

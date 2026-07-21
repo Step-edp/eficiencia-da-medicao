@@ -655,6 +655,7 @@ export const api = {
     id: string,
     payload: {
       responsibleUserId?: string | null
+      cities?: string[]
     },
   ) =>
     request<{ csd: CsdRecord }>(`/api/csds/${id}`, {

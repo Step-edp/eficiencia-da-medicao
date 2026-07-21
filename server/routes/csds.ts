@@ -146,7 +146,16 @@ export async function createCsd(req: Request, res: Response) {
 
 export async function updateCsd(req: Request, res: Response) {
   const { id } = req.params
-  const responsibleUserId = parseOptionalResponsibleId(req.body?.responsibleUserId)
+  const hasResponsible = Object.prototype.hasOwnProperty.call(
+    req.body ?? {},
+    'responsibleUserId',
+  )
+  const hasCities = Object.prototype.hasOwnProperty.call(req.body ?? {}, 'cities')
+
+  if (!hasResponsible && !hasCities) {
+    res.status(400).json({ error: 'Nada para atualizar.' })
+    return
+  }
 
   const existing = await query<CsdRow>(`${CSD_SELECT} WHERE c.id = $1`, [id])
 
@@ -155,11 +164,41 @@ export async function updateCsd(req: Request, res: Response) {
     return
   }
 
-  if (responsibleUserId) {
-    const valid = await assertCsdResponsible(responsibleUserId)
-    if (!valid) {
-      res.status(400).json({
-        error: 'Responsável inválido. Selecione um usuário com perfil de CSD.',
+  let responsibleUserId = existing.rows[0].responsible_user_id
+  let cities = normalizeCsdCities(existing.rows[0].cities ?? [])
+
+  if (hasResponsible) {
+    responsibleUserId = parseOptionalResponsibleId(req.body.responsibleUserId)
+    if (responsibleUserId) {
+      const valid = await assertCsdResponsible(responsibleUserId)
+      if (!valid) {
+        res.status(400).json({
+          error: 'Responsável inválido. Selecione um usuário com perfil de CSD.',
+        })
+        return
+      }
+    }
+  }
+
+  if (hasCities) {
+    cities = normalizeCsdCities(req.body.cities)
+    if (cities.length === 0) {
+      res.status(400).json({ error: 'Selecione ao menos uma cidade.' })
+      return
+    }
+
+    const conflicts = await query<{ city: string; csd_name: string }>(
+      `SELECT city.value AS city, c.name AS csd_name
+       FROM csds c
+       CROSS JOIN LATERAL jsonb_array_elements_text(c.cities) AS city(value)
+       WHERE city.value = ANY($1::text[])
+         AND c.id <> $2`,
+      [cities, id],
+    )
+
+    if (conflicts.rows[0]) {
+      res.status(409).json({
+        error: `A cidade ${conflicts.rows[0].city} já está vinculada ao CSD ${conflicts.rows[0].csd_name}.`,
       })
       return
     }
@@ -167,24 +206,31 @@ export async function updateCsd(req: Request, res: Response) {
 
   const updated = await query<CsdRow>(
     `UPDATE csds
-     SET responsible_user_id = $2
+     SET responsible_user_id = $2,
+         cities = $3::jsonb
      WHERE id = $1
      RETURNING id, name, address, cities, responsible_user_id, created_at,
                (SELECT name FROM users WHERE id = $2) AS responsible_name,
                (SELECT registration FROM users WHERE id = $2) AS responsible_registration`,
-    [id, responsibleUserId],
+    [id, responsibleUserId, JSON.stringify(cities)],
   )
 
   const previous = mapCsd(existing.rows[0])
   const csd = mapCsd(updated.rows[0])
 
+  const summaryParts: string[] = []
+  if (hasCities) summaryParts.push('cidades')
+  if (hasResponsible) {
+    summaryParts.push(
+      responsibleUserId ? 'responsável' : 'responsável removido (pendente)',
+    )
+  }
+
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'csd',
     entityId: csd.id,
-    summary: responsibleUserId
-      ? `Responsável do CSD ${csd.name} atualizado`
-      : `CSD ${csd.name} ficou pendente (sem responsável)`,
+    summary: `CSD ${csd.name}: ${summaryParts.join(' e ')} atualizado(s)`,
     oldData: previous,
     newData: csd,
   })
