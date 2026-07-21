@@ -91,12 +91,6 @@ export function InventarioPanel({
           </div>
         ) : null}
 
-        <header className="inventario-month-screen-header">
-          <p className="section-tag">Inventário mensal</p>
-          <h3>{monthTitle(openMonth)}</h3>
-          <p>Consulta e acompanhamento do inventário deste mês.</p>
-        </header>
-
         <div className="inventario-month-content">
           <div className="entrada-table-wrap">
             <table className="data-table">
