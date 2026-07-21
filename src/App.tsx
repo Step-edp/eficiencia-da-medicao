@@ -21,6 +21,7 @@ import {
   isLavraturaBackofficeScope,
   isLavraturaEquipeCampoScope,
   isLavraturaPontoFocalScope,
+  isMedicaoEstagiario,
   skipsVacationAgenda,
   listUsersForCadastroProfile,
   PORTAL_AREAS,
@@ -62,6 +63,7 @@ import {
   isEngineerSubcellSubtype,
   isEngineerAreaSubtype,
   mapTakenSubcellAreas,
+  parseAccessProcess,
   subtypesForCargo,
   TECHNICIAN_SCOPES_BY_AREA,
 } from './registrationOptions'
@@ -862,6 +864,9 @@ function PendingApprovalItem({
     jobTitle === 'Engenheiro' && isEngineerAreaSubtype(workSubtype)
   const needsSpecificProcesses =
     jobTitle === 'Engenheiro' && isEngineerProcessSubtype(workSubtype)
+  const needsInternProcesses =
+    jobTitle === 'Estagiário' && (user.workArea?.trim() ?? '') === 'Medição'
+  const needsProcessAssignment = needsSpecificProcesses || needsInternProcesses
   const takenSubcellAreas = mapTakenSubcellAreas(approvedUsers, undefined, {
     candidateId: user.id,
     candidateSubtype: workSubtype,
@@ -956,7 +961,7 @@ function PendingApprovalItem({
         thirdPartyCompany: needsCompany ? thirdPartyCompany : '',
         workSubtype: needsSubtype ? workSubtype : '',
         accessAreas: needsHomeSubareas ? selectedSubareas : [],
-        accessProcesses: needsSpecificProcesses ? selectedProcesses : [],
+        accessProcesses: needsProcessAssignment ? selectedProcesses : [],
       })
       onFeedback({
         type: 'success',
@@ -1203,12 +1208,17 @@ function PendingApprovalItem({
               </fieldset>
             ) : null}
 
-            {needsSpecificProcesses ? (
+            {needsProcessAssignment ? (
               <fieldset className="approval-subareas">
-                <legend>Processos específicos por subárea</legend>
+                <legend>
+                  {needsInternProcesses
+                    ? 'Processos atribuídos ao estagiário'
+                    : 'Processos específicos por subárea'}
+                </legend>
                 <p className="approval-subareas-hint">
-                  Selecione as subáreas da home e, em cada uma, os processos específicos de
-                  responsabilidade deste engenheiro.
+                  {needsInternProcesses
+                    ? 'Opcional. Selecione as subáreas e os processos que este estagiário poderá visualizar na home (Seus processos).'
+                    : 'Selecione as subáreas da home e, em cada uma, os processos específicos de responsabilidade deste engenheiro.'}
                 </p>
                 <div className="approval-subareas-grid">
                   {homeSubareaProcesses.map(({ area }) => (
@@ -1694,6 +1704,23 @@ function HomePanel({
     }
     return true
   })
+
+  const showEstagiarioProcesses =
+    previewProfile?.id === 'estagiario-medicao' ||
+    (!isAdmin && isMedicaoEstagiario(currentUser))
+
+  const estagiarioProcessLabels = (() => {
+    if (previewProfile?.id === 'estagiario-medicao') {
+      // Pré-visualização do perfil: mostra o estado vazio padrão do Estagiário.
+      return [] as string[]
+    }
+    return (currentUser.accessProcesses ?? [])
+      .map((item) => {
+        const parsed = parseAccessProcess(item)
+        return parsed ? `${parsed.area}: ${parsed.process}` : item
+      })
+      .filter(Boolean)
+  })()
 
   const accessiblePortals = (() => {
     if (isAdmin && resolvedPreviewProfileId === ADMIN_PREVIEW_PROFILE_ID) {
@@ -4623,6 +4650,23 @@ function HomePanel({
             </button>
           ))}
         </div>
+
+        {showEstagiarioProcesses ? (
+          <div className="home-assigned-processes" aria-label="Seus processos">
+            <h3>Seus processos</h3>
+            {estagiarioProcessLabels.length ? (
+              <ul className="home-assigned-processes-list">
+                {estagiarioProcessLabels.map((label) => (
+                  <li key={label}>{label}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="home-assigned-processes-empty">
+                Nenhum processo atribuído a você
+              </p>
+            )}
+          </div>
+        ) : null}
 
         {previewProfile ? (
           <div className="profile-preview-people" aria-label={`Pessoas com o perfil ${previewProfile.name}`}>

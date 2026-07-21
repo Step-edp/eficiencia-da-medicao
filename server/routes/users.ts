@@ -643,7 +643,17 @@ export async function approveUser(req: Request, res: Response) {
     storedAccessAreas = accessAreasForTechnician(workArea, normalizedSubtype)
   } else if (jobTitle === 'Estagiário' && workArea === 'Medição') {
     storedSubtype = ''
-    storedAccessAreas = ['Medição']
+    storedAccessAreas = []
+    const invalid = requestedAccessProcesses.filter(
+      (item) => !isValidHomeSubareaProcess(item),
+    )
+    if (invalid.length > 0) {
+      res.status(400).json({
+        error: 'Há processo inválido na atribuição do estagiário.',
+      })
+      return
+    }
+    storedAccessProcesses = requestedAccessProcesses
   }
 
   const approverId = req.user?.id ?? null
@@ -1045,7 +1055,17 @@ export async function updateUser(req: Request, res: Response) {
     normalizedWorkArea === 'Medição'
   ) {
     storedSubtype = ''
-    storedAccessAreas = ['Medição']
+    storedAccessAreas = []
+    const invalid = requestedAccessProcesses.filter(
+      (item) => !isValidHomeSubareaProcess(item),
+    )
+    if (invalid.length > 0) {
+      res.status(400).json({
+        error: 'Há processo inválido na atribuição do estagiário.',
+      })
+      return
+    }
+    storedAccessProcesses = requestedAccessProcesses
   }
 
   try {

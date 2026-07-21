@@ -362,14 +362,27 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   {
     id: 'estagiario-medicao',
     name: profileName('Medição', 'Estagiário'),
-    description: 'Acesso de estagiário às atividades da área de Medição.',
-    areas: ['Medição'],
+    description:
+      'Home com Agenda e Suporte; visualiza apenas os processos que forem atribuídos.',
+    // Sem card de área: só Agenda (automática) + Suporte na home.
+    areas: [],
     match: {
       workArea: 'Medição',
       jobTitle: 'Estagiário',
     },
   },
 ]
+
+/** Estagiário da Medição: Agenda + Suporte + lista de processos atribuídos. */
+export function isMedicaoEstagiario(user: {
+  workArea?: string | null
+  jobTitle?: string | null
+}) {
+  return (
+    (user.workArea?.trim() ?? '') === 'Medição' &&
+    (user.jobTitle?.trim() ?? '') === 'Estagiário'
+  )
+}
 
 /** IDs antigos → id atual (pré-visualização / favoritos do admin). */
 const CADASTRO_PROFILE_ID_ALIASES: Record<string, string> = {

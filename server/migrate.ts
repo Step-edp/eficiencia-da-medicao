@@ -458,6 +458,16 @@ export async function migrate() {
       AND (work_subtype IS NULL OR TRIM(work_subtype) = '')
   `)
 
+  // Estagiário Medição: só Agenda + Suporte (sem card Medição); processos ficam em access_processes.
+  await query(`
+    UPDATE users
+    SET access_areas = '[]'::jsonb,
+        work_subtype = ''
+    WHERE role <> 'admin'
+      AND work_area = 'Medição'
+      AND job_title = 'Estagiário'
+  `)
+
   // Chamados de suporte do portal.
   await query(`CREATE SEQUENCE IF NOT EXISTS support_ticket_seq START 1`)
   await query(`

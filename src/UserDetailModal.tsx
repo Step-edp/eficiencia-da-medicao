@@ -203,6 +203,9 @@ export function UserDetailModal({
   const isCellOwnerSubtype = jobTitle === 'Engenheiro' && isEngineerAreaSubtype(workSubtype)
   const needsSpecificProcesses =
     jobTitle === 'Engenheiro' && isEngineerProcessSubtype(workSubtype)
+  const needsInternProcesses =
+    jobTitle === 'Estagiário' && workArea.trim() === 'Medição'
+  const needsProcessAssignment = needsSpecificProcesses || needsInternProcesses
   const takenSubcellAreas = mapTakenSubcellAreas(approvedUsers, user.id, {
     candidateId: user.id,
     candidateSubtype: workSubtype,
@@ -381,7 +384,7 @@ export function UserDetailModal({
             : [],
         accessProcesses: isAdminUser
           ? (user.accessProcesses ?? [])
-          : needsSpecificProcesses
+          : needsProcessAssignment
             ? accessProcesses
             : [],
         personalDescription: observation.trim(),
@@ -684,12 +687,17 @@ export function UserDetailModal({
                   </fieldset>
                 ) : null}
 
-                {needsSpecificProcesses ? (
+                {needsProcessAssignment ? (
                   <fieldset className="approval-subareas user-edit-full">
-                    <legend>Processos específicos por subárea</legend>
+                    <legend>
+                      {needsInternProcesses
+                        ? 'Processos atribuídos ao estagiário'
+                        : 'Processos específicos por subárea'}
+                    </legend>
                     <p className="approval-subareas-hint">
-                      Selecione as subáreas da home e, em cada uma, os processos específicos de
-                      responsabilidade deste engenheiro.
+                      {needsInternProcesses
+                        ? 'Opcional. Selecione as subáreas e os processos que este estagiário verá em Seus processos na home.'
+                        : 'Selecione as subáreas da home e, em cada uma, os processos específicos de responsabilidade deste engenheiro.'}
                     </p>
                     <div className="approval-subareas-grid">
                       {homeSubareaProcesses.map(({ area }) => (
