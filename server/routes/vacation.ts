@@ -20,6 +20,8 @@ export type VacationPeriodRow = {
   end_date: string
   absence_type: string
   absence_label: string
+  absence_attachment: string
+  absence_attachment_name: string
   created_at: Date
   updated_at: Date
 }
@@ -30,6 +32,9 @@ export type VacationPeriodView = {
   endDate: string
   absenceType: AbsenceType
   absenceTypeLabel: string
+  justification: string
+  attachment: string
+  attachmentName: string
   createdAt: string
   updatedAt: string
 }
@@ -76,10 +81,8 @@ function normalizeAbsenceType(raw: string | null | undefined): AbsenceType {
 
 function absenceLabelFor(
   absenceType: AbsenceType,
-  absenceLabel: string | null | undefined,
+  _absenceLabel: string | null | undefined,
 ) {
-  const custom = typeof absenceLabel === 'string' ? absenceLabel.trim() : ''
-  if (absenceType === 'outro' && custom) return custom
   return ABSENCE_TYPE_LABELS[absenceType]
 }
 
@@ -91,16 +94,23 @@ function toPeriodView(row: VacationPeriodRow): VacationPeriodView {
     endDate: toDateOnly(row.end_date),
     absenceType,
     absenceTypeLabel: absenceLabelFor(absenceType, row.absence_label),
+    justification: (row.absence_label || '').trim(),
+    attachment: row.absence_attachment || '',
+    attachmentName: row.absence_attachment_name || '',
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   }
 }
 
+const PERIOD_SELECT = `id, user_id, start_date::text AS start_date, end_date::text AS end_date,
+            absence_type, COALESCE(absence_label, '') AS absence_label,
+            COALESCE(absence_attachment, '') AS absence_attachment,
+            COALESCE(absence_attachment_name, '') AS absence_attachment_name,
+            created_at, updated_at`
+
 export async function listUserVacationPeriods(userId: string) {
   const result = await query<VacationPeriodRow>(
-    `SELECT id, user_id, start_date::text AS start_date, end_date::text AS end_date,
-            absence_type, COALESCE(absence_label, '') AS absence_label,
-            created_at, updated_at
+    `SELECT ${PERIOD_SELECT}
      FROM user_vacation_periods
      WHERE user_id = $1
      ORDER BY start_date ASC, id ASC`,
@@ -113,9 +123,7 @@ export async function listUserVacationPeriods(userId: string) {
 async function findNextVacation(userId: string) {
   const today = todayIso()
   const result = await query<VacationPeriodRow>(
-    `SELECT id, user_id, start_date::text AS start_date, end_date::text AS end_date,
-            absence_type, COALESCE(absence_label, '') AS absence_label,
-            created_at, updated_at
+    `SELECT ${PERIOD_SELECT}
      FROM user_vacation_periods
      WHERE user_id = $1
        AND absence_type = 'ferias'
@@ -131,9 +139,7 @@ async function findNextVacation(userId: string) {
 async function findActiveAbsence(userId: string) {
   const today = todayIso()
   const result = await query<VacationPeriodRow>(
-    `SELECT id, user_id, start_date::text AS start_date, end_date::text AS end_date,
-            absence_type, COALESCE(absence_label, '') AS absence_label,
-            created_at, updated_at
+    `SELECT ${PERIOD_SELECT}
      FROM user_vacation_periods
      WHERE user_id = $1
        AND start_date <= $2::date
@@ -350,9 +356,7 @@ export async function upsertMyNextVacation(req: Request, res: Response) {
   const inserted = await query<VacationPeriodRow>(
     `INSERT INTO user_vacation_periods (user_id, start_date, end_date, absence_type)
      VALUES ($1, $2::date, $3::date, 'ferias')
-     RETURNING id, user_id, start_date::text AS start_date, end_date::text AS end_date,
-               absence_type, COALESCE(absence_label, '') AS absence_label,
-               created_at, updated_at`,
+     RETURNING ${PERIOD_SELECT}`,
     [userId, startDate, endDate],
   )
 
@@ -384,8 +388,18 @@ export async function createMyAbsence(req: Request, res: Response) {
     typeof req.body?.absenceType === 'string' ? req.body.absenceType.trim() : ''
   const absenceType: AbsenceType =
     rawType && isAbsenceType(rawType) ? rawType : 'outro'
-  const absenceLabel =
-    typeof req.body?.absenceLabel === 'string' ? req.body.absenceLabel.trim() : ''
+  const justification =
+    typeof req.body?.justification === 'string'
+      ? req.body.justification.trim()
+      : typeof req.body?.absenceLabel === 'string'
+        ? req.body.absenceLabel.trim()
+        : ''
+  const attachment =
+    typeof req.body?.attachment === 'string' ? req.body.attachment.trim() : ''
+  const attachmentName =
+    typeof req.body?.attachmentName === 'string'
+      ? req.body.attachmentName.trim()
+      : ''
 
   if (!startDate || !endDate) {
     res.status(400).json({
@@ -411,22 +425,41 @@ export async function createMyAbsence(req: Request, res: Response) {
     return
   }
 
-  if (absenceType === 'outro' && !absenceLabel) {
+  if (!justification) {
     res.status(400).json({
-      error: 'Descreva qual será a ausência.',
+      error: 'Informe a justificativa da ausência.',
     })
     return
   }
 
-  const storedLabel = absenceType === 'outro' ? absenceLabel : ''
+  if (
+    !attachment ||
+    !(
+      attachment.startsWith('data:image/') ||
+      attachment.startsWith('data:application/pdf')
+    ) ||
+    attachment.length > 3_500_000
+  ) {
+    res.status(400).json({
+      error: 'Anexe um documento ou foto válido (imagem ou PDF, até 2 MB).',
+    })
+    return
+  }
 
   const inserted = await query<VacationPeriodRow>(
-    `INSERT INTO user_vacation_periods (user_id, start_date, end_date, absence_type, absence_label)
-     VALUES ($1, $2::date, $3::date, $4, $5)
-     RETURNING id, user_id, start_date::text AS start_date, end_date::text AS end_date,
-               absence_type, COALESCE(absence_label, '') AS absence_label,
-               created_at, updated_at`,
-    [userId, startDate, endDate, absenceType, storedLabel],
+    `INSERT INTO user_vacation_periods
+       (user_id, start_date, end_date, absence_type, absence_label, absence_attachment, absence_attachment_name)
+     VALUES ($1, $2::date, $3::date, $4, $5, $6, $7)
+     RETURNING ${PERIOD_SELECT}`,
+    [
+      userId,
+      startDate,
+      endDate,
+      absenceType,
+      justification,
+      attachment,
+      attachmentName || 'anexo',
+    ],
   )
 
   const periodView = inserted.rows[0] ? toPeriodView(inserted.rows[0]) : null
@@ -440,7 +473,9 @@ export async function createMyAbsence(req: Request, res: Response) {
       startDate,
       endDate,
       absenceType,
-      absenceLabel: storedLabel || undefined,
+      justification,
+      attachmentName: attachmentName || 'anexo',
+      attachment: '[arquivo anexado]',
     },
   })
 

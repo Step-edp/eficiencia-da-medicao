@@ -197,10 +197,7 @@ export async function listActiveCoversForSubstitute(
       absenceStart: period.startDate,
       absenceEnd: period.endDate,
       absenceType: period.absenceType,
-      absenceTypeLabel:
-        period.absenceType === 'outro' && period.absenceLabel
-          ? period.absenceLabel
-          : ABSENCE_TYPE_LABELS[period.absenceType],
+      absenceTypeLabel: ABSENCE_TYPE_LABELS[period.absenceType],
       sources: sub.sources,
     })
   }

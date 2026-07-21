@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useId, useState } from 'react'
 import {
   api,
   type AbsenceType,
@@ -6,6 +6,7 @@ import {
   type VacationStatus,
 } from './api'
 import { AgendaCalendar, nextVacationRangeFromClick } from './AgendaCalendar'
+import { readAttachmentAsDataUrl } from './readAttachmentAsDataUrl'
 
 const OTHER_ABSENCE_OPTIONS: Array<{ value: AbsenceType; label: string }> = [
   { value: 'licenca', label: 'Licença' },
@@ -63,9 +64,12 @@ export function AgendaPanel({
   const [startDate, setStartDate] = useState(nextVacationStart ?? '')
   const [endDate, setEndDate] = useState(nextVacationEnd ?? '')
   const [absenceType, setAbsenceType] = useState<AbsenceType>('licenca')
-  const [absenceLabel, setAbsenceLabel] = useState('')
+  const [justification, setJustification] = useState('')
+  const [attachment, setAttachment] = useState('')
+  const [attachmentName, setAttachmentName] = useState('')
   const [absenceStart, setAbsenceStart] = useState('')
   const [absenceEnd, setAbsenceEnd] = useState('')
+  const attachmentInputId = useId()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingAbsence, setSavingAbsence] = useState(false)
@@ -148,8 +152,12 @@ export function AgendaPanel({
       setAbsenceError('A data de fim deve ser igual ou posterior ao início.')
       return
     }
-    if (absenceType === 'outro' && !absenceLabel.trim()) {
-      setAbsenceError('Descreva qual será a ausência.')
+    if (!justification.trim()) {
+      setAbsenceError('Informe a justificativa da ausência.')
+      return
+    }
+    if (!attachment.trim()) {
+      setAbsenceError('Anexe um documento ou foto da ausência.')
       return
     }
     setSavingAbsence(true)
@@ -158,12 +166,16 @@ export function AgendaPanel({
         startDate: absenceStart,
         endDate: absenceEnd,
         absenceType,
-        absenceLabel: absenceType === 'outro' ? absenceLabel.trim() : undefined,
+        justification: justification.trim(),
+        attachment,
+        attachmentName: attachmentName || 'anexo',
       })
       applyAgenda(response)
       setAbsenceStart('')
       setAbsenceEnd('')
-      setAbsenceLabel('')
+      setJustification('')
+      setAttachment('')
+      setAttachmentName('')
       setSuccess('Período de ausência registrado. O substituto cobrirá as atividades se estiver ativo.')
       setShowAbsenceForm(false)
       await onSaved()
@@ -345,11 +357,7 @@ export function AgendaPanel({
                     Tipo de ausência
                     <select
                       value={absenceType}
-                      onChange={(event) => {
-                        const next = event.target.value as AbsenceType
-                        setAbsenceType(next)
-                        if (next !== 'outro') setAbsenceLabel('')
-                      }}
+                      onChange={(event) => setAbsenceType(event.target.value as AbsenceType)}
                       disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
                     >
                       {OTHER_ABSENCE_OPTIONS.map((option) => (
@@ -359,19 +367,65 @@ export function AgendaPanel({
                       ))}
                     </select>
                   </label>
-                  {absenceType === 'outro' ? (
-                    <label>
-                      Descreva a ausência
+                  <label>
+                    Justificativa
+                    <textarea
+                      value={justification}
+                      onChange={(event) => setJustification(event.target.value)}
+                      placeholder="Descreva o motivo da ausência"
+                      rows={3}
+                      required
+                      disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                    />
+                  </label>
+                  <div className="full-width">
+                    <span className="agenda-attachment-label">Documento ou foto</span>
+                    <div className="file-picker">
                       <input
-                        type="text"
-                        value={absenceLabel}
-                        onChange={(event) => setAbsenceLabel(event.target.value)}
-                        placeholder="Ex.: Compromisso particular"
-                        required
+                        id={attachmentInputId}
+                        className="file-picker-input"
+                        type="file"
+                        accept="image/*,application/pdf"
+                        required={!attachment}
                         disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0]
+                          if (!file) {
+                            setAttachment('')
+                            setAttachmentName('')
+                            return
+                          }
+                          void readAttachmentAsDataUrl(file)
+                            .then((dataUrl) => {
+                              setAttachment(dataUrl)
+                              setAttachmentName(file.name)
+                              setAbsenceError(null)
+                            })
+                            .catch((error: unknown) => {
+                              setAttachment('')
+                              setAttachmentName('')
+                              event.target.value = ''
+                              setAbsenceError(
+                                error instanceof Error
+                                  ? error.message
+                                  : 'Não foi possível carregar o arquivo.',
+                              )
+                            })
+                        }}
                       />
-                    </label>
-                  ) : null}
+                      <label htmlFor={attachmentInputId} className="file-picker-button">
+                        Anexar arquivo
+                      </label>
+                      <span className="file-picker-name">
+                        {attachmentName || 'Nenhum arquivo selecionado'}
+                      </span>
+                    </div>
+                    {attachment.startsWith('data:image/') ? (
+                      <span className="envelope-photo-preview">
+                        <img src={attachment} alt="Pré-visualização do anexo" />
+                      </span>
+                    ) : null}
+                  </div>
                   <label>
                     Início
                     <input
@@ -431,10 +485,27 @@ export function AgendaPanel({
               <ul className="agenda-period-list">
                 {periods.map((period) => (
                   <li key={period.id} className="agenda-period-item">
-                    <span>
-                      <strong>{periodLabel(period)}</strong>
-                      {`: ${formatDateBr(period.startDate)} — ${formatDateBr(period.endDate)}`}
-                    </span>
+                    <div className="agenda-period-details">
+                      <span>
+                        <strong>{periodLabel(period)}</strong>
+                        {`: ${formatDateBr(period.startDate)} — ${formatDateBr(period.endDate)}`}
+                      </span>
+                      {period.justification ? (
+                        <span className="agenda-period-justification">
+                          Justificativa: {period.justification}
+                        </span>
+                      ) : null}
+                      {period.attachment ? (
+                        <a
+                          className="link-button"
+                          href={period.attachment}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {period.attachmentName || 'Ver anexo'}
+                        </a>
+                      ) : null}
+                    </div>
                     {!locked && displayStatus !== 'em_ausencia' ? (
                       <button
                         type="button"

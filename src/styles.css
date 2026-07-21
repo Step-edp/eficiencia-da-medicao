@@ -287,9 +287,27 @@ button {
 .agenda-period-item {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+}
+
+.agenda-period-details {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.agenda-period-justification {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.agenda-attachment-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-main);
+  font-size: 0.95rem;
 }
 
 .agenda-vacation-layout {

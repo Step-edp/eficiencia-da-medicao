@@ -66,6 +66,9 @@ export type VacationPeriod = {
   endDate: string
   absenceType?: AbsenceType
   absenceTypeLabel?: string
+  justification?: string
+  attachment?: string
+  attachmentName?: string
   createdAt: string
   updatedAt: string
 }
@@ -403,7 +406,9 @@ export const api = {
     startDate: string
     endDate: string
     absenceType: AbsenceType
-    absenceLabel?: string
+    justification: string
+    attachment: string
+    attachmentName?: string
   }) =>
     request<VacationAgendaResponse>('/api/agenda/absences', {
       method: 'POST',
