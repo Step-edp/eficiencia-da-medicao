@@ -72,6 +72,10 @@ function mapMeterSchedule(row: MeterScheduleRow) {
 }
 
 export async function listMeterSchedules(req: Request, res: Response) {
+  const galleryMode =
+    req.query.gallery === '1' ||
+    req.query.gallery === 'true' ||
+    req.query.gallery === 'yes'
   const trailStep =
     typeof req.query.trailStep === 'string' && req.query.trailStep.trim()
       ? req.query.trailStep.trim()
@@ -81,7 +85,16 @@ export async function listMeterSchedules(req: Request, res: Response) {
     req.query.mine === 'true' ||
     req.query.mine === 'yes'
 
-  const params: unknown[] = [trailStep]
+  const params: unknown[] = []
+  const filters: string[] = []
+
+  if (galleryMode) {
+    filters.push(`ms.envelope_photo <> ''`)
+  } else {
+    params.push(trailStep)
+    filters.push(`ms.trail_step = $${params.length}`)
+  }
+
   let mineFilter = ''
 
   if (mineOnly) {
@@ -91,11 +104,13 @@ export async function listMeterSchedules(req: Request, res: Response) {
     }
     const registration = (req.user.registration ?? '').trim().toUpperCase()
     params.push(req.user.id, registration)
+    const userParam = params.length - 1
+    const registrationParam = params.length
     mineFilter = `
       AND (
-        ms.created_by_user_id = $2
-        OR UPPER(TRIM(ms.toi_collaborator1_registration)) = $3
-        OR UPPER(TRIM(ms.toi_collaborator2_registration)) = $3
+        ms.created_by_user_id = $${userParam}
+        OR UPPER(TRIM(ms.toi_collaborator1_registration)) = $${registrationParam}
+        OR UPPER(TRIM(ms.toi_collaborator2_registration)) = $${registrationParam}
       )`
   }
 
@@ -112,7 +127,7 @@ export async function listMeterSchedules(req: Request, res: Response) {
        ORDER BY created_at DESC
        LIMIT 1
      ) d ON true
-     WHERE ms.trail_step = $1
+     WHERE ${filters.join(' AND ')}
      ${mineFilter}
      ORDER BY ms.scheduled_at ASC, ms.created_at DESC`,
     params,

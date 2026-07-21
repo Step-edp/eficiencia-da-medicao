@@ -702,9 +702,13 @@ export const api = {
       `/api/audit-logs${queryString ? `?${queryString}` : ''}`,
     )
   },
-  listMeterSchedules: (trailStep?: string, options?: { mine?: boolean }) => {
+  listMeterSchedules: (
+    trailStep?: string,
+    options?: { mine?: boolean; gallery?: boolean },
+  ) => {
     const search = new URLSearchParams()
-    if (trailStep) search.set('trailStep', trailStep)
+    if (options?.gallery) search.set('gallery', '1')
+    else if (trailStep) search.set('trailStep', trailStep)
     if (options?.mine) search.set('mine', '1')
     const queryString = search.toString()
     return request<{ schedules: MeterScheduleRecord[]; total: number }>(
