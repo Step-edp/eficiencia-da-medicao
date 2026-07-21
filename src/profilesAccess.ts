@@ -160,6 +160,18 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
+    id: 'csd-engenheiro-equipe-campo',
+    name: profileName('CSD', 'Engenheiro', 'Lavratura de TOI – Equipe de Campo'),
+    description:
+      'Agendar e acompanhar Meus TOIs na Equipe de campo para medidores destinados a ensaios no Laboratório de Medição.',
+    areas: ['Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Lavratura de TOI - Equipe de Campo',
+    },
+  },
+  {
     id: 'csd-engenheiro-ponto-focal',
     name: profileName('CSD', 'Engenheiro', 'Lavratura de TOI – Ponto Focal'),
     description:

@@ -108,6 +108,7 @@ export const ENGINEER_SUBTYPES = [
 
 /** Escopos de lavratura disponíveis para Engenheiro na área CSD. */
 export const CSD_ENGINEER_LAVRATURA_SCOPES = [
+  'Lavratura de TOI - Equipe de Campo',
   'Lavratura de TOI - Ponto Focal',
   'Lavratura de TOI - Backoffice',
 ] as const
