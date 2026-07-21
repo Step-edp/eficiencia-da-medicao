@@ -1,5 +1,6 @@
 import type { UserRole } from './api'
 import {
+  BUSINESS_AREA_TO_HOME_PORTALS,
   isEngineerAreaSubtype,
   isEngineerSubcellSubtype,
 } from './registrationOptions'
@@ -135,8 +136,15 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'engenheiro-responsavel-medicao',
     name: 'Medição – Engenheiro Responsável',
     description:
-      'Possui acesso à visualização e acompanhamento de todas as atividades relacionadas à subárea de Medição.',
-    areas: ['Medição'],
+      'Possui acesso a todas as subcélulas e atividades da célula Medição: Medição, Laboratório de Medição, Laboratório de Homologação, Equipe de campo, Usuários e Cadastros.',
+    areas: [
+      'Medição',
+      'Laboratório de Medição',
+      'Laboratório de Homologação',
+      'Equipe de campo',
+      'Usuários',
+      'Cadastros',
+    ],
     match: {
       workArea: 'Medição',
       jobTitle: 'Engenheiro',
@@ -161,8 +169,16 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'engenheiro-dono-area-medicao',
     name: 'Medição – Engenheiro Dono da Área',
     description:
-      'Possui controle sobre todas as atividades da área de Medição, incluindo gestão, acompanhamento e tomada de decisão.',
-    areas: ['Gestão Operacional', 'Medição', 'Laboratório de Medição', 'Equipe de campo'],
+      'Possui controle sobre todas as atividades da célula Medição, incluindo gestão, acompanhamento e tomada de decisão.',
+    areas: [
+      'Gestão Operacional',
+      'Medição',
+      'Laboratório de Medição',
+      'Laboratório de Homologação',
+      'Equipe de campo',
+      'Usuários',
+      'Cadastros',
+    ],
     match: {
       workArea: 'Medição',
       jobTitle: 'Engenheiro',
@@ -302,6 +318,19 @@ export function getAccessiblePortals(user: {
       const areas = SYSTEM_ROLE_ACCESS[user.role]?.areas ?? []
       portals = PORTAL_AREAS.filter((area) => areas.includes(area))
     }
+  }
+
+  // Responsável pela subcélula Medição: libera toda a célula Medição.
+  if (
+    user.workArea?.trim() === 'Medição' &&
+    (user.jobTitle?.trim() ?? '') === 'Engenheiro' &&
+    isEngineerSubcellSubtype(user.workSubtype) &&
+    portals.includes('Medição')
+  ) {
+    const cellPortals = BUSINESS_AREA_TO_HOME_PORTALS.Medição ?? []
+    portals = PORTAL_AREAS.filter(
+      (area) => portals.includes(area) || (cellPortals as readonly string[]).includes(area),
+    )
   }
 
   // Lavratura de TOI (e Ponto Focal) sempre acessam Equipe de campo → Agendar/Consultar.

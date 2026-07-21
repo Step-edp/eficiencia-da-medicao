@@ -379,7 +379,7 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS envelope_photo TEXT NOT NULL DEFAULT '';
   `)
 
-  // Rafael Nunes: perfil Medição – Engenheiro Responsável (Medição + Agenda).
+  // Rafael Nunes: perfil Medição – Engenheiro Responsável (toda a célula Medição).
   await query(`
     UPDATE users
     SET access_areas = COALESCE((
@@ -401,8 +401,17 @@ export async function migrate() {
         job_title = 'Engenheiro',
         work_area = 'Medição',
         work_subtype = 'Responsável por sub-célula',
-        access_areas = '["Medição"]'::jsonb
+        access_areas = $1::jsonb
     WHERE role <> 'admin'
       AND (name ILIKE '%Rafael Nunes%' OR registration = '11111');
-  `)
+  `, [
+    JSON.stringify([
+      'Medição',
+      'Laboratório de Medição',
+      'Laboratório de Homologação',
+      'Equipe de campo',
+      'Usuários',
+      'Cadastros',
+    ]),
+  ])
 }
