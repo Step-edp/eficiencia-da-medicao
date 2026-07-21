@@ -2767,16 +2767,21 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   border: 1px solid rgba(24, 216, 240, 0.34);
   border-radius: 10px;
   background: rgba(8, 39, 66, 0.8);
   color: #d9f7ff;
   font: inherit;
-  font-size: 0.86rem;
-  white-space: nowrap;
   cursor: pointer;
   transition: border-color 180ms ease, background 180ms ease;
+}
+
+.users-table-profile-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .users-table-profile-button:hover,

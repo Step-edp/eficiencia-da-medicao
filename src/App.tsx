@@ -3280,13 +3280,38 @@ function HomePanel({
                                 <button
                                   type="button"
                                   className="users-table-profile-button"
+                                  aria-label={`Ver perfil de ${user.name}`}
+                                  title="Ver perfil"
                                   onClick={(event) => {
                                     event.stopPropagation()
                                     setUserDetailStartEditing(false)
                                     setSelectedUserDetail(user)
                                   }}
                                 >
-                                  Ver perfil
+                                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                      d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                    />
+                                    <circle
+                                      cx="9"
+                                      cy="7"
+                                      r="3"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                    />
+                                    <path
+                                      d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a3 3 0 010 5.74"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                    />
+                                  </svg>
                                 </button>
                               </td>
                               <td className="users-table-cell-nowrap">
