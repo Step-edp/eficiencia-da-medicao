@@ -120,56 +120,10 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'engenheiro-responsavel-laboratorio-medicao',
-    name: 'Medição – Engenheiro Responsável – Laboratório de Medição',
-    description:
-      'Permite gerenciar e controlar as atividades do Laboratório de Medição, acompanhando sua execução, sem realizar diretamente as atividades operacionais.',
-    areas: ['Laboratório de Medição'],
-    match: {
-      workArea: 'Medição',
-      jobTitle: 'Engenheiro',
-      workSubtype: 'Responsável por sub-célula',
-      accessArea: 'Laboratório de Medição',
-    },
-  },
-  {
-    id: 'engenheiro-responsavel-medicao',
-    name: 'Medição – Engenheiro Responsável',
-    description:
-      'Possui acesso a todas as subcélulas e atividades da célula Medição: Medição, Laboratório de Medição, Laboratório de Homologação, Equipe de campo, Usuários e Cadastros.',
-    areas: [
-      'Medição',
-      'Laboratório de Medição',
-      'Laboratório de Homologação',
-      'Equipe de campo',
-      'Usuários',
-      'Cadastros',
-    ],
-    match: {
-      workArea: 'Medição',
-      jobTitle: 'Engenheiro',
-      workSubtype: 'Responsável por sub-célula',
-      accessArea: 'Medição',
-    },
-  },
-  {
-    id: 'engenheiro-responsavel-telemedicao',
-    name: 'Telemedição – Engenheiro Responsável',
-    description:
-      'Possui acesso à visualização e acompanhamento de todas as atividades relacionadas à subárea de Telemedição.',
-    areas: ['Telemedição'],
-    match: {
-      workArea: 'Telemedição',
-      jobTitle: 'Engenheiro',
-      workSubtype: 'Responsável por sub-célula',
-      accessArea: 'Telemedição',
-    },
-  },
-  {
     id: 'engenheiro-dono-area-medicao',
-    name: 'Medição – Engenheiro Dono da Área',
+    name: 'Medição – Engenheiro Responsável por célula',
     description:
-      'Possui controle sobre todas as atividades da célula Medição, incluindo gestão, acompanhamento e tomada de decisão.',
+      'Responsável pela célula Medição: controle das subcélulas e processos, com acesso à Gestão Operacional.',
     areas: [
       'Gestão Operacional',
       'Medição',
@@ -187,14 +141,105 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
   {
     id: 'engenheiro-dono-area-telemedicao',
-    name: 'Telemedição – Engenheiro Dono da Área',
+    name: 'Telemedição – Engenheiro Responsável por célula',
     description:
-      'Possui controle sobre todas as atividades da área de Telemedição, incluindo gestão, acompanhamento e tomada de decisão.',
+      'Responsável pela célula Telemedição, com acesso à Gestão Operacional e às atividades da área.',
     areas: ['Gestão Operacional', 'Telemedição'],
     match: {
       workArea: 'Telemedição',
       jobTitle: 'Engenheiro',
       workSubtype: 'Responsável por célula',
+    },
+  },
+  {
+    id: 'engenheiro-responsavel-medicao',
+    name: 'Medição – Engenheiro Responsável por sub-célula – Medição',
+    description:
+      'Engenheiro responsável pela subcélula Medição, com acesso às atividades atribuídas nessa subárea.',
+    areas: ['Medição'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Responsável por sub-célula',
+      accessArea: 'Medição',
+    },
+  },
+  {
+    id: 'engenheiro-responsavel-laboratorio-medicao',
+    name: 'Medição – Engenheiro Responsável por sub-célula – Laboratório de Medição',
+    description:
+      'Engenheiro responsável pela subcélula Laboratório de Medição, acompanhando a execução sem operar diretamente os ensaios.',
+    areas: ['Laboratório de Medição'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Responsável por sub-célula',
+      accessArea: 'Laboratório de Medição',
+    },
+  },
+  {
+    id: 'engenheiro-responsavel-subcelula-homologacao',
+    name: 'Medição – Engenheiro Responsável por sub-célula – Laboratório de Homologação',
+    description:
+      'Engenheiro responsável pela subcélula Laboratório de Homologação.',
+    areas: ['Laboratório de Homologação'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Responsável por sub-célula',
+      accessArea: 'Laboratório de Homologação',
+    },
+  },
+  {
+    id: 'engenheiro-responsavel-subcelula-equipe-campo',
+    name: 'Medição – Engenheiro Responsável por sub-célula – Equipe de campo',
+    description:
+      'Engenheiro responsável pela subcélula Equipe de campo.',
+    areas: ['Equipe de campo'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Responsável por sub-célula',
+      accessArea: 'Equipe de campo',
+    },
+  },
+  {
+    id: 'engenheiro-responsavel-subcelula-usuarios',
+    name: 'Medição – Engenheiro Responsável por sub-célula – Usuários',
+    description:
+      'Engenheiro responsável pela subcélula Usuários.',
+    areas: ['Usuários'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Responsável por sub-célula',
+      accessArea: 'Usuários',
+    },
+  },
+  {
+    id: 'engenheiro-responsavel-subcelula-cadastros',
+    name: 'Medição – Engenheiro Responsável por sub-célula – Cadastros',
+    description:
+      'Engenheiro responsável pela subcélula Cadastros.',
+    areas: ['Cadastros'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Responsável por sub-célula',
+      accessArea: 'Cadastros',
+    },
+  },
+  {
+    id: 'engenheiro-responsavel-telemedicao',
+    name: 'Telemedição – Engenheiro Responsável por sub-célula – Telemedição',
+    description:
+      'Engenheiro responsável pela subcélula Telemedição.',
+    areas: ['Telemedição'],
+    match: {
+      workArea: 'Telemedição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Responsável por sub-célula',
+      accessArea: 'Telemedição',
     },
   },
   {
@@ -325,16 +370,18 @@ export function getAccessiblePortals(user: {
     }
   }
 
-  // Responsável pela subcélula Medição: libera toda a célula Medição.
+  // Responsável por célula: cobre Gestão Operacional e as subáreas da área de negócio.
   if (
-    user.workArea?.trim() === 'Medição' &&
     (user.jobTitle?.trim() ?? '') === 'Engenheiro' &&
-    isEngineerSubcellSubtype(user.workSubtype) &&
-    portals.includes('Medição')
+    isEngineerAreaSubtype(user.workSubtype)
   ) {
-    const cellPortals = BUSINESS_AREA_TO_HOME_PORTALS.Medição ?? []
+    const workArea = user.workArea?.trim() ?? ''
+    const cellPortals = BUSINESS_AREA_TO_HOME_PORTALS[workArea] ?? []
     portals = PORTAL_AREAS.filter(
-      (area) => portals.includes(area) || (cellPortals as readonly string[]).includes(area),
+      (area) =>
+        portals.includes(area) ||
+        area === 'Gestão Operacional' ||
+        (cellPortals as readonly string[]).includes(area),
     )
   }
 

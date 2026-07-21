@@ -657,7 +657,7 @@ const DEFAULT_ORG_CELLS = [
     id: 'Medição',
     label: 'Medição',
     description:
-      'Célula liderada por um Engenheiro Dono de Área, com subcélulas e processos sob engenheiros responsáveis.',
+      'Célula liderada por um Engenheiro Responsável por célula, com subcélulas e processos sob engenheiros responsáveis.',
     sortOrder: 1,
   },
   {

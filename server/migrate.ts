@@ -394,7 +394,7 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS envelope_photo TEXT NOT NULL DEFAULT '';
   `)
 
-  // Rafael Nunes: perfil Medição – Engenheiro Responsável (toda a célula Medição).
+  // Rafael Nunes: Engenheiro Responsável por célula Medição.
   await query(`
     UPDATE users
     SET access_areas = COALESCE((
@@ -423,30 +423,29 @@ export async function migrate() {
       AND access_areas @> '["Laboratório de Medição"]'::jsonb
   `)
 
-  await query(
-    `
+  await query(`
     UPDATE users
     SET approval_status = 'approved',
         approved_at = COALESCE(approved_at, NOW()),
         role = CASE WHEN role = 'admin' THEN role ELSE 'compras' END,
         job_title = 'Engenheiro',
         work_area = 'Medição',
-        work_subtype = 'Responsável por sub-célula',
-        access_areas = $1::jsonb
+        work_subtype = 'Responsável por célula',
+        access_areas = '[]'::jsonb,
+        access_processes = '[]'::jsonb
     WHERE role <> 'admin'
       AND (name ILIKE '%Rafael Nunes%' OR registration = '11111')
-  `,
-    [
-      JSON.stringify([
-        'Medição',
-        'Laboratório de Medição',
-        'Laboratório de Homologação',
-        'Equipe de campo',
-        'Usuários',
-        'Cadastros',
-      ]),
-    ],
-  )
+  `)
+
+  await query(`
+    UPDATE org_cells
+    SET responsible_user_id = u.id,
+        updated_at = NOW()
+    FROM users u
+    WHERE org_cells.id = 'Medição'
+      AND u.role <> 'admin'
+      AND (u.name ILIKE '%Rafael Nunes%' OR u.registration = '11111')
+  `)
 
   // Chamados de suporte do portal.
   await query(`CREATE SEQUENCE IF NOT EXISTS support_ticket_seq START 1`)
