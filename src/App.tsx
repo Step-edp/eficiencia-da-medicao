@@ -3201,6 +3201,7 @@ function HomePanel({
                       <table className="data-table">
                         <thead>
                           <tr>
+                            <th>Foto</th>
                             <th>Nome</th>
                             <th>Matrícula</th>
                             {canViewUserPasswords ? <th>Senha</th> : null}
@@ -3232,6 +3233,22 @@ function HomePanel({
                                 }
                               }}
                             >
+                              <td className="users-table-photo-cell">
+                                {user.profilePhoto ? (
+                                  <img
+                                    className="users-table-photo"
+                                    src={user.profilePhoto}
+                                    alt=""
+                                  />
+                                ) : (
+                                  <span
+                                    className="users-table-photo-placeholder"
+                                    aria-hidden="true"
+                                  >
+                                    {user.name.trim().charAt(0).toUpperCase() || '?'}
+                                  </span>
+                                )}
+                              </td>
                               <td className="users-table-cell-compact">{user.name}</td>
                               <td className="users-table-cell-nowrap">{user.registration}</td>
                               {canViewUserPasswords ? (

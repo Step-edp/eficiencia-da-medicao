@@ -2710,6 +2710,33 @@ button {
   vertical-align: middle;
 }
 
+.users-table-photo-cell {
+  width: 1%;
+  padding-right: 4px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.users-table-photo,
+.users-table-photo-placeholder {
+  display: block;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(158, 183, 203, 0.28);
+}
+
+.users-table-photo-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(24, 216, 240, 0.16);
+  color: var(--text-main);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .users-table-profile-button {
   display: inline-flex;
   align-items: center;
