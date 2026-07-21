@@ -2528,10 +2528,15 @@ button {
   }
 }
 
+.users-dashboard {
+  display: grid;
+  gap: 20px;
+}
+
 .users-dashboard-kpis {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 .users-dashboard-kpi {
@@ -2562,7 +2567,7 @@ button {
 .users-dashboard-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .users-dashboard-card {
@@ -2585,7 +2590,7 @@ button {
 .users-dashboard-rankings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .users-dashboard-assign-header {
