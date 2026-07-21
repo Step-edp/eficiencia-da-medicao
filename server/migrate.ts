@@ -564,4 +564,15 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_softwares_created_at
       ON softwares (created_at DESC)
   `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS iq09_exports (
+      month_key TEXT PRIMARY KEY,
+      columns_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+      rows_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+      source_file TEXT NOT NULL DEFAULT '',
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
 }

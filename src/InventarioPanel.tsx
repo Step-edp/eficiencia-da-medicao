@@ -10,6 +10,24 @@ const INVENTARIO_TRAIL_STEPS: LabTrailStep[] = [
   { key: 'Resultado', label: 'Resultado' },
 ]
 
+const IQ09_COLUMNS = [
+  'Nº de série',
+  'Material',
+  'Texto breve material',
+  'Status do sistema',
+  'Status usuário',
+  'Centro',
+  'Depósito',
+  'CenTrabalho princ.',
+  'Tipo estoque (reg.principal)',
+  'Modificado em',
+  'Modificado por',
+  'Número de série do fabricante',
+  'Fabricante do imobilizado',
+  'Ano de construção',
+  'Local de instalação',
+] as const
+
 type InventoryMonth = {
   key: string
   year: number
@@ -18,6 +36,7 @@ type InventoryMonth = {
 }
 
 type InventarioTrailStepKey = (typeof INVENTARIO_TRAIL_STEPS)[number]['key']
+type Iq09Row = Record<string, string>
 
 function buildLastTwelveMonths(reference = new Date()): InventoryMonth[] {
   const months: InventoryMonth[] = []
@@ -78,6 +97,9 @@ export function InventarioPanel({
   const [activeTrailStep, setActiveTrailStep] = useState<InventarioTrailStepKey>('IQ09')
   const [completedStepKeys, setCompletedStepKeys] = useState<InventarioTrailStepKey[]>([])
   const [runningIq09, setRunningIq09] = useState(false)
+  const [loadingExport, setLoadingExport] = useState(false)
+  const [iq09Columns, setIq09Columns] = useState<string[]>([...IQ09_COLUMNS])
+  const [iq09Rows, setIq09Rows] = useState<Iq09Row[]>([])
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -99,13 +121,47 @@ export function InventarioPanel({
   const openMonth =
     months.find((month) => monthTitle(month) === openMonthTitle) ?? null
 
-  // Ao trocar de mês, reinicia a trilha (só a 1ª etapa fica liberada).
+  // Ao trocar de mês, reinicia a trilha e carrega export salvo.
   useEffect(() => {
     setActiveTrailStep('IQ09')
     setCompletedStepKeys([])
     setFeedback(null)
     setRunningIq09(false)
-  }, [openMonthTitle])
+    setIq09Columns([...IQ09_COLUMNS])
+    setIq09Rows([])
+
+    if (!openMonthTitle) return
+    const month = months.find((item) => monthTitle(item) === openMonthTitle)
+    if (!month) return
+
+    let cancelled = false
+    setLoadingExport(true)
+
+    void api
+      .getIq09Export(month.key)
+      .then((result) => {
+        if (cancelled) return
+        const rows = result.rows ?? []
+        const columns =
+          result.columns?.length > 0 ? result.columns : [...IQ09_COLUMNS]
+        setIq09Columns(columns)
+        setIq09Rows(rows)
+        if (rows.length > 0) {
+          setCompletedStepKeys(['IQ09'])
+        }
+      })
+      .catch(() => {
+        if (cancelled) return
+        setIq09Rows([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingExport(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [openMonthTitle, months])
 
   // Próxima etapa liberada = quantidade de etapas já concluídas (em ordem).
   const unlockedIndex = completedStepKeys.length
@@ -169,10 +225,16 @@ export function InventarioPanel({
 
     try {
       const result = await api.runIq09Script({ monthKey: openMonth.key })
+      const columns = result.columns?.length > 0 ? result.columns : [...IQ09_COLUMNS]
+      const rows = result.rows ?? []
+      setIq09Columns(columns)
+      setIq09Rows(rows)
       completeStep('IQ09')
       setFeedback({
         type: 'success',
-        message: result.message || `Script IQ09 executado para ${monthTitle(openMonth)}.`,
+        message:
+          result.message ||
+          `IQ09 carregou ${rows.length} registro(s) para ${monthTitle(openMonth)}.`,
       })
     } catch (error) {
       setFeedback({
@@ -210,33 +272,73 @@ export function InventarioPanel({
 
         <div className="inventario-month-content">
           {activeTrailStep === 'IQ09' ? (
-            <div className="inventario-iq09-run">
-              <p className="inventario-iq09-run-hint">
-                {iq09Completed
-                  ? `IQ09 concluído para ${monthTitle(openMonth)}. Você pode avançar para Serializar.`
-                  : `Execute o script IQ09 para ${monthTitle(openMonth)} e liberar a próxima etapa.`}
-              </p>
-              <button
-                type="button"
-                className="inventario-iq09-play"
-                onClick={() => void handleRunIq09()}
-                disabled={readOnly || runningIq09}
-                aria-label={
-                  runningIq09 ? 'Executando script IQ09' : 'Executar script IQ09'
-                }
-                title="Executar script IQ09"
-              >
-                <span className="inventario-iq09-play-icon" aria-hidden="true">
-                  {runningIq09 ? <span className="inventario-iq09-spinner" /> : <PlayIcon />}
-                </span>
-                <span className="inventario-iq09-play-label">
-                  {runningIq09
-                    ? 'Executando…'
-                    : iq09Completed
-                      ? 'Executar novamente'
-                      : 'Executar IQ09'}
-                </span>
-              </button>
+            <div className="inventario-iq09-panel">
+              <div className="inventario-iq09-run">
+                <p className="inventario-iq09-run-hint">
+                  {iq09Completed
+                    ? `IQ09 com ${iq09Rows.length} registro(s) para ${monthTitle(openMonth)}. Você pode avançar para Serializar.`
+                    : `Execute o script IQ09 para ${monthTitle(openMonth)} e carregar a planilha na tela.`}
+                </p>
+                <button
+                  type="button"
+                  className="inventario-iq09-play"
+                  onClick={() => void handleRunIq09()}
+                  disabled={readOnly || runningIq09}
+                  aria-label={
+                    runningIq09 ? 'Executando script IQ09' : 'Executar script IQ09'
+                  }
+                  title="Executar script IQ09"
+                >
+                  <span className="inventario-iq09-play-icon" aria-hidden="true">
+                    {runningIq09 ? (
+                      <span className="inventario-iq09-spinner" />
+                    ) : (
+                      <PlayIcon />
+                    )}
+                  </span>
+                  <span className="inventario-iq09-play-label">
+                    {runningIq09
+                      ? 'Executando…'
+                      : iq09Completed
+                        ? 'Executar novamente'
+                        : 'Executar IQ09'}
+                  </span>
+                </button>
+              </div>
+
+              <div className="entrada-table-wrap inventario-iq09-table-wrap">
+                <table className="data-table inventario-iq09-table">
+                  <thead>
+                    <tr>
+                      {iq09Columns.map((column) => (
+                        <th key={column}>{column}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingExport ? (
+                      <tr>
+                        <td colSpan={iq09Columns.length}>Carregando planilha IQ09…</td>
+                      </tr>
+                    ) : iq09Rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={iq09Columns.length}>
+                          Nenhum registro IQ09 carregado. Clique em Executar IQ09 para
+                          importar a planilha.
+                        </td>
+                      </tr>
+                    ) : (
+                      iq09Rows.map((row, index) => (
+                        <tr key={`${row['Nº de série'] || 'row'}-${index}`}>
+                          {iq09Columns.map((column) => (
+                            <td key={column}>{row[column] || '—'}</td>
+                          ))}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : (
             <div className="entrada-table-wrap">

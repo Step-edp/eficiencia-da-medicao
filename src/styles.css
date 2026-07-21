@@ -1138,6 +1138,35 @@ button {
   padding-right: 0.35rem;
 }
 
+.inventario-iq09-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.inventario-iq09-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.inventario-iq09-table {
+  min-width: 1280px;
+}
+
+.inventario-iq09-table th,
+.inventario-iq09-table td {
+  white-space: nowrap;
+  font-size: 0.86rem;
+}
+
+.inventario-iq09-table th:nth-child(3),
+.inventario-iq09-table td:nth-child(3),
+.inventario-iq09-table th:nth-child(13),
+.inventario-iq09-table td:nth-child(13) {
+  white-space: normal;
+  min-width: 12rem;
+  max-width: 18rem;
+}
+
 .inventario-year-block {
   display: grid;
   gap: 0.75rem;

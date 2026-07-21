@@ -738,13 +738,28 @@ export const api = {
       `/api/softwares/${id}/attachment`,
     ),
   runIq09Script: (payload: { monthKey: string }) =>
-    request<{ ok: boolean; mode: 'accepted' | 'executed'; message: string; output?: string }>(
-      '/api/inventario/iq09/run',
-      {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      },
-    ),
+    request<{
+      ok: boolean
+      mode: 'accepted' | 'executed' | 'imported'
+      message: string
+      output?: string
+      monthKey: string
+      columns: string[]
+      rows: Record<string, string>[]
+      sourceFile?: string
+      updatedAt?: string | null
+    }>('/api/inventario/iq09/run', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getIq09Export: (monthKey: string) =>
+    request<{
+      monthKey: string
+      columns: string[]
+      rows: Record<string, string>[]
+      sourceFile: string
+      updatedAt: string | null
+    }>(`/api/inventario/iq09/${encodeURIComponent(monthKey)}`),
   listRatmLaudos: () => request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos'),
   createRatmLaudos: (forms: Record<string, unknown>[]) =>
     request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos', {
