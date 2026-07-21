@@ -4269,9 +4269,18 @@ function HomePanel({
                   >
                     Copiar link
                   </button>
-                  <a className="secondary-button compact-link-button" href={FIXED_PURCHASE_REQUEST_HASH}>
-                    Abrir formulário
-                  </a>
+                  <button
+                    className="secondary-button compact-button"
+                    type="button"
+                    onClick={() => {
+                      setShowPurchaseRequestForm(true)
+                      if (window.location.hash !== FIXED_PURCHASE_REQUEST_HASH) {
+                        window.location.hash = FIXED_PURCHASE_REQUEST_HASH
+                      }
+                    }}
+                  >
+                    Abrir link
+                  </button>
                 </div>
               </div>
 
