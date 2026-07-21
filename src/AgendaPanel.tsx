@@ -245,7 +245,7 @@ export function AgendaPanel({
         <p>Carregando agenda...</p>
       ) : (
         <>
-          <div className="users-dashboard-card">
+          <section className="agenda-calendar-section" aria-label="Calendário">
             <h3>Calendário</h3>
             <p className="users-dashboard-ranking-hint">
               Férias e outras ausências aparecem destacadas. Ao registrar férias, clique nos dias
@@ -269,7 +269,7 @@ export function AgendaPanel({
                   : undefined
               }
             />
-          </div>
+          </section>
 
           <div className="users-dashboard-card" style={{ marginTop: 18 }}>
             <h3>Próximas férias (obrigatório)</h3>
