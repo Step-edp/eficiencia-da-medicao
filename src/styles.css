@@ -1373,6 +1373,10 @@ button {
   margin-top: 8px;
 }
 
+.csds-panel .login-feedback {
+  margin-bottom: 16px;
+}
+
 .csds-panel-header {
   display: flex;
   align-items: flex-start;
