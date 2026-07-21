@@ -78,6 +78,7 @@ export function AgendaPanel({
   const [success, setSuccess] = useState<string | null>(null)
   const [showVacationForm, setShowVacationForm] = useState(false)
   const [showAbsenceForm, setShowAbsenceForm] = useState(false)
+  const [dismissedOkAlert, setDismissedOkAlert] = useState(false)
 
   const applyAgenda = (response: {
     periods: VacationPeriod[]
@@ -93,6 +94,10 @@ export function AgendaPanel({
       setEndDate(response.nextVacation.endDate)
     }
   }
+
+  useEffect(() => {
+    setDismissedOkAlert(false)
+  }, [status, startDate, endDate])
 
   useEffect(() => {
     let cancelled = false
@@ -219,12 +224,22 @@ export function AgendaPanel({
         </div>
       ) : null}
 
-      {displayStatus === 'ok' ? (
-        <div className="agenda-alert agenda-alert-ok" role="status">
-          <strong>Em dia.</strong>
-          {startDate && endDate
-            ? ` Próximas férias: ${formatDateBr(startDate)} a ${formatDateBr(endDate)}.`
-            : ' Próximo período de férias registrado.'}
+      {displayStatus === 'ok' && !dismissedOkAlert ? (
+        <div className="agenda-alert agenda-alert-ok has-dismiss" role="status">
+          <span className="agenda-alert-message">
+            <strong>Em dia.</strong>
+            {startDate && endDate
+              ? ` Próximas férias: ${formatDateBr(startDate)} a ${formatDateBr(endDate)}.`
+              : ' Próximo período de férias registrado.'}
+          </span>
+          <button
+            type="button"
+            className="notice-dismiss"
+            aria-label="Fechar aviso"
+            onClick={() => setDismissedOkAlert(true)}
+          >
+            ×
+          </button>
         </div>
       ) : null}
 
@@ -466,7 +481,19 @@ export function AgendaPanel({
             </div>
           ) : null}
 
-          {success ? <p className="agenda-success">{success}</p> : null}
+          {success ? (
+            <div className="agenda-success has-dismiss" role="status">
+              <span>{success}</span>
+              <button
+                type="button"
+                className="notice-dismiss"
+                aria-label="Fechar aviso"
+                onClick={() => setSuccess(null)}
+              >
+                ×
+              </button>
+            </div>
+          ) : null}
 
           <div className="users-dashboard-card" style={{ marginTop: 18 }}>
             <h3>Histórico registrado</h3>
@@ -495,15 +522,6 @@ export function AgendaPanel({
                         </a>
                       ) : null}
                     </div>
-                    {!locked && displayStatus !== 'em_ausencia' ? (
-                      <button
-                        type="button"
-                        className="link-button"
-                        onClick={() => void handleDelete(period.id)}
-                      >
-                        Remover
-                      </button>
-                    ) : null}
                   </li>
                 ))}
               </ul>

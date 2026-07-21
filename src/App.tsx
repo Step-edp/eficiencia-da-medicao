@@ -39,6 +39,7 @@ import { ApresentacaoPanel } from './ApresentacaoPanel'
 import { GalleryPanel } from './GalleryPanel'
 import { SupportRequestModal } from './SupportRequestModal'
 import { SupportPanel } from './SupportPanel'
+import { LoginFeedback } from './LoginFeedback'
 import { AuditPanel } from './AuditPanel'
 import { EntradaPanel } from './EntradaPanel'
 import { ENTRADA_TRAIL_STEP, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS } from './labTrailSteps'
@@ -483,9 +484,11 @@ function LoginPanel({ onLoginSuccess, bannerFeedback = null }: LoginPanelProps) 
   return (
     <section className="auth-panel">
       {feedback ? (
-        <div className={`login-feedback ${feedback.type}`} role="status">
-          {feedback.message}
-        </div>
+        <LoginFeedback
+          type={feedback.type}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
       ) : null}
 
       <form className="form-grid" onSubmit={handleSubmit}>
@@ -1818,6 +1821,12 @@ function HomePanel({
     (currentUser.vacationStatus === 'em_ausencia' ||
       currentUser.vacationStatus === 'em_ferias')
   const coveringFor = currentUser.coveringFor ?? []
+  const coveringKey = coveringFor.map((item) => item.userId).join('|')
+  const [coveringAlertDismissed, setCoveringAlertDismissed] = useState(false)
+
+  useEffect(() => {
+    setCoveringAlertDismissed(false)
+  }, [coveringKey])
 
   const isGestorView = !isAdmin && currentUser.jobTitle === 'Gestor'
 
@@ -3213,9 +3222,11 @@ function HomePanel({
             </p>
 
             {passwordFeedback ? (
-              <div className={`login-feedback ${passwordFeedback.type}`} role="status">
-                {passwordFeedback.message}
-              </div>
+              <LoginFeedback
+                type={passwordFeedback.type}
+                message={passwordFeedback.message}
+                onClose={() => setPasswordFeedback(null)}
+              />
             ) : null}
 
             {!isAdmin ? (
@@ -3585,9 +3596,11 @@ function HomePanel({
                 </p>
 
                 {passwordFeedback ? (
-                  <div className={`login-feedback ${passwordFeedback.type}`} role="status">
-                    {passwordFeedback.message}
-                  </div>
+                  <LoginFeedback
+                    type={passwordFeedback.type}
+                    message={passwordFeedback.message}
+                    onClose={() => setPasswordFeedback(null)}
+                  />
                 ) : null}
 
                 <div className="manufacturer-page-form">
@@ -3640,9 +3653,11 @@ function HomePanel({
                   toda a lista em duas colunas (medidor e senha).
                 </p>
                 {passwordFeedback ? (
-                  <div className={`login-feedback ${passwordFeedback.type}`} role="status">
-                    {passwordFeedback.message}
-                  </div>
+                  <LoginFeedback
+                    type={passwordFeedback.type}
+                    message={passwordFeedback.message}
+                    onClose={() => setPasswordFeedback(null)}
+                  />
                 ) : null}
                 <div className="password-config-row">
                   <label>
@@ -3883,9 +3898,11 @@ function HomePanel({
                 </div>
 
                 {passwordFeedback ? (
-                  <div className={`login-feedback ${passwordFeedback.type}`} role="status">
-                    {passwordFeedback.message}
-                  </div>
+                  <LoginFeedback
+                    type={passwordFeedback.type}
+                    message={passwordFeedback.message}
+                    onClose={() => setPasswordFeedback(null)}
+                  />
                 ) : null}
               </section>
             </main>
@@ -4142,9 +4159,11 @@ function HomePanel({
               </div>
 
               {passwordFeedback ? (
-                <div className={`login-feedback ${passwordFeedback.type}`} role="status">
-                  {passwordFeedback.message}
-                </div>
+                <LoginFeedback
+                  type={passwordFeedback.type}
+                  message={passwordFeedback.message}
+                  onClose={() => setPasswordFeedback(null)}
+                />
               ) : null}
 
               <div className="approval-list" aria-label="Pedidos recebidos de homologação">
@@ -4213,9 +4232,11 @@ function HomePanel({
                 </p>
 
                 {passwordFeedback ? (
-                  <div className={`login-feedback ${passwordFeedback.type}`} role="status">
-                    {passwordFeedback.message}
-                  </div>
+                  <LoginFeedback
+                    type={passwordFeedback.type}
+                    message={passwordFeedback.message}
+                    onClose={() => setPasswordFeedback(null)}
+                  />
                 ) : null}
 
                 <div className="material-form-grid">
@@ -4580,18 +4601,28 @@ function HomePanel({
         <p className="section-tag">Home</p>
         <h2>Bem-vindo ao portal, {currentUser.name}</h2>
 
-        {coveringFor.length ? (
-          <div className="agenda-alert agenda-alert-ok" role="status">
-            <strong>Cobertura de ausência.</strong> Você está atuando como substituto de{' '}
-            {coveringFor.map((item, index) => (
-              <span key={item.userId}>
-                {index > 0 ? '; ' : null}
-                <strong>{item.name}</strong>
-                {item.absenceTypeLabel ? ` (${item.absenceTypeLabel})` : ''}
-                {` ${item.vacationStart.slice(8, 10)}/${item.vacationStart.slice(5, 7)} a ${item.vacationEnd.slice(8, 10)}/${item.vacationEnd.slice(5, 7)}`}
-              </span>
-            ))}
-            . As atividades desses titulares estão atreladas a você neste período.
+        {coveringFor.length && !coveringAlertDismissed ? (
+          <div className="agenda-alert agenda-alert-ok has-dismiss" role="status">
+            <span className="agenda-alert-message">
+              <strong>Cobertura de ausência.</strong> Você está atuando como substituto de{' '}
+              {coveringFor.map((item, index) => (
+                <span key={item.userId}>
+                  {index > 0 ? '; ' : null}
+                  <strong>{item.name}</strong>
+                  {item.absenceTypeLabel ? ` (${item.absenceTypeLabel})` : ''}
+                  {` ${item.vacationStart.slice(8, 10)}/${item.vacationStart.slice(5, 7)} a ${item.vacationEnd.slice(8, 10)}/${item.vacationEnd.slice(5, 7)}`}
+                </span>
+              ))}
+              . As atividades desses titulares estão atreladas a você neste período.
+            </span>
+            <button
+              type="button"
+              className="notice-dismiss"
+              aria-label="Fechar aviso"
+              onClick={() => setCoveringAlertDismissed(true)}
+            >
+              ×
+            </button>
           </div>
         ) : null}
 
@@ -5044,9 +5075,11 @@ function HomologationRequestPortal({
         ) : null}
 
         {feedback ? (
-          <div className={`login-feedback ${feedback.type}`} role="status">
-            {feedback.message}
-          </div>
+          <LoginFeedback
+            type={feedback.type}
+            message={feedback.message}
+            onClose={() => setFeedback(null)}
+          />
         ) : null}
 
         <form className="form-grid request-form-grid" onSubmit={handleSubmit}>
@@ -5464,9 +5497,11 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
       </header>
 
       {feedback ? (
-        <div className={`login-feedback ${feedback.type}`} role="status">
-          {feedback.message}
-        </div>
+        <LoginFeedback
+          type={feedback.type}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
       ) : null}
 
       <form className="form-grid register-grid" onSubmit={handleSubmit} noValidate>

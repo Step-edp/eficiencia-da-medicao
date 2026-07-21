@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { LoginFeedback } from './LoginFeedback'
 import {
   api,
   ApiError,
@@ -336,9 +337,11 @@ export function UsersDashboard({
       </div>
 
       {feedback ? (
-        <div className={`login-feedback ${feedback.type}`} role="status">
-          {feedback.message}
-        </div>
+        <LoginFeedback
+          type={feedback.type}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
       ) : null}
 
       <div className="users-dashboard-card users-dashboard-ranking">

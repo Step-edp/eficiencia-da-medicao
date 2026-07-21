@@ -317,9 +317,46 @@ button {
 }
 
 .agenda-alert-ok {
-  background: rgba(21, 128, 61, 0.12);
-  border: 1px solid rgba(21, 128, 61, 0.24);
-  color: #166534;
+  background: rgba(21, 128, 61, 0.22);
+  border: 1px solid rgba(85, 219, 136, 0.3);
+  color: #d6ffe7;
+}
+
+.agenda-alert.has-dismiss,
+.agenda-success.has-dismiss {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agenda-alert-message {
+  flex: 1;
+  min-width: 0;
+}
+
+.notice-dismiss {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin: -2px -4px 0 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.notice-dismiss:hover,
+.notice-dismiss:focus-visible {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .agenda-form {
@@ -335,8 +372,12 @@ button {
 }
 
 .agenda-success {
-  margin: 0;
-  color: #166534;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(21, 128, 61, 0.12);
+  border: 1px solid rgba(21, 128, 61, 0.24);
+  color: #d6ffe7;
   font-size: 0.9rem;
 }
 
@@ -4000,6 +4041,18 @@ input[type='file'] {
   background: rgba(18, 91, 48, 0.22);
   border-color: rgba(85, 219, 136, 0.3);
   color: #d6ffe7;
+}
+
+.login-feedback.has-dismiss {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.login-feedback-message {
+  flex: 1;
+  min-width: 0;
 }
 
 .login-feedback.error {
