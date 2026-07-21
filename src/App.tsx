@@ -12,8 +12,8 @@ import { GestaoDashboard, CellResponsibleEditor, CreateOrgAreaForm, AreaLeadersh
 import { AgendaPanel } from './AgendaPanel'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
+  CADASTRO_PROFILES,
   getCadastroProfile,
-  groupCadastroProfilesByArea,
   getHomeAreasForProfilePreview,
   getHomeAreasForUser,
   getAccessiblePortals,
@@ -1353,7 +1353,11 @@ function HomePanel({
     previewProfileId === ADMIN_PREVIEW_PROFILE_ID
       ? ADMIN_PREVIEW_PROFILE_ID
       : (getCadastroProfile(previewProfileId)?.id ?? ADMIN_PREVIEW_PROFILE_ID)
-  const previewProfileGroups = useMemo(() => groupCadastroProfilesByArea(), [])
+  const previewProfileOptions = useMemo(
+    () =>
+      [...CADASTRO_PROFILES].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+    [],
+  )
   const [showSupport, setShowSupport] = useState(false)
   const [openSupportCount, setOpenSupportCount] = useState(0)
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(
@@ -1729,12 +1733,7 @@ function HomePanel({
       currentUser.vacationStatus === 'em_ferias')
   const coveringFor = currentUser.coveringFor ?? []
 
-  const isGestorView =
-    (!isAdmin && currentUser.jobTitle === 'Gestor') ||
-    previewProfile?.match.jobTitle === 'Gestor' ||
-    previewProfile?.id === 'gestor-medicao' ||
-    previewProfile?.id === 'gestor-telemedicao' ||
-    previewProfile?.id === 'gestor-csd'
+  const isGestorView = !isAdmin && currentUser.jobTitle === 'Gestor'
 
   const clearAreaSections = () => {
     setSelectedMeasurementSection(null)
@@ -4542,24 +4541,27 @@ function HomePanel({
 
         {isAdmin ? (
           <div className="profile-preview-bar">
-            <label>
-              Ver como o perfil
+            <label htmlFor="admin-preview-profile">
+              Ver como o perfil ({previewProfileOptions.length} perfis)
               <select
+                id="admin-preview-profile"
                 value={resolvedPreviewProfileId}
                 onChange={(event) => {
                   setPreviewProfileId(event.target.value)
-                  exitToHome()
+                  setSelectedArea(null)
+                  setSelectedOrgAreaId(null)
+                  setSelectedOrgCell(null)
+                  setSelectedOrgSubcell(null)
+                  clearAreaSections()
                 }}
               >
-                <option value={ADMIN_PREVIEW_PROFILE_ID}>Administrador (visão completa)</option>
-                {previewProfileGroups.map((group) => (
-                  <optgroup key={group.area} label={group.area}>
-                    {group.profiles.map((profile) => (
-                      <option key={profile.id} value={profile.id}>
-                        {profile.name}
-                      </option>
-                    ))}
-                  </optgroup>
+                <option value={ADMIN_PREVIEW_PROFILE_ID}>
+                  Administrador (visão completa)
+                </option>
+                {previewProfileOptions.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.name}
+                  </option>
                 ))}
               </select>
             </label>
