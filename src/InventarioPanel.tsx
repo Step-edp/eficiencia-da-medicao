@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 type InventoryMonth = {
   key: string
@@ -28,13 +28,20 @@ function buildLastTwelveMonths(reference = new Date()): InventoryMonth[] {
   return months
 }
 
+function monthTitle(month: InventoryMonth) {
+  return `${month.monthLabel} de ${month.year}`
+}
+
 type InventarioPanelProps = {
+  openMonthTitle?: string | null
   onMonthOpenChange?: (monthTitle: string | null) => void
 }
 
-export function InventarioPanel({ onMonthOpenChange }: InventarioPanelProps) {
+export function InventarioPanel({
+  openMonthTitle = null,
+  onMonthOpenChange,
+}: InventarioPanelProps) {
   const months = useMemo(() => buildLastTwelveMonths(), [])
-  const [openMonthKey, setOpenMonthKey] = useState<string | null>(null)
 
   const monthsByYear = useMemo(() => {
     const groups: Array<{ year: number; months: InventoryMonth[] }> = []
@@ -49,32 +56,25 @@ export function InventarioPanel({ onMonthOpenChange }: InventarioPanelProps) {
     return groups
   }, [months])
 
-  const openMonth = months.find((month) => month.key === openMonthKey) ?? null
-
-  const openMonthScreen = (month: InventoryMonth) => {
-    setOpenMonthKey(month.key)
-    onMonthOpenChange?.(`${month.monthLabel} de ${month.year}`)
-  }
-
-  const closeMonthScreen = () => {
-    setOpenMonthKey(null)
-    onMonthOpenChange?.(null)
-  }
+  const openMonth =
+    months.find((month) => monthTitle(month) === openMonthTitle) ?? null
 
   if (openMonth) {
     return (
       <div className="inventario-panel inventario-month-screen">
         <div className="area-actions">
-          <button type="button" className="secondary-button compact-button" onClick={closeMonthScreen}>
+          <button
+            type="button"
+            className="secondary-button compact-button"
+            onClick={() => onMonthOpenChange?.(null)}
+          >
             Voltar aos meses
           </button>
         </div>
 
         <header className="inventario-month-screen-header">
           <p className="section-tag">Inventário mensal</p>
-          <h3>
-            {openMonth.monthLabel} de {openMonth.year}
-          </h3>
+          <h3>{monthTitle(openMonth)}</h3>
           <p>Consulta e acompanhamento do inventário deste mês.</p>
         </header>
 
@@ -93,8 +93,8 @@ export function InventarioPanel({ onMonthOpenChange }: InventarioPanelProps) {
               <tbody>
                 <tr>
                   <td colSpan={5}>
-                    Nenhum registro de inventário cadastrado para {openMonth.monthLabel.toLowerCase()}{' '}
-                    de {openMonth.year}.
+                    Nenhum registro de inventário cadastrado para{' '}
+                    {openMonth.monthLabel.toLowerCase()} de {openMonth.year}.
                   </td>
                 </tr>
               </tbody>
@@ -123,7 +123,7 @@ export function InventarioPanel({ onMonthOpenChange }: InventarioPanelProps) {
                 type="button"
                 role="listitem"
                 className="inventario-month-btn"
-                onClick={() => openMonthScreen(month)}
+                onClick={() => onMonthOpenChange?.(monthTitle(month))}
               >
                 <span className="inventario-month-name">{month.monthLabel}</span>
               </button>

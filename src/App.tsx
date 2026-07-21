@@ -4153,7 +4153,10 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Softwares' ? (
               <SoftwaresPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Inventário' ? (
-              <InventarioPanel />
+              <InventarioPanel
+                openMonthTitle={inventarioMonthTitle}
+                onMonthOpenChange={setInventarioMonthTitle}
+              />
             ) : selectedLabMeasurementSection === ENTRADA_TRAIL_STEP ? (
               <EntradaPanel
                 readOnly={labMedicaoReadOnly}
