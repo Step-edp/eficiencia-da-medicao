@@ -3244,18 +3244,17 @@ function HomePanel({
                               <td>{user.email}</td>
                               <td>{user.jobTitle || '—'}</td>
                               <td>
-                                {buildRequestedProfile(
-                                  user.jobTitle,
-                                  user.workSubtype ?? '',
-                                  user.workArea ?? '',
-                                  user.accessAreas?.length
-                                    ? user.accessAreas.join(', ')
-                                    : undefined,
-                                  user.employmentType === 'Terceira'
-                                    ? user.thirdPartyCompany
-                                    : undefined,
-                                  user.edpUnit,
-                                ) || roleLabel(user.role)}
+                                <button
+                                  type="button"
+                                  className="users-table-profile-button"
+                                  onClick={(event) => {
+                                    event.stopPropagation()
+                                    setUserDetailStartEditing(false)
+                                    setSelectedUserDetail(user)
+                                  }}
+                                >
+                                  Ver perfil
+                                </button>
                               </td>
                               <td>{statusLabel(user.approvalStatus)}</td>
                               <td>
