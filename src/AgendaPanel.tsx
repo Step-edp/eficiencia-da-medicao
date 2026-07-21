@@ -246,11 +246,6 @@ export function AgendaPanel({
       ) : (
         <>
           <section className="agenda-calendar-section" aria-label="Calendário">
-            <h3>Calendário</h3>
-            <p className="users-dashboard-ranking-hint">
-              Férias e outras ausências aparecem destacadas. Ao registrar férias, clique nos dias
-              para marcar o período.
-            </p>
             <AgendaCalendar
               periods={periods}
               vacationStart={startDate}
