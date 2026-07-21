@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   api,
   ApiError,
@@ -88,6 +89,7 @@ export function UserDetailModal({
   const [editing, setEditing] = useState(startInEditMode)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [cargoOptions, setCargoOptions] = useState<string[]>([
     'Técnico',
     'Analista',
@@ -406,15 +408,11 @@ export function UserDetailModal({
   const handleDelete = async () => {
     if (!canDelete || deleting) return
 
-    const confirmed = window.confirm(
-      `Excluir o usuário "${user.name}" (${user.registration})? Esta ação não pode ser desfeita.`,
-    )
-    if (!confirmed) return
-
     setDeleting(true)
     try {
       await api.deleteUser(user.id)
       onDeleted?.(user.id)
+      setConfirmDeleteOpen(false)
       onClose()
       onFeedback({ type: 'success', message: 'Usuário excluído.' })
     } catch (error) {
@@ -966,9 +964,9 @@ export function UserDetailModal({
                   type="button"
                   className="danger-button compact-button"
                   disabled={deleting}
-                  onClick={() => void handleDelete()}
+                  onClick={() => setConfirmDeleteOpen(true)}
                 >
-                  {deleting ? 'Excluindo...' : 'Excluir usuário'}
+                  Excluir usuário
                 </button>
               ) : (
                 <span className="user-detail-admin-note">Administrador: edição permitida, exclusão bloqueada.</span>
@@ -977,6 +975,51 @@ export function UserDetailModal({
           </>
         )}
       </div>
+      {confirmDeleteOpen
+        ? createPortal(
+            <div
+              className="ensaios-block-modal-overlay confirm-delete-overlay"
+              role="presentation"
+              onClick={() => {
+                if (deleting) return
+                setConfirmDeleteOpen(false)
+              }}
+            >
+              <div
+                className="ensaios-block-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="user-detail-delete-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="user-detail-delete-title">Excluir cadastro</h3>
+                <p className="ensaios-unblock-message">
+                  Excluir o cadastro de <strong>{user.name}</strong> ({user.registration})?
+                  Esta ação não pode ser desfeita.
+                </p>
+                <div className="ensaios-block-modal-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={deleting}
+                    onClick={() => setConfirmDeleteOpen(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    disabled={deleting}
+                    onClick={() => void handleDelete()}
+                  >
+                    {deleting ? 'Excluindo...' : 'Excluir'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

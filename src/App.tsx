@@ -1534,6 +1534,7 @@ function HomePanel({
     message: string
   } | null>(null)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
+  const [userPendingDelete, setUserPendingDelete] = useState<AppUser | null>(null)
   const isAdmin = currentUser.role === 'admin'
   const canViewUserPasswords =
     isAdmin && previewProfileId === ADMIN_PREVIEW_PROFILE_ID
@@ -3085,10 +3086,6 @@ function HomePanel({
 
       const handleDeleteRegisteredUser = async (user: AppUser) => {
         if (deletingUserId) return
-        const confirmed = window.confirm(
-          `Excluir o cadastro de "${user.name}" (${user.registration})? Esta ação não pode ser desfeita.`,
-        )
-        if (!confirmed) return
 
         setDeletingUserId(user.id)
         try {
@@ -3097,6 +3094,7 @@ function HomePanel({
           setSelectedUserDetail((current) =>
             current?.id === user.id ? null : current,
           )
+          setUserPendingDelete(null)
           setPasswordFeedback({ type: 'success', message: 'Cadastro excluído.' })
         } catch (error) {
           setPasswordFeedback({
@@ -3337,7 +3335,8 @@ function HomePanel({
                                   }
                                   onClick={(event) => {
                                     event.stopPropagation()
-                                    void handleDeleteRegisteredUser(user)
+                                    if (deletingUserId) return
+                                    setUserPendingDelete(user)
                                   }}
                                 >
                                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -3365,6 +3364,56 @@ function HomePanel({
                 )}
               </>
             )}
+
+            {userPendingDelete
+              ? createPortal(
+                  <div
+                    className="ensaios-block-modal-overlay"
+                    role="presentation"
+                    onClick={() => {
+                      if (deletingUserId) return
+                      setUserPendingDelete(null)
+                    }}
+                  >
+                    <div
+                      className="ensaios-block-modal"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="delete-user-title"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <h3 id="delete-user-title">Excluir cadastro</h3>
+                      <p className="ensaios-unblock-message">
+                        Excluir o cadastro de{' '}
+                        <strong>{userPendingDelete.name}</strong> (
+                        {userPendingDelete.registration})? Esta ação não pode ser
+                        desfeita.
+                      </p>
+                      <div className="ensaios-block-modal-actions">
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          disabled={Boolean(deletingUserId)}
+                          onClick={() => setUserPendingDelete(null)}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          className="danger-button"
+                          disabled={Boolean(deletingUserId)}
+                          onClick={() => void handleDeleteRegisteredUser(userPendingDelete)}
+                        >
+                          {deletingUserId === userPendingDelete.id
+                            ? 'Excluindo...'
+                            : 'Excluir'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>,
+                  document.body,
+                )
+              : null}
 
             {selectedUserDetail
               ? createPortal(

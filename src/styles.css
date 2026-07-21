@@ -1300,6 +1300,10 @@ button {
   backdrop-filter: blur(4px);
 }
 
+.ensaios-block-modal-overlay.confirm-delete-overlay {
+  z-index: 1300;
+}
+
 .ensaios-block-modal {
   width: min(480px, 100%);
   display: grid;
