@@ -37,6 +37,7 @@ import { CriarModeloPanel } from './CriarModeloPanel'
 import { ApresentacaoPanel } from './ApresentacaoPanel'
 import { GalleryPanel } from './GalleryPanel'
 import { SupportRequestModal } from './SupportRequestModal'
+import { SupportPanel } from './SupportPanel'
 import { AuditPanel } from './AuditPanel'
 import { EntradaPanel } from './EntradaPanel'
 import { ENTRADA_TRAIL_STEP, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS } from './labTrailSteps'
@@ -61,7 +62,6 @@ import {
   isEngineerSubcellSubtype,
   isEngineerAreaSubtype,
   mapTakenSubcellAreas,
-  parseAccessProcess,
   subtypesForCargo,
   TECHNICIAN_SCOPES_BY_AREA,
 } from './registrationOptions'
@@ -1581,7 +1581,6 @@ function HomePanel({
     'Treinamentos',
     'Softwares',
   ]
-  const homologationSections = HOMOLOGATION_TRAIL_STEPS.map((step) => step.key)
 
   const allAreas: Area[] = [
     {

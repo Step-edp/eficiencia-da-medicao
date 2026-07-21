@@ -147,7 +147,7 @@ export async function createPresentation(req: Request, res: Response) {
   const created = mapPresentation(
     {
       ...result.rows[0],
-      created_by_name: req.user?.name ?? '',
+      created_by_name: '',
       created_by_registration: req.user?.registration ?? '',
     },
     false,
