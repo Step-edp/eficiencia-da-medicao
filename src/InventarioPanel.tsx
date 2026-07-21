@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 type InventoryMonth = {
   key: string
@@ -35,13 +35,19 @@ function monthTitle(month: InventoryMonth) {
 type InventarioPanelProps = {
   openMonthTitle?: string | null
   onMonthOpenChange?: (monthTitle: string | null) => void
+  readOnly?: boolean
 }
 
 export function InventarioPanel({
   openMonthTitle = null,
   onMonthOpenChange,
+  readOnly = false,
 }: InventarioPanelProps) {
   const months = useMemo(() => buildLastTwelveMonths(), [])
+  const [iq09Feedback, setIq09Feedback] = useState<{
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
 
   const monthsByYear = useMemo(() => {
     const groups: Array<{ year: number; months: InventoryMonth[] }> = []
@@ -62,7 +68,7 @@ export function InventarioPanel({
   if (openMonth) {
     return (
       <div className="inventario-panel inventario-month-screen">
-        <div className="area-actions">
+        <div className="area-actions inventario-month-actions">
           <button
             type="button"
             className="secondary-button compact-button"
@@ -70,7 +76,27 @@ export function InventarioPanel({
           >
             Voltar aos meses
           </button>
+          <button
+            type="button"
+            className="primary-button compact-button"
+            disabled={readOnly}
+            title={readOnly ? 'Disponível apenas para perfis operacionais' : undefined}
+            onClick={() => {
+              setIq09Feedback({
+                type: 'success',
+                message: `Pedido IQ09 registrado para ${monthTitle(openMonth)}.`,
+              })
+            }}
+          >
+            IQ09
+          </button>
         </div>
+
+        {iq09Feedback ? (
+          <div className={`login-feedback ${iq09Feedback.type}`} role="status">
+            {iq09Feedback.message}
+          </div>
+        ) : null}
 
         <header className="inventario-month-screen-header">
           <p className="section-tag">Inventário mensal</p>

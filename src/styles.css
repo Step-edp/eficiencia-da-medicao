@@ -1036,6 +1036,11 @@ button {
   gap: 1rem;
 }
 
+.inventario-month-actions {
+  width: 100%;
+  max-width: 520px;
+}
+
 .inventario-month-screen-header h3 {
   margin: 0.2rem 0 0.45rem;
   font-size: 1.25rem;

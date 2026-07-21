@@ -4171,6 +4171,7 @@ function HomePanel({
               <InventarioPanel
                 openMonthTitle={inventarioMonthTitle}
                 onMonthOpenChange={setInventarioMonthTitle}
+                readOnly={labMedicaoReadOnly}
               />
             ) : selectedLabMeasurementSection === ENTRADA_TRAIL_STEP ? (
               <EntradaPanel
