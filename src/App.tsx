@@ -4631,7 +4631,10 @@ function HomePanel({
       <section className="home-card">
         <TopActionBar onLogout={onLogout} />
         <p className="section-tag">Home</p>
-        <h2>Bem-vindo ao portal, {currentUser.name}</h2>
+        <h2>
+          Bem-vindo ao portal,{' '}
+          {currentUser.name.trim().split(/\s+/)[0] || currentUser.name}
+        </h2>
 
         {coveringFor.length && !coveringAlertDismissed ? (
           <div className="agenda-alert agenda-alert-ok has-dismiss" role="status">
