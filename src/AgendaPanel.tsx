@@ -186,19 +186,6 @@ export function AgendaPanel({
     }
   }
 
-  const handleDelete = async (id: number) => {
-    setAbsenceError(null)
-    setSuccess(null)
-    try {
-      const response = await api.deleteAbsencePeriod(id)
-      applyAgenda(response)
-      setSuccess('Período removido.')
-      await onSaved()
-    } catch (err) {
-      setAbsenceError(err instanceof Error ? err.message : 'Não foi possível remover o período.')
-    }
-  }
-
   const deadlineLabel = formatDeadline(deadlineAt)
   const displayStatus =
     locked
