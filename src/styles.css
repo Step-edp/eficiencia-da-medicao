@@ -1038,16 +1038,6 @@ button {
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
 }
 
-.inventario-month-detail {
-  margin-top: 0.5rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.25);
-}
-
-.inventario-month-detail h3 {
-  margin: 0.25rem 0 0.5rem;
-}
-
 .measurement-item {
   width: 100%;
   text-align: left;

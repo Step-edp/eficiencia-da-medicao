@@ -35,21 +35,17 @@ export function InventarioPanel() {
   const months = useMemo(() => buildLastTwelveMonths(), [])
   const [selectedMonthKey, setSelectedMonthKey] = useState(months[0]?.key ?? '')
 
-  const selectedMonth = months.find((month) => month.key === selectedMonthKey) ?? months[0]
-
   return (
     <div className="inventario-panel">
-      <p>Selecione o mês do inventário (mês atual até os 12 últimos).</p>
-
       <div className="measurement-sections inventario-months" aria-label="Meses do inventário">
         {months.map((month) => (
           <button
             key={month.key}
             type="button"
             className={`measurement-item${
-              selectedMonth?.key === month.key ? ' measurement-item-highlighted' : ''
+              selectedMonthKey === month.key ? ' measurement-item-highlighted' : ''
             }`}
-            aria-pressed={selectedMonth?.key === month.key}
+            aria-pressed={selectedMonthKey === month.key}
             onClick={() => setSelectedMonthKey(month.key)}
           >
             <span className="item-with-icon">
@@ -58,14 +54,6 @@ export function InventarioPanel() {
           </button>
         ))}
       </div>
-
-      {selectedMonth ? (
-        <div className="inventario-month-detail" aria-live="polite">
-          <p className="section-tag">Mês selecionado</p>
-          <h3>{selectedMonth.label}</h3>
-          <p>Conteúdo do inventário deste mês em breve.</p>
-        </div>
-      ) : null}
     </div>
   )
 }
