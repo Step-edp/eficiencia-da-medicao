@@ -4633,7 +4633,7 @@ function HomePanel({
         <p className="section-tag">Home</p>
         <h2>
           Bem-vindo ao portal,{' '}
-          {currentUser.name.trim().split(/\s+/)[0] || currentUser.name}
+          {currentUser.name.trim().split(/\s+/)[0] || currentUser.name}!
         </h2>
 
         {coveringFor.length && !coveringAlertDismissed ? (
