@@ -71,13 +71,6 @@ export function InventarioPanel({
         <div className="area-actions inventario-month-actions">
           <button
             type="button"
-            className="secondary-button compact-button"
-            onClick={() => onMonthOpenChange?.(null)}
-          >
-            Voltar aos meses
-          </button>
-          <button
-            type="button"
             className="primary-button compact-button"
             disabled={readOnly}
             title={readOnly ? 'Disponível apenas para perfis operacionais' : undefined}
