@@ -226,6 +226,19 @@ export type MeterModelRecord = {
   createdByRegistration?: string
 }
 
+export type PresentationRecord = {
+  id: number
+  name: string
+  description: string
+  link: string
+  attachmentName: string
+  hasAttachment: boolean
+  createdAt: string
+  createdByUserId?: string | null
+  createdByName?: string
+  createdByRegistration?: string
+}
+
 export type RatmLaudoRecord = {
   id: string
   ratmNumber: number
@@ -666,6 +679,23 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  listPresentations: () =>
+    request<{ presentations: PresentationRecord[] }>('/api/presentations'),
+  createPresentation: (payload: {
+    name: string
+    description: string
+    link?: string
+    attachment?: string
+    attachmentName?: string
+  }) =>
+    request<{ presentation: PresentationRecord }>('/api/presentations', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getPresentationAttachment: (id: number) =>
+    request<{ attachment: string; attachmentName: string }>(
+      `/api/presentations/${id}/attachment`,
+    ),
   listRatmLaudos: () => request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos'),
   createRatmLaudos: (forms: Record<string, unknown>[]) =>
     request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos', {

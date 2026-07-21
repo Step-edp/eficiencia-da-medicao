@@ -22,6 +22,7 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   meter_schedule: 'Agendamento de medidor',
   demm_document: 'DEMM',
   meter_model: 'Modelo de medidor',
+  presentation: 'Apresentação',
 }
 
 export function formatAuditAction(action: string) {
