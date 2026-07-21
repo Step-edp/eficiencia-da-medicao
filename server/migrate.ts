@@ -378,4 +378,31 @@ export async function migrate() {
     ALTER TABLE meter_schedules
       ADD COLUMN IF NOT EXISTS envelope_photo TEXT NOT NULL DEFAULT '';
   `)
+
+  // Rafael Nunes: perfil Medição – Engenheiro Responsável (Medição + Agenda).
+  await query(`
+    UPDATE users
+    SET access_areas = COALESCE((
+      SELECT jsonb_agg(to_jsonb(value))
+      FROM jsonb_array_elements_text(access_areas) AS value
+      WHERE value <> 'Medição'
+    ), '[]'::jsonb)
+    WHERE role <> 'admin'
+      AND job_title = 'Engenheiro'
+      AND work_subtype IN ('Responsável por sub-célula', 'Sub-área')
+      AND access_areas @> '["Medição"]'::jsonb
+      AND name NOT ILIKE '%Rafael%'
+      AND registration <> '11111';
+
+    UPDATE users
+    SET approval_status = 'approved',
+        approved_at = COALESCE(approved_at, NOW()),
+        role = CASE WHEN role = 'admin' THEN role ELSE 'compras' END,
+        job_title = 'Engenheiro',
+        work_area = 'Medição',
+        work_subtype = 'Responsável por sub-célula',
+        access_areas = '["Medição"]'::jsonb
+    WHERE role <> 'admin'
+      AND (name ILIKE '%Rafael Nunes%' OR registration = '11111');
+  `)
 }
