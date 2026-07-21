@@ -106,6 +106,16 @@ export const ENGINEER_SUBTYPES = [
   'Responsável por sub-célula',
 ] as const
 
+/** Escopos de lavratura disponíveis para Engenheiro na área CSD. */
+export const CSD_ENGINEER_LAVRATURA_SCOPES = [
+  'Lavratura de TOI - Ponto Focal',
+  'Lavratura de TOI - Backoffice',
+] as const
+
+export function isCsdEngineerLavraturaScope(value: string | null | undefined) {
+  return (CSD_ENGINEER_LAVRATURA_SCOPES as readonly string[]).includes(value?.trim() ?? '')
+}
+
 /** Aceita rótulos novos e legados na base. */
 export function isEngineerAreaSubtype(value: string | null | undefined) {
   const normalized = value?.trim() ?? ''

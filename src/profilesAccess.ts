@@ -159,6 +159,30 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
       workSubtype: 'Lavratura de TOI - Backoffice',
     },
   },
+  {
+    id: 'csd-engenheiro-ponto-focal',
+    name: profileName('CSD', 'Engenheiro', 'Lavratura de TOI – Ponto Focal'),
+    description:
+      'Consultar medidores na Equipe de campo provenientes de lavratura de TOI, com acesso a Suporte e Agenda.',
+    areas: ['Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Lavratura de TOI - Ponto Focal',
+    },
+  },
+  {
+    id: 'csd-engenheiro-backoffice',
+    name: profileName('CSD', 'Engenheiro', 'Lavratura de TOI – Backoffice'),
+    description:
+      'Agendar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI.',
+    areas: ['Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Lavratura de TOI - Backoffice',
+    },
+  },
   // CSD – Leituras de faturamento
   {
     id: 'csd-tecnico-leituras',

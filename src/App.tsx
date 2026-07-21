@@ -56,7 +56,6 @@ import {
   EDP_SCOPE_OPTIONS,
   encodeAccessProcess,
   ENGINEER_HOME_SUBAREAS,
-  ENGINEER_SUBTYPES,
   getHomeSubareaProcessGroups,
   isEngineerProcessSubtype,
   isEngineerSubcellSubtype,
@@ -852,10 +851,9 @@ function PendingApprovalItem({
   const [submitting, setSubmitting] = useState(false)
   const [rejecting, setRejecting] = useState(false)
   const jobTitle = user.jobTitle?.trim() ?? ''
-  const subtypeOptions =
-    jobTitle === 'Engenheiro'
-      ? ENGINEER_SUBTYPES
-      : subtypesForCargo(jobTitle, user.workArea ?? '', { csdScopes: csdScopeOptions })
+  const subtypeOptions = [...subtypesForCargo(jobTitle, user.workArea ?? '', {
+    csdScopes: csdScopeOptions,
+  })]
   const needsCompany = user.employmentType === 'Terceira'
   const needsSubtype = subtypeOptions.length > 0
   const needsHomeSubareas =

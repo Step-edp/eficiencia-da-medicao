@@ -5,6 +5,7 @@ import { clearAuthCookie, requireAdmin, requireAuth, setAuthCookie, signSsoToken
 import { writeAuditLog } from '../audit.js'
 import {
   isAllowedEngineerSubtype,
+  isCsdEngineerLavraturaScope,
   isEngineerAreaSubtype,
   isEngineerProcessSubtype,
   isEngineerSubcellSubtype,
@@ -562,7 +563,10 @@ export async function approveUser(req: Request, res: Response) {
   let storedSubtype = ''
   let storedAccessAreas: string[] = []
   let storedAccessProcesses: string[] = []
-  if (jobTitle === 'Engenheiro') {
+  if (jobTitle === 'Engenheiro' && isCsdEngineerLavraturaScope(normalizedSubtype)) {
+    storedSubtype = normalizedSubtype
+    storedAccessAreas = accessAreasForTechnician(workArea, normalizedSubtype)
+  } else if (jobTitle === 'Engenheiro') {
     if (!isAllowedEngineerSubtype(normalizedSubtype)) {
       res.status(400).json({ error: 'Selecione a abrangência do engenheiro antes de aprovar.' })
       return
@@ -944,7 +948,16 @@ export async function updateUser(req: Request, res: Response) {
   let storedAccessAreas: string[] = []
   let storedAccessProcesses: string[] = []
 
-  if (normalizedJobTitle === 'Engenheiro') {
+  if (
+    normalizedJobTitle === 'Engenheiro' &&
+    isCsdEngineerLavraturaScope(normalizedSubtype)
+  ) {
+    storedSubtype = normalizedSubtype
+    storedAccessAreas = accessAreasForTechnician(
+      normalizedWorkArea,
+      normalizedSubtype,
+    )
+  } else if (normalizedJobTitle === 'Engenheiro') {
     if (!isAllowedEngineerSubtype(normalizedSubtype)) {
       res.status(400).json({ error: 'Selecione a abrangência do engenheiro.' })
       return

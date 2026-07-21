@@ -24,6 +24,16 @@ export const ENGINEER_SUBTYPES = [
   'Responsável por sub-célula',
 ] as const
 
+/** Escopos de lavratura disponíveis para Engenheiro na área CSD. */
+export const CSD_ENGINEER_LAVRATURA_SCOPES = [
+  'Lavratura de TOI - Ponto Focal',
+  'Lavratura de TOI - Backoffice',
+] as const
+
+export function isCsdEngineerLavraturaScope(value: string | null | undefined) {
+  return (CSD_ENGINEER_LAVRATURA_SCOPES as readonly string[]).includes(value?.trim() ?? '')
+}
+
 /** Aceita rótulos novos e legados na base. */
 export function isEngineerAreaSubtype(value: string | null | undefined) {
   const normalized = value?.trim() ?? ''
@@ -254,7 +264,12 @@ export function subtypesForCargo(
 ): readonly string[] {
   const cargo = jobTitle.trim()
   const area = workArea.trim()
-  if (cargo === 'Engenheiro') return ENGINEER_SUBTYPES
+  if (cargo === 'Engenheiro') {
+    if (area === 'CSD') {
+      return [...ENGINEER_SUBTYPES, ...CSD_ENGINEER_LAVRATURA_SCOPES]
+    }
+    return ENGINEER_SUBTYPES
+  }
   // CSD: escopo obrigatório para qualquer cargo (própria ou terceira).
   if (area === 'CSD') {
     const fromCatalog = options?.csdScopes?.filter((item) => item.trim()) ?? []
