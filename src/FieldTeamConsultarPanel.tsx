@@ -62,21 +62,11 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
 
   return (
     <div className="entrada-panel">
-      <div className="entrada-panel-header">
-        {isMine ? null : (
+      {isMine ? null : (
+        <div className="entrada-panel-header">
           <p>Consulta dos medidores agendados pela equipe de campo.</p>
-        )}
-        <div className="entrada-panel-actions">
-          <button
-            type="button"
-            className="secondary-button compact-button"
-            onClick={() => void load()}
-            disabled={loading}
-          >
-            Atualizar
-          </button>
         </div>
-      </div>
+      )}
 
       {feedback ? (
         <div className={`login-feedback ${feedback.type}`} role="status">
