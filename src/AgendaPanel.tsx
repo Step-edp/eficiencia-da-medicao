@@ -80,6 +80,17 @@ export function AgendaPanel({
   const [showAbsenceForm, setShowAbsenceForm] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [dismissedOkAlert, setDismissedOkAlert] = useState(false)
+  const [vacationDraftStart, setVacationDraftStart] = useState(nextVacationStart ?? '')
+  const [vacationDraftEnd, setVacationDraftEnd] = useState(nextVacationEnd ?? '')
+  const [editingExistingVacation, setEditingExistingVacation] = useState(false)
+
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const hasRegisteredVacation =
+    Boolean(vacationDraftStart && vacationDraftEnd) ||
+    periods.some(
+      (period) =>
+        (period.absenceType ?? 'ferias') === 'ferias' && period.endDate >= todayIso,
+    )
 
   const applyAgenda = (response: {
     periods: VacationPeriod[]
@@ -93,7 +104,36 @@ export function AgendaPanel({
     if (response.nextVacation) {
       setStartDate(response.nextVacation.startDate)
       setEndDate(response.nextVacation.endDate)
+      setVacationDraftStart(response.nextVacation.startDate)
+      setVacationDraftEnd(response.nextVacation.endDate)
+    } else {
+      setStartDate('')
+      setEndDate('')
+      setVacationDraftStart('')
+      setVacationDraftEnd('')
     }
+  }
+
+  const openVacationForm = (period?: { startDate: string; endDate: string } | null) => {
+    const nextStart = period?.startDate ?? startDate
+    const nextEnd = period?.endDate ?? endDate
+    setVacationDraftStart(nextStart)
+    setVacationDraftEnd(nextEnd)
+    setStartDate(nextStart)
+    setEndDate(nextEnd)
+    setEditingExistingVacation(Boolean(nextStart && nextEnd))
+    setShowVacationForm(true)
+    setShowAbsenceForm(false)
+    setShowHistory(false)
+    setError(null)
+  }
+
+  const closeVacationForm = () => {
+    setStartDate(vacationDraftStart)
+    setEndDate(vacationDraftEnd)
+    setShowVacationForm(false)
+    setEditingExistingVacation(false)
+    setError(null)
   }
 
   useEffect(() => {
@@ -136,8 +176,13 @@ export function AgendaPanel({
     try {
       const response = await api.saveVacationPeriod({ startDate, endDate })
       applyAgenda(response)
-      setSuccess('Período de férias registrado com sucesso.')
+      setSuccess(
+        editingExistingVacation
+          ? 'Período de férias atualizado com sucesso.'
+          : 'Período de férias registrado com sucesso.',
+      )
       setShowVacationForm(false)
+      setEditingExistingVacation(false)
       await onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível salvar o período.')
@@ -254,12 +299,7 @@ export function AgendaPanel({
                 type="button"
                 className={`agenda-action-chip${showVacationForm ? ' is-active' : ''}`}
                 disabled={locked || displayStatus === 'em_ausencia'}
-                onClick={() => {
-                  setShowVacationForm(true)
-                  setShowAbsenceForm(false)
-                  setShowHistory(false)
-                  setError(null)
-                }}
+                onClick={() => openVacationForm()}
               >
                 <span className="agenda-action-chip-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
@@ -281,8 +321,16 @@ export function AgendaPanel({
                   </svg>
                 </span>
                 <span className="agenda-action-chip-text">
-                  <span className="agenda-action-chip-title">Registrar férias</span>
-                  <span className="agenda-action-chip-hint">Período obrigatório</span>
+                  <span className="agenda-action-chip-title">
+                    {hasRegisteredVacation ? 'Editar férias' : 'Registrar férias'}
+                  </span>
+                  <span className="agenda-action-chip-hint">
+                    {hasRegisteredVacation
+                      ? startDate && endDate
+                        ? `${formatDateBr(startDate)} a ${formatDateBr(endDate)}`
+                        : 'Alterar período registrado'
+                      : 'Período obrigatório'}
+                  </span>
                 </span>
               </button>
               <button
@@ -357,7 +405,14 @@ export function AgendaPanel({
               <div className="agenda-history-panel">
                 {periods.length ? (
                   <ul className="agenda-period-list">
-                    {periods.map((period) => (
+                    {periods.map((period) => {
+                      const canEditVacation =
+                        !locked &&
+                        displayStatus !== 'em_ausencia' &&
+                        (period.absenceType ?? 'ferias') === 'ferias' &&
+                        period.endDate >= todayIso
+
+                      return (
                       <li key={period.id} className="agenda-period-item">
                         <div className="agenda-period-details">
                           <span>
@@ -380,8 +435,23 @@ export function AgendaPanel({
                             </a>
                           ) : null}
                         </div>
+                        {canEditVacation ? (
+                          <button
+                            type="button"
+                            className="secondary-button compact-button"
+                            onClick={() =>
+                              openVacationForm({
+                                startDate: period.startDate,
+                                endDate: period.endDate,
+                              })
+                            }
+                          >
+                            Editar
+                          </button>
+                        ) : null}
                       </li>
-                    ))}
+                      )
+                    })}
                   </ul>
                 ) : (
                   <p className="generated-password-empty">Nenhum período cadastrado ainda.</p>
@@ -411,9 +481,14 @@ export function AgendaPanel({
 
           {showVacationForm ? (
             <div className="users-dashboard-card" style={{ marginTop: 18 }}>
-              <h3>Próximas férias (obrigatório)</h3>
+              <h3>
+                {editingExistingVacation
+                  ? 'Editar período de férias'
+                  : 'Próximas férias (obrigatório)'}
+              </h3>
               <p className="users-dashboard-ranking-hint">
-                Use o calendário acima ou os campos abaixo para definir o período.
+                Use o calendário acima ou os campos abaixo para{' '}
+                {editingExistingVacation ? 'alterar' : 'definir'} o período.
               </p>
               <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitVacation}>
                 <label>
@@ -447,10 +522,7 @@ export function AgendaPanel({
                     type="button"
                     className="secondary-button"
                     disabled={saving}
-                    onClick={() => {
-                      setShowVacationForm(false)
-                      setError(null)
-                    }}
+                    onClick={closeVacationForm}
                   >
                     Cancelar
                   </button>
@@ -459,7 +531,11 @@ export function AgendaPanel({
                     className="primary-button"
                     disabled={saving || locked || displayStatus === 'em_ausencia'}
                   >
-                    {saving ? 'Salvando…' : 'Salvar período de férias'}
+                    {saving
+                      ? 'Salvando…'
+                      : editingExistingVacation
+                        ? 'Salvar alterações'
+                        : 'Salvar período de férias'}
                   </button>
                 </div>
               </form>
