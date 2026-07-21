@@ -186,12 +186,6 @@ export function AgendaPanel({
 
   return (
     <div className="agenda-panel">
-      <p>
-        Todo usuário deve registrar o próximo período de férias. Também é possível cadastrar outros
-        períodos de ausência (licença, atestado, treinamento etc.). Em qualquer ausência ativa, o
-        portal fica bloqueado e as atividades ficam com o substituto.
-      </p>
-
       {displayStatus === 'bloqueado' ? (
         <div className="agenda-alert agenda-alert-blocked" role="alert">
           <strong>Perfil bloqueado.</strong> O prazo de 7 dias para registrar o próximo período de
