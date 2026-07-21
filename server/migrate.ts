@@ -392,8 +392,11 @@ export async function migrate() {
       AND work_subtype IN ('Responsável por sub-célula', 'Sub-área')
       AND access_areas @> '["Medição"]'::jsonb
       AND name NOT ILIKE '%Rafael%'
-      AND registration <> '11111';
+      AND registration <> '11111'
+  `)
 
+  await query(
+    `
     UPDATE users
     SET approval_status = 'approved',
         approved_at = COALESCE(approved_at, NOW()),
@@ -403,22 +406,23 @@ export async function migrate() {
         work_subtype = 'Responsável por sub-célula',
         access_areas = $1::jsonb
     WHERE role <> 'admin'
-      AND (name ILIKE '%Rafael Nunes%' OR registration = '11111');
-  `, [
-    JSON.stringify([
-      'Medição',
-      'Laboratório de Medição',
-      'Laboratório de Homologação',
-      'Equipe de campo',
-      'Usuários',
-      'Cadastros',
-    ]),
-  ])
+      AND (name ILIKE '%Rafael Nunes%' OR registration = '11111')
+  `,
+    [
+      JSON.stringify([
+        'Medição',
+        'Laboratório de Medição',
+        'Laboratório de Homologação',
+        'Equipe de campo',
+        'Usuários',
+        'Cadastros',
+      ]),
+    ],
+  )
 
   // Chamados de suporte do portal.
+  await query(`CREATE SEQUENCE IF NOT EXISTS support_ticket_seq START 1`)
   await query(`
-    CREATE SEQUENCE IF NOT EXISTS support_ticket_seq START 1;
-
     CREATE TABLE IF NOT EXISTS support_tickets (
       id TEXT PRIMARY KEY,
       ticket_number TEXT NOT NULL UNIQUE,
@@ -435,9 +439,10 @@ export async function migrate() {
       responded_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-
+    )
+  `)
+  await query(`
     CREATE INDEX IF NOT EXISTS idx_support_tickets_created_at
-      ON support_tickets (created_at DESC);
+      ON support_tickets (created_at DESC)
   `)
 }
