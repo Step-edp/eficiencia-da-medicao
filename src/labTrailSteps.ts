@@ -12,7 +12,17 @@ export const LAB_TRAIL_STEPS: LabTrailStep[] = [
   { key: 'Sucata', label: 'Sucata' },
 ]
 
+export const HOMOLOGATION_TRAIL_STEPS: LabTrailStep[] = [
+  { key: 'Código de materiais', label: 'Código de materiais' },
+  { key: 'Pedidos de Homologação', label: 'Pedido de homologação' },
+  { key: 'Ensaio', label: 'Ensaio' },
+  { key: 'Homologações', label: 'Homologações' },
+]
+
 export const LAB_TRAIL_KEYS = new Set(LAB_TRAIL_STEPS.map((step) => step.key))
+export const HOMOLOGATION_TRAIL_KEYS = new Set(
+  HOMOLOGATION_TRAIL_STEPS.map((step) => step.key),
+)
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 export const ENSAIAR_TRAIL_STEP = 'Ensaiar'

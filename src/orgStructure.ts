@@ -328,9 +328,10 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Softwares',
   ],
   'Laboratório de Homologação': [
-    'Ensaio',
-    'Pedidos de Homologação',
     'Código de materiais',
+    'Pedidos de Homologação',
+    'Ensaio',
+    'Homologações',
   ],
   'Equipe de campo': [
     'Agendar',

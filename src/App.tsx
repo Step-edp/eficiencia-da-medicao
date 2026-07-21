@@ -34,7 +34,7 @@ import { SupportPanel } from './SupportPanel'
 import { SupportRequestModal } from './SupportRequestModal'
 import { AuditPanel } from './AuditPanel'
 import { EntradaPanel } from './EntradaPanel'
-import { ENTRADA_TRAIL_STEP, getLabTrailLabel, LAB_TRAIL_KEYS } from './labTrailSteps'
+import { ENTRADA_TRAIL_STEP, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS } from './labTrailSteps'
 import {
   api,
   ApiError,
@@ -701,6 +701,8 @@ function ItemIcon({ title }: { title: string }) {
     Ensaio: 'flask',
     'Pedidos de Homologação': 'archive',
     'Código de materiais': 'code',
+    Homologações: 'check',
+    Ensaio: 'flask',
     'Equipe de campo': 'truck',
     Usuários: 'users',
     Cadastros: 'archive',
@@ -1578,11 +1580,7 @@ function HomePanel({
     'Treinamentos',
     'Softwares',
   ]
-  const homologationSections = [
-    'Ensaio',
-    'Pedidos de Homologação',
-    'Código de materiais',
-  ]
+  const homologationSections = HOMOLOGATION_TRAIL_STEPS.map((step) => step.key)
 
   const allAreas: Area[] = [
     {
@@ -4288,6 +4286,32 @@ function HomePanel({
 
       }
 
+      if (selectedHomologationSection === 'Homologações') {
+        return (
+          <main className="shell">
+            <section className="home-card area-screen-card">
+              <TopActionBar
+                onBack={() => setSelectedHomologationSection(null)}
+                onHome={() => {
+                  setSelectedHomologationSection(null)
+                  setSelectedArea(null)
+                }}
+                onLogout={onLogout}
+              />
+              <p className="section-tag">Laboratório de Homologação</p>
+              <h2>Homologações</h2>
+              <p>
+                Acompanhe os processos homologados e o histórico de conclusões
+                nesta etapa final da trilha.
+              </p>
+              <p className="generated-password-empty">
+                Nenhuma homologação registrada ainda.
+              </p>
+            </section>
+          </main>
+        )
+      }
+
       return (
         <main className="shell">
           <section className="home-card area-screen-card">
@@ -4406,21 +4430,13 @@ function HomePanel({
             </>
           ) : null}
           {selectedArea.title === 'Laboratório de Homologação' ? (
-            <div className="measurement-sections" aria-label="Áreas de homologação">
-              {homologationSections.map((section) => (
-                <button
-                  key={section}
-                  className="measurement-item"
-                  type="button"
-                  onClick={() => setSelectedHomologationSection(section)}
-                >
-                  <span className="item-with-icon">
-                    <ItemIcon title={section} />
-                    <span>{section}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
+            <LabMeasurementTrail
+              activeStep={null}
+              onSelect={setSelectedHomologationSection}
+              renderIcon={(title) => <ItemIcon title={title} />}
+              steps={HOMOLOGATION_TRAIL_STEPS}
+              ariaLabel="Trilha operacional da homologação"
+            />
           ) : null}
           {selectedArea.title === 'Equipe de campo' ? (
             flattenFieldTeamHome ? null : (
