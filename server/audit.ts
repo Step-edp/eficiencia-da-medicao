@@ -27,6 +27,7 @@ export type AuditEntityType =
   | 'process_assignment'
   | 'org_cell'
   | 'org_area'
+  | 'support_ticket'
 
 export type AuditLogEntry = {
   action: AuditAction

@@ -323,6 +323,7 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Apresentação',
     'Fornecedores',
     'CSDs',
+    'Suporte',
     'Treinamentos',
     'Softwares',
   ],

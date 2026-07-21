@@ -414,4 +414,30 @@ export async function migrate() {
       'Cadastros',
     ]),
   ])
+
+  // Chamados de suporte do portal.
+  await query(`
+    CREATE SEQUENCE IF NOT EXISTS support_ticket_seq START 1;
+
+    CREATE TABLE IF NOT EXISTS support_tickets (
+      id TEXT PRIMARY KEY,
+      ticket_number TEXT NOT NULL UNIQUE,
+      requester_user_id TEXT NOT NULL REFERENCES users(id),
+      requester_name TEXT NOT NULL,
+      requester_registration TEXT NOT NULL,
+      subject TEXT NOT NULL DEFAULT '',
+      message TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'aberto'
+        CHECK (status IN ('aberto', 'respondido', 'fechado')),
+      response TEXT NOT NULL DEFAULT '',
+      responded_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      responded_by_name TEXT NOT NULL DEFAULT '',
+      responded_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_support_tickets_created_at
+      ON support_tickets (created_at DESC);
+  `)
 }

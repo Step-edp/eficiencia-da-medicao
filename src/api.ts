@@ -298,6 +298,23 @@ export type FieldPartnerOption = {
   label: string
 }
 
+export type SupportTicketRecord = {
+  id: string
+  ticketNumber: string
+  requesterUserId: string
+  requesterName: string
+  requesterRegistration: string
+  subject: string
+  message: string
+  status: 'aberto' | 'respondido' | 'fechado'
+  response: string
+  respondedByUserId: string | null
+  respondedByName: string
+  respondedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export type DemmDocumentRecord = {
   id: string
   meterScheduleId: string | null
@@ -744,6 +761,24 @@ export const api = {
       method: 'DELETE',
     }),
   getDemmDocumentFileUrl: (id: string) => `/api/demm-documents/${id}/file`,
+  listSupportTickets: (params?: { mine?: boolean }) => {
+    const search = new URLSearchParams()
+    if (params?.mine) search.set('mine', '1')
+    const queryString = search.toString()
+    return request<{ tickets: SupportTicketRecord[] }>(
+      `/api/support-tickets${queryString ? `?${queryString}` : ''}`,
+    )
+  },
+  createSupportTicket: (payload: { subject?: string; message: string }) =>
+    request<{ ticket: SupportTicketRecord }>('/api/support-tickets', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  replySupportTicket: (id: string, payload: { response: string }) =>
+    request<{ ticket: SupportTicketRecord }>(`/api/support-tickets/${id}/reply`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
 }
 
 export { ApiError }

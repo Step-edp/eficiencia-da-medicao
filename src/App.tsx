@@ -31,6 +31,8 @@ import type { RatmFormData } from './ratm/types'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
 import { EnsaiosCalendar } from './EnsaiosCalendar'
 import { CsdsPanel } from './CsdsPanel'
+import { SupportPanel } from './SupportPanel'
+import { SupportRequestModal } from './SupportRequestModal'
 import { AuditPanel } from './AuditPanel'
 import { EntradaPanel } from './EntradaPanel'
 import { ENTRADA_TRAIL_STEP, getLabTrailLabel, LAB_TRAIL_KEYS } from './labTrailSteps'
@@ -569,15 +571,6 @@ type TopActionBarProps = {
 function TopActionBar({ onBack, onHome, onLogout }: TopActionBarProps) {
   const [showSupport, setShowSupport] = useState(false)
 
-  useEffect(() => {
-    if (!showSupport) return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowSupport(false)
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [showSupport])
-
   return (
     <>
       <div className="top-action-bar" aria-label="Acoes da tela">
@@ -702,56 +695,7 @@ function TopActionBar({ onBack, onHome, onLogout }: TopActionBarProps) {
         </div>
       </div>
 
-      {showSupport
-        ? createPortal(
-            <div
-              className="ensaios-block-modal-overlay"
-              role="presentation"
-              onClick={() => setShowSupport(false)}
-            >
-              <div
-                className="ensaios-block-modal support-modal"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="support-modal-title"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <button
-                  type="button"
-                  className="icon-button schedule-slot-modal-close"
-                  onClick={() => setShowSupport(false)}
-                  aria-label="Fechar"
-                  title="Fechar"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M6 6l12 12M18 6L6 18"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-                <h3 id="support-modal-title">Suporte</h3>
-                <p>
-                  Precisa de ajuda com o portal? Entre em contato com o administrador
-                  do sistema ou com a equipe responsável pela Eficiência da Medição.
-                </p>
-                <div className="ensaios-block-modal-actions">
-                  <button
-                    type="button"
-                    className="primary-button"
-                    onClick={() => setShowSupport(false)}
-                  >
-                    Fechar
-                  </button>
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+      <SupportRequestModal open={showSupport} onClose={() => setShowSupport(false)} />
     </>
   )
 }
@@ -778,6 +722,7 @@ function ItemIcon({ title }: { title: string }) {
     Apresentação: 'presentation',
     Fornecedores: 'truck',
     CSDs: 'building',
+    Suporte: 'shield',
     Treinamentos: 'book',
     Softwares: 'code',
     'Faturamento de clientes livres': 'chart',
@@ -1605,6 +1550,7 @@ function HomePanel({
     'Apresentação',
     'Fornecedores',
     'CSDs',
+    'Suporte',
     'Treinamentos',
     'Softwares',
   ]
@@ -3867,6 +3813,7 @@ function HomePanel({
             </h2>
             {selectedLabMeasurementSection !== 'Calendário de ensaios' &&
             selectedLabMeasurementSection !== 'CSDs' &&
+            selectedLabMeasurementSection !== 'Suporte' &&
             selectedLabMeasurementSection !== 'Auditoria' ? (
               <LabMeasurementTrail
                 activeStep={selectedLabMeasurementSection}
@@ -3879,6 +3826,8 @@ function HomePanel({
               <EnsaiosCalendar />
             ) : selectedLabMeasurementSection === 'CSDs' ? (
               <CsdsPanel />
+            ) : selectedLabMeasurementSection === 'Suporte' ? (
+              <SupportPanel />
             ) : selectedLabMeasurementSection === 'Auditoria' ? (
               <AuditPanel />
             ) : selectedLabMeasurementSection === ENTRADA_TRAIL_STEP ? (

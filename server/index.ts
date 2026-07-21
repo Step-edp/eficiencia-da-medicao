@@ -46,6 +46,11 @@ import {
 import {
   getMeterRegistryTrailCounts,
 } from './routes/meter-registry.js'
+import {
+  createSupportTicket,
+  listSupportTickets,
+  replySupportTicket,
+} from './routes/support.js'
 import { requireAuth } from './auth.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -171,6 +176,10 @@ async function start() {
   app.delete('/api/demm-documents/:id', requireAuth, deleteDemmDocument)
   app.get('/api/demm-documents/:id/analysis', requireAuth, getDemmDocumentAnalysis)
   app.get('/api/demm-documents/:id/file', requireAuth, downloadDemmDocument)
+
+  app.get('/api/support-tickets', requireAuth, listSupportTickets)
+  app.post('/api/support-tickets', requireAuth, createSupportTicket)
+  app.patch('/api/support-tickets/:id/reply', requireAuth, replySupportTicket)
 
   const distPath = path.resolve(__dirname, '../../dist')
   app.use(
