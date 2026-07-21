@@ -108,12 +108,14 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
                       <button
                         type="button"
                         className="envelope-photo-link"
-                        onClick={() =>
+                        onClick={() => {
+                          const photo = item.envelopePhoto
+                          if (!photo) return
                           setEnvelopePreview({
-                            src: item.envelopePhoto,
+                            src: photo,
                             meter: item.meter,
                           })
-                        }
+                        }}
                         aria-label={`Ampliar foto do invólucro do medidor ${item.meter}`}
                         title="Clique para ampliar"
                       >
