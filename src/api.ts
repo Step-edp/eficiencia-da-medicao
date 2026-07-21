@@ -554,6 +554,17 @@ export const api = {
     }),
   listProcessAssignments: () =>
     request<{ assignments: ProcessAssignment[] }>('/api/process-assignments'),
+  listAssignedProcessesForUser: (userId?: string) => {
+    const query = userId ? `?userId=${encodeURIComponent(userId)}` : ''
+    return request<{
+      processes: Array<{
+        processKey: string
+        area: string
+        process: string
+        roles: string[]
+      }>
+    }>(`/api/process-assignments/for-user${query}`)
+  },
   upsertProcessAssignment: (payload: {
     processKey: string
     role: ProcessRole

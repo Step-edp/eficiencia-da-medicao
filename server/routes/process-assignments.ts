@@ -228,7 +228,91 @@ export async function upsertProcessAssignment(req: Request, res: Response) {
   await listProcessAssignments(req, res)
 }
 
+/** Processos em que o usuário figura como Executor 1/2/3 (+ access_processes do cadastro). */
+export async function listAssignedProcessesForUser(req: Request, res: Response) {
+  const requestedUserId =
+    typeof req.query.userId === 'string' ? req.query.userId.trim() : ''
+  const actorId = req.user?.id
+  const actorRole = req.user?.role
+  const targetUserId = requestedUserId || actorId || ''
+
+  if (!actorId || !targetUserId) {
+    res.status(401).json({ error: 'Não autenticado.' })
+    return
+  }
+
+  if (targetUserId !== actorId && actorRole !== 'admin') {
+    res.status(403).json({ error: 'Sem permissão para ver processos de outro usuário.' })
+    return
+  }
+
+  const [assignments, userRow] = await Promise.all([
+    query<{ process_key: string; role: string }>(
+      `SELECT process_key, role
+       FROM process_assignments
+       WHERE user_id = $1
+         AND role IN ('executor1', 'executor2', 'executor3')
+       ORDER BY process_key, role`,
+      [targetUserId],
+    ),
+    query<{ access_processes: unknown }>(
+      `SELECT access_processes FROM users WHERE id = $1`,
+      [targetUserId],
+    ),
+  ])
+
+  const byKey = new Map<
+    string,
+    { processKey: string; area: string; process: string; roles: string[] }
+  >()
+
+  for (const row of assignments.rows) {
+    const separator = row.process_key.indexOf('::')
+    if (separator <= 0) continue
+    const area = row.process_key.slice(0, separator).trim()
+    const process = row.process_key.slice(separator + 2).trim()
+    if (!area || !process) continue
+    const current = byKey.get(row.process_key) ?? {
+      processKey: row.process_key,
+      area,
+      process,
+      roles: [],
+    }
+    if (!current.roles.includes(row.role)) current.roles.push(row.role)
+    byKey.set(row.process_key, current)
+  }
+
+  const accessProcessesRaw = userRow.rows[0]?.access_processes
+  const accessProcesses = Array.isArray(accessProcessesRaw)
+    ? accessProcessesRaw.map((item) => String(item).trim()).filter(Boolean)
+    : []
+
+  for (const encoded of accessProcesses) {
+    const separator = encoded.indexOf('::')
+    if (separator <= 0) continue
+    const area = encoded.slice(0, separator).trim()
+    const process = encoded.slice(separator + 2).trim()
+    if (!area || !process) continue
+    if (byKey.has(encoded)) continue
+    byKey.set(encoded, {
+      processKey: encoded,
+      area,
+      process,
+      roles: [],
+    })
+  }
+
+  const processes = [...byKey.values()].sort(
+    (a, b) =>
+      a.area.localeCompare(b.area, 'pt-BR') ||
+      a.process.localeCompare(b.process, 'pt-BR'),
+  )
+
+  res.json({ processes })
+}
+
 export const processAssignmentRoutes = {
   list: [requireAuth, requireAdmin, listProcessAssignments],
   upsert: [requireAuth, requireAdmin, upsertProcessAssignment],
+  listForUser: [requireAuth, listAssignedProcessesForUser],
 }

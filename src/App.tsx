@@ -1372,6 +1372,8 @@ function HomePanel({
   )
   const [showSupport, setShowSupport] = useState(false)
   const [openSupportCount, setOpenSupportCount] = useState(0)
+  const [estagiarioProcessLabels, setEstagiarioProcessLabels] = useState<string[]>([])
+  const [estagiarioProcessesLoading, setEstagiarioProcessesLoading] = useState(false)
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(
     () => savedNav?.selectedOrgCell ?? null,
   )
@@ -1733,25 +1735,49 @@ function HomePanel({
     previewProfile?.id === 'estagiario-medicao' ||
     (!isAdmin && isMedicaoEstagiario(currentUser))
 
-  const estagiarioProcessLabels = (() => {
-    const sourceProcesses =
-      previewUser && isMedicaoEstagiario(previewUser)
-        ? (previewUser.accessProcesses ?? [])
-        : previewProfile?.id === 'estagiario-medicao'
-          ? []
-          : !isAdmin && isMedicaoEstagiario(currentUser)
-            ? (currentUser.accessProcesses ?? [])
-            : null
+  const estagiarioProcessesUserId =
+    previewUser && isMedicaoEstagiario(previewUser)
+      ? previewUser.id
+      : !isAdmin && isMedicaoEstagiario(currentUser)
+        ? currentUser.id
+        : null
 
-    if (!sourceProcesses) return [] as string[]
+  useEffect(() => {
+    if (!showEstagiarioProcesses) {
+      setEstagiarioProcessLabels([])
+      setEstagiarioProcessesLoading(false)
+      return
+    }
 
-    return sourceProcesses
-      .map((item) => {
-        const parsed = parseAccessProcess(item)
-        return parsed ? `${parsed.area}: ${parsed.process}` : item
+    if (!estagiarioProcessesUserId) {
+      // Pré-visualização só do tipo de perfil (sem usuário concreto).
+      setEstagiarioProcessLabels([])
+      setEstagiarioProcessesLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setEstagiarioProcessesLoading(true)
+    void api
+      .listAssignedProcessesForUser(estagiarioProcessesUserId)
+      .then(({ processes }) => {
+        if (cancelled) return
+        setEstagiarioProcessLabels(
+          processes.map((item) => `${item.area}: ${item.process}`),
+        )
       })
-      .filter(Boolean)
-  })()
+      .catch(() => {
+        if (cancelled) return
+        setEstagiarioProcessLabels([])
+      })
+      .finally(() => {
+        if (!cancelled) setEstagiarioProcessesLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [showEstagiarioProcesses, estagiarioProcessesUserId])
 
   const accessiblePortals = (() => {
     if (isAdminFullPreview) {
@@ -4770,7 +4796,9 @@ function HomePanel({
         {showEstagiarioProcesses ? (
           <div className="home-assigned-processes" aria-label="Seus processos">
             <h3>Seus processos</h3>
-            {estagiarioProcessLabels.length ? (
+            {estagiarioProcessesLoading ? (
+              <p className="home-assigned-processes-empty">Carregando processos…</p>
+            ) : estagiarioProcessLabels.length ? (
               <ul className="home-assigned-processes-list">
                 {estagiarioProcessLabels.map((label) => (
                   <li key={label}>{label}</li>

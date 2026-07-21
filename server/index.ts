@@ -156,6 +156,7 @@ async function start() {
   app.delete('/api/catalog-options/:id', ...catalogOptionRoutes.remove)
 
   app.get('/api/process-assignments', ...wrap(processAssignmentRoutes.list))
+  app.get('/api/process-assignments/for-user', ...wrap(processAssignmentRoutes.listForUser))
   app.put('/api/process-assignments', ...wrap(processAssignmentRoutes.upsert))
 
   app.get('/api/org-cells', ...wrap(orgCellRoutes.list))
