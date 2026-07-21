@@ -4088,16 +4088,7 @@ function HomePanel({
                 ? getLabTrailLabel(selectedLabMeasurementSection)
                 : selectedLabMeasurementSection}
             </h2>
-            {selectedLabMeasurementSection !== 'Calendário de ensaios' &&
-            selectedLabMeasurementSection !== 'CSDs' &&
-            selectedLabMeasurementSection !== 'Suporte' &&
-            selectedLabMeasurementSection !== 'Auditoria' &&
-            selectedLabMeasurementSection !== 'Galeria' &&
-            selectedLabMeasurementSection !== 'Consultar RATM' &&
-            selectedLabMeasurementSection !== 'Criar Modelo' &&
-            selectedLabMeasurementSection !== 'Apresentação' &&
-            selectedLabMeasurementSection !== 'Softwares' &&
-            selectedLabMeasurementSection !== 'Inventário' ? (
+            {LAB_TRAIL_KEYS.has(selectedLabMeasurementSection) ? (
               <LabMeasurementTrail
                 activeStep={selectedLabMeasurementSection}
                 onSelect={setSelectedLabMeasurementSection}
