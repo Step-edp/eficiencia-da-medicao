@@ -2857,7 +2857,7 @@ function HomePanel({
     )
   }
 
-  if (
+  const isPureComprasPortal =
     currentUser.role === 'compras' &&
     !(currentUser.accessAreas?.length) &&
     !(currentUser.accessProcesses?.length) &&
@@ -2866,13 +2866,24 @@ function HomePanel({
       isFieldTeamCsdScope(currentUser.workSubtype)
     ) &&
     currentUser.vacationStatus === 'ok'
-  ) {
+
+  // Link fixo (#/compras/pedidos-homologacao) e perfil Compras puro abrem o formulário.
+  if (isPureComprasPortal || activeRoute === 'compras-homologacao') {
+    const leaveFixedRequestForm = () => {
+      if (window.location.hash) {
+        window.location.hash = ''
+      }
+    }
+
     return (
       <HomologationRequestPortal
         currentUser={currentUser}
         activeRoute={activeRoute}
         manufacturers={manufacturers}
         materialCatalog={homologationMaterialCatalog}
+        restrictedAccess={isPureComprasPortal}
+        onBack={isPureComprasPortal ? undefined : leaveFixedRequestForm}
+        onHome={isPureComprasPortal ? undefined : leaveFixedRequestForm}
         onCreateHomologationRequest={onCreateHomologationRequest}
         onLogout={onLogout}
       />
@@ -4167,8 +4178,9 @@ function HomePanel({
               <p className="section-tag">Laboratório de Homologação</p>
               <h2>Pedidos de Homologação</h2>
               <p>
-                Compartilhe o link com a área de Compras. O acesso exige login,
-                cadastro prévio e aprovação do ADM antes do preenchimento do formulário.
+                Compartilhe o link com a área de Compras para que eles façam a
+                solicitação. O acesso exige login, cadastro prévio e aprovação do
+                ADM antes do preenchimento do formulário.
               </p>
 
               <div className="link-share-card">
@@ -4185,7 +4197,7 @@ function HomePanel({
                     Copiar link
                   </button>
                   <a className="secondary-button compact-link-button" href={FIXED_PURCHASE_REQUEST_HASH}>
-                    Abrir link
+                    Abrir formulário
                   </a>
                 </div>
               </div>
@@ -4942,6 +4954,9 @@ type HomologationRequestPortalProps = {
   activeRoute: AppRoute
   manufacturers: string[]
   materialCatalog: MaterialCatalogItem[]
+  restrictedAccess?: boolean
+  onBack?: () => void
+  onHome?: () => void
   onCreateHomologationRequest: (
     payload: Omit<
       HomologationRequest,
@@ -4980,6 +4995,9 @@ function HomologationRequestPortal({
   activeRoute,
   manufacturers,
   materialCatalog,
+  restrictedAccess = false,
+  onBack,
+  onHome,
   onCreateHomologationRequest,
   onLogout,
 }: HomologationRequestPortalProps) {
@@ -5112,15 +5130,18 @@ function HomologationRequestPortal({
   return (
     <main className="shell">
       <section className="home-card area-screen-card limited-portal-card">
-        <TopActionBar onLogout={onLogout} />
-        <p className="section-tag">Compras</p>
-        <h2>Formulário fixo de Pedidos de Homologação</h2>
+        <TopActionBar onBack={onBack} onHome={onHome} onLogout={onLogout} />
+        <p className="section-tag">
+          {restrictedAccess ? 'Compras' : 'Laboratório de Homologação'}
+        </p>
+        <h2>Solicitação de Homologação</h2>
         <p>
-          Seu perfil está restrito a este formulário. Outras áreas do portal não
-          ficam visíveis para o perfil Compras neste momento.
+          {restrictedAccess
+            ? 'Seu perfil está restrito a este formulário. Outras áreas do portal não ficam visíveis para o perfil Compras neste momento.'
+            : 'Preencha os dados abaixo para enviar um pedido de homologação à análise do laboratório.'}
         </p>
 
-        {activeRoute === 'compras-homologacao' ? (
+        {activeRoute === 'compras-homologacao' && restrictedAccess ? (
           <div className="privacy-note">
             Você entrou pelo link fixo da área de Compras. O acesso permanece
             disponível sempre no mesmo endereço após a aprovação do ADM.
