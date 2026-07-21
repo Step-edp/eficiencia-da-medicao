@@ -87,8 +87,8 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'ponto-focal-inspecao',
     name: 'CSD – Ponto Focal – Inspeção',
     description:
-      'Permite agendar, consultar e acompanhar Meus TOIs na Equipe de campo, além do Laboratório de Medição, para equipamentos provenientes de lavratura de TOI. Também é responsável pelo controle, acompanhamento e entrega desses medidores ao laboratório.',
-    areas: ['Equipe de campo', 'Laboratório de Medição'],
+      'Permite consultar medidores na Equipe de campo provenientes de lavratura de TOI, com acesso a Suporte e Agenda.',
+    areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
       jobTitle: 'Técnico',
@@ -269,6 +269,11 @@ export function isLavraturaEquipeCampoScope(workSubtype?: string | null) {
     normalized === 'Lavratura de TOI - Equipe de Campo' ||
     normalized === 'Lavratura de TOI' // legado
   )
+}
+
+/** Escopo CSD – Ponto Focal – Inspeção. */
+export function isLavraturaPontoFocalScope(workSubtype?: string | null) {
+  return (workSubtype?.trim() ?? '') === 'Lavratura de TOI - Ponto Focal'
 }
 
 /** Backoffice agenda em nome da equipe e exige colaboradores no formulário. */

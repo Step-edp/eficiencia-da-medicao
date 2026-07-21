@@ -410,6 +410,19 @@ export async function migrate() {
       AND registration <> '11111'
   `)
 
+  // CSD Ponto Focal: remove Laboratório de Medição da home (fica só Equipe de campo).
+  await query(`
+    UPDATE users
+    SET access_areas = COALESCE((
+      SELECT jsonb_agg(to_jsonb(value))
+      FROM jsonb_array_elements_text(access_areas) AS value
+      WHERE value <> 'Laboratório de Medição'
+    ), '[]'::jsonb)
+    WHERE work_area = 'CSD'
+      AND work_subtype = 'Lavratura de TOI - Ponto Focal'
+      AND access_areas @> '["Laboratório de Medição"]'::jsonb
+  `)
+
   await query(
     `
     UPDATE users

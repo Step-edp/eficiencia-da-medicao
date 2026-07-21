@@ -19,6 +19,7 @@ import {
   isFieldTeamCsdScope,
   isLavraturaBackofficeScope,
   isLavraturaEquipeCampoScope,
+  isLavraturaPontoFocalScope,
   skipsVacationAgenda,
   listUsersForCadastroProfile,
   PORTAL_AREAS,
@@ -1670,6 +1671,11 @@ function HomePanel({
     // Equipe de Campo: só Agendar e Meus TOIs (sem Consultar geral).
     if (isLavraturaEquipeCampoScope(activeFieldTeamSubtype)) {
       return ['Agendar', 'Meus TOIs']
+    }
+
+    // Ponto Focal: apenas Consultar.
+    if (isLavraturaPontoFocalScope(activeFieldTeamSubtype)) {
+      return ['Consultar']
     }
 
     return ['Agendar', 'Consultar', 'Meus TOIs']
