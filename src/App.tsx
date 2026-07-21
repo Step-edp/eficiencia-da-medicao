@@ -63,7 +63,6 @@ import {
   isEngineerSubcellSubtype,
   isEngineerAreaSubtype,
   mapTakenSubcellAreas,
-  parseAccessProcess,
   subtypesForCargo,
   TECHNICIAN_SCOPES_BY_AREA,
 } from './registrationOptions'
