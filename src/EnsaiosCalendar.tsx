@@ -206,11 +206,6 @@ export function EnsaiosCalendar() {
 
   return (
     <div className="ensaios-calendar">
-      <p className="ensaios-calendar-intro">
-        Clique em um dia útil para bloquear (informando o motivo) ou liberar. Sextas,
-        sábados, domingos e feriados nacionais permanecem sempre indisponíveis.
-      </p>
-
       {feedback ? (
         <div className={`login-feedback ${feedback.type}`} role="status">
           {feedback.message}
