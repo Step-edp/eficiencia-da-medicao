@@ -63,11 +63,9 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
   return (
     <div className="entrada-panel">
       <div className="entrada-panel-header">
-        <p>
-          {isMine
-            ? 'TOIs que você agendou ou em que aparece como colaborador da lavratura.'
-            : 'Consulta dos medidores agendados pela equipe de campo.'}
-        </p>
+        {isMine ? null : (
+          <p>Consulta dos medidores agendados pela equipe de campo.</p>
+        )}
         <div className="entrada-panel-actions">
           <button
             type="button"
