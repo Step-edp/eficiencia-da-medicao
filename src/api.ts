@@ -89,7 +89,16 @@ export type VacationAgendaResponse = {
   period?: VacationPeriod | null
 }
 
-export type ProcessRole = 'responsavel' | 'executor'
+export type ProcessRole = 'executor1' | 'executor2' | 'executor3'
+
+export type ProcessExecutorSlot = {
+  userId: string | null
+  name: string | null
+  registration: string | null
+  actingUserId?: string | null
+  actingName?: string | null
+  coveredBySubstitute?: boolean
+}
 
 export type OrgCellStatus = 'pendente' | 'ativa'
 
@@ -134,18 +143,9 @@ export type ProcessAssignment = {
   processKey: string
   area: string
   process: string
-  responsavelUserId: string | null
-  responsavelName: string | null
-  responsavelRegistration: string | null
-  responsavelActingUserId?: string | null
-  responsavelActingName?: string | null
-  responsavelCoveredBySubstitute?: boolean
-  executorUserId: string | null
-  executorName: string | null
-  executorRegistration: string | null
-  executorActingUserId?: string | null
-  executorActingName?: string | null
-  executorCoveredBySubstitute?: boolean
+  executor1: ProcessExecutorSlot
+  executor2: ProcessExecutorSlot
+  executor3: ProcessExecutorSlot
 }
 
 export type CatalogKey =

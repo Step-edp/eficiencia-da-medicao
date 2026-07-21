@@ -5,34 +5,51 @@ import { writeAuditLog } from '../audit.js'
 import { encodeAccessProcess, PROCESSES_BY_AREA } from '../engineer-access.js'
 import { buildVacationSubstituteMap } from '../vacation-coverage.js'
 
-export type ProcessRole = 'responsavel' | 'executor'
+export const PROCESS_EXECUTOR_ROLES = ['executor1', 'executor2', 'executor3'] as const
+export type ProcessRole = (typeof PROCESS_EXECUTOR_ROLES)[number]
 
 type AssignmentRow = {
   process_key: string
-  role: ProcessRole
+  role: string
   user_id: string
   user_name: string | null
   user_registration: string | null
+}
+
+export type ProcessExecutorSlot = {
+  userId: string | null
+  name: string | null
+  registration: string | null
+  actingUserId: string | null
+  actingName: string | null
+  coveredBySubstitute: boolean
 }
 
 export type ProcessAssignmentView = {
   processKey: string
   area: string
   process: string
-  /** Titular cadastrado (sempre o valor persistido). */
-  responsavelUserId: string | null
-  responsavelName: string | null
-  responsavelRegistration: string | null
-  /** Quem está atuando agora (substituto se titular em férias). */
-  responsavelActingUserId: string | null
-  responsavelActingName: string | null
-  responsavelCoveredBySubstitute: boolean
-  executorUserId: string | null
-  executorName: string | null
-  executorRegistration: string | null
-  executorActingUserId: string | null
-  executorActingName: string | null
-  executorCoveredBySubstitute: boolean
+  executor1: ProcessExecutorSlot
+  executor2: ProcessExecutorSlot
+  executor3: ProcessExecutorSlot
+}
+
+function emptySlot(): ProcessExecutorSlot {
+  return {
+    userId: null,
+    name: null,
+    registration: null,
+    actingUserId: null,
+    actingName: null,
+    coveredBySubstitute: false,
+  }
+}
+
+function isProcessRole(value: unknown): value is ProcessRole {
+  return (
+    typeof value === 'string' &&
+    (PROCESS_EXECUTOR_ROLES as readonly string[]).includes(value)
+  )
 }
 
 function catalogProcessKeys(): Array<{ processKey: string; area: string; process: string }> {
@@ -50,51 +67,33 @@ function isValidProcessKey(processKey: string) {
 }
 
 function applyVacationCover(
-  view: ProcessAssignmentView,
-  role: ProcessRole,
+  slot: ProcessExecutorSlot,
   coverMap: Awaited<ReturnType<typeof buildVacationSubstituteMap>>,
 ) {
-  const titularId =
-    role === 'responsavel' ? view.responsavelUserId : view.executorUserId
-  const titularName =
-    role === 'responsavel' ? view.responsavelName : view.executorName
-
-  if (!titularId) {
-    if (role === 'responsavel') {
-      view.responsavelActingUserId = null
-      view.responsavelActingName = null
-      view.responsavelCoveredBySubstitute = false
-    } else {
-      view.executorActingUserId = null
-      view.executorActingName = null
-      view.executorCoveredBySubstitute = false
-    }
+  if (!slot.userId) {
+    slot.actingUserId = null
+    slot.actingName = null
+    slot.coveredBySubstitute = false
     return
   }
 
-  const cover = coverMap.get(titularId)
+  const cover = coverMap.get(slot.userId)
   if (!cover) {
-    if (role === 'responsavel') {
-      view.responsavelActingUserId = titularId
-      view.responsavelActingName = titularName
-      view.responsavelCoveredBySubstitute = false
-    } else {
-      view.executorActingUserId = titularId
-      view.executorActingName = titularName
-      view.executorCoveredBySubstitute = false
-    }
+    slot.actingUserId = slot.userId
+    slot.actingName = slot.name
+    slot.coveredBySubstitute = false
     return
   }
 
-  if (role === 'responsavel') {
-    view.responsavelActingUserId = cover.substituteUserId
-    view.responsavelActingName = `${cover.substituteName} (subst. de ${titularName ?? 'titular'})`
-    view.responsavelCoveredBySubstitute = true
-  } else {
-    view.executorActingUserId = cover.substituteUserId
-    view.executorActingName = `${cover.substituteName} (subst. de ${titularName ?? 'titular'})`
-    view.executorCoveredBySubstitute = true
-  }
+  slot.actingUserId = cover.substituteUserId
+  slot.actingName = `${cover.substituteName} (subst. de ${slot.name ?? 'titular'})`
+  slot.coveredBySubstitute = true
+}
+
+function slotForRole(view: ProcessAssignmentView, role: ProcessRole): ProcessExecutorSlot {
+  if (role === 'executor1') return view.executor1
+  if (role === 'executor2') return view.executor2
+  return view.executor3
 }
 
 export async function listProcessAssignments(_req: Request, res: Response) {
@@ -116,38 +115,25 @@ export async function listProcessAssignments(_req: Request, res: Response) {
       processKey: item.processKey,
       area: item.area,
       process: item.process,
-      responsavelUserId: null,
-      responsavelName: null,
-      responsavelRegistration: null,
-      responsavelActingUserId: null,
-      responsavelActingName: null,
-      responsavelCoveredBySubstitute: false,
-      executorUserId: null,
-      executorName: null,
-      executorRegistration: null,
-      executorActingUserId: null,
-      executorActingName: null,
-      executorCoveredBySubstitute: false,
+      executor1: emptySlot(),
+      executor2: emptySlot(),
+      executor3: emptySlot(),
     })
   }
 
   for (const row of result.rows) {
     const current = byKey.get(row.process_key)
-    if (!current) continue
-    if (row.role === 'responsavel') {
-      current.responsavelUserId = row.user_id
-      current.responsavelName = row.user_name
-      current.responsavelRegistration = row.user_registration
-    } else if (row.role === 'executor') {
-      current.executorUserId = row.user_id
-      current.executorName = row.user_name
-      current.executorRegistration = row.user_registration
-    }
+    if (!current || !isProcessRole(row.role)) continue
+    const slot = slotForRole(current, row.role)
+    slot.userId = row.user_id
+    slot.name = row.user_name
+    slot.registration = row.user_registration
   }
 
   for (const view of byKey.values()) {
-    applyVacationCover(view, 'responsavel', coverMap)
-    applyVacationCover(view, 'executor', coverMap)
+    applyVacationCover(view.executor1, coverMap)
+    applyVacationCover(view.executor2, coverMap)
+    applyVacationCover(view.executor3, coverMap)
   }
 
   res.json({ assignments: [...byKey.values()] })
@@ -156,7 +142,7 @@ export async function listProcessAssignments(_req: Request, res: Response) {
 export async function upsertProcessAssignment(req: Request, res: Response) {
   const processKey =
     typeof req.body?.processKey === 'string' ? req.body.processKey.trim() : ''
-  const role = req.body?.role as ProcessRole
+  const role = req.body?.role
   const userIdRaw = req.body?.userId
   const userId =
     userIdRaw === null || userIdRaw === undefined || userIdRaw === ''
@@ -168,8 +154,10 @@ export async function upsertProcessAssignment(req: Request, res: Response) {
     return
   }
 
-  if (role !== 'responsavel' && role !== 'executor') {
-    res.status(400).json({ error: 'Papel inválido. Use responsável ou executor.' })
+  if (!isProcessRole(role)) {
+    res.status(400).json({
+      error: 'Papel inválido. Use executor1, executor2 ou executor3.',
+    })
     return
   }
 
@@ -204,6 +192,12 @@ export async function upsertProcessAssignment(req: Request, res: Response) {
       [processKey, role],
     )
   } else {
+    // Evita a mesma pessoa em dois slots do mesmo processo.
+    await query(
+      `DELETE FROM process_assignments
+       WHERE process_key = $1 AND role <> $2 AND user_id = $3`,
+      [processKey, role, userId],
+    )
     await query(
       `INSERT INTO process_assignments (process_key, role, user_id)
        VALUES ($1, $2, $3)
@@ -213,13 +207,16 @@ export async function upsertProcessAssignment(req: Request, res: Response) {
     )
   }
 
+  const roleLabel =
+    role === 'executor1' ? 'Executor 1' : role === 'executor2' ? 'Executor 2' : 'Executor 3'
+
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'process_assignment',
     entityId: `${processKey}:${role}`,
     summary: userId
-      ? `Atribuição de ${role} no processo ${processKey}`
-      : `Remoção de ${role} do processo ${processKey}`,
+      ? `Atribuição de ${roleLabel} no processo ${processKey}`
+      : `Remoção de ${roleLabel} do processo ${processKey}`,
     oldData: {
       processKey,
       role,

@@ -201,18 +201,35 @@ export function UsersDashboard({
     [assignments, areaFilter],
   )
 
-  const assignedResponsavel = assignments.filter((item) => item.responsavelUserId).length
-  const assignedExecutor = assignments.filter((item) => item.executorUserId).length
+  const EXECUTOR_SLOTS: Array<{
+    role: ProcessRole
+    label: string
+    key: 'executor1' | 'executor2' | 'executor3'
+  }> = [
+    { role: 'executor1', label: 'Executor 1', key: 'executor1' },
+    { role: 'executor2', label: 'Executor 2', key: 'executor2' },
+    { role: 'executor3', label: 'Executor 3', key: 'executor3' },
+  ]
 
-  const buildRanking = (role: ProcessRole) => {
+  const assignedSlots = assignments.reduce((total, item) => {
+    return (
+      total +
+      EXECUTOR_SLOTS.filter((slot) => item[slot.key].userId).length
+    )
+  }, 0)
+  const processesWithExecutor = assignments.filter((item) =>
+    EXECUTOR_SLOTS.some((slot) => item[slot.key].userId),
+  ).length
+
+  const executorRanking = (() => {
     const counts = new Map<string, number>()
     for (const item of assignments) {
-      const userId =
-        role === 'responsavel'
-          ? item.responsavelActingUserId ?? item.responsavelUserId
-          : item.executorActingUserId ?? item.executorUserId
-      if (!userId) continue
-      counts.set(userId, (counts.get(userId) ?? 0) + 1)
+      for (const slot of EXECUTOR_SLOTS) {
+        const assignment = item[slot.key]
+        const userId = assignment.actingUserId ?? assignment.userId
+        if (!userId) continue
+        counts.set(userId, (counts.get(userId) ?? 0) + 1)
+      }
     }
 
     return assignableUsers
@@ -230,10 +247,7 @@ export function UsersDashboard({
         (a, b) =>
           b.count - a.count || a.name.localeCompare(b.name, 'pt-BR'),
       )
-  }
-
-  const responsavelRanking = buildRanking('responsavel')
-  const executorRanking = buildRanking('executor')
+  })()
 
   const handleAssign = async (
     processKey: string,
@@ -249,12 +263,15 @@ export function UsersDashboard({
         userId,
       })
       setAssignments(next)
+      const label =
+        role === 'executor1'
+          ? 'Executor 1'
+          : role === 'executor2'
+            ? 'Executor 2'
+            : 'Executor 3'
       setFeedback({
         type: 'success',
-        message:
-          role === 'responsavel'
-            ? 'Responsável do processo atualizado.'
-            : 'Executor do processo atualizado.',
+        message: `${label} do processo atualizado.`,
       })
     } catch (error) {
       setFeedback({
@@ -291,12 +308,12 @@ export function UsersDashboard({
           </p>
         </article>
         <article className="users-dashboard-kpi">
-          <p className="users-dashboard-kpi-label">Com responsável</p>
-          <p className="users-dashboard-kpi-value">{assignedResponsavel}</p>
+          <p className="users-dashboard-kpi-label">Processos com executor</p>
+          <p className="users-dashboard-kpi-value">{processesWithExecutor}</p>
         </article>
         <article className="users-dashboard-kpi">
-          <p className="users-dashboard-kpi-label">Com executor</p>
-          <p className="users-dashboard-kpi-value">{assignedExecutor}</p>
+          <p className="users-dashboard-kpi-label">Slots de executor</p>
+          <p className="users-dashboard-kpi-value">{assignedSlots}</p>
         </article>
       </div>
 
@@ -329,7 +346,7 @@ export function UsersDashboard({
           <div>
             <h4>Atribuição por processo</h4>
             <p className="users-dashboard-ranking-hint">
-              Cada processo pode ter apenas um responsável e um executor.
+              Cada processo pode ter até três executores (Executor 1, 2 e 3).
             </p>
           </div>
           <label className="users-dashboard-area-filter">
@@ -357,8 +374,9 @@ export function UsersDashboard({
                 <tr>
                   <th>Área</th>
                   <th>Processo</th>
-                  <th>Responsável</th>
-                  <th>Executor</th>
+                  {EXECUTOR_SLOTS.map((slot) => (
+                    <th key={slot.role}>{slot.label}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -366,58 +384,37 @@ export function UsersDashboard({
                   <tr key={item.processKey}>
                     <td>{item.area}</td>
                     <td>{item.process}</td>
-                    <td>
-                      <select
-                        className="users-dashboard-assign-select"
-                        value={item.responsavelUserId ?? ''}
-                        disabled={savingKey === `${item.processKey}:responsavel`}
-                        onChange={(event) => {
-                          void handleAssign(
-                            item.processKey,
-                            'responsavel',
-                            event.target.value || null,
-                          )
-                        }}
-                      >
-                        <option value="">Sem responsável</option>
-                        {assignableUsers.map((user) => (
-                          <option key={user.id} value={user.id}>
-                            {user.name} ({user.registration})
-                          </option>
-                        ))}
-                      </select>
-                      {item.responsavelCoveredBySubstitute && item.responsavelActingName ? (
-                        <p className="users-dashboard-cover-note">
-                          Em férias → {item.responsavelActingName}
-                        </p>
-                      ) : null}
-                    </td>
-                    <td>
-                      <select
-                        className="users-dashboard-assign-select"
-                        value={item.executorUserId ?? ''}
-                        disabled={savingKey === `${item.processKey}:executor`}
-                        onChange={(event) => {
-                          void handleAssign(
-                            item.processKey,
-                            'executor',
-                            event.target.value || null,
-                          )
-                        }}
-                      >
-                        <option value="">Sem executor</option>
-                        {assignableUsers.map((user) => (
-                          <option key={user.id} value={user.id}>
-                            {user.name} ({user.registration})
-                          </option>
-                        ))}
-                      </select>
-                      {item.executorCoveredBySubstitute && item.executorActingName ? (
-                        <p className="users-dashboard-cover-note">
-                          Em férias → {item.executorActingName}
-                        </p>
-                      ) : null}
-                    </td>
+                    {EXECUTOR_SLOTS.map((slot) => {
+                      const assignment = item[slot.key]
+                      return (
+                        <td key={slot.role}>
+                          <select
+                            className="users-dashboard-assign-select"
+                            value={assignment.userId ?? ''}
+                            disabled={savingKey === `${item.processKey}:${slot.role}`}
+                            onChange={(event) => {
+                              void handleAssign(
+                                item.processKey,
+                                slot.role,
+                                event.target.value || null,
+                              )
+                            }}
+                          >
+                            <option value="">Sem {slot.label.toLowerCase()}</option>
+                            {assignableUsers.map((user) => (
+                              <option key={user.id} value={user.id}>
+                                {user.name} ({user.registration})
+                              </option>
+                            ))}
+                          </select>
+                          {assignment.coveredBySubstitute && assignment.actingName ? (
+                            <p className="users-dashboard-cover-note">
+                              Em férias → {assignment.actingName}
+                            </p>
+                          ) : null}
+                        </td>
+                      )
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -428,13 +425,8 @@ export function UsersDashboard({
 
       <div className="users-dashboard-rankings-grid">
         <RoleRanking
-          title="Ranking por responsabilidade"
-          hint="Quantidade de processos em que a pessoa é a responsável (substituto conta durante férias do titular)."
-          rows={responsavelRanking}
-        />
-        <RoleRanking
           title="Ranking por execução"
-          hint="Quantidade de processos em que a pessoa é a executora (substituto conta durante férias do titular)."
+          hint="Quantidade de processos em que a pessoa é executora (slots 1, 2 ou 3; substituto conta durante férias do titular)."
           rows={executorRanking}
         />
       </div>

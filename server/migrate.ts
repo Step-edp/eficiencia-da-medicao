@@ -189,7 +189,7 @@ export async function migrate() {
 
     CREATE TABLE IF NOT EXISTS process_assignments (
       process_key TEXT NOT NULL,
-      role TEXT NOT NULL CHECK (role IN ('responsavel', 'executor')),
+      role TEXT NOT NULL CHECK (role IN ('executor1', 'executor2', 'executor3')),
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (process_key, role)
@@ -466,6 +466,31 @@ export async function migrate() {
     WHERE role <> 'admin'
       AND work_area = 'Medição'
       AND job_title = 'Estagiário'
+  `)
+
+  // Processos: só Executor 1/2/3 (migra legado responsável/executor).
+  await query(`
+    ALTER TABLE process_assignments
+      DROP CONSTRAINT IF EXISTS process_assignments_role_check
+  `)
+  await query(`
+    UPDATE process_assignments
+    SET role = 'executor1'
+    WHERE role = 'executor'
+  `)
+  await query(`
+    DELETE FROM process_assignments
+    WHERE role NOT IN ('executor1', 'executor2', 'executor3')
+  `)
+  await query(`
+    DO $$
+    BEGIN
+      ALTER TABLE process_assignments
+        ADD CONSTRAINT process_assignments_role_check
+        CHECK (role IN ('executor1', 'executor2', 'executor3'));
+    EXCEPTION
+      WHEN duplicate_object THEN NULL;
+    END $$;
   `)
 
   // Chamados de suporte do portal.

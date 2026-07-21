@@ -1,7 +1,7 @@
 /**
  * Hierarquia operacional:
  * Área (gestor) → Células (engenheiro dono / responsável) → Subcélulas
- * → Processos (responsável + executor).
+ * → Processos (até 3 executores).
  *
  * Células padrão vêm de ORG_STRUCTURE; células criadas pelo gestor
  * são persistidas em org_cells e mescladas em tempo de execução.
