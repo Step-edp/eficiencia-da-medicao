@@ -221,41 +221,6 @@ export function ScheduleAgendarForm() {
           </select>
         </label>
 
-        <fieldset
-          className={`radio-fieldset full-width${fieldErrors.csmSigned ? ' has-field-error' : ''}`}
-        >
-          <legend>CSM Assinado?</legend>
-          <div className="radio-group">
-            <label className="radio-option">
-              <input
-                type="radio"
-                name="csm-signed"
-                value="sim"
-                checked={csmSigned === 'sim'}
-                onChange={() => {
-                  setCsmSigned('sim')
-                  clearFieldError('csmSigned')
-                }}
-              />
-              <span>Sim</span>
-            </label>
-            <label className="radio-option">
-              <input
-                type="radio"
-                name="csm-signed"
-                value="nao"
-                checked={csmSigned === 'nao'}
-                onChange={() => {
-                  setCsmSigned('nao')
-                  clearFieldError('csmSigned')
-                }}
-              />
-              <span>Não</span>
-            </label>
-          </div>
-          <FormFieldError id="schedule-csm-signed-error" message={fieldErrors.csmSigned} />
-        </fieldset>
-
         <label className="full-width">
           Observações de agendamento
           <input
