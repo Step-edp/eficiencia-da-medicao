@@ -470,42 +470,97 @@ button {
 .agenda-calendar-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  max-width: 320px;
+  gap: 10px;
+  max-width: 340px;
   width: 100%;
 }
 
-.agenda-quiet-button {
+.agenda-action-chip {
   appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(24, 216, 240, 0.28);
-  background: transparent;
+  min-height: 52px;
+  padding: 8px 12px 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(24, 216, 240, 0.18);
+  background:
+    linear-gradient(160deg, rgba(12, 48, 78, 0.72) 0%, rgba(6, 28, 50, 0.88) 100%);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
   color: var(--text-soft);
   font: inherit;
-  font-size: 0.85rem;
-  font-weight: 500;
+  text-align: left;
   cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
 
-.agenda-quiet-button:hover:not(:disabled),
-.agenda-quiet-button:focus-visible {
-  border-color: rgba(24, 216, 240, 0.5);
+.agenda-action-chip:hover:not(:disabled),
+.agenda-action-chip:focus-visible {
+  border-color: rgba(24, 216, 240, 0.42);
   color: var(--text-main);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+  transform: translateY(-1px);
   outline: none;
 }
 
-.agenda-quiet-button.is-active {
+.agenda-action-chip.is-active {
   border-color: rgba(24, 216, 240, 0.55);
-  background: rgba(24, 216, 240, 0.1);
+  background:
+    linear-gradient(160deg, rgba(18, 70, 104, 0.9) 0%, rgba(8, 40, 68, 0.95) 100%);
+  box-shadow:
+    0 0 0 1px rgba(24, 216, 240, 0.12),
+    0 12px 26px rgba(0, 0, 0, 0.28);
   color: var(--text-main);
 }
 
-.agenda-quiet-button:disabled {
+.agenda-action-chip:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.agenda-action-chip-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  background: rgba(24, 216, 240, 0.08);
+  color: var(--cyan-500);
+  flex: 0 0 auto;
+}
+
+.agenda-action-chip.is-active .agenda-action-chip-icon {
+  border-color: rgba(24, 216, 240, 0.4);
+  background: rgba(24, 216, 240, 0.16);
+}
+
+.agenda-action-chip-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.agenda-action-chip-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: inherit;
+}
+
+.agenda-action-chip-hint {
+  font-size: 0.72rem;
+  color: var(--text-soft);
+  opacity: 0.85;
+  line-height: 1.2;
 }
 
 .agenda-calendar-section h3 {

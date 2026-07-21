@@ -248,10 +248,10 @@ export function AgendaPanel({
       ) : (
         <>
           <section className="agenda-calendar-section" aria-label="Calendário">
-            <div className="agenda-calendar-actions">
+            <div className="agenda-calendar-actions" role="group" aria-label="Registrar períodos">
               <button
                 type="button"
-                className={`agenda-quiet-button${showVacationForm ? ' is-active' : ''}`}
+                className={`agenda-action-chip${showVacationForm ? ' is-active' : ''}`}
                 disabled={locked || displayStatus === 'em_ausencia'}
                 onClick={() => {
                   setShowVacationForm(true)
@@ -259,11 +259,33 @@ export function AgendaPanel({
                   setError(null)
                 }}
               >
-                Registrar férias
+                <span className="agenda-action-chip-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+                    <rect
+                      x="3"
+                      y="5"
+                      width="18"
+                      height="16"
+                      rx="2.5"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                    />
+                    <path
+                      d="M3 10h18M8 3v4M16 3v4"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
+                <span className="agenda-action-chip-text">
+                  <span className="agenda-action-chip-title">Registrar férias</span>
+                  <span className="agenda-action-chip-hint">Período obrigatório</span>
+                </span>
               </button>
               <button
                 type="button"
-                className={`agenda-quiet-button${showAbsenceForm ? ' is-active' : ''}`}
+                className={`agenda-action-chip${showAbsenceForm ? ' is-active' : ''}`}
                 disabled={locked || displayStatus === 'em_ausencia'}
                 onClick={() => {
                   setShowAbsenceForm(true)
@@ -271,7 +293,20 @@ export function AgendaPanel({
                   setAbsenceError(null)
                 }}
               >
-                Registrar ausência
+                <span className="agenda-action-chip-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+                    <path
+                      d="M8 4h8a2 2 0 0 1 2 2v14l-6-3-6 3V6a2 2 0 0 1 2-2Z"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span className="agenda-action-chip-text">
+                  <span className="agenda-action-chip-title">Registrar ausência</span>
+                  <span className="agenda-action-chip-hint">Licença, atestado e outros</span>
+                </span>
               </button>
             </div>
             <AgendaCalendar
