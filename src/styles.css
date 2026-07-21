@@ -401,6 +401,17 @@ button {
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
 }
 
+.agenda-calendar-section {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.agenda-calendar-section h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
 .agenda-calendar-toolbar {
   display: flex;
   align-items: center;
