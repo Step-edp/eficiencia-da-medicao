@@ -19,6 +19,7 @@ type SupportPanelProps = {
 export function SupportPanel({ onOpenCountChange }: SupportPanelProps) {
   const [tickets, setTickets] = useState<SupportTicketRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
   const [replyingId, setReplyingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{
@@ -94,8 +95,8 @@ export function SupportPanel({ onOpenCountChange }: SupportPanelProps) {
   return (
     <div className="support-panel">
       <p className="csds-form-hint">
-        Solicitações abertas pelo card Suporte na home. Responda abaixo; a resposta
-        fica registrada no chamado.
+        Solicitações abertas pelo card Suporte na home. Expanda um chamado para ver os
+        detalhes e responder.
       </p>
 
       {feedback ? (
@@ -110,69 +111,98 @@ export function SupportPanel({ onOpenCountChange }: SupportPanelProps) {
         <p className="entrada-panel-empty">Nenhuma solicitação de suporte no momento.</p>
       ) : (
         <div className="support-ticket-list">
-          {tickets.map((ticket) => (
-            <article key={ticket.id} className="support-ticket-card">
-              <header className="support-ticket-header">
-                <div>
-                  <strong className="support-ticket-number">{ticket.ticketNumber}</strong>
-                  <span
-                    className={`gestao-cell-status-badge ${
-                      ticket.status === 'respondido' ? 'is-ativa' : 'is-pendente'
-                    } support-ticket-status`}
-                  >
-                    {statusLabel(ticket.status)}
-                  </span>
-                </div>
-                <span className="support-ticket-meta">
-                  {formatDateTime(ticket.createdAt)}
-                </span>
-              </header>
-
-              <p className="support-ticket-subject">{ticket.subject}</p>
-              <p className="support-ticket-requester">
-                {ticket.requesterName} ({ticket.requesterRegistration})
-              </p>
-              <p className="support-ticket-message">{ticket.message}</p>
-
-              {ticket.response ? (
-                <div className="support-ticket-response">
-                  <strong>Resposta</strong>
-                  <p>{ticket.response}</p>
-                  <span className="support-ticket-meta">
-                    {ticket.respondedByName || 'Equipe'}
-                    {ticket.respondedAt ? ` · ${formatDateTime(ticket.respondedAt)}` : ''}
-                  </span>
-                </div>
-              ) : null}
-
-              <form
-                className="support-ticket-reply-form"
-                onSubmit={(event) => void handleReply(ticket, event)}
+          {tickets.map((ticket) => {
+            const expanded = expandedId === ticket.id
+            return (
+              <article
+                key={ticket.id}
+                className={`support-ticket-card${expanded ? ' is-expanded' : ' is-collapsed'}`}
               >
-                <label>
-                  {ticket.response ? 'Atualizar resposta' : 'Responder'}
-                  <textarea
-                    value={replyDrafts[ticket.id] ?? ''}
-                    onChange={(event) =>
-                      setReplyDrafts((prev) => ({
-                        ...prev,
-                        [ticket.id]: event.target.value,
-                      }))
-                    }
-                    rows={3}
-                    placeholder="Escreva a resposta para o solicitante..."
-                  />
-                </label>
                 <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={replyingId === ticket.id}
+                  type="button"
+                  className="support-ticket-summary"
+                  aria-expanded={expanded}
+                  onClick={() =>
+                    setExpandedId((current) => (current === ticket.id ? null : ticket.id))
+                  }
                 >
-                  {replyingId === ticket.id ? 'Enviando...' : 'Enviar resposta'}
+                  <span className="support-ticket-summary-main">
+                    <strong className="support-ticket-number">{ticket.ticketNumber}</strong>
+                    <span
+                      className={`gestao-cell-status-badge ${
+                        ticket.status === 'respondido' ? 'is-ativa' : 'is-pendente'
+                      } support-ticket-status`}
+                    >
+                      {statusLabel(ticket.status)}
+                    </span>
+                    <span className="support-ticket-summary-requester">
+                      {ticket.requesterName}
+                    </span>
+                  </span>
+                  <span className="support-ticket-summary-side">
+                    <span className="support-ticket-meta">
+                      {formatDateTime(ticket.createdAt)}
+                    </span>
+                    <span className="support-ticket-toggle" aria-hidden="true">
+                      {expanded ? '▾' : '▸'}
+                    </span>
+                  </span>
                 </button>
-              </form>
-            </article>
-          ))}
+
+                {expanded ? (
+                  <div className="support-ticket-body">
+                    {ticket.subject ? (
+                      <p className="support-ticket-subject">{ticket.subject}</p>
+                    ) : null}
+                    <p className="support-ticket-requester">
+                      {ticket.requesterName} ({ticket.requesterRegistration})
+                    </p>
+                    <p className="support-ticket-message">{ticket.message}</p>
+
+                    {ticket.response ? (
+                      <div className="support-ticket-response">
+                        <strong>Resposta</strong>
+                        <p>{ticket.response}</p>
+                        <span className="support-ticket-meta">
+                          {ticket.respondedByName || 'Equipe'}
+                          {ticket.respondedAt
+                            ? ` · ${formatDateTime(ticket.respondedAt)}`
+                            : ''}
+                        </span>
+                      </div>
+                    ) : null}
+
+                    <form
+                      className="support-ticket-reply-form"
+                      onSubmit={(event) => void handleReply(ticket, event)}
+                    >
+                      <label>
+                        {ticket.response ? 'Atualizar resposta' : 'Responder'}
+                        <textarea
+                          value={replyDrafts[ticket.id] ?? ''}
+                          onChange={(event) =>
+                            setReplyDrafts((prev) => ({
+                              ...prev,
+                              [ticket.id]: event.target.value,
+                            }))
+                          }
+                          rows={3}
+                          placeholder="Escreva a resposta para o solicitante..."
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        className="primary-button"
+                        disabled={replyingId === ticket.id}
+                      >
+                        {replyingId === ticket.id ? 'Enviando...' : 'Enviar resposta'}
+                      </button>
+                    </form>
+                  </div>
+                ) : null}
+              </article>
+            )
+          })}
         </div>
       )}
     </div>
