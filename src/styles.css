@@ -399,15 +399,13 @@ button {
   font-size: 0.9rem;
 }
 
-.agenda-history {
-  display: grid;
-  gap: 10px;
-  margin-top: 18px;
-  max-width: 340px;
-}
-
-.agenda-history-toggle {
+.agenda-history-panel {
   width: 100%;
+  max-width: 520px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(24, 216, 240, 0.18);
+  background: rgba(6, 28, 50, 0.55);
 }
 
 .agenda-history-chevron {
@@ -415,13 +413,6 @@ button {
   font-size: 0.85rem;
   color: var(--text-soft);
   opacity: 0.8;
-}
-
-.agenda-history-panel {
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(24, 216, 240, 0.18);
-  background: rgba(6, 28, 50, 0.55);
 }
 
 .agenda-period-list {
