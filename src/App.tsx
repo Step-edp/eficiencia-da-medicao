@@ -874,18 +874,10 @@ function PendingApprovalItem({
     })),
   })
   const homeSubareaProcesses = getHomeSubareaProcessGroups()
-  const processLabel = selectedProcesses
-    .map((encoded) => {
-      const parsed = parseAccessProcess(encoded)
-      return parsed ? `${parsed.area}: ${parsed.process}` : encoded
-    })
-    .join(', ')
   const builtProfile = buildRequestedProfile(
     user.jobTitle,
     workSubtype,
     user.workArea ?? '',
-    user.employmentType === 'Terceira' ? thirdPartyCompany || undefined : undefined,
-    user.edpUnit || undefined,
   )
 
   const toggleSubarea = (area: string) => {
