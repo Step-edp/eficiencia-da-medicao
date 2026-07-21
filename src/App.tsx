@@ -4649,8 +4649,7 @@ function HomePanel({
         <TopActionBar onLogout={onLogout} />
         <p className="section-tag">Home</p>
         <h2>
-          Bem-vindo ao portal,{' '}
-          {currentUser.name.trim().split(/\s+/)[0] || currentUser.name}!
+          Bem-vindo, {currentUser.name.trim().split(/\s+/)[0] || currentUser.name}!
         </h2>
 
         {coveringFor.length && !coveringAlertDismissed ? (
