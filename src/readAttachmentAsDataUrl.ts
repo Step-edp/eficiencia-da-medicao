@@ -17,9 +17,17 @@ const OFFICE_MIME_TYPES = new Set([
 export type ReadAttachmentOptions = {
   maxBytes?: number
   allowOfficeDocuments?: boolean
+  allowAnyFile?: boolean
 }
 
-function isAllowedAttachment(file: File, allowOfficeDocuments: boolean) {
+function isAllowedAttachment(
+  file: File,
+  allowOfficeDocuments: boolean,
+  allowAnyFile: boolean,
+) {
+  if (allowAnyFile) {
+    return true
+  }
   if (file.type.startsWith('image/') || file.type === 'application/pdf') {
     return true
   }
@@ -40,9 +48,10 @@ export function readAttachmentAsDataUrl(
       : maxBytesOrOptions
   const maxBytes = options.maxBytes ?? 2_000_000
   const allowOfficeDocuments = options.allowOfficeDocuments ?? false
+  const allowAnyFile = options.allowAnyFile ?? false
 
   return new Promise((resolve, reject) => {
-    if (!isAllowedAttachment(file, allowOfficeDocuments)) {
+    if (!isAllowedAttachment(file, allowOfficeDocuments, allowAnyFile)) {
       reject(
         new Error(
           allowOfficeDocuments

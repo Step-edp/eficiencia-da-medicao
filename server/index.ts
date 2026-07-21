@@ -10,6 +10,7 @@ import { passwordRoutes } from './routes/passwords.js'
 import { materialRoutes } from './routes/materials.js'
 import { meterModelRoutes } from './routes/meter-models.js'
 import { presentationRoutes } from './routes/presentations.js'
+import { softwareRoutes } from './routes/softwares.js'
 import { ratmLaudoRoutes } from './routes/ratm-laudos.js'
 import {
   getSatisfactionSurvey,
@@ -132,6 +133,10 @@ async function start() {
   app.get('/api/presentations', ...wrap(presentationRoutes.list))
   app.post('/api/presentations', ...wrap(presentationRoutes.create))
   app.get('/api/presentations/:id/attachment', ...wrap(presentationRoutes.attachment))
+
+  app.get('/api/softwares', ...wrap(softwareRoutes.list))
+  app.post('/api/softwares', ...wrap(softwareRoutes.create))
+  app.get('/api/softwares/:id/attachment', ...wrap(softwareRoutes.attachment))
 
   app.get('/api/ratm-laudos', ...wrap(ratmLaudoRoutes.list))
   app.post('/api/ratm-laudos', ...wrap(ratmLaudoRoutes.create))

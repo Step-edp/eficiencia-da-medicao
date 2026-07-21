@@ -549,4 +549,19 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_presentations_created_at
       ON presentations (created_at DESC)
   `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS softwares (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      attachment TEXT NOT NULL DEFAULT '',
+      attachment_name TEXT NOT NULL DEFAULT '',
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_softwares_created_at
+      ON softwares (created_at DESC)
+  `)
 }

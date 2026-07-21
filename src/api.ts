@@ -242,6 +242,18 @@ export type PresentationRecord = {
   createdByRegistration?: string
 }
 
+export type SoftwareRecord = {
+  id: number
+  name: string
+  description: string
+  attachmentName: string
+  hasAttachment: boolean
+  createdAt: string
+  createdByUserId?: string | null
+  createdByName?: string
+  createdByRegistration?: string
+}
+
 export type RatmLaudoRecord = {
   id: string
   ratmNumber: number
@@ -709,6 +721,21 @@ export const api = {
   getPresentationAttachment: (id: number) =>
     request<{ attachment: string; attachmentName: string }>(
       `/api/presentations/${id}/attachment`,
+    ),
+  listSoftwares: () => request<{ softwares: SoftwareRecord[] }>('/api/softwares'),
+  createSoftware: (payload: {
+    name: string
+    description: string
+    attachment?: string
+    attachmentName?: string
+  }) =>
+    request<{ software: SoftwareRecord }>('/api/softwares', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getSoftwareAttachment: (id: number) =>
+    request<{ attachment: string; attachmentName: string }>(
+      `/api/softwares/${id}/attachment`,
     ),
   listRatmLaudos: () => request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos'),
   createRatmLaudos: (forms: Record<string, unknown>[]) =>

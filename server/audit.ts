@@ -30,6 +30,7 @@ export type AuditEntityType =
   | 'support_ticket'
   | 'meter_model'
   | 'presentation'
+  | 'software'
 
 export type AuditLogEntry = {
   action: AuditAction
