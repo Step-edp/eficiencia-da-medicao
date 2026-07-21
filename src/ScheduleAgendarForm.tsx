@@ -16,9 +16,7 @@ const minuteOptions = Array.from({ length: 60 }, (_, index) =>
   String(index).padStart(2, '0'),
 )
 
-type ScheduleFieldErrors = Partial<
-  Record<NumericFieldKey | 'csmDate' | 'csmSigned', string>
->
+type ScheduleFieldErrors = Partial<Record<NumericFieldKey | 'csmDate', string>>
 
 export function ScheduleAgendarForm() {
   const { options: csdOptions, loading: csdLoading } = useCsdsOptions()
@@ -30,7 +28,6 @@ export function ScheduleAgendarForm() {
   const [toi, setToi] = useState('')
   const [note, setNote] = useState('')
   const [csd, setCsd] = useState('')
-  const [csmSigned, setCsmSigned] = useState<'sim' | 'nao' | ''>('')
   const [schedulingNotes, setSchedulingNotes] = useState('Medidor não agendado em Campo')
   const [fieldErrors, setFieldErrors] = useState<ScheduleFieldErrors>({})
   const [feedback, setFeedback] = useState<{
@@ -67,10 +64,6 @@ export function ScheduleAgendarForm() {
         ? validateNumericFieldOptional(value, field, true)
         : validateNumericField(value, field, true)
       if (error) nextErrors[field] = error
-    }
-
-    if (!csmSigned) {
-      nextErrors.csmSigned = 'Selecione se o CSM está assinado.'
     }
 
     if (Object.keys(nextErrors).length > 0) {
