@@ -1265,6 +1265,20 @@ button {
   border-color: rgba(24, 216, 240, 0.35);
 }
 
+.lab-trail-step.is-locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+}
+
+.lab-trail-step.is-locked:hover,
+.lab-trail-step.is-locked:focus-visible {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.55);
+  transform: none;
+  box-shadow: none;
+}
+
 .lab-trail-step-content {
   display: flex;
   flex-direction: column;

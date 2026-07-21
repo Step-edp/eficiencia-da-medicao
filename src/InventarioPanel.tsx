@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { LoginFeedback } from './LoginFeedback'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
 import type { LabTrailStep } from './labTrailSteps'
@@ -67,6 +67,7 @@ export function InventarioPanel({
 }: InventarioPanelProps) {
   const months = useMemo(() => buildLastTwelveMonths(), [])
   const [activeTrailStep, setActiveTrailStep] = useState<InventarioTrailStepKey>('IQ09')
+  const [completedStepKeys, setCompletedStepKeys] = useState<InventarioTrailStepKey[]>([])
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -88,10 +89,44 @@ export function InventarioPanel({
   const openMonth =
     months.find((month) => monthTitle(month) === openMonthTitle) ?? null
 
+  // Ao trocar de mês, reinicia a trilha (só a 1ª etapa fica liberada).
+  useEffect(() => {
+    setActiveTrailStep('IQ09')
+    setCompletedStepKeys([])
+    setFeedback(null)
+  }, [openMonthTitle])
+
+  // Próxima etapa liberada = quantidade de etapas já concluídas (em ordem).
+  const unlockedIndex = completedStepKeys.length
+
+  const isStepEnabled = (_stepKey: string, index: number) => {
+    if (readOnly) return false
+    return index <= unlockedIndex
+  }
+
   const handleTrailSelect = (stepKey: string) => {
-    if (readOnly) return
+    if (readOnly || !openMonth) return
+
+    const stepIndex = INVENTARIO_TRAIL_STEPS.findIndex((step) => step.key === stepKey)
+    if (stepIndex < 0 || stepIndex > unlockedIndex) {
+      setFeedback({
+        type: 'error',
+        message: 'Conclua a etapa anterior antes de avançar.',
+      })
+      return
+    }
+
+    // Só conclui a etapa atual ao avançar para ela na ordem (próxima liberada).
+    const isAdvancing = stepIndex === unlockedIndex
     setActiveTrailStep(stepKey as InventarioTrailStepKey)
-    if (!openMonth) return
+
+    if (isAdvancing) {
+      setCompletedStepKeys((current) =>
+        current.includes(stepKey as InventarioTrailStepKey)
+          ? current
+          : [...current, stepKey as InventarioTrailStepKey],
+      )
+    }
 
     if (stepKey === 'IQ09') {
       setFeedback({
@@ -124,6 +159,8 @@ export function InventarioPanel({
           renderIcon={(step) => <InventarioTrailIcon step={step} />}
           steps={INVENTARIO_TRAIL_STEPS}
           ariaLabel="Trilha do inventário mensal"
+          completedStepKeys={completedStepKeys}
+          isStepEnabled={isStepEnabled}
         />
 
         {feedback ? (

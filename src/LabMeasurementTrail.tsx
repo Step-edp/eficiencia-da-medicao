@@ -8,6 +8,10 @@ type LabMeasurementTrailProps = {
   stepCounts?: Record<string, number>
   steps?: LabTrailStep[]
   ariaLabel?: string
+  /** Se informado, controla quais etapas já foram concluídas. */
+  completedStepKeys?: string[]
+  /** Se informado, bloqueia clique em etapas ainda não liberadas. */
+  isStepEnabled?: (stepKey: string, index: number) => boolean
 }
 
 export function LabMeasurementTrail({
@@ -17,26 +21,42 @@ export function LabMeasurementTrail({
   stepCounts,
   steps = LAB_TRAIL_STEPS,
   ariaLabel = 'Trilha operacional do laboratório',
+  completedStepKeys,
+  isStepEnabled,
 }: LabMeasurementTrailProps) {
   const activeIndex = activeStep
     ? steps.findIndex((step) => step.key === activeStep)
     : -1
+  const completedSet = completedStepKeys ? new Set(completedStepKeys) : null
 
   return (
     <nav className="lab-trail" aria-label={ariaLabel}>
       <ul className="lab-trail-steps">
         {steps.map((step, index) => {
           const isActive = step.key === activeStep
-          const isCompleted = activeIndex >= 0 && index < activeIndex
+          const isCompleted = completedSet
+            ? completedSet.has(step.key) && !isActive
+            : activeIndex >= 0 && index < activeIndex
+          const enabled = isStepEnabled ? isStepEnabled(step.key, index) : true
           const count = stepCounts?.[step.key] ?? 0
 
           return (
             <li key={step.key} className="lab-trail-step-item">
               <button
-                className={`lab-trail-step ${isActive ? 'is-active' : ''} ${isCompleted ? 'is-completed' : ''}`}
+                className={`lab-trail-step ${isActive ? 'is-active' : ''} ${isCompleted ? 'is-completed' : ''} ${enabled ? '' : 'is-locked'}`}
                 type="button"
                 aria-current={isActive ? 'step' : undefined}
-                onClick={() => onSelect(step.key)}
+                aria-disabled={!enabled}
+                disabled={!enabled}
+                title={
+                  enabled
+                    ? undefined
+                    : 'Conclua a etapa anterior para liberar esta.'
+                }
+                onClick={() => {
+                  if (!enabled) return
+                  onSelect(step.key)
+                }}
               >
                 <span className="lab-trail-step-content">
                   {renderIcon(step.key)}
