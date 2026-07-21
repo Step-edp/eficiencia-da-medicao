@@ -96,11 +96,16 @@ type Panel = 'login' | 'cadastro'
 type AppRoute = 'default' | 'compras-homologacao' | 'pesquisa-satisfacao'
 
 function parseAppRoute(hash: string): { route: AppRoute; surveyLaudoId?: string } {
-  if (hash === FIXED_PURCHASE_REQUEST_HASH) {
+  const normalized = (hash || '').trim()
+  if (
+    normalized === FIXED_PURCHASE_REQUEST_HASH ||
+    normalized.startsWith(`${FIXED_PURCHASE_REQUEST_HASH}?`) ||
+    normalized.startsWith(`${FIXED_PURCHASE_REQUEST_HASH}/`)
+  ) {
     return { route: 'compras-homologacao' }
   }
 
-  const surveyMatch = hash.match(/^#\/pesquisa\/([^/?#]+)/)
+  const surveyMatch = normalized.match(/^#\/pesquisa\/([^/?#]+)/)
   if (surveyMatch?.[1]) {
     return { route: 'pesquisa-satisfacao', surveyLaudoId: surveyMatch[1] }
   }
@@ -1348,6 +1353,9 @@ function HomePanel({
     string | null
   >(() => savedNav?.selectedLabMeasurementSection ?? null)
   const [inventarioMonthTitle, setInventarioMonthTitle] = useState<string | null>(null)
+  const [showPurchaseRequestForm, setShowPurchaseRequestForm] = useState(
+    () => activeRoute === 'compras-homologacao',
+  )
   const [selectedFieldTeamSection, setSelectedFieldTeamSection] = useState<string | null>(null)
   const [selectedHomologationSection, setSelectedHomologationSection] = useState<string | null>(
     () => savedNav?.selectedHomologationSection ?? null,
@@ -1448,6 +1456,12 @@ function HomePanel({
       window.clearInterval(intervalId)
     }
   }, [selectedArea?.title, selectedLabMeasurementSection])
+
+  useEffect(() => {
+    if (activeRoute === 'compras-homologacao') {
+      setShowPurchaseRequestForm(true)
+    }
+  }, [activeRoute])
 
   useEffect(() => {
     const mapArea = (area: {
@@ -2884,8 +2898,9 @@ function HomePanel({
     currentUser.vacationStatus === 'ok'
 
   // Link fixo (#/compras/pedidos-homologacao) e perfil Compras puro abrem o formulário.
-  if (isPureComprasPortal || activeRoute === 'compras-homologacao') {
+  if (isPureComprasPortal || activeRoute === 'compras-homologacao' || showPurchaseRequestForm) {
     const leaveFixedRequestForm = () => {
+      setShowPurchaseRequestForm(false)
       if (window.location.hash) {
         window.location.hash = ''
       }
