@@ -28,9 +28,13 @@ function buildLastTwelveMonths(reference = new Date()): InventoryMonth[] {
   return months
 }
 
-export function InventarioPanel() {
+type InventarioPanelProps = {
+  onMonthOpenChange?: (monthTitle: string | null) => void
+}
+
+export function InventarioPanel({ onMonthOpenChange }: InventarioPanelProps) {
   const months = useMemo(() => buildLastTwelveMonths(), [])
-  const [selectedMonthKey, setSelectedMonthKey] = useState(months[0]?.key ?? '')
+  const [openMonthKey, setOpenMonthKey] = useState<string | null>(null)
 
   const monthsByYear = useMemo(() => {
     const groups: Array<{ year: number; months: InventoryMonth[] }> = []
@@ -45,8 +49,65 @@ export function InventarioPanel() {
     return groups
   }, [months])
 
+  const openMonth = months.find((month) => month.key === openMonthKey) ?? null
+
+  const openMonthScreen = (month: InventoryMonth) => {
+    setOpenMonthKey(month.key)
+    onMonthOpenChange?.(`${month.monthLabel} de ${month.year}`)
+  }
+
+  const closeMonthScreen = () => {
+    setOpenMonthKey(null)
+    onMonthOpenChange?.(null)
+  }
+
+  if (openMonth) {
+    return (
+      <div className="inventario-panel inventario-month-screen">
+        <div className="area-actions">
+          <button type="button" className="secondary-button compact-button" onClick={closeMonthScreen}>
+            Voltar aos meses
+          </button>
+        </div>
+
+        <header className="inventario-month-screen-header">
+          <p className="section-tag">Inventário mensal</p>
+          <h3>
+            {openMonth.monthLabel} de {openMonth.year}
+          </h3>
+          <p>Consulta e acompanhamento do inventário deste mês.</p>
+        </header>
+
+        <div className="inventario-month-content">
+          <div className="entrada-table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Descrição</th>
+                  <th>Quantidade</th>
+                  <th>Status</th>
+                  <th>Atualizado em</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colSpan={5}>
+                    Nenhum registro de inventário cadastrado para {openMonth.monthLabel.toLowerCase()}{' '}
+                    de {openMonth.year}.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="inventario-panel">
+      <p className="inventario-panel-hint">Selecione um mês para abrir o inventário.</p>
       {monthsByYear.map((group) => (
         <section key={group.year} className="inventario-year-block" aria-label={`Ano ${group.year}`}>
           <header className="inventario-year-header">
@@ -56,21 +117,17 @@ export function InventarioPanel() {
             </span>
           </header>
           <div className="inventario-months" role="list">
-            {group.months.map((month) => {
-              const isSelected = selectedMonthKey === month.key
-              return (
-                <button
-                  key={month.key}
-                  type="button"
-                  role="listitem"
-                  className={`inventario-month-btn${isSelected ? ' is-selected' : ''}`}
-                  aria-pressed={isSelected}
-                  onClick={() => setSelectedMonthKey(month.key)}
-                >
-                  <span className="inventario-month-name">{month.monthLabel}</span>
-                </button>
-              )
-            })}
+            {group.months.map((month) => (
+              <button
+                key={month.key}
+                type="button"
+                role="listitem"
+                className="inventario-month-btn"
+                onClick={() => openMonthScreen(month)}
+              >
+                <span className="inventario-month-name">{month.monthLabel}</span>
+              </button>
+            ))}
           </div>
         </section>
       ))}

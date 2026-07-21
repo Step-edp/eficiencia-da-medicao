@@ -1026,6 +1026,30 @@ button {
   margin-top: 0.35rem;
 }
 
+.inventario-panel-hint {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.95rem;
+}
+
+.inventario-month-screen {
+  gap: 1rem;
+}
+
+.inventario-month-screen-header h3 {
+  margin: 0.2rem 0 0.45rem;
+  font-size: 1.25rem;
+}
+
+.inventario-month-screen-header p:last-child {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.inventario-month-content {
+  margin-top: 0.25rem;
+}
+
 .inventario-year-block {
   display: grid;
   gap: 0.75rem;

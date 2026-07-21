@@ -1347,6 +1347,7 @@ function HomePanel({
   const [selectedLabMeasurementSection, setSelectedLabMeasurementSection] = useState<
     string | null
   >(() => savedNav?.selectedLabMeasurementSection ?? null)
+  const [inventarioMonthTitle, setInventarioMonthTitle] = useState<string | null>(null)
   const [selectedFieldTeamSection, setSelectedFieldTeamSection] = useState<string | null>(null)
   const [selectedHomologationSection, setSelectedHomologationSection] = useState<string | null>(
     () => savedNav?.selectedHomologationSection ?? null,
@@ -4094,8 +4095,15 @@ function HomePanel({
         <main className="shell">
           <section className="home-card area-screen-card">
             <TopActionBar
-              onBack={() => setSelectedLabMeasurementSection(null)}
+              onBack={() => {
+                if (inventarioMonthTitle) {
+                  setInventarioMonthTitle(null)
+                  return
+                }
+                setSelectedLabMeasurementSection(null)
+              }}
               onHome={() => {
+                setInventarioMonthTitle(null)
                 setSelectedLabMeasurementSection(null)
                 setSelectedArea(null)
               }}
@@ -4103,9 +4111,11 @@ function HomePanel({
             />
             <p className="section-tag">Laboratório de Medição</p>
             <h2>
-              {LAB_TRAIL_KEYS.has(selectedLabMeasurementSection)
-                ? getLabTrailLabel(selectedLabMeasurementSection)
-                : selectedLabMeasurementSection}
+              {inventarioMonthTitle
+                ? `Inventário · ${inventarioMonthTitle}`
+                : LAB_TRAIL_KEYS.has(selectedLabMeasurementSection)
+                  ? getLabTrailLabel(selectedLabMeasurementSection)
+                  : selectedLabMeasurementSection}
             </h2>
             {labMedicaoReadOnly ? (
               <div className="agenda-alert agenda-alert-ok" role="status">
@@ -4113,7 +4123,7 @@ function HomePanel({
                 dados do laboratório, sem executar cadastros, ensaios ou aprovações.
               </div>
             ) : null}
-            {LAB_TRAIL_KEYS.has(selectedLabMeasurementSection) ? (
+            {LAB_TRAIL_KEYS.has(selectedLabMeasurementSection) && !inventarioMonthTitle ? (
               <LabMeasurementTrail
                 activeStep={selectedLabMeasurementSection}
                 onSelect={setSelectedLabMeasurementSection}
