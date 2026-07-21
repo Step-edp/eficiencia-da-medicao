@@ -1374,8 +1374,10 @@ function HomePanel({
   )
   const [showSupport, setShowSupport] = useState(false)
   const [openSupportCount, setOpenSupportCount] = useState(0)
-  const [estagiarioProcessLabels, setEstagiarioProcessLabels] = useState<string[]>([])
-  const [estagiarioProcessesLoading, setEstagiarioProcessesLoading] = useState(false)
+  const [assignedProcesses, setAssignedProcesses] = useState<
+    Array<{ processKey: string; area: string; process: string }>
+  >([])
+  const [assignedProcessesLoading, setAssignedProcessesLoading] = useState(false)
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(
     () => savedNav?.selectedOrgCell ?? null,
   )
@@ -1732,54 +1734,84 @@ function HomePanel({
     return true
   })
 
-  const showEstagiarioProcesses =
+  const showEstagiarioHome =
     (previewUser != null && isMedicaoEstagiario(previewUser)) ||
     previewProfile?.id === 'estagiario-medicao' ||
     (!isAdmin && isMedicaoEstagiario(currentUser))
 
-  const estagiarioProcessesUserId =
-    previewUser && isMedicaoEstagiario(previewUser)
-      ? previewUser.id
-      : !isAdmin && isMedicaoEstagiario(currentUser)
-        ? currentUser.id
-        : null
+  const assignedProcessesUserId =
+    previewUser?.id ?? (!isAdmin ? currentUser.id : null)
+
+  const showAssignedProcesses =
+    Boolean(assignedProcessesUserId) || previewProfile?.id === 'estagiario-medicao'
 
   useEffect(() => {
-    if (!showEstagiarioProcesses) {
-      setEstagiarioProcessLabels([])
-      setEstagiarioProcessesLoading(false)
-      return
-    }
-
-    if (!estagiarioProcessesUserId) {
-      // Pré-visualização só do tipo de perfil (sem usuário concreto).
-      setEstagiarioProcessLabels([])
-      setEstagiarioProcessesLoading(false)
+    if (!assignedProcessesUserId) {
+      setAssignedProcesses([])
+      setAssignedProcessesLoading(false)
       return
     }
 
     let cancelled = false
-    setEstagiarioProcessesLoading(true)
+    setAssignedProcessesLoading(true)
     void api
-      .listAssignedProcessesForUser(estagiarioProcessesUserId)
+      .listAssignedProcessesForUser(assignedProcessesUserId)
       .then(({ processes }) => {
         if (cancelled) return
-        setEstagiarioProcessLabels(
-          processes.map((item) => `${item.area}: ${item.process}`),
+        setAssignedProcesses(
+          processes.map((item) => ({
+            processKey: item.processKey,
+            area: item.area,
+            process: item.process,
+          })),
         )
       })
       .catch(() => {
         if (cancelled) return
-        setEstagiarioProcessLabels([])
+        setAssignedProcesses([])
       })
       .finally(() => {
-        if (!cancelled) setEstagiarioProcessesLoading(false)
+        if (!cancelled) setAssignedProcessesLoading(false)
       })
 
     return () => {
       cancelled = true
     }
-  }, [showEstagiarioProcesses, estagiarioProcessesUserId])
+  }, [assignedProcessesUserId])
+
+  const openAssignedProcess = (areaTitle: string, processName: string) => {
+    const area = allAreas.find((item) => item.title === areaTitle)
+    if (!area) return
+
+    setSelectedOrgAreaId(null)
+    setSelectedOrgCell(null)
+    setSelectedOrgSubcell(null)
+    setSelectedPasswordAction(null)
+    setSelectedCodeMaterialsAction(null)
+    setUsersView('usuarios')
+    setGestaoHomeTab('dash')
+    setSelectedMeasurementSection(null)
+    setSelectedLabMeasurementSection(null)
+    setSelectedFieldTeamSection(null)
+    setSelectedHomologationSection(null)
+    setSelectedArea(area)
+
+    if (areaTitle === 'Medição') {
+      setSelectedMeasurementSection(processName)
+      return
+    }
+    if (areaTitle === 'Laboratório de Medição') {
+      setSelectedLabMeasurementSection(processName)
+      return
+    }
+    if (areaTitle === 'Laboratório de Homologação') {
+      setSelectedHomologationSection(processName)
+      return
+    }
+    if (areaTitle === 'Equipe de campo') {
+      setSelectedFieldTeamSection(processName)
+    }
+  }
 
   const accessiblePortals = (() => {
     if (isAdminFullPreview) {
@@ -4823,17 +4855,35 @@ function HomePanel({
           ))}
         </div>
 
-        {showEstagiarioProcesses ? (
+        {showAssignedProcesses &&
+        (assignedProcessesLoading ||
+          assignedProcesses.length > 0 ||
+          showEstagiarioHome ||
+          previewProfile?.id === 'estagiario-medicao') ? (
           <div className="home-assigned-processes" aria-label="Seus processos">
             <h3>Seus processos</h3>
-            {estagiarioProcessesLoading ? (
+            {assignedProcessesLoading ? (
               <p className="home-assigned-processes-empty">Carregando processos…</p>
-            ) : estagiarioProcessLabels.length ? (
-              <ul className="home-assigned-processes-list">
-                {estagiarioProcessLabels.map((label) => (
-                  <li key={label}>{label}</li>
+            ) : assignedProcesses.length ? (
+              <div
+                className="home-assigned-processes-grid"
+                aria-label="Processos atribuídos para execução"
+              >
+                {assignedProcesses.map((item) => (
+                  <button
+                    key={item.processKey}
+                    type="button"
+                    className="area-card home-assigned-process-card"
+                    onClick={() => openAssignedProcess(item.area, item.process)}
+                  >
+                    <span className="area-card-title">
+                      <ItemIcon title={item.process} />
+                      <span>{item.process}</span>
+                    </span>
+                    <span className="home-assigned-process-area">{item.area}</span>
+                  </button>
                 ))}
-              </ul>
+              </div>
             ) : (
               <p className="home-assigned-processes-empty">
                 Nenhum processo atribuído a você
