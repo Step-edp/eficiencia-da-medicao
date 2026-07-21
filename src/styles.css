@@ -177,16 +177,20 @@ button {
   order: 6;
 }
 
-.area-card-usuarios {
+.area-card-suporte {
   order: 7;
 }
 
-.area-card-cadastros {
+.area-card-usuarios {
   order: 8;
 }
 
-.area-card-agenda {
+.area-card-cadastros {
   order: 9;
+}
+
+.area-card-agenda {
+  order: 10;
 }
 
 .agenda-alert {

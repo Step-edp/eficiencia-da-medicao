@@ -568,121 +568,21 @@ type TopActionBarProps = {
 }
 
 function TopActionBar({ onBack, onHome, onLogout }: TopActionBarProps) {
-  const [showSupport, setShowSupport] = useState(false)
-
   return (
-    <>
-      <div className="top-action-bar" aria-label="Acoes da tela">
-        <EdpLogo className="top-brand-logo" compact />
-        <div className="top-action-group left">
-          {onBack ? (
-            <button
-              className="icon-button"
-              type="button"
-              onClick={onBack}
-              aria-label="Voltar"
-              title="Voltar"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M15 5l-7 7 7 7"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          ) : null}
-        </div>
-        <div className="top-action-group right">
-          {onHome ? (
-            <button
-              className="icon-button"
-              type="button"
-              onClick={onHome}
-              aria-label="Voltar para Home"
-              title="Voltar para Home"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M3 10.5L12 3l9 7.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M6 9.5V21h12V9.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          ) : null}
+    <div className="top-action-bar" aria-label="Acoes da tela">
+      <EdpLogo className="top-brand-logo" compact />
+      <div className="top-action-group left">
+        {onBack ? (
           <button
             className="icon-button"
             type="button"
-            onClick={() => setShowSupport(true)}
-            aria-label="Suporte"
-            title="Suporte"
+            onClick={onBack}
+            aria-label="Voltar"
+            title="Voltar"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path
-                d="M4 14v-3a8 8 0 0116 0v3"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-              <path
-                d="M4 14v2a2 2 0 002 2h1v-6H6a2 2 0 00-2 2zM20 14v2a2 2 0 01-2 2h-1v-6h1a2 2 0 012 2z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M12 19a3 3 0 003-3"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-          <button
-            className="icon-button"
-            type="button"
-            onClick={onLogout}
-            aria-label="Sair"
-            title="Sair"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M10 17l5-5-5-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M15 12H3"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M21 21V3h-6"
+                d="M15 5l-7 7 7 7"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -691,16 +591,78 @@ function TopActionBar({ onBack, onHome, onLogout }: TopActionBarProps) {
               />
             </svg>
           </button>
-        </div>
+        ) : null}
       </div>
-
-      <SupportRequestModal open={showSupport} onClose={() => setShowSupport(false)} />
-    </>
+      <div className="top-action-group right">
+        {onHome ? (
+          <button
+            className="icon-button"
+            type="button"
+            onClick={onHome}
+            aria-label="Voltar para Home"
+            title="Voltar para Home"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M3 10.5L12 3l9 7.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M6 9.5V21h12V9.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        ) : null}
+        <button
+          className="icon-button"
+          type="button"
+          onClick={onLogout}
+          aria-label="Sair"
+          title="Sair"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M10 17l5-5-5-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M15 12H3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M21 21V3h-6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
   )
 }
 
 function ItemIcon({ title }: { title: string }) {
-  const iconByTitle: Record<string, 'chart' | 'flask' | 'calendar' | 'search' | 'inbox' | 'cube' | 'check' | 'image' | 'bolt' | 'ruler' | 'smile' | 'shield' | 'archive' | 'trash' | 'presentation' | 'truck' | 'book' | 'code' | 'lock' | 'key' | 'database' | 'repeat' | 'building' | 'layer' | 'monitor' | 'star' | 'users'> = {
+  const iconByTitle: Record<string, 'chart' | 'flask' | 'calendar' | 'search' | 'inbox' | 'cube' | 'check' | 'image' | 'bolt' | 'ruler' | 'smile' | 'shield' | 'archive' | 'trash' | 'presentation' | 'truck' | 'book' | 'code' | 'lock' | 'key' | 'database' | 'repeat' | 'building' | 'layer' | 'monitor' | 'star' | 'users' | 'headset'> = {
     Dashboard: 'chart',
     Ensaiar: 'flask',
     Agendar: 'calendar',
@@ -721,7 +683,7 @@ function ItemIcon({ title }: { title: string }) {
     Apresentação: 'presentation',
     Fornecedores: 'truck',
     CSDs: 'building',
-    Suporte: 'shield',
+    Suporte: 'headset',
     Treinamentos: 'book',
     Softwares: 'code',
     'Faturamento de clientes livres': 'chart',
@@ -800,6 +762,32 @@ function ItemIcon({ title }: { title: string }) {
             <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             <circle cx="9" cy="7" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
             <path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a3 3 0 010 5.74" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </>
+        ) : null}
+        {icon === 'headset' ? (
+          <>
+            <path
+              d="M4 14v-3a8 8 0 0116 0v3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <path
+              d="M4 14v2a2 2 0 002 2h1v-6H6a2 2 0 00-2 2zM20 14v2a2 2 0 01-2 2h-1v-6h1a2 2 0 012 2z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M12 19a3 3 0 003-3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
           </>
         ) : null}
         {icon === 'star' ? <path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9L12 3z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /> : null}
@@ -1367,6 +1355,7 @@ function HomePanel({
     ...TECHNICIAN_SCOPES_BY_AREA.CSD,
   ])
   const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
+  const [showSupport, setShowSupport] = useState(false)
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(
     () => savedNav?.selectedOrgCell ?? null,
   )
@@ -4447,6 +4436,16 @@ function HomePanel({
                 </button>
               ))
             : null}
+          <button
+            className={`area-card ${getAreaCardClassName('Suporte')}`}
+            type="button"
+            onClick={() => setShowSupport(true)}
+          >
+            <span className="area-card-title">
+              <ItemIcon title="Suporte" />
+              <span>Suporte</span>
+            </span>
+          </button>
           {areas.map((area) => (
             <button
               key={area.title}
@@ -4465,11 +4464,6 @@ function HomePanel({
             </button>
           ))}
         </div>
-        {!areas.length && !(flattenFieldTeamHome && fieldTeamSections.length) ? (
-          <p className="generated-password-empty">
-            Este perfil não possui áreas de acesso na home.
-          </p>
-        ) : null}
 
         {previewProfile ? (
           <div className="profile-preview-people" aria-label={`Pessoas com o perfil ${previewProfile.name}`}>
@@ -4508,6 +4502,7 @@ function HomePanel({
           </div>
         ) : null}
       </section>
+      <SupportRequestModal open={showSupport} onClose={() => setShowSupport(false)} />
     </main>
   )
 }
@@ -4897,6 +4892,10 @@ function getAreaCardClassName(title: string) {
 
   if (title === 'Consultar' || title === 'Meus TOIs') {
     return 'area-card-equipe-campo'
+  }
+
+  if (title === 'Suporte') {
+    return 'area-card-suporte'
   }
 
   if (title === 'Usuários') {
