@@ -1999,10 +1999,62 @@ button {
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   vertical-align: middle;
+  transition: border-color 180ms ease, transform 180ms ease;
 }
 
 .envelope-photo-link {
   display: inline-flex;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.envelope-photo-link:hover .envelope-photo-thumb,
+.envelope-photo-link:focus-visible .envelope-photo-thumb {
+  border-color: rgba(24, 216, 240, 0.65);
+  transform: scale(1.06);
+}
+
+.envelope-photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2, 10, 18, 0.86);
+  backdrop-filter: blur(5px);
+}
+
+.envelope-photo-lightbox-dialog {
+  position: relative;
+  width: min(920px, 100%);
+  max-height: min(92vh, 900px);
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(24, 216, 240, 0.28);
+  background: rgba(5, 26, 44, 0.98);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  overflow: auto;
+}
+
+.envelope-photo-lightbox-caption {
+  margin: 0;
+  padding-right: 48px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.envelope-photo-lightbox-image {
+  width: 100%;
+  max-height: min(78vh, 780px);
+  object-fit: contain;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.28);
 }
 
 .approval-subareas-grid {

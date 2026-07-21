@@ -5,12 +5,18 @@ type FieldTeamSchedulesPanelProps = {
   mode?: 'all' | 'mine'
 }
 
+type EnvelopePreview = {
+  src: string
+  meter: string
+}
+
 export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPanelProps) {
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
+  const [envelopePreview, setEnvelopePreview] = useState<EnvelopePreview | null>(null)
   const isMine = mode === 'mine'
 
   const load = useCallback(async () => {
@@ -40,6 +46,19 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!envelopePreview) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setEnvelopePreview(null)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [envelopePreview])
 
   return (
     <div className="entrada-panel">
@@ -102,18 +121,24 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
                   <td>{item.toi || '—'}</td>
                   <td>
                     {item.envelopePhoto ? (
-                      <a
+                      <button
+                        type="button"
                         className="envelope-photo-link"
-                        href={item.envelopePhoto}
-                        target="_blank"
-                        rel="noreferrer"
+                        onClick={() =>
+                          setEnvelopePreview({
+                            src: item.envelopePhoto,
+                            meter: item.meter,
+                          })
+                        }
+                        aria-label={`Ampliar foto do invólucro do medidor ${item.meter}`}
+                        title="Clique para ampliar"
                       >
                         <img
                           className="envelope-photo-thumb"
                           src={item.envelopePhoto}
                           alt={`Invólucro do medidor ${item.meter}`}
                         />
-                      </a>
+                      </button>
                     ) : (
                       '—'
                     )}
@@ -151,6 +176,48 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
           </table>
         </div>
       )}
+
+      {envelopePreview ? (
+        <div
+          className="envelope-photo-lightbox"
+          role="presentation"
+          onClick={() => setEnvelopePreview(null)}
+        >
+          <div
+            className="envelope-photo-lightbox-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Foto do invólucro do medidor ${envelopePreview.meter}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="icon-button schedule-slot-modal-close"
+              onClick={() => setEnvelopePreview(null)}
+              aria-label="Fechar"
+              title="Fechar"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+            <p className="envelope-photo-lightbox-caption">
+              Invólucro · medidor {envelopePreview.meter}
+            </p>
+            <img
+              className="envelope-photo-lightbox-image"
+              src={envelopePreview.src}
+              alt={`Foto ampliada do invólucro do medidor ${envelopePreview.meter}`}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
