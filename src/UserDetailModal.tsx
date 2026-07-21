@@ -59,6 +59,7 @@ type UserDetailModalProps = {
   onDeleted?: (userId: string) => void
   onFeedback: (feedback: { type: 'success' | 'error'; message: string }) => void
   startInEditMode?: boolean
+  showPassword?: boolean
 }
 
 function statusLabel(status: AppUser['approvalStatus']) {
@@ -80,6 +81,7 @@ export function UserDetailModal({
   onDeleted,
   onFeedback,
   startInEditMode = false,
+  showPassword = false,
 }: UserDetailModalProps) {
   const isAdminUser = user.role === 'admin'
   const canDelete = !isAdminUser
@@ -383,7 +385,7 @@ export function UserDetailModal({
         personalDescription: observation.trim(),
         hobby: user.hobby ?? '',
         profilePhoto,
-        ...(password.trim() ? { password: password.trim() } : {}),
+        ...(showPassword && password.trim() ? { password: password.trim() } : {}),
       })
       onSaved(updated)
       setEditing(false)
@@ -737,16 +739,18 @@ export function UserDetailModal({
               </p>
             )}
 
-            <label className="user-edit-full">
-              Senha de acesso
-              <input
-                type="text"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Senha do usuário"
-                autoComplete="off"
-              />
-            </label>
+            {showPassword ? (
+              <label className="user-edit-full">
+                Senha de acesso
+                <input
+                  type="text"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Senha do usuário"
+                  autoComplete="off"
+                />
+              </label>
+            ) : null}
 
             <label className="user-edit-full">
               Observação
@@ -830,12 +834,14 @@ export function UserDetailModal({
                 <dt>Matrícula</dt>
                 <dd>{formatValue(user.registration)}</dd>
               </div>
-              <div>
-                <dt>Senha</dt>
-                <dd className="user-password-value">
-                  {user.password?.trim() ? user.password : 'Indisponível (cadastro antigo)'}
-                </dd>
-              </div>
+              {showPassword ? (
+                <div>
+                  <dt>Senha</dt>
+                  <dd className="user-password-value">
+                    {user.password?.trim() ? user.password : 'Indisponível (cadastro antigo)'}
+                  </dd>
+                </div>
+              ) : null}
               <div>
                 <dt>E-mail</dt>
                 <dd>{formatValue(user.email)}</dd>

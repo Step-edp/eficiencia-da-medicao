@@ -826,6 +826,7 @@ type PendingApprovalItemProps = {
   }>
   terceiraOptions: string[]
   csdScopeOptions: string[]
+  showPassword?: boolean
   onApprove: (userId: string, payload: ApproveUserPayload) => Promise<void>
   onReject: (
     userId: string,
@@ -841,6 +842,7 @@ function PendingApprovalItem({
   orgCells,
   terceiraOptions,
   csdScopeOptions,
+  showPassword = false,
   onApprove,
   onReject,
   onEdit,
@@ -1060,12 +1062,14 @@ function PendingApprovalItem({
               <dt>Matrícula</dt>
               <dd>{user.registration || '—'}</dd>
             </div>
-            <div>
-              <dt>Senha</dt>
-              <dd className="user-password-value">
-                {user.password?.trim() ? user.password : 'Indisponível (cadastro antigo)'}
-              </dd>
-            </div>
+            {showPassword ? (
+              <div>
+                <dt>Senha</dt>
+                <dd className="user-password-value">
+                  {user.password?.trim() ? user.password : 'Indisponível (cadastro antigo)'}
+                </dd>
+              </div>
+            ) : null}
             <div>
               <dt>E-mail</dt>
               <dd>{user.email || '—'}</dd>
@@ -1514,6 +1518,8 @@ function HomePanel({
   } | null>(null)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const isAdmin = currentUser.role === 'admin'
+  const canViewUserPasswords =
+    isAdmin && previewProfileId === ADMIN_PREVIEW_PROFILE_ID
   const pendingApprovalUsers = users.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'pending',
   )
@@ -3160,6 +3166,7 @@ function HomePanel({
                           orgCells={orgCells}
                           terceiraOptions={terceiraOptions}
                           csdScopeOptions={csdScopeOptions}
+                          showPassword={canViewUserPasswords}
                           onApprove={onApproveUser}
                           onReject={async (userId, reason) => {
                             const result = await onRejectUser(userId, reason)
@@ -3198,7 +3205,7 @@ function HomePanel({
                           <tr>
                             <th>Nome</th>
                             <th>Matrícula</th>
-                            <th>Senha</th>
+                            {canViewUserPasswords ? <th>Senha</th> : null}
                             <th>E-mail</th>
                             <th>Cargo</th>
                             <th>Perfil</th>
@@ -3229,9 +3236,11 @@ function HomePanel({
                             >
                               <td>{user.name}</td>
                               <td>{user.registration}</td>
-                              <td className="user-password-value">
-                                {user.password?.trim() ? user.password : '—'}
-                              </td>
+                              {canViewUserPasswords ? (
+                                <td className="user-password-value">
+                                  {user.password?.trim() ? user.password : '—'}
+                                </td>
+                              ) : null}
                               <td>{user.email}</td>
                               <td>{user.jobTitle || '—'}</td>
                               <td>
@@ -3305,6 +3314,7 @@ function HomePanel({
                     approvedUsers={registeredUsers}
                     orgCells={orgCells}
                     terceiraOptions={terceiraOptions}
+                    showPassword={canViewUserPasswords}
                     startInEditMode={userDetailStartEditing}
                     onClose={() => {
                       setSelectedUserDetail(null)
