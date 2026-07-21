@@ -1605,8 +1605,7 @@ function HomePanel({
       title: 'Equipe de campo',
       description:
         'Agendar e consultar medidores provenientes de lavratura de TOI e demais atividades de campo.',
-      details:
-        'Use Agendar para cadastrar medidores e Consultar para acompanhar os agendamentos registrados.',
+      details: '',
     },
     {
       title: 'Usuários',
@@ -4307,10 +4306,6 @@ function HomePanel({
           {selectedArea.title === 'Equipe de campo' ? (
             flattenFieldTeamHome ? null : (
             <div className="measurement-sections" aria-label="Funções da equipe de campo">
-              <p>
-                Perfis de <strong>Lavratura de TOI - Equipe de Campo</strong> têm acesso a
-                Agendar, Consultar e Meus TOIs nesta área.
-              </p>
               {fieldTeamSections.map((section) => (
                 <button
                   key={section}
