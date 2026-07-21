@@ -244,18 +244,18 @@ export function ConsultarRatmPanel() {
       {viewingLaudo
         ? createPortal(
             <div
-              className="laudo-modal-overlay"
+              className="ensaios-block-modal-overlay"
               role="presentation"
               onClick={() => setViewingLaudo(null)}
             >
               <div
-                className="laudo-modal consultar-ratm-pdf-modal"
+                className="ensaios-block-modal consultar-ratm-pdf-modal"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="consultar-ratm-pdf-title"
                 onClick={(event) => event.stopPropagation()}
               >
-                <header className="laudo-modal-header">
+                <header className="consultar-ratm-pdf-header">
                   <div>
                     <h3 id="consultar-ratm-pdf-title">
                       PDF · Laudo RATM {viewingLaudo.ratmNumber}
