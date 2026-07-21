@@ -567,21 +567,130 @@ type TopActionBarProps = {
 }
 
 function TopActionBar({ onBack, onHome, onLogout }: TopActionBarProps) {
+  const [showSupport, setShowSupport] = useState(false)
+
+  useEffect(() => {
+    if (!showSupport) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowSupport(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showSupport])
+
   return (
-    <div className="top-action-bar" aria-label="Acoes da tela">
-      <EdpLogo className="top-brand-logo" compact />
-      <div className="top-action-group left">
-        {onBack ? (
+    <>
+      <div className="top-action-bar" aria-label="Acoes da tela">
+        <EdpLogo className="top-brand-logo" compact />
+        <div className="top-action-group left">
+          {onBack ? (
+            <button
+              className="icon-button"
+              type="button"
+              onClick={onBack}
+              aria-label="Voltar"
+              title="Voltar"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M15 5l-7 7 7 7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          ) : null}
+        </div>
+        <div className="top-action-group right">
+          {onHome ? (
+            <button
+              className="icon-button"
+              type="button"
+              onClick={onHome}
+              aria-label="Voltar para Home"
+              title="Voltar para Home"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M3 10.5L12 3l9 7.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M6 9.5V21h12V9.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          ) : null}
           <button
             className="icon-button"
             type="button"
-            onClick={onBack}
-            aria-label="Voltar"
-            title="Voltar"
+            onClick={() => setShowSupport(true)}
+            aria-label="Suporte"
+            title="Suporte"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path
-                d="M15 5l-7 7 7 7"
+                d="M4 14v-3a8 8 0 0116 0v3"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <path
+                d="M4 14v2a2 2 0 002 2h1v-6H6a2 2 0 00-2 2zM20 14v2a2 2 0 01-2 2h-1v-6h1a2 2 0 012 2z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M12 19a3 3 0 003-3"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+          <button
+            className="icon-button"
+            type="button"
+            onClick={onLogout}
+            aria-label="Sair"
+            title="Sair"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M10 17l5-5-5-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M15 12H3"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M21 21V3h-6"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -590,73 +699,60 @@ function TopActionBar({ onBack, onHome, onLogout }: TopActionBarProps) {
               />
             </svg>
           </button>
-        ) : null}
+        </div>
       </div>
-      <div className="top-action-group right">
-        {onHome ? (
-          <button
-            className="icon-button"
-            type="button"
-            onClick={onHome}
-            aria-label="Voltar para Home"
-            title="Voltar para Home"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M3 10.5L12 3l9 7.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M6 9.5V21h12V9.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        ) : null}
-        <button
-          className="icon-button"
-          type="button"
-          onClick={onLogout}
-          aria-label="Sair"
-          title="Sair"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M10 17l5-5-5-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M15 12H3"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M21 21V3h-6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-      </div>
-    </div>
+
+      {showSupport
+        ? createPortal(
+            <div
+              className="ensaios-block-modal-overlay"
+              role="presentation"
+              onClick={() => setShowSupport(false)}
+            >
+              <div
+                className="ensaios-block-modal support-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="support-modal-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className="icon-button schedule-slot-modal-close"
+                  onClick={() => setShowSupport(false)}
+                  aria-label="Fechar"
+                  title="Fechar"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M6 6l12 12M18 6L6 18"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+                <h3 id="support-modal-title">Suporte</h3>
+                <p>
+                  Precisa de ajuda com o portal? Entre em contato com o administrador
+                  do sistema ou com a equipe responsável pela Eficiência da Medição.
+                </p>
+                <div className="ensaios-block-modal-actions">
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => setShowSupport(false)}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   )
 }
 

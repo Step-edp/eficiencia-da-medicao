@@ -1318,6 +1318,17 @@ button {
   gap: 10px;
 }
 
+.support-modal p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.support-modal .primary-button {
+  width: auto;
+  min-width: 120px;
+}
+
 .ensaios-calendar-legend {
   display: flex;
   flex-wrap: wrap;
