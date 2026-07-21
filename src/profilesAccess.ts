@@ -72,7 +72,6 @@ function profileName(workArea: string, jobTitle: string, detail?: string) {
 }
 
 const MEDICAO_CELL_AREAS: PortalArea[] = [
-  'Gestão Operacional',
   'Medição',
   'Laboratório de Medição',
   'Laboratório de Homologação',
@@ -252,7 +251,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'engenheiro-responsavel-celula-medicao',
     name: profileName('Medição', 'Engenheiro', 'Responsável por célula'),
     description:
-      'Engenheiro responsável pela célula Medição: vê Gestão Operacional e todas as subáreas da célula (Medição, laboratórios, Equipe de campo, Usuários e Cadastros).',
+      'Engenheiro responsável pela célula Medição: acessa apenas o conteúdo da célula (Medição, laboratórios, Equipe de campo, Usuários e Cadastros). Gestão Operacional fica com o gestor da área.',
     areas: MEDICAO_CELL_AREAS,
     match: {
       workArea: 'Medição',
@@ -276,8 +275,8 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'engenheiro-responsavel-celula-telemedicao',
     name: profileName('Telemedição', 'Engenheiro', 'Responsável por célula'),
     description:
-      'Engenheiro responsável pela célula Telemedição, com acesso à Gestão Operacional.',
-    areas: ['Gestão Operacional', 'Telemedição'],
+      'Engenheiro responsável pela célula Telemedição: acessa o conteúdo da célula. Gestão Operacional fica com o gestor da área.',
+    areas: ['Telemedição'],
     match: {
       workArea: 'Telemedição',
       jobTitle: 'Engenheiro',
@@ -300,8 +299,8 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'engenheiro-responsavel-celula-csd',
     name: profileName('CSD', 'Engenheiro', 'Responsável por célula'),
     description:
-      'Engenheiro responsável pela célula CSD, com acesso à Gestão Operacional e à Equipe de campo.',
-    areas: ['Gestão Operacional', 'Equipe de campo'],
+      'Engenheiro responsável pela célula CSD: acessa Equipe de campo. Gestão Operacional fica com o gestor da área.',
+    areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
       jobTitle: 'Engenheiro',
@@ -512,7 +511,7 @@ export function getAccessiblePortals(user: {
     }
   }
 
-  // Responsável por célula: cobre Gestão Operacional e as subáreas da área de negócio.
+  // Responsável por célula: só o conteúdo da célula (não a área Gestão Operacional).
   if (
     (user.jobTitle?.trim() ?? '') === 'Engenheiro' &&
     isEngineerAreaSubtype(user.workSubtype)
@@ -521,9 +520,8 @@ export function getAccessiblePortals(user: {
     const cellPortals = BUSINESS_AREA_TO_HOME_PORTALS[workArea] ?? []
     portals = PORTAL_AREAS.filter(
       (area) =>
-        portals.includes(area) ||
-        area === 'Gestão Operacional' ||
-        (cellPortals as readonly string[]).includes(area),
+        area !== 'Gestão Operacional' &&
+        (portals.includes(area) || (cellPortals as readonly string[]).includes(area)),
     )
   }
 
@@ -544,7 +542,7 @@ export function getAccessiblePortals(user: {
   return portals
 }
 
-/** Home do usuário: gestor colapsa em Gestão Operacional; responsável por célula vê tudo da célula. */
+/** Home do usuário: gestor colapsa em Gestão Operacional; responsável por célula vê só o conteúdo da célula. */
 export function getHomeAreasForUser(user: {
   role: UserRole
   accessAreas?: string[] | null
@@ -559,7 +557,9 @@ export function getHomeAreasForUser(user: {
     isEngineerAreaSubtype(user.workSubtype)
 
   if (isCellOwner) {
-    return portalsInCatalogOrder(portals)
+    return portalsInCatalogOrder(
+      portals.filter((portal) => portal !== 'Gestão Operacional'),
+    )
   }
 
   return portalsToHomeCards(portals)
@@ -676,7 +676,7 @@ export function getHomeAreasForProfilePreview(profileId: string): readonly Porta
       (area === 'Agenda' && !skipsVacationAgenda(profile.match.workSubtype)),
   )
 
-  // Responsável por célula: todas as áreas da célula na home (igual ao usuário real).
+  // Responsável por célula: só o conteúdo da célula na home (sem Gestão Operacional).
   if (
     profile.match.jobTitle === 'Engenheiro' &&
     isEngineerAreaSubtype(profile.match.workSubtype)
@@ -685,10 +685,10 @@ export function getHomeAreasForProfilePreview(profileId: string): readonly Porta
     const cellPortals = BUSINESS_AREA_TO_HOME_PORTALS[workArea] ?? []
     const expanded = PORTAL_AREAS.filter(
       (area) =>
-        areas.includes(area) ||
-        area === 'Gestão Operacional' ||
-        (cellPortals as readonly string[]).includes(area) ||
-        (area === 'Agenda' && !skipsVacationAgenda(profile.match.workSubtype)),
+        area !== 'Gestão Operacional' &&
+        (areas.includes(area) ||
+          (cellPortals as readonly string[]).includes(area) ||
+          (area === 'Agenda' && !skipsVacationAgenda(profile.match.workSubtype))),
     )
     return portalsInCatalogOrder(expanded)
   }
