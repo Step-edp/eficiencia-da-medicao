@@ -2697,6 +2697,19 @@ button {
   outline: none;
 }
 
+.users-table-cell-nowrap {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.users-table-cell-compact {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 .users-table-profile-button {
   display: inline-flex;
   align-items: center;

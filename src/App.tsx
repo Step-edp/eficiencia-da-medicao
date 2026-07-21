@@ -22,7 +22,6 @@ import {
   skipsVacationAgenda,
   listUsersForCadastroProfile,
   PORTAL_AREAS,
-  roleLabel,
 } from './profilesAccess'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
 import { SatisfactionSurveyPage } from './ratm/SatisfactionSurveyPage'
@@ -3233,16 +3232,16 @@ function HomePanel({
                                 }
                               }}
                             >
-                              <td>{user.name}</td>
-                              <td>{user.registration}</td>
+                              <td className="users-table-cell-compact">{user.name}</td>
+                              <td className="users-table-cell-nowrap">{user.registration}</td>
                               {canViewUserPasswords ? (
-                                <td className="user-password-value">
+                                <td className="user-password-value users-table-cell-nowrap">
                                   {user.password?.trim() ? user.password : '—'}
                                 </td>
                               ) : null}
-                              <td>{user.email}</td>
-                              <td>{user.jobTitle || '—'}</td>
-                              <td>
+                              <td className="users-table-cell-compact">{user.email}</td>
+                              <td className="users-table-cell-nowrap">{user.jobTitle || '—'}</td>
+                              <td className="users-table-cell-nowrap">
                                 <button
                                   type="button"
                                   className="users-table-profile-button"
@@ -3255,8 +3254,10 @@ function HomePanel({
                                   Ver perfil
                                 </button>
                               </td>
-                              <td>{statusLabel(user.approvalStatus)}</td>
-                              <td>
+                              <td className="users-table-cell-nowrap">
+                                {statusLabel(user.approvalStatus)}
+                              </td>
+                              <td className="users-table-cell-nowrap">
                                 {new Date(user.requestedAt).toLocaleString('pt-BR')}
                               </td>
                               <td className="users-table-actions">
