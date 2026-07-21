@@ -3,6 +3,8 @@ import { api, ApiError, type MeterScheduleRecord } from './api'
 
 type FieldTeamSchedulesPanelProps = {
   mode?: 'all' | 'mine'
+  /** Admin "Ver como": aplica o escopo CSD deste usuário no Consultar. */
+  scopeUserId?: string
 }
 
 type EnvelopePreview = {
@@ -10,7 +12,10 @@ type EnvelopePreview = {
   meter: string
 }
 
-export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPanelProps) {
+export function FieldTeamConsultarPanel({
+  mode = 'all',
+  scopeUserId,
+}: FieldTeamSchedulesPanelProps) {
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
@@ -25,6 +30,7 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
     try {
       const { schedules: rows } = await api.listMeterSchedules(undefined, {
         mine: isMine,
+        forUserId: !isMine && scopeUserId ? scopeUserId : undefined,
       })
       setSchedules(rows)
     } catch (error) {
@@ -41,7 +47,7 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
     } finally {
       setLoading(false)
     }
-  }, [isMine])
+  }, [isMine, scopeUserId])
 
   useEffect(() => {
     void load()
@@ -64,7 +70,10 @@ export function FieldTeamConsultarPanel({ mode = 'all' }: FieldTeamSchedulesPane
     <div className="entrada-panel">
       {isMine ? null : (
         <div className="entrada-panel-header">
-          <p>Consulta dos medidores agendados pela equipe de campo.</p>
+          <p>
+            Consulta dos medidores agendados. Perfis Ponto Focal veem apenas os agendamentos
+            dos CSDs (localidades) atribuídos a eles.
+          </p>
         </div>
       )}
 

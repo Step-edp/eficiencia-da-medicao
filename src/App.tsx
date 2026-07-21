@@ -4060,7 +4060,13 @@ function HomePanel({
             ) : selectedFieldTeamSection === 'Meus TOIs' ? (
               <FieldTeamConsultarPanel mode="mine" />
             ) : (
-              <FieldTeamConsultarPanel />
+              <FieldTeamConsultarPanel
+                scopeUserId={
+                  isAdmin && previewUser && isLavraturaPontoFocalScope(previewUser.workSubtype)
+                    ? previewUser.id
+                    : undefined
+                }
+              />
             )}
           </section>
         </main>

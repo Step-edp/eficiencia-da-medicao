@@ -804,12 +804,13 @@ export const api = {
   },
   listMeterSchedules: (
     trailStep?: string,
-    options?: { mine?: boolean; gallery?: boolean },
+    options?: { mine?: boolean; gallery?: boolean; forUserId?: string },
   ) => {
     const search = new URLSearchParams()
     if (options?.gallery) search.set('gallery', '1')
     else if (trailStep) search.set('trailStep', trailStep)
     if (options?.mine) search.set('mine', '1')
+    if (options?.forUserId) search.set('forUserId', options.forUserId)
     const queryString = search.toString()
     return request<{ schedules: MeterScheduleRecord[]; total: number }>(
       `/api/meter-schedules${queryString ? `?${queryString}` : ''}`,
