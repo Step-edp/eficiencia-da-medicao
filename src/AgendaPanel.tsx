@@ -71,6 +71,8 @@ export function AgendaPanel({
   const [error, setError] = useState<string | null>(null)
   const [absenceError, setAbsenceError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [showVacationForm, setShowVacationForm] = useState(false)
+  const [showAbsenceForm, setShowAbsenceForm] = useState(false)
 
   const applyAgenda = (response: {
     periods: VacationPeriod[]
@@ -124,6 +126,7 @@ export function AgendaPanel({
       const response = await api.saveVacationPeriod({ startDate, endDate })
       applyAgenda(response)
       setSuccess('Período de férias registrado com sucesso.')
+      setShowVacationForm(false)
       await onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível salvar o período.')
@@ -155,6 +158,7 @@ export function AgendaPanel({
       setAbsenceStart('')
       setAbsenceEnd('')
       setSuccess('Período de ausência registrado. O substituto cobrirá as atividades se estiver ativo.')
+      setShowAbsenceForm(false)
       await onSaved()
     } catch (err) {
       setAbsenceError(err instanceof Error ? err.message : 'Não foi possível salvar a ausência.')
@@ -224,115 +228,175 @@ export function AgendaPanel({
         <>
           <div className="users-dashboard-card">
             <h3>Próximas férias (obrigatório)</h3>
-            <p className="users-dashboard-ranking-hint">
-              O período de férias aparece destacado no calendário. Você pode marcar as datas
-              clicando nos dias ou usando os campos abaixo.
-            </p>
-            <div className="agenda-vacation-layout">
-              <AgendaCalendar
-                periods={periods}
-                vacationStart={startDate}
-                vacationEnd={endDate}
-                interactive={!saving && !locked && displayStatus !== 'em_ausencia'}
-                onSelectDate={(isoDate) => {
-                  const next = nextVacationRangeFromClick(isoDate, startDate, endDate)
-                  setStartDate(next.startDate)
-                  setEndDate(next.endDate)
+            {!showVacationForm ? (
+              <button
+                type="button"
+                className="primary-button"
+                disabled={locked || displayStatus === 'em_ausencia'}
+                onClick={() => {
+                  setShowVacationForm(true)
+                  setShowAbsenceForm(false)
                   setError(null)
                 }}
-              />
-              <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitVacation}>
-                <label>
-                  Início das férias
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(event) => setStartDate(event.target.value)}
-                    required
-                    disabled={saving || locked || displayStatus === 'em_ausencia'}
+              >
+                Registrar férias
+              </button>
+            ) : (
+              <>
+                <p className="users-dashboard-ranking-hint">
+                  O período de férias aparece destacado no calendário. Você pode marcar as datas
+                  clicando nos dias ou usando os campos abaixo.
+                </p>
+                <div className="agenda-vacation-layout">
+                  <AgendaCalendar
+                    periods={periods}
+                    vacationStart={startDate}
+                    vacationEnd={endDate}
+                    interactive={!saving && !locked && displayStatus !== 'em_ausencia'}
+                    onSelectDate={(isoDate) => {
+                      const next = nextVacationRangeFromClick(isoDate, startDate, endDate)
+                      setStartDate(next.startDate)
+                      setEndDate(next.endDate)
+                      setError(null)
+                    }}
                   />
-                </label>
-                <label>
-                  Fim das férias
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(event) => setEndDate(event.target.value)}
-                    required
-                    disabled={saving || locked || displayStatus === 'em_ausencia'}
-                    min={startDate || undefined}
-                  />
-                </label>
-                {error ? (
-                  <p className="gestao-create-cell-error" role="alert">
-                    {error}
-                  </p>
-                ) : null}
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={saving || locked || displayStatus === 'em_ausencia'}
-                >
-                  {saving ? 'Salvando…' : 'Salvar período de férias'}
-                </button>
-              </form>
-            </div>
+                  <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitVacation}>
+                    <label>
+                      Início das férias
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(event) => setStartDate(event.target.value)}
+                        required
+                        disabled={saving || locked || displayStatus === 'em_ausencia'}
+                      />
+                    </label>
+                    <label>
+                      Fim das férias
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(event) => setEndDate(event.target.value)}
+                        required
+                        disabled={saving || locked || displayStatus === 'em_ausencia'}
+                        min={startDate || undefined}
+                      />
+                    </label>
+                    {error ? (
+                      <p className="gestao-create-cell-error" role="alert">
+                        {error}
+                      </p>
+                    ) : null}
+                    <div className="agenda-form-actions">
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={saving}
+                        onClick={() => {
+                          setShowVacationForm(false)
+                          setError(null)
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        className="primary-button"
+                        disabled={saving || locked || displayStatus === 'em_ausencia'}
+                      >
+                        {saving ? 'Salvando…' : 'Salvar período de férias'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="users-dashboard-card" style={{ marginTop: 18 }}>
             <h3>Outros períodos de ausência</h3>
-            <p className="users-dashboard-ranking-hint">
-              Licença, atestado, treinamento e demais ausências também acionam o substituto.
-            </p>
-            <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitAbsence}>
-              <label>
-                Tipo de ausência
-                <select
-                  value={absenceType}
-                  onChange={(event) => setAbsenceType(event.target.value as AbsenceType)}
-                  disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
-                >
-                  {OTHER_ABSENCE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Início
-                <input
-                  type="date"
-                  value={absenceStart}
-                  onChange={(event) => setAbsenceStart(event.target.value)}
-                  required
-                  disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
-                />
-              </label>
-              <label>
-                Fim
-                <input
-                  type="date"
-                  value={absenceEnd}
-                  onChange={(event) => setAbsenceEnd(event.target.value)}
-                  required
-                  disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
-                  min={absenceStart || undefined}
-                />
-              </label>
-              {absenceError ? (
-                <p className="gestao-create-cell-error" role="alert">
-                  {absenceError}
-                </p>
-              ) : null}
+            {!showAbsenceForm ? (
               <button
-                type="submit"
+                type="button"
                 className="primary-button"
-                disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                disabled={locked || displayStatus === 'em_ausencia'}
+                onClick={() => {
+                  setShowAbsenceForm(true)
+                  setShowVacationForm(false)
+                  setAbsenceError(null)
+                }}
               >
-                {savingAbsence ? 'Salvando…' : 'Adicionar ausência'}
+                Registrar ausência
               </button>
-            </form>
+            ) : (
+              <>
+                <p className="users-dashboard-ranking-hint">
+                  Licença, atestado, treinamento e demais ausências também acionam o substituto.
+                </p>
+                <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitAbsence}>
+                  <label>
+                    Tipo de ausência
+                    <select
+                      value={absenceType}
+                      onChange={(event) => setAbsenceType(event.target.value as AbsenceType)}
+                      disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                    >
+                      {OTHER_ABSENCE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Início
+                    <input
+                      type="date"
+                      value={absenceStart}
+                      onChange={(event) => setAbsenceStart(event.target.value)}
+                      required
+                      disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                    />
+                  </label>
+                  <label>
+                    Fim
+                    <input
+                      type="date"
+                      value={absenceEnd}
+                      onChange={(event) => setAbsenceEnd(event.target.value)}
+                      required
+                      disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                      min={absenceStart || undefined}
+                    />
+                  </label>
+                  {absenceError ? (
+                    <p className="gestao-create-cell-error" role="alert">
+                      {absenceError}
+                    </p>
+                  ) : null}
+                  <div className="agenda-form-actions">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={savingAbsence}
+                      onClick={() => {
+                        setShowAbsenceForm(false)
+                        setAbsenceError(null)
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="primary-button"
+                      disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                    >
+                      {savingAbsence ? 'Salvando…' : 'Salvar ausência'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
 
           {success ? <p className="agenda-success">{success}</p> : null}
