@@ -46,8 +46,8 @@ export type OrgCell = {
   areaId?: string
   label: string
   description: string
-  /** Engenheiro Dono / responsável da célula. */
-  ownerRoleLabel: 'Engenheiro Dono de Área'
+  /** Engenheiro responsável pela célula. */
+  ownerRoleLabel: 'Engenheiro Responsável por célula'
   subcells: readonly OrgSubcell[]
   responsibleUserId?: string | null
   responsibleName?: string | null
@@ -133,8 +133,8 @@ export const ORG_STRUCTURE: OrgArea = {
       id: 'Medição',
       label: 'Medição',
       description:
-        'Célula liderada por um Engenheiro Dono de Área, com subcélulas e processos sob engenheiros responsáveis.',
-      ownerRoleLabel: 'Engenheiro Dono de Área',
+        'Célula liderada por um Engenheiro Responsável por célula, com subcélulas e processos sob engenheiros responsáveis por sub-célula.',
+      ownerRoleLabel: 'Engenheiro Responsável por célula',
       subcells: MEDICAO_SUBCELLS,
       status: 'pendente',
     },
@@ -142,7 +142,7 @@ export const ORG_STRUCTURE: OrgArea = {
       id: 'Telemedição',
       label: 'Telemedição',
       description: 'Célula de Telemedição. Subcélulas ainda em definição.',
-      ownerRoleLabel: 'Engenheiro Dono de Área',
+      ownerRoleLabel: 'Engenheiro Responsável por célula',
       subcells: [],
       status: 'pendente',
     },
@@ -174,7 +174,7 @@ export function buildOrgCellsFromRecords(records: OrgCellRecord[]): OrgCell[] {
     areaId: record.areaId,
     label: record.label,
     description: record.description,
-    ownerRoleLabel: 'Engenheiro Dono de Área',
+    ownerRoleLabel: 'Engenheiro Responsável por célula',
     subcells: DEFAULT_SUBCELLS_BY_CELL[record.id] ?? [],
     responsibleUserId: record.responsibleUserId,
     responsibleName: record.responsibleName,

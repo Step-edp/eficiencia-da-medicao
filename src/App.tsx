@@ -13,6 +13,7 @@ import { AgendaPanel } from './AgendaPanel'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
   CADASTRO_PROFILES,
+  getCadastroProfile,
   getHomeAreasForProfilePreview,
   getHomeAreasForUser,
   getAccessiblePortals,
@@ -1652,7 +1653,7 @@ function HomePanel({
 
   const previewProfile =
     isAdmin && previewProfileId !== ADMIN_PREVIEW_PROFILE_ID
-      ? CADASTRO_PROFILES.find((profile) => profile.id === previewProfileId)
+      ? getCadastroProfile(previewProfileId) ?? null
       : null
 
   const activeFieldTeamSubtype =

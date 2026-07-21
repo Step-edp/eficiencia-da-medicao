@@ -60,10 +60,10 @@ export type CadastroProfile = {
 
 export const CADASTRO_PROFILES: CadastroProfile[] = [
   {
-    id: 'tecnico-inspecao',
-    name: 'CSD – Técnico – Inspeção',
+    id: 'csd-tecnico-equipe-campo',
+    name: 'CSD – Técnico – Lavratura de TOI - Equipe de Campo',
     description:
-      'Permite agendar, consultar e acompanhar Meus TOIs na Equipe de campo, para medidores provenientes de lavratura de TOI com suspeita de fraude ou defeito, destinados a ensaios no Laboratório de Medição da EDP SP.',
+      'Permite agendar e acompanhar Meus TOIs na Equipe de campo, para medidores com suspeita de fraude ou defeito destinados a ensaios no Laboratório de Medição.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -72,10 +72,10 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'analista-lavratura-toi',
+    id: 'csd-analista-equipe-campo',
     name: 'CSD – Analista – Lavratura de TOI - Equipe de Campo',
     description:
-      'Permite agendar, consultar e acompanhar Meus TOIs na Equipe de campo para equipamentos provenientes de lavratura de TOI.',
+      'Permite agendar e acompanhar Meus TOIs na Equipe de campo para equipamentos provenientes de lavratura de TOI.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -84,8 +84,8 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'ponto-focal-inspecao',
-    name: 'CSD – Ponto Focal – Inspeção',
+    id: 'csd-tecnico-ponto-focal',
+    name: 'CSD – Técnico – Lavratura de TOI - Ponto Focal',
     description:
       'Permite consultar medidores na Equipe de campo provenientes de lavratura de TOI, com acesso a Suporte e Agenda.',
     areas: ['Equipe de campo'],
@@ -96,10 +96,10 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'backoffice-inspecao',
-    name: 'CSD – BackOffice – Lavratura de TOI',
+    id: 'csd-analista-backoffice',
+    name: 'CSD – Analista – Lavratura de TOI - Backoffice',
     description:
-      'Permite agendar, consultar e acompanhar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI.',
+      'Permite agendar e acompanhar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -108,10 +108,10 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'tecnico-laboratorio-medicao',
+    id: 'medicao-tecnico-laboratorio',
     name: 'Medição – Técnico – Laboratório de Medição',
     description:
-      'Permite executar todas as atividades operacionais relacionadas ao Laboratório de Medição, incluindo o processamento, análise e registro dos ensaios realizados.',
+      'Permite executar as atividades operacionais do Laboratório de Medição, incluindo processamento, análise e registro dos ensaios.',
     areas: ['Laboratório de Medição'],
     match: {
       workArea: 'Medição',
@@ -120,10 +120,22 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'engenheiro-dono-area-medicao',
-    name: 'Medição – Engenheiro Responsável por célula',
+    id: 'medicao-tecnico-administrativo',
+    name: 'Medição – Técnico – Atividades administrativas da Medição',
     description:
-      'Responsável pela célula Medição: controle das subcélulas e processos, com acesso à Gestão Operacional.',
+      'Permite executar atividades administrativas da Medição.',
+    areas: ['Medição'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Técnico',
+      workSubtype: 'Atividades administrativas da Medição',
+    },
+  },
+  {
+    id: 'engenheiro-responsavel-celula-medicao',
+    name: 'Medição – Engenheiro – Responsável por célula',
+    description:
+      'Engenheiro responsável pela célula Medição, com acesso à Gestão Operacional e às subcélulas da célula.',
     areas: [
       'Gestão Operacional',
       'Medição',
@@ -140,10 +152,10 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'engenheiro-dono-area-telemedicao',
-    name: 'Telemedição – Engenheiro Responsável por célula',
+    id: 'engenheiro-responsavel-celula-telemedicao',
+    name: 'Telemedição – Engenheiro – Responsável por célula',
     description:
-      'Responsável pela célula Telemedição, com acesso à Gestão Operacional e às atividades da área.',
+      'Engenheiro responsável pela célula Telemedição, com acesso à Gestão Operacional e às atividades da área.',
     areas: ['Gestão Operacional', 'Telemedição'],
     match: {
       workArea: 'Telemedição',
@@ -152,10 +164,10 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'engenheiro-responsavel-medicao',
-    name: 'Medição – Engenheiro Responsável por sub-célula – Medição',
+    id: 'engenheiro-responsavel-subcelula-medicao',
+    name: 'Medição – Engenheiro – Responsável por sub-célula – Medição',
     description:
-      'Engenheiro responsável pela subcélula Medição, com acesso às atividades atribuídas nessa subárea.',
+      'Engenheiro responsável pela subcélula Medição.',
     areas: ['Medição'],
     match: {
       workArea: 'Medição',
@@ -165,10 +177,10 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'engenheiro-responsavel-laboratorio-medicao',
-    name: 'Medição – Engenheiro Responsável por sub-célula – Laboratório de Medição',
+    id: 'engenheiro-responsavel-subcelula-laboratorio',
+    name: 'Medição – Engenheiro – Responsável por sub-célula – Laboratório de Medição',
     description:
-      'Engenheiro responsável pela subcélula Laboratório de Medição, acompanhando a execução sem operar diretamente os ensaios.',
+      'Engenheiro responsável pela subcélula Laboratório de Medição.',
     areas: ['Laboratório de Medição'],
     match: {
       workArea: 'Medição',
@@ -179,7 +191,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
   {
     id: 'engenheiro-responsavel-subcelula-homologacao',
-    name: 'Medição – Engenheiro Responsável por sub-célula – Laboratório de Homologação',
+    name: 'Medição – Engenheiro – Responsável por sub-célula – Laboratório de Homologação',
     description:
       'Engenheiro responsável pela subcélula Laboratório de Homologação.',
     areas: ['Laboratório de Homologação'],
@@ -192,7 +204,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
   {
     id: 'engenheiro-responsavel-subcelula-equipe-campo',
-    name: 'Medição – Engenheiro Responsável por sub-célula – Equipe de campo',
+    name: 'Medição – Engenheiro – Responsável por sub-célula – Equipe de campo',
     description:
       'Engenheiro responsável pela subcélula Equipe de campo.',
     areas: ['Equipe de campo'],
@@ -205,7 +217,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
   {
     id: 'engenheiro-responsavel-subcelula-usuarios',
-    name: 'Medição – Engenheiro Responsável por sub-célula – Usuários',
+    name: 'Medição – Engenheiro – Responsável por sub-célula – Usuários',
     description:
       'Engenheiro responsável pela subcélula Usuários.',
     areas: ['Usuários'],
@@ -218,7 +230,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
   {
     id: 'engenheiro-responsavel-subcelula-cadastros',
-    name: 'Medição – Engenheiro Responsável por sub-célula – Cadastros',
+    name: 'Medição – Engenheiro – Responsável por sub-célula – Cadastros',
     description:
       'Engenheiro responsável pela subcélula Cadastros.',
     areas: ['Cadastros'],
@@ -230,8 +242,8 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'engenheiro-responsavel-telemedicao',
-    name: 'Telemedição – Engenheiro Responsável por sub-célula – Telemedição',
+    id: 'engenheiro-responsavel-subcelula-telemedicao',
+    name: 'Telemedição – Engenheiro – Responsável por sub-célula – Telemedição',
     description:
       'Engenheiro responsável pela subcélula Telemedição.',
     areas: ['Telemedição'],
@@ -246,7 +258,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'gestor-medicao',
     name: 'Medição – Gestor',
     description:
-      'Possui acesso aos indicadores e dashboards consolidados de todas as áreas de Medição sob sua concessão, permitindo o acompanhamento gerencial dos resultados.',
+      'Acesso aos indicadores e dashboards consolidados das áreas de Medição sob sua concessão.',
     areas: ['Gestão Operacional', 'Medição'],
     match: {
       workArea: 'Medição',
@@ -257,7 +269,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'analista-medicao',
     name: 'Medição – Analista',
     description:
-      'Possui acesso apenas às atividades atribuídas ao seu usuário, podendo executá-las e acompanhar seu andamento.',
+      'Acesso às atividades atribuídas ao usuário na área de Medição.',
     areas: ['Medição'],
     match: {
       workArea: 'Medição',
@@ -265,6 +277,21 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
 ]
+
+/** IDs antigos → id atual (pré-visualização / favoritos do admin). */
+const CADASTRO_PROFILE_ID_ALIASES: Record<string, string> = {
+  'tecnico-inspecao': 'csd-tecnico-equipe-campo',
+  'analista-lavratura-toi': 'csd-analista-equipe-campo',
+  'ponto-focal-inspecao': 'csd-tecnico-ponto-focal',
+  'backoffice-inspecao': 'csd-analista-backoffice',
+  'tecnico-laboratorio-medicao': 'medicao-tecnico-laboratorio',
+  'engenheiro-dono-area-medicao': 'engenheiro-responsavel-celula-medicao',
+  'engenheiro-dono-area-telemedicao': 'engenheiro-responsavel-celula-telemedicao',
+  'engenheiro-responsavel-medicao': 'engenheiro-responsavel-subcelula-medicao',
+  'engenheiro-responsavel-laboratorio-medicao':
+    'engenheiro-responsavel-subcelula-laboratorio',
+  'engenheiro-responsavel-telemedicao': 'engenheiro-responsavel-subcelula-telemedicao',
+}
 
 export const ADMIN_PREVIEW_PROFILE_ID = 'admin-completo'
 
@@ -415,7 +442,8 @@ export function getHomeAreasForUser(user: {
 }
 
 export function getCadastroProfile(profileId: string): CadastroProfile | undefined {
-  return CADASTRO_PROFILES.find((profile) => profile.id === profileId)
+  const resolvedId = CADASTRO_PROFILE_ID_ALIASES[profileId] ?? profileId
+  return CADASTRO_PROFILES.find((profile) => profile.id === resolvedId)
 }
 
 export function userMatchesCadastroProfile(

@@ -5,7 +5,7 @@ import {
   type CatalogGroup,
   type CatalogKey,
 } from './api'
-import { CADASTRO_PROFILES } from './profilesAccess'
+import { CADASTRO_PROFILES, getCadastroProfile } from './profilesAccess'
 import {
   DEFAULT_AREA_OPTIONS,
   DEFAULT_LOCALITIES,
