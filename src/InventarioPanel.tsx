@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { LoginFeedback } from './LoginFeedback'
 
 type InventoryMonth = {
   key: string
@@ -86,9 +87,11 @@ export function InventarioPanel({
         </div>
 
         {iq09Feedback ? (
-          <div className={`login-feedback ${iq09Feedback.type}`} role="status">
-            {iq09Feedback.message}
-          </div>
+          <LoginFeedback
+            type={iq09Feedback.type}
+            message={iq09Feedback.message}
+            onClose={() => setIq09Feedback(null)}
+          />
         ) : null}
 
         <div className="inventario-month-content">
