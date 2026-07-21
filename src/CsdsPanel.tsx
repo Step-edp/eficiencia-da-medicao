@@ -12,6 +12,7 @@ export function CsdsPanel() {
   const [selectedCities, setSelectedCities] = useState<string[]>([])
   const [responsibleUserId, setResponsibleUserId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
@@ -51,6 +52,11 @@ export function CsdsPanel() {
     return map
   }, [csds])
 
+  const pendingCount = useMemo(
+    () => csds.filter((csd) => csd.status === 'pendente' || !csd.responsibleUserId).length,
+    [csds],
+  )
+
   const resetForm = () => {
     setName('')
     setAddress('')
@@ -87,10 +93,15 @@ export function CsdsPanel() {
         name: name.trim(),
         address: address.trim(),
         cities: selectedCities,
-        responsibleUserId,
+        responsibleUserId: responsibleUserId || null,
       })
       setCsds((prev) => [...prev, csd].sort((a, b) => a.name.localeCompare(b.name)))
-      setFeedback({ type: 'success', message: `CSD "${csd.name}" cadastrado com sucesso.` })
+      setFeedback({
+        type: 'success',
+        message: csd.responsibleUserId
+          ? `CSD "${csd.name}" cadastrado com sucesso.`
+          : `CSD "${csd.name}" cadastrado como pendente (sem responsável).`,
+      })
       resetForm()
       setShowForm(false)
     } catch (error) {
@@ -103,6 +114,38 @@ export function CsdsPanel() {
       })
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleAssignResponsible = async (csd: CsdRecord, nextUserId: string) => {
+    if (!nextUserId) return
+
+    setUpdatingId(csd.id)
+    setFeedback(null)
+
+    try {
+      const { csd: updated } = await api.updateCsd(csd.id, {
+        responsibleUserId: nextUserId,
+      })
+      setCsds((prev) =>
+        prev
+          .map((item) => (item.id === updated.id ? updated : item))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      )
+      setFeedback({
+        type: 'success',
+        message: `Responsável do CSD "${updated.name}" definido.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível atualizar o responsável.',
+      })
+    } finally {
+      setUpdatingId(null)
     }
   }
 
@@ -132,6 +175,14 @@ export function CsdsPanel() {
       <div className="csds-panel-header">
         <p className="csds-panel-intro">
           Cadastre e consulte os Centros de Serviço de Distribuição (CSDs) do laboratório.
+          {pendingCount > 0 ? (
+            <>
+              {' '}
+              <span className="csds-pending-summary">
+                {pendingCount} pendente{pendingCount > 1 ? 's' : ''} sem responsável.
+              </span>
+            </>
+          ) : null}
         </p>
         <button
           type="button"
@@ -211,9 +262,8 @@ export function CsdsPanel() {
             <select
               value={responsibleUserId}
               onChange={(event) => setResponsibleUserId(event.target.value)}
-              required
             >
-              <option value="">Selecione um usuário CSD</option>
+              <option value="">Sem responsável — pendente</option>
               {inspectors.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.name} ({user.registration})
@@ -221,6 +271,10 @@ export function CsdsPanel() {
               ))}
             </select>
           </label>
+
+          <p className="csds-form-hint full-width">
+            Opcional. Sem responsável, o CSD fica pendente e pode ser definido depois.
+          </p>
 
           {inspectors.length === 0 ? (
             <p className="csds-form-hint full-width">
@@ -256,30 +310,66 @@ export function CsdsPanel() {
                 <td colSpan={5}>Nenhum CSD cadastrado.</td>
               </tr>
             ) : (
-              csds.map((csd) => (
-                <tr key={csd.id}>
-                  <td>{csd.name}</td>
-                  <td>{csd.address}</td>
-                  <td>{csd.cities.length > 0 ? csd.cities.join(', ') : '—'}</td>
-                  <td>
-                    {csd.responsibleName}
-                    <span className="csds-responsible-registration">
-                      {' '}
-                      ({csd.responsibleRegistration})
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="csds-delete-button"
-                      disabled={deletingId === csd.id}
-                      onClick={() => void handleDelete(csd)}
-                    >
-                      {deletingId === csd.id ? 'Excluindo...' : 'Excluir'}
-                    </button>
-                  </td>
-                </tr>
-              ))
+              csds.map((csd) => {
+                const isPending = csd.status === 'pendente' || !csd.responsibleUserId
+
+                return (
+                  <tr key={csd.id} className={isPending ? 'csds-row-pending' : undefined}>
+                    <td>
+                      {csd.name}
+                      {isPending ? (
+                        <span className="gestao-cell-status-badge is-pendente csds-status-badge">
+                          Pendente
+                        </span>
+                      ) : null}
+                    </td>
+                    <td>{csd.address}</td>
+                    <td>{csd.cities.length > 0 ? csd.cities.join(', ') : '—'}</td>
+                    <td>
+                      {isPending ? (
+                        <select
+                          className="csds-assign-select"
+                          value=""
+                          disabled={updatingId === csd.id || inspectors.length === 0}
+                          onChange={(event) =>
+                            void handleAssignResponsible(csd, event.target.value)
+                          }
+                          aria-label={`Definir responsável do ${csd.name}`}
+                        >
+                          <option value="">
+                            {updatingId === csd.id
+                              ? 'Salvando...'
+                              : 'Definir responsável...'}
+                          </option>
+                          {inspectors.map((user) => (
+                            <option key={user.id} value={user.id}>
+                              {user.name} ({user.registration})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <>
+                          {csd.responsibleName}
+                          <span className="csds-responsible-registration">
+                            {' '}
+                            ({csd.responsibleRegistration})
+                          </span>
+                        </>
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="csds-delete-button"
+                        disabled={deletingId === csd.id}
+                        onClick={() => void handleDelete(csd)}
+                      >
+                        {deletingId === csd.id ? 'Excluindo...' : 'Excluir'}
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>

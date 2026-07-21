@@ -22,6 +22,7 @@ import {
   deleteCsd,
   listCsds,
   listInspectionUsers,
+  updateCsd,
 } from './routes/csds.js'
 import { catalogOptionRoutes } from './routes/catalog-options.js'
 import { processAssignmentRoutes } from './routes/process-assignments.js'
@@ -132,6 +133,7 @@ async function start() {
 
   app.get('/api/csds', requireAuth, listCsds)
   app.post('/api/csds', requireAuth, createCsd)
+  app.patch('/api/csds/:id', requireAuth, updateCsd)
   app.delete('/api/csds/:id', requireAuth, deleteCsd)
   app.get('/api/field-team/inspection-users', requireAuth, listInspectionUsers)
 

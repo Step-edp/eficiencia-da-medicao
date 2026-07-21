@@ -8,11 +8,18 @@ type CsdRow = {
   name: string
   address: string
   cities: string[] | null
-  responsible_user_id: string
+  responsible_user_id: string | null
   created_at: Date
-  responsible_name: string
-  responsible_registration: string
+  responsible_name: string | null
+  responsible_registration: string | null
 }
+
+const CSD_SELECT = `
+  SELECT c.id, c.name, c.address, c.cities, c.responsible_user_id, c.created_at,
+         u.name AS responsible_name, u.registration AS responsible_registration
+  FROM csds c
+  LEFT JOIN users u ON u.id = c.responsible_user_id
+`
 
 function mapCsd(row: CsdRow) {
   return {
@@ -23,33 +30,47 @@ function mapCsd(row: CsdRow) {
     responsibleUserId: row.responsible_user_id,
     responsibleName: row.responsible_name,
     responsibleRegistration: row.responsible_registration,
+    status: row.responsible_user_id ? ('ativa' as const) : ('pendente' as const),
     createdAt: row.created_at.toISOString(),
   }
 }
 
-export async function listCsds(_req: Request, res: Response) {
-  const result = await query<CsdRow>(
-    `SELECT c.id, c.name, c.address, c.cities, c.responsible_user_id, c.created_at,
-            u.name AS responsible_name, u.registration AS responsible_registration
-     FROM csds c
-     JOIN users u ON u.id = c.responsible_user_id
-     ORDER BY c.name ASC`,
+function parseOptionalResponsibleId(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed || null
+}
+
+async function assertCsdResponsible(userId: string) {
+  const responsible = await query<{ id: string }>(
+    `SELECT id FROM users
+     WHERE id = $1
+       AND approval_status = 'approved'
+       AND role <> 'admin'
+       AND work_area = 'CSD'`,
+    [userId],
   )
+
+  return Boolean(responsible.rows[0])
+}
+
+export async function listCsds(_req: Request, res: Response) {
+  const result = await query<CsdRow>(`${CSD_SELECT} ORDER BY c.name ASC`)
   res.json({ csds: result.rows.map(mapCsd) })
 }
 
 export async function createCsd(req: Request, res: Response) {
-  const { name, address, responsibleUserId, cities } = req.body as {
+  const { name, address, cities } = req.body as {
     name?: string
     address?: string
-    responsibleUserId?: string
     cities?: unknown
   }
+  const responsibleUserId = parseOptionalResponsibleId(req.body?.responsibleUserId)
 
   const normalizedCities = normalizeCsdCities(cities)
 
-  if (!name?.trim() || !address?.trim() || !responsibleUserId?.trim()) {
-    res.status(400).json({ error: 'Nome, endereço e responsável são obrigatórios.' })
+  if (!name?.trim() || !address?.trim()) {
+    res.status(400).json({ error: 'Nome e endereço são obrigatórios.' })
     return
   }
 
@@ -58,20 +79,14 @@ export async function createCsd(req: Request, res: Response) {
     return
   }
 
-  const responsible = await query<{ id: string }>(
-    `SELECT id FROM users
-     WHERE id = $1
-       AND approval_status = 'approved'
-       AND role <> 'admin'
-       AND work_area = 'CSD'`,
-    [responsibleUserId.trim()],
-  )
-
-  if (!responsible.rows[0]) {
-    res.status(400).json({
-      error: 'Responsável inválido. Selecione um usuário com perfil de CSD.',
-    })
-    return
+  if (responsibleUserId) {
+    const valid = await assertCsdResponsible(responsibleUserId)
+    if (!valid) {
+      res.status(400).json({
+        error: 'Responsável inválido. Selecione um usuário com perfil de CSD.',
+      })
+      return
+    }
   }
 
   const conflicts = await query<{ city: string; csd_name: string }>(
@@ -103,7 +118,7 @@ export async function createCsd(req: Request, res: Response) {
         name.trim(),
         address.trim(),
         JSON.stringify(normalizedCities),
-        responsibleUserId.trim(),
+        responsibleUserId,
       ],
     )
     const csd = mapCsd(insert.rows[0])
@@ -112,7 +127,9 @@ export async function createCsd(req: Request, res: Response) {
       action: 'create',
       entityType: 'csd',
       entityId: csd.id,
-      summary: `CSD ${csd.name}`,
+      summary: responsibleUserId
+        ? `CSD ${csd.name}`
+        : `CSD ${csd.name} criado como pendente (sem responsável)`,
       newData: csd,
     })
 
@@ -125,6 +142,54 @@ export async function createCsd(req: Request, res: Response) {
     }
     throw error
   }
+}
+
+export async function updateCsd(req: Request, res: Response) {
+  const { id } = req.params
+  const responsibleUserId = parseOptionalResponsibleId(req.body?.responsibleUserId)
+
+  const existing = await query<CsdRow>(`${CSD_SELECT} WHERE c.id = $1`, [id])
+
+  if (!existing.rows[0]) {
+    res.status(404).json({ error: 'CSD não encontrado.' })
+    return
+  }
+
+  if (responsibleUserId) {
+    const valid = await assertCsdResponsible(responsibleUserId)
+    if (!valid) {
+      res.status(400).json({
+        error: 'Responsável inválido. Selecione um usuário com perfil de CSD.',
+      })
+      return
+    }
+  }
+
+  const updated = await query<CsdRow>(
+    `UPDATE csds
+     SET responsible_user_id = $2
+     WHERE id = $1
+     RETURNING id, name, address, cities, responsible_user_id, created_at,
+               (SELECT name FROM users WHERE id = $2) AS responsible_name,
+               (SELECT registration FROM users WHERE id = $2) AS responsible_registration`,
+    [id, responsibleUserId],
+  )
+
+  const previous = mapCsd(existing.rows[0])
+  const csd = mapCsd(updated.rows[0])
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'csd',
+    entityId: csd.id,
+    summary: responsibleUserId
+      ? `Responsável do CSD ${csd.name} atualizado`
+      : `CSD ${csd.name} ficou pendente (sem responsável)`,
+    oldData: previous,
+    newData: csd,
+  })
+
+  res.json({ csd })
 }
 
 export async function listInspectionUsers(_req: Request, res: Response) {
@@ -146,14 +211,7 @@ export async function listInspectionUsers(_req: Request, res: Response) {
 export async function deleteCsd(req: Request, res: Response) {
   const { id } = req.params
 
-  const existing = await query<CsdRow>(
-    `SELECT c.id, c.name, c.address, c.cities, c.responsible_user_id, c.created_at,
-            u.name AS responsible_name, u.registration AS responsible_registration
-     FROM csds c
-     JOIN users u ON u.id = c.responsible_user_id
-     WHERE c.id = $1`,
-    [id],
-  )
+  const existing = await query<CsdRow>(`${CSD_SELECT} WHERE c.id = $1`, [id])
 
   if (!existing.rows[0]) {
     res.status(404).json({ error: 'CSD não encontrado.' })

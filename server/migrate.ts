@@ -94,7 +94,7 @@ export async function migrate() {
       name TEXT NOT NULL UNIQUE,
       address TEXT NOT NULL,
       cities JSONB NOT NULL DEFAULT '[]'::jsonb,
-      responsible_user_id TEXT NOT NULL REFERENCES users(id),
+      responsible_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
@@ -237,6 +237,7 @@ export async function migrate() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS access_processes JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE ensaios_manual_blocks ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT '';
     ALTER TABLE csds ADD COLUMN IF NOT EXISTS cities JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE csds ALTER COLUMN responsible_user_id DROP NOT NULL;
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS extracted_meters JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS document_number TEXT;
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS emission_date TEXT;

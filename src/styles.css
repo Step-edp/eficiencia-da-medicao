@@ -1469,6 +1469,27 @@ button {
   font-size: 0.88rem;
 }
 
+.csds-pending-summary {
+  color: #f0b429;
+  font-weight: 600;
+}
+
+.csds-status-badge {
+  display: inline-flex;
+  margin: 0 0 0 8px;
+  vertical-align: middle;
+}
+
+.csds-row-pending td:first-child {
+  font-weight: 600;
+}
+
+.csds-assign-select {
+  width: 100%;
+  min-width: 180px;
+  max-width: 260px;
+}
+
 .csds-delete-button {
   padding: 8px 12px;
   border: 1px solid rgba(255, 92, 92, 0.45);

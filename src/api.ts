@@ -226,9 +226,10 @@ export type CsdRecord = {
   name: string
   address: string
   cities: string[]
-  responsibleUserId: string
-  responsibleName: string
-  responsibleRegistration: string
+  responsibleUserId: string | null
+  responsibleName: string | null
+  responsibleRegistration: string | null
+  status: 'ativa' | 'pendente'
   createdAt: string
 }
 
@@ -644,10 +645,20 @@ export const api = {
     name: string
     address: string
     cities: string[]
-    responsibleUserId: string
+    responsibleUserId?: string | null
   }) =>
     request<{ csd: CsdRecord }>('/api/csds', {
       method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateCsd: (
+    id: string,
+    payload: {
+      responsibleUserId?: string | null
+    },
+  ) =>
+    request<{ csd: CsdRecord }>(`/api/csds/${id}`, {
+      method: 'PATCH',
       body: JSON.stringify(payload),
     }),
   deleteCsd: (id: string) =>

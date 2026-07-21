@@ -1235,7 +1235,7 @@ export async function deleteUser(req: Request, res: Response) {
     },
   })
 
-  await query(`DELETE FROM csds WHERE responsible_user_id = $1`, [id])
+  await query(`UPDATE csds SET responsible_user_id = NULL WHERE responsible_user_id = $1`, [id])
   await query(`DELETE FROM homologation_requests WHERE requester_user_id = $1`, [id])
   await query(`UPDATE ratm_laudos SET created_by_user_id = NULL WHERE created_by_user_id = $1`, [
     id,
