@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react'
 import { LoginFeedback } from './LoginFeedback'
+import { LabMeasurementTrail } from './LabMeasurementTrail'
+import type { LabTrailStep } from './labTrailSteps'
+
+const INVENTARIO_TRAIL_STEPS: LabTrailStep[] = [
+  { key: 'IQ09', label: 'IQ09' },
+  { key: 'Serializar', label: 'Serializar' },
+  { key: 'Resultado', label: 'Resultado' },
+]
 
 type InventoryMonth = {
   key: string
@@ -7,6 +15,8 @@ type InventoryMonth = {
   monthIndex: number
   monthLabel: string
 }
+
+type InventarioTrailStepKey = (typeof INVENTARIO_TRAIL_STEPS)[number]['key']
 
 function buildLastTwelveMonths(reference = new Date()): InventoryMonth[] {
   const months: InventoryMonth[] = []
@@ -33,6 +43,17 @@ function monthTitle(month: InventoryMonth) {
   return `${month.monthLabel} de ${month.year}`
 }
 
+function InventarioTrailIcon({ step }: { step: string }) {
+  const symbol =
+    step === 'IQ09' ? '1' : step === 'Serializar' ? '2' : step === 'Resultado' ? '3' : '•'
+
+  return (
+    <span className="item-icon" aria-hidden="true">
+      {symbol}
+    </span>
+  )
+}
+
 type InventarioPanelProps = {
   openMonthTitle?: string | null
   onMonthOpenChange?: (monthTitle: string | null) => void
@@ -45,7 +66,8 @@ export function InventarioPanel({
   readOnly = false,
 }: InventarioPanelProps) {
   const months = useMemo(() => buildLastTwelveMonths(), [])
-  const [iq09Feedback, setIq09Feedback] = useState<{
+  const [activeTrailStep, setActiveTrailStep] = useState<InventarioTrailStepKey>('IQ09')
+  const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
@@ -66,31 +88,49 @@ export function InventarioPanel({
   const openMonth =
     months.find((month) => monthTitle(month) === openMonthTitle) ?? null
 
+  const handleTrailSelect = (stepKey: string) => {
+    if (readOnly) return
+    setActiveTrailStep(stepKey as InventarioTrailStepKey)
+    if (!openMonth) return
+
+    if (stepKey === 'IQ09') {
+      setFeedback({
+        type: 'success',
+        message: `Pedido IQ09 registrado para ${monthTitle(openMonth)}.`,
+      })
+      return
+    }
+
+    if (stepKey === 'Serializar') {
+      setFeedback({
+        type: 'success',
+        message: `Serialização solicitada para ${monthTitle(openMonth)}.`,
+      })
+      return
+    }
+
+    setFeedback({
+      type: 'success',
+      message: `Consulta de resultado aberta para ${monthTitle(openMonth)}.`,
+    })
+  }
+
   if (openMonth) {
     return (
       <div className="inventario-panel inventario-month-screen">
-        <div className="area-actions inventario-month-actions">
-          <button
-            type="button"
-            className="primary-button compact-button"
-            disabled={readOnly}
-            title={readOnly ? 'Disponível apenas para perfis operacionais' : undefined}
-            onClick={() => {
-              setIq09Feedback({
-                type: 'success',
-                message: `Pedido IQ09 registrado para ${monthTitle(openMonth)}.`,
-              })
-            }}
-          >
-            IQ09
-          </button>
-        </div>
+        <LabMeasurementTrail
+          activeStep={activeTrailStep}
+          onSelect={handleTrailSelect}
+          renderIcon={(step) => <InventarioTrailIcon step={step} />}
+          steps={INVENTARIO_TRAIL_STEPS}
+          ariaLabel="Trilha do inventário mensal"
+        />
 
-        {iq09Feedback ? (
+        {feedback ? (
           <LoginFeedback
-            type={iq09Feedback.type}
-            message={iq09Feedback.message}
-            onClose={() => setIq09Feedback(null)}
+            type={feedback.type}
+            message={feedback.message}
+            onClose={() => setFeedback(null)}
           />
         ) : null}
 
