@@ -31,6 +31,7 @@ export type AuditEntityType =
   | 'meter_model'
   | 'presentation'
   | 'software'
+  | 'iq09_run'
 
 export type AuditLogEntry = {
   action: AuditAction

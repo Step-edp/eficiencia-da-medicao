@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { api, ApiError } from './api'
 import { LoginFeedback } from './LoginFeedback'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
 import type { LabTrailStep } from './labTrailSteps'
@@ -54,6 +55,14 @@ function InventarioTrailIcon({ step }: { step: string }) {
   )
 }
 
+function PlayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M8 5.5v13l11-6.5L8 5.5z" fill="currentColor" />
+    </svg>
+  )
+}
+
 type InventarioPanelProps = {
   openMonthTitle?: string | null
   onMonthOpenChange?: (monthTitle: string | null) => void
@@ -68,6 +77,7 @@ export function InventarioPanel({
   const months = useMemo(() => buildLastTwelveMonths(), [])
   const [activeTrailStep, setActiveTrailStep] = useState<InventarioTrailStepKey>('IQ09')
   const [completedStepKeys, setCompletedStepKeys] = useState<InventarioTrailStepKey[]>([])
+  const [runningIq09, setRunningIq09] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -94,14 +104,22 @@ export function InventarioPanel({
     setActiveTrailStep('IQ09')
     setCompletedStepKeys([])
     setFeedback(null)
+    setRunningIq09(false)
   }, [openMonthTitle])
 
   // Próxima etapa liberada = quantidade de etapas já concluídas (em ordem).
   const unlockedIndex = completedStepKeys.length
+  const iq09Completed = completedStepKeys.includes('IQ09')
 
   const isStepEnabled = (_stepKey: string, index: number) => {
     if (readOnly) return false
     return index <= unlockedIndex
+  }
+
+  const completeStep = (stepKey: InventarioTrailStepKey) => {
+    setCompletedStepKeys((current) =>
+      current.includes(stepKey) ? current : [...current, stepKey],
+    )
   }
 
   const handleTrailSelect = (stepKey: string) => {
@@ -116,24 +134,17 @@ export function InventarioPanel({
       return
     }
 
-    // Só conclui a etapa atual ao avançar para ela na ordem (próxima liberada).
-    const isAdvancing = stepIndex === unlockedIndex
     setActiveTrailStep(stepKey as InventarioTrailStepKey)
 
-    if (isAdvancing) {
-      setCompletedStepKeys((current) =>
-        current.includes(stepKey as InventarioTrailStepKey)
-          ? current
-          : [...current, stepKey as InventarioTrailStepKey],
-      )
+    // IQ09 só conclui ao rodar o script (botão play).
+    if (stepKey === 'IQ09') {
+      setFeedback(null)
+      return
     }
 
-    if (stepKey === 'IQ09') {
-      setFeedback({
-        type: 'success',
-        message: `Pedido IQ09 registrado para ${monthTitle(openMonth)}.`,
-      })
-      return
+    const isAdvancing = stepIndex === unlockedIndex
+    if (isAdvancing) {
+      completeStep(stepKey as InventarioTrailStepKey)
     }
 
     if (stepKey === 'Serializar') {
@@ -148,6 +159,32 @@ export function InventarioPanel({
       type: 'success',
       message: `Consulta de resultado aberta para ${monthTitle(openMonth)}.`,
     })
+  }
+
+  const handleRunIq09 = async () => {
+    if (readOnly || !openMonth || runningIq09) return
+
+    setRunningIq09(true)
+    setFeedback(null)
+
+    try {
+      const result = await api.runIq09Script({ monthKey: openMonth.key })
+      completeStep('IQ09')
+      setFeedback({
+        type: 'success',
+        message: result.message || `Script IQ09 executado para ${monthTitle(openMonth)}.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível executar o script IQ09.',
+      })
+    } finally {
+      setRunningIq09(false)
+    }
   }
 
   if (openMonth) {
@@ -172,27 +209,58 @@ export function InventarioPanel({
         ) : null}
 
         <div className="inventario-month-content">
-          <div className="entrada-table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Descrição</th>
-                  <th>Quantidade</th>
-                  <th>Status</th>
-                  <th>Atualizado em</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colSpan={5}>
-                    Nenhum registro de inventário cadastrado para{' '}
-                    {openMonth.monthLabel.toLowerCase()} de {openMonth.year}.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          {activeTrailStep === 'IQ09' ? (
+            <div className="inventario-iq09-run">
+              <p className="inventario-iq09-run-hint">
+                {iq09Completed
+                  ? `IQ09 concluído para ${monthTitle(openMonth)}. Você pode avançar para Serializar.`
+                  : `Execute o script IQ09 para ${monthTitle(openMonth)} e liberar a próxima etapa.`}
+              </p>
+              <button
+                type="button"
+                className="inventario-iq09-play"
+                onClick={() => void handleRunIq09()}
+                disabled={readOnly || runningIq09}
+                aria-label={
+                  runningIq09 ? 'Executando script IQ09' : 'Executar script IQ09'
+                }
+                title="Executar script IQ09"
+              >
+                <span className="inventario-iq09-play-icon" aria-hidden="true">
+                  {runningIq09 ? <span className="inventario-iq09-spinner" /> : <PlayIcon />}
+                </span>
+                <span className="inventario-iq09-play-label">
+                  {runningIq09
+                    ? 'Executando…'
+                    : iq09Completed
+                      ? 'Executar novamente'
+                      : 'Executar IQ09'}
+                </span>
+              </button>
+            </div>
+          ) : (
+            <div className="entrada-table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Descrição</th>
+                    <th>Quantidade</th>
+                    <th>Status</th>
+                    <th>Atualizado em</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colSpan={5}>
+                      Nenhum registro de inventário cadastrado para{' '}
+                      {openMonth.monthLabel.toLowerCase()} de {openMonth.year}.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     )

@@ -1055,6 +1055,89 @@ button {
   margin-top: 0.25rem;
 }
 
+.inventario-iq09-run {
+  display: grid;
+  justify-items: center;
+  gap: 1.1rem;
+  padding: 1.6rem 1.2rem 1.8rem;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 216, 240, 0.18);
+  background: rgba(5, 26, 44, 0.45);
+}
+
+.inventario-iq09-run-hint {
+  margin: 0;
+  max-width: 34rem;
+  text-align: center;
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 0.98rem;
+  line-height: 1.45;
+}
+
+.inventario-iq09-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 52px;
+  padding: 0.7rem 1.25rem 0.7rem 0.85rem;
+  border: 0;
+  border-radius: 999px;
+  color: #031424;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  background: linear-gradient(135deg, #7dff3a 0%, var(--green-500) 45%, #34b000 100%);
+  box-shadow: 0 14px 30px rgba(91, 240, 0, 0.22);
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+.inventario-iq09-play:hover:not(:disabled),
+.inventario-iq09-play:focus-visible:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 34px rgba(91, 240, 0, 0.3);
+}
+
+.inventario-iq09-play:disabled {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.inventario-iq09-play-icon {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  background: rgba(3, 20, 36, 0.16);
+  color: #031424;
+}
+
+.inventario-iq09-play-icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-left: 2px;
+}
+
+.inventario-iq09-spinner {
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  border: 2px solid rgba(3, 20, 36, 0.25);
+  border-top-color: #031424;
+  animation: inventario-iq09-spin 0.7s linear infinite;
+}
+
+@keyframes inventario-iq09-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.inventario-iq09-play-label {
+  padding-right: 0.35rem;
+}
+
 .inventario-year-block {
   display: grid;
   gap: 0.75rem;

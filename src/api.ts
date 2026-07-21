@@ -737,6 +737,14 @@ export const api = {
     request<{ attachment: string; attachmentName: string }>(
       `/api/softwares/${id}/attachment`,
     ),
+  runIq09Script: (payload: { monthKey: string }) =>
+    request<{ ok: boolean; mode: 'accepted' | 'executed'; message: string; output?: string }>(
+      '/api/inventario/iq09/run',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    ),
   listRatmLaudos: () => request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos'),
   createRatmLaudos: (forms: Record<string, unknown>[]) =>
     request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos', {

@@ -11,6 +11,7 @@ import { materialRoutes } from './routes/materials.js'
 import { meterModelRoutes, createMeterModel } from './routes/meter-models.js'
 import { presentationRoutes, createPresentation } from './routes/presentations.js'
 import { softwareRoutes, createSoftware } from './routes/softwares.js'
+import { runIq09Script } from './routes/inventario-iq09.js'
 import {
   ratmLaudoRoutes,
   createRatmLaudos,
@@ -158,6 +159,13 @@ async function start() {
     createSoftware,
   )
   app.get('/api/softwares/:id/attachment', ...wrap(softwareRoutes.attachment))
+
+  app.post(
+    '/api/inventario/iq09/run',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    runIq09Script,
+  )
 
   app.get('/api/ratm-laudos', ...wrap(ratmLaudoRoutes.list))
   app.post(
