@@ -543,6 +543,37 @@ export function getCadastroProfile(profileId: string): CadastroProfile | undefin
   return CADASTRO_PROFILES.find((profile) => profile.id === resolvedId)
 }
 
+/** Perfis agrupados por área para o seletor do administrador. */
+export function groupCadastroProfilesByArea(): Array<{
+  area: string
+  profiles: CadastroProfile[]
+}> {
+  const preferredOrder = ['CSD', 'Medição', 'Telemedição']
+  const groups = new Map<string, CadastroProfile[]>()
+
+  for (const profile of CADASTRO_PROFILES) {
+    const area = profile.match.workArea.trim() || 'Outros'
+    const list = groups.get(area) ?? []
+    list.push(profile)
+    groups.set(area, list)
+  }
+
+  for (const list of groups.values()) {
+    list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  }
+
+  const ordered: Array<{ area: string; profiles: CadastroProfile[] }> = []
+  for (const area of preferredOrder) {
+    const profiles = groups.get(area)
+    if (profiles?.length) ordered.push({ area, profiles })
+    groups.delete(area)
+  }
+  for (const [area, profiles] of groups) {
+    ordered.push({ area, profiles })
+  }
+  return ordered
+}
+
 export function userMatchesCadastroProfile(
   user: {
     approvalStatus?: string

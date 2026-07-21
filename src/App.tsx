@@ -12,8 +12,8 @@ import { GestaoDashboard, CellResponsibleEditor, CreateOrgAreaForm, AreaLeadersh
 import { AgendaPanel } from './AgendaPanel'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
-  CADASTRO_PROFILES,
   getCadastroProfile,
+  groupCadastroProfilesByArea,
   getHomeAreasForProfilePreview,
   getHomeAreasForUser,
   getAccessiblePortals,
@@ -1349,6 +1349,11 @@ function HomePanel({
     ...TECHNICIAN_SCOPES_BY_AREA.CSD,
   ])
   const [previewProfileId, setPreviewProfileId] = useState(ADMIN_PREVIEW_PROFILE_ID)
+  const resolvedPreviewProfileId =
+    previewProfileId === ADMIN_PREVIEW_PROFILE_ID
+      ? ADMIN_PREVIEW_PROFILE_ID
+      : (getCadastroProfile(previewProfileId)?.id ?? ADMIN_PREVIEW_PROFILE_ID)
+  const previewProfileGroups = useMemo(() => groupCadastroProfilesByArea(), [])
   const [showSupport, setShowSupport] = useState(false)
   const [openSupportCount, setOpenSupportCount] = useState(0)
   const [selectedOrgCell, setSelectedOrgCell] = useState<string | null>(
@@ -1531,7 +1536,7 @@ function HomePanel({
   const [userPendingDelete, setUserPendingDelete] = useState<AppUser | null>(null)
   const isAdmin = currentUser.role === 'admin'
   const canViewUserPasswords =
-    isAdmin && previewProfileId === ADMIN_PREVIEW_PROFILE_ID
+    isAdmin && resolvedPreviewProfileId === ADMIN_PREVIEW_PROFILE_ID
   const pendingApprovalUsers = users.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'pending',
   )
@@ -1636,12 +1641,12 @@ function HomePanel({
   ]
 
   const allowedHomeAreas = isAdmin
-    ? getHomeAreasForProfilePreview(previewProfileId)
+    ? getHomeAreasForProfilePreview(resolvedPreviewProfileId)
     : getHomeAreasForUser(currentUser)
 
   const previewProfile =
-    isAdmin && previewProfileId !== ADMIN_PREVIEW_PROFILE_ID
-      ? getCadastroProfile(previewProfileId) ?? null
+    isAdmin && resolvedPreviewProfileId !== ADMIN_PREVIEW_PROFILE_ID
+      ? getCadastroProfile(resolvedPreviewProfileId) ?? null
       : null
 
   const activeFieldTeamSubtype =
@@ -1651,7 +1656,7 @@ function HomePanel({
     const hasLavraturaAccess =
       isFieldTeamCsdScope(currentUser.workSubtype) ||
       isFieldTeamCsdScope(previewProfile?.match.workSubtype) ||
-      (isAdmin && previewProfileId === ADMIN_PREVIEW_PROFILE_ID)
+      (isAdmin && resolvedPreviewProfileId === ADMIN_PREVIEW_PROFILE_ID)
 
     if (!hasLavraturaAccess) {
       return ['Agendar', 'Consultar']
@@ -1688,7 +1693,7 @@ function HomePanel({
   })
 
   const accessiblePortals = (() => {
-    if (isAdmin && previewProfileId === ADMIN_PREVIEW_PROFILE_ID) {
+    if (isAdmin && resolvedPreviewProfileId === ADMIN_PREVIEW_PROFILE_ID) {
       return [...PORTAL_AREAS]
     }
     if (isAdmin && previewProfile) {
@@ -1726,8 +1731,10 @@ function HomePanel({
 
   const isGestorView =
     (!isAdmin && currentUser.jobTitle === 'Gestor') ||
-    previewProfileId === 'gestor-medicao' ||
-    previewProfile?.match.jobTitle === 'Gestor'
+    previewProfile?.match.jobTitle === 'Gestor' ||
+    previewProfile?.id === 'gestor-medicao' ||
+    previewProfile?.id === 'gestor-telemedicao' ||
+    previewProfile?.id === 'gestor-csd'
 
   const clearAreaSections = () => {
     setSelectedMeasurementSection(null)
@@ -4538,17 +4545,21 @@ function HomePanel({
             <label>
               Ver como o perfil
               <select
-                value={previewProfileId}
+                value={resolvedPreviewProfileId}
                 onChange={(event) => {
                   setPreviewProfileId(event.target.value)
                   exitToHome()
                 }}
               >
                 <option value={ADMIN_PREVIEW_PROFILE_ID}>Administrador (visão completa)</option>
-                {CADASTRO_PROFILES.map((profile) => (
-                  <option key={profile.id} value={profile.id}>
-                    {profile.name}
-                  </option>
+                {previewProfileGroups.map((group) => (
+                  <optgroup key={group.area} label={group.area}>
+                    {group.profiles.map((profile) => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.name}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </label>

@@ -5,7 +5,7 @@ import {
   type CatalogGroup,
   type CatalogKey,
 } from './api'
-import { CADASTRO_PROFILES, getCadastroProfile } from './profilesAccess'
+import { CADASTRO_PROFILES, getCadastroProfile, groupCadastroProfilesByArea } from './profilesAccess'
 import {
   DEFAULT_AREA_OPTIONS,
   DEFAULT_LOCALITIES,
@@ -93,6 +93,7 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
   const [catalogs, setCatalogs] = useState<CatalogGroup[]>(FALLBACK_CATALOGS)
   const [loading, setLoading] = useState(true)
   const [selectedProfileId, setSelectedProfileId] = useState(CADASTRO_PROFILES[0]?.id ?? '')
+  const profileGroups = groupCadastroProfilesByArea()
   const [drafts, setDrafts] = useState<Record<CatalogKey, string>>({
     cargo: '',
     area: '',
@@ -186,10 +187,14 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
               onChange={(event) => setSelectedProfileId(event.target.value)}
               aria-label="Selecionar perfil"
             >
-              {CADASTRO_PROFILES.map((profile) => (
-                <option key={profile.id} value={profile.id}>
-                  {profile.name}
-                </option>
+              {profileGroups.map((group) => (
+                <optgroup key={group.area} label={group.area}>
+                  {group.profiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </label>
@@ -211,29 +216,31 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
                 </tr>
               </thead>
               <tbody>
-                {CADASTRO_PROFILES.map((profile) => (
-                  <tr
-                    key={profile.id}
-                    className={
-                      profile.id === selectedProfile?.id
-                        ? 'profiles-table-row is-selected'
-                        : 'profiles-table-row'
-                    }
-                    tabIndex={0}
-                    role="button"
-                    aria-pressed={profile.id === selectedProfile?.id}
-                    onClick={() => setSelectedProfileId(profile.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        setSelectedProfileId(profile.id)
+                {profileGroups.flatMap((group) =>
+                  group.profiles.map((profile) => (
+                    <tr
+                      key={profile.id}
+                      className={
+                        profile.id === selectedProfile?.id
+                          ? 'profiles-table-row is-selected'
+                          : 'profiles-table-row'
                       }
-                    }}
-                  >
-                    <td>{profile.name}</td>
-                    <td>{profile.description}</td>
-                  </tr>
-                ))}
+                      tabIndex={0}
+                      role="button"
+                      aria-pressed={profile.id === selectedProfile?.id}
+                      onClick={() => setSelectedProfileId(profile.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          setSelectedProfileId(profile.id)
+                        }
+                      }}
+                    >
+                      <td>{profile.name}</td>
+                      <td>{profile.description}</td>
+                    </tr>
+                  )),
+                )}
               </tbody>
             </table>
           </div>
