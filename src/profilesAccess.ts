@@ -58,9 +58,12 @@ export type CadastroProfile = {
   }
 }
 
-/** Padrão: Área – Cargo – (abrangência/escopo ou Não aplicável). */
-function profileName(workArea: string, jobTitle: string, detail: string) {
-  return [workArea, jobTitle, detail].map((part) => part.trim()).filter(Boolean).join(' – ')
+/** Padrão: Área – Cargo – (abrangência/escopo quando houver). */
+function profileName(workArea: string, jobTitle: string, detail?: string) {
+  return [workArea, jobTitle, detail]
+    .map((part) => (typeof part === 'string' ? part.trim() : ''))
+    .filter(Boolean)
+    .join(' – ')
 }
 
 const MEDICAO_CELL_AREAS: PortalArea[] = [
@@ -252,15 +255,36 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
       workSubtype: 'Responsável por sub-célula',
     },
   },
-  // Demais cargos sem abrangência/escopo específico
+  // Gestor: apenas Área – Gestor (a área é a selecionada no cadastro)
   {
     id: 'gestor-medicao',
-    name: profileName('Medição', 'Gestor', 'Não aplicável'),
+    name: profileName('Medição', 'Gestor'),
     description:
       'Acesso aos indicadores e dashboards consolidados das áreas de Medição sob sua concessão.',
     areas: ['Gestão Operacional', 'Medição'],
     match: {
       workArea: 'Medição',
+      jobTitle: 'Gestor',
+    },
+  },
+  {
+    id: 'gestor-telemedicao',
+    name: profileName('Telemedição', 'Gestor'),
+    description:
+      'Acesso aos indicadores e dashboards da área de Telemedição sob sua concessão.',
+    areas: ['Gestão Operacional', 'Telemedição'],
+    match: {
+      workArea: 'Telemedição',
+      jobTitle: 'Gestor',
+    },
+  },
+  {
+    id: 'gestor-csd',
+    name: profileName('CSD', 'Gestor'),
+    description: 'Acesso gerencial da área CSD sob sua concessão.',
+    areas: ['Gestão Operacional', 'Equipe de campo'],
+    match: {
+      workArea: 'CSD',
       jobTitle: 'Gestor',
     },
   },
