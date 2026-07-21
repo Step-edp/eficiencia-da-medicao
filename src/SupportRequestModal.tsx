@@ -1,10 +1,15 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, ApiError } from './api'
+import { api, ApiError, type SupportTicketRecord } from './api'
 
 type SupportRequestModalProps = {
   open: boolean
   onClose: () => void
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return '—'
+  return new Date(value).toLocaleString('pt-BR')
 }
 
 export function SupportRequestModal({ open, onClose }: SupportRequestModalProps) {
@@ -13,6 +18,7 @@ export function SupportRequestModal({ open, onClose }: SupportRequestModalProps)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [ticketNumber, setTicketNumber] = useState<string | null>(null)
+  const [myTickets, setMyTickets] = useState<SupportTicketRecord[]>([])
 
   useEffect(() => {
     if (!open) return
@@ -21,6 +27,11 @@ export function SupportRequestModal({ open, onClose }: SupportRequestModalProps)
     setError(null)
     setTicketNumber(null)
     setSubmitting(false)
+
+    void api
+      .listSupportTickets({ mine: true })
+      .then(({ tickets }) => setMyTickets(tickets))
+      .catch(() => setMyTickets([]))
   }, [open])
 
   useEffect(() => {
@@ -50,6 +61,7 @@ export function SupportRequestModal({ open, onClose }: SupportRequestModalProps)
         message: message.trim(),
       })
       setTicketNumber(ticket.ticketNumber)
+      setMyTickets((prev) => [ticket, ...prev])
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -160,6 +172,30 @@ export function SupportRequestModal({ open, onClose }: SupportRequestModalProps)
             </div>
           </form>
         )}
+
+        {myTickets.length > 0 ? (
+          <div className="support-my-tickets">
+            <h4>Meus chamados</h4>
+            {myTickets.map((ticket) => (
+              <div key={ticket.id} className="support-my-ticket">
+                <div className="support-my-ticket-head">
+                  <strong>{ticket.ticketNumber}</strong>
+                  <span>{formatDateTime(ticket.createdAt)}</span>
+                </div>
+                <p>{ticket.subject}</p>
+                <p className="support-ticket-message">{ticket.message}</p>
+                {ticket.response ? (
+                  <div className="support-ticket-response">
+                    <strong>Resposta</strong>
+                    <p>{ticket.response}</p>
+                  </div>
+                ) : (
+                  <p className="csds-form-hint">Aguardando resposta.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,
