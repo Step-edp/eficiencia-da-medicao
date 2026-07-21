@@ -63,6 +63,7 @@ export function AgendaPanel({
   const [startDate, setStartDate] = useState(nextVacationStart ?? '')
   const [endDate, setEndDate] = useState(nextVacationEnd ?? '')
   const [absenceType, setAbsenceType] = useState<AbsenceType>('licenca')
+  const [absenceLabel, setAbsenceLabel] = useState('')
   const [absenceStart, setAbsenceStart] = useState('')
   const [absenceEnd, setAbsenceEnd] = useState('')
   const [loading, setLoading] = useState(true)
@@ -147,16 +148,22 @@ export function AgendaPanel({
       setAbsenceError('A data de fim deve ser igual ou posterior ao início.')
       return
     }
+    if (absenceType === 'outro' && !absenceLabel.trim()) {
+      setAbsenceError('Descreva qual será a ausência.')
+      return
+    }
     setSavingAbsence(true)
     try {
       const response = await api.createAbsencePeriod({
         startDate: absenceStart,
         endDate: absenceEnd,
         absenceType,
+        absenceLabel: absenceType === 'outro' ? absenceLabel.trim() : undefined,
       })
       applyAgenda(response)
       setAbsenceStart('')
       setAbsenceEnd('')
+      setAbsenceLabel('')
       setSuccess('Período de ausência registrado. O substituto cobrirá as atividades se estiver ativo.')
       setShowAbsenceForm(false)
       await onSaved()
@@ -338,7 +345,11 @@ export function AgendaPanel({
                     Tipo de ausência
                     <select
                       value={absenceType}
-                      onChange={(event) => setAbsenceType(event.target.value as AbsenceType)}
+                      onChange={(event) => {
+                        const next = event.target.value as AbsenceType
+                        setAbsenceType(next)
+                        if (next !== 'outro') setAbsenceLabel('')
+                      }}
                       disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
                     >
                       {OTHER_ABSENCE_OPTIONS.map((option) => (
@@ -348,6 +359,19 @@ export function AgendaPanel({
                       ))}
                     </select>
                   </label>
+                  {absenceType === 'outro' ? (
+                    <label>
+                      Descreva a ausência
+                      <input
+                        type="text"
+                        value={absenceLabel}
+                        onChange={(event) => setAbsenceLabel(event.target.value)}
+                        placeholder="Ex.: Compromisso particular"
+                        required
+                        disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                      />
+                    </label>
+                  ) : null}
                   <label>
                     Início
                     <input

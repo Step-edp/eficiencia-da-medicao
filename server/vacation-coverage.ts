@@ -59,6 +59,7 @@ export async function listUsersOnAbsenceToday(): Promise<
     startDate: string
     endDate: string
     absenceType: AbsenceType
+    absenceLabel: string
   }>
 > {
   const today = todayIso()
@@ -67,11 +68,13 @@ export async function listUsersOnAbsenceToday(): Promise<
     start_date: string
     end_date: string
     absence_type: string
+    absence_label: string
   }>(
     `SELECT DISTINCT ON (user_id) user_id,
             start_date::text AS start_date,
             end_date::text AS end_date,
-            absence_type
+            absence_type,
+            COALESCE(absence_label, '') AS absence_label
      FROM user_vacation_periods
      WHERE start_date <= $1::date AND end_date >= $1::date
      ORDER BY user_id,
@@ -85,6 +88,7 @@ export async function listUsersOnAbsenceToday(): Promise<
     startDate: toDateOnly(row.start_date),
     endDate: toDateOnly(row.end_date),
     absenceType: normalizeAbsenceType(row.absence_type),
+    absenceLabel: row.absence_label?.trim() ?? '',
   }))
 }
 
@@ -193,7 +197,10 @@ export async function listActiveCoversForSubstitute(
       absenceStart: period.startDate,
       absenceEnd: period.endDate,
       absenceType: period.absenceType,
-      absenceTypeLabel: ABSENCE_TYPE_LABELS[period.absenceType],
+      absenceTypeLabel:
+        period.absenceType === 'outro' && period.absenceLabel
+          ? period.absenceLabel
+          : ABSENCE_TYPE_LABELS[period.absenceType],
       sources: sub.sources,
     })
   }

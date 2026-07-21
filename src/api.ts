@@ -403,6 +403,7 @@ export const api = {
     startDate: string
     endDate: string
     absenceType: AbsenceType
+    absenceLabel?: string
   }) =>
     request<VacationAgendaResponse>('/api/agenda/absences', {
       method: 'POST',

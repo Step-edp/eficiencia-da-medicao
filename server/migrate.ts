@@ -257,9 +257,15 @@ export async function migrate() {
 
     CREATE INDEX IF NOT EXISTS idx_user_vacation_periods_user
       ON user_vacation_periods (user_id, start_date);
+  `)
 
+  await query(`
     ALTER TABLE user_vacation_periods
       ADD COLUMN IF NOT EXISTS absence_type TEXT NOT NULL DEFAULT 'ferias';
+  `)
+  await query(`
+    ALTER TABLE user_vacation_periods
+      ADD COLUMN IF NOT EXISTS absence_label TEXT NOT NULL DEFAULT '';
   `)
 
   // Renomeia área Gestão → Gestão Operacional (dados já existentes).
