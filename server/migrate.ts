@@ -447,6 +447,17 @@ export async function migrate() {
       AND (u.name ILIKE '%Rafael Nunes%' OR u.registration = '11111')
   `)
 
+  // Analista Medição: escopo padrão Atividades administrativas da Medição.
+  await query(`
+    UPDATE users
+    SET work_subtype = 'Atividades administrativas da Medição',
+        access_areas = '["Medição"]'::jsonb
+    WHERE role <> 'admin'
+      AND work_area = 'Medição'
+      AND job_title = 'Analista'
+      AND (work_subtype IS NULL OR TRIM(work_subtype) = '')
+  `)
+
   // Chamados de suporte do portal.
   await query(`CREATE SEQUENCE IF NOT EXISTS support_ticket_seq START 1`)
   await query(`

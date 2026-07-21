@@ -619,11 +619,17 @@ export async function approveUser(req: Request, res: Response) {
       storedAccessProcesses = requestedAccessProcesses
       storedAccessAreas = portalAreasFromProcesses(workArea, storedAccessProcesses)
     }
-  } else if (workArea === 'CSD' || jobTitle === 'Técnico') {
+  } else if (
+    workArea === 'CSD' ||
+    jobTitle === 'Técnico' ||
+    (jobTitle === 'Analista' && workArea === 'Medição')
+  ) {
     const allowedScopes =
       workArea === 'CSD'
         ? [...csdScopes, ...legacyCsdScopes]
-        : (technicianScopesByArea[workArea] ?? [])
+        : jobTitle === 'Analista' && workArea === 'Medição'
+          ? ['Atividades administrativas da Medição']
+          : (technicianScopesByArea[workArea] ?? [])
     if (!allowedScopes.includes(normalizedSubtype)) {
       res.status(400).json({
         error:
@@ -635,6 +641,9 @@ export async function approveUser(req: Request, res: Response) {
     }
     storedSubtype = normalizedSubtype
     storedAccessAreas = accessAreasForTechnician(workArea, normalizedSubtype)
+  } else if (jobTitle === 'Estagiário' && workArea === 'Medição') {
+    storedSubtype = ''
+    storedAccessAreas = ['Medição']
   }
 
   const approverId = req.user?.id ?? null
@@ -1009,11 +1018,17 @@ export async function updateUser(req: Request, res: Response) {
       storedAccessProcesses = requestedAccessProcesses
       storedAccessAreas = portalAreasFromProcesses(normalizedWorkArea, storedAccessProcesses)
     }
-  } else if (normalizedWorkArea === 'CSD' || normalizedJobTitle === 'Técnico') {
+  } else if (
+    normalizedWorkArea === 'CSD' ||
+    normalizedJobTitle === 'Técnico' ||
+    (normalizedJobTitle === 'Analista' && normalizedWorkArea === 'Medição')
+  ) {
     const allowedScopes =
       normalizedWorkArea === 'CSD'
         ? [...csdScopes, ...legacyCsdScopes]
-        : (technicianScopesByArea[normalizedWorkArea] ?? [])
+        : normalizedJobTitle === 'Analista' && normalizedWorkArea === 'Medição'
+          ? ['Atividades administrativas da Medição']
+          : (technicianScopesByArea[normalizedWorkArea] ?? [])
     if (allowedScopes.length > 0) {
       if (!allowedScopes.includes(normalizedSubtype)) {
         res.status(400).json({ error: 'Selecione o escopo.' })
@@ -1025,6 +1040,12 @@ export async function updateUser(req: Request, res: Response) {
         normalizedSubtype,
       )
     }
+  } else if (
+    normalizedJobTitle === 'Estagiário' &&
+    normalizedWorkArea === 'Medição'
+  ) {
+    storedSubtype = ''
+    storedAccessAreas = ['Medição']
   }
 
   try {

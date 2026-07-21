@@ -279,6 +279,9 @@ export function subtypesForCargo(
   if (cargo === 'Técnico') {
     return TECHNICIAN_SCOPES_BY_AREA[area] ?? []
   }
+  if (cargo === 'Analista' && area === 'Medição') {
+    return ['Atividades administrativas da Medição']
+  }
   return []
 }
 
@@ -326,8 +329,8 @@ export function countResponsibleProcesses(user: {
 /** Formata o 3º segmento do perfil (abrangência/escopo) no padrão de exibição. */
 export function formatProfileDetail(workSubtype: string, jobTitle = ''): string {
   const cargo = jobTitle.trim()
-  // Gestor: só Área – Gestor (sem complemento).
-  if (cargo === 'Gestor') return ''
+  // Gestor e Estagiário: só Área – Cargo (sem complemento).
+  if (cargo === 'Gestor' || cargo === 'Estagiário') return ''
 
   const normalized = workSubtype.trim()
   if (normalized === 'Lavratura de TOI - Equipe de Campo' || normalized === 'Lavratura de TOI') {

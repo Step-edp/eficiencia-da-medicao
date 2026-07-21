@@ -350,12 +350,23 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
   {
     id: 'analista-medicao',
-    name: profileName('Medição', 'Analista', 'Não aplicável'),
-    description: 'Acesso às atividades atribuídas ao usuário na área de Medição.',
+    name: profileName('Medição', 'Analista', 'Atividades administrativas da Medição'),
+    description: 'Executar atividades administrativas da Medição.',
     areas: ['Medição'],
     match: {
       workArea: 'Medição',
       jobTitle: 'Analista',
+      workSubtype: 'Atividades administrativas da Medição',
+    },
+  },
+  {
+    id: 'estagiario-medicao',
+    name: profileName('Medição', 'Estagiário'),
+    description: 'Acesso de estagiário às atividades da área de Medição.',
+    areas: ['Medição'],
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Estagiário',
     },
   },
 ]
