@@ -307,13 +307,30 @@ export function countResponsibleProcesses(user: {
   return user.accessProcesses?.length ?? 0
 }
 
+/** Formata o 3º segmento do perfil (abrangência/escopo) no padrão de exibição. */
+export function formatProfileDetail(workSubtype: string): string {
+  const normalized = workSubtype.trim()
+  if (normalized === 'Lavratura de TOI - Equipe de Campo' || normalized === 'Lavratura de TOI') {
+    return 'Lavratura de TOI – Equipe de Campo'
+  }
+  if (normalized === 'Lavratura de TOI - Ponto Focal') {
+    return 'Lavratura de TOI – Ponto Focal'
+  }
+  if (normalized === 'Lavratura de TOI - Backoffice') {
+    return 'Lavratura de TOI – Backoffice'
+  }
+  if (!normalized) return 'Não aplicável'
+  return normalized
+}
+
 export function buildRequestedProfile(
   jobTitle: string,
   workSubtype: string,
   workArea: string,
   ...extraParts: Array<string | undefined | null>
 ): string {
-  return [workArea, jobTitle, workSubtype, ...extraParts]
+  const detail = formatProfileDetail(workSubtype)
+  return [workArea, jobTitle, detail, ...extraParts]
     .map((part) => (typeof part === 'string' ? part.trim() : ''))
     .filter(Boolean)
     .join(' – ')

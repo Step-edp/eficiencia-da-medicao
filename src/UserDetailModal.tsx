@@ -881,18 +881,6 @@ export function UserDetailModal({
                     user.jobTitle,
                     user.workSubtype ?? '',
                     user.workArea ?? '',
-                    user.accessAreas?.length ? user.accessAreas.join(', ') : undefined,
-                    user.accessProcesses?.length
-                      ? user.accessProcesses
-                          .map((item) => {
-                            const parsed = parseAccessProcess(item)
-                            return parsed ? `${parsed.area}: ${parsed.process}` : item
-                          })
-                          .join(', ')
-                      : undefined,
-                    user.employmentType === 'Terceira' ? user.thirdPartyCompany : undefined,
-                    user.edpUnit,
-                    user.locality,
                   ) || roleLabel(user.role)}
                 </dd>
               </div>

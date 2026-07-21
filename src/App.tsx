@@ -884,8 +884,6 @@ function PendingApprovalItem({
     user.jobTitle,
     workSubtype,
     user.workArea ?? '',
-    needsHomeSubareas && selectedSubareas.length > 0 ? selectedSubareas.join(', ') : undefined,
-    needsSpecificProcesses && processLabel ? processLabel : undefined,
     user.employmentType === 'Terceira' ? thirdPartyCompany || undefined : undefined,
     user.edpUnit || undefined,
   )

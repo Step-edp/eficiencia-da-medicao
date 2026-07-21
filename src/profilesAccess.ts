@@ -58,12 +58,37 @@ export type CadastroProfile = {
   }
 }
 
+/** Padrão: Área – Cargo – (abrangência/escopo ou Não aplicável). */
+function profileName(workArea: string, jobTitle: string, detail: string) {
+  return [workArea, jobTitle, detail].map((part) => part.trim()).filter(Boolean).join(' – ')
+}
+
+const MEDICAO_CELL_AREAS: PortalArea[] = [
+  'Gestão Operacional',
+  'Medição',
+  'Laboratório de Medição',
+  'Laboratório de Homologação',
+  'Equipe de campo',
+  'Usuários',
+  'Cadastros',
+]
+
+const MEDICAO_SUBCELL_AREAS: PortalArea[] = [
+  'Medição',
+  'Laboratório de Medição',
+  'Laboratório de Homologação',
+  'Equipe de campo',
+  'Usuários',
+  'Cadastros',
+]
+
 export const CADASTRO_PROFILES: CadastroProfile[] = [
+  // CSD – Lavratura de TOI (Equipe de Campo | Ponto Focal | Backoffice)
   {
     id: 'csd-tecnico-equipe-campo',
-    name: 'CSD – Técnico – Lavratura de TOI - Equipe de Campo',
+    name: profileName('CSD', 'Técnico', 'Lavratura de TOI – Equipe de Campo'),
     description:
-      'Permite agendar e acompanhar Meus TOIs na Equipe de campo, para medidores com suspeita de fraude ou defeito destinados a ensaios no Laboratório de Medição.',
+      'Agendar e acompanhar Meus TOIs na Equipe de campo para medidores destinados a ensaios no Laboratório de Medição.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -73,9 +98,9 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
   {
     id: 'csd-analista-equipe-campo',
-    name: 'CSD – Analista – Lavratura de TOI - Equipe de Campo',
+    name: profileName('CSD', 'Analista', 'Lavratura de TOI – Equipe de Campo'),
     description:
-      'Permite agendar e acompanhar Meus TOIs na Equipe de campo para equipamentos provenientes de lavratura de TOI.',
+      'Agendar e acompanhar Meus TOIs na Equipe de campo para equipamentos provenientes de lavratura de TOI.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -85,9 +110,9 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
   {
     id: 'csd-tecnico-ponto-focal',
-    name: 'CSD – Técnico – Lavratura de TOI - Ponto Focal',
+    name: profileName('CSD', 'Técnico', 'Lavratura de TOI – Ponto Focal'),
     description:
-      'Permite consultar medidores na Equipe de campo provenientes de lavratura de TOI, com acesso a Suporte e Agenda.',
+      'Consultar medidores na Equipe de campo provenientes de lavratura de TOI, com acesso a Suporte e Agenda.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -96,10 +121,34 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'csd-analista-backoffice',
-    name: 'CSD – Analista – Lavratura de TOI - Backoffice',
+    id: 'csd-analista-ponto-focal',
+    name: profileName('CSD', 'Analista', 'Lavratura de TOI – Ponto Focal'),
     description:
-      'Permite agendar e acompanhar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI.',
+      'Consultar medidores na Equipe de campo provenientes de lavratura de TOI, com acesso a Suporte e Agenda.',
+    areas: ['Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Analista',
+      workSubtype: 'Lavratura de TOI - Ponto Focal',
+    },
+  },
+  {
+    id: 'csd-tecnico-backoffice',
+    name: profileName('CSD', 'Técnico', 'Lavratura de TOI – Backoffice'),
+    description:
+      'Agendar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI.',
+    areas: ['Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Técnico',
+      workSubtype: 'Lavratura de TOI - Backoffice',
+    },
+  },
+  {
+    id: 'csd-analista-backoffice',
+    name: profileName('CSD', 'Analista', 'Lavratura de TOI – Backoffice'),
+    description:
+      'Agendar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -107,11 +156,35 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
       workSubtype: 'Lavratura de TOI - Backoffice',
     },
   },
+  // CSD – Leituras de faturamento
+  {
+    id: 'csd-tecnico-leituras',
+    name: profileName('CSD', 'Técnico', 'Leituras de faturamento'),
+    description: 'Atividades de leituras de faturamento no escopo CSD.',
+    areas: ['Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Técnico',
+      workSubtype: 'Leituras de faturamento',
+    },
+  },
+  {
+    id: 'csd-analista-leituras',
+    name: profileName('CSD', 'Analista', 'Leituras de faturamento'),
+    description: 'Atividades de leituras de faturamento no escopo CSD.',
+    areas: ['Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Analista',
+      workSubtype: 'Leituras de faturamento',
+    },
+  },
+  // Medição – Técnico (escopo operacional)
   {
     id: 'medicao-tecnico-laboratorio',
-    name: 'Medição – Técnico – Laboratório de Medição',
+    name: profileName('Medição', 'Técnico', 'Laboratório de Medição'),
     description:
-      'Permite executar as atividades operacionais do Laboratório de Medição, incluindo processamento, análise e registro dos ensaios.',
+      'Executar atividades operacionais do Laboratório de Medição, incluindo processamento, análise e registro dos ensaios.',
     areas: ['Laboratório de Medição'],
     match: {
       workArea: 'Medição',
@@ -121,9 +194,8 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
   {
     id: 'medicao-tecnico-administrativo',
-    name: 'Medição – Técnico – Atividades administrativas da Medição',
-    description:
-      'Permite executar atividades administrativas da Medição.',
+    name: profileName('Medição', 'Técnico', 'Atividades administrativas da Medição'),
+    description: 'Executar atividades administrativas da Medição.',
     areas: ['Medição'],
     match: {
       workArea: 'Medição',
@@ -131,20 +203,13 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
       workSubtype: 'Atividades administrativas da Medição',
     },
   },
+  // Engenheiro – Responsável por célula | Responsável por sub-célula
   {
     id: 'engenheiro-responsavel-celula-medicao',
-    name: 'Medição – Engenheiro – Responsável por célula',
+    name: profileName('Medição', 'Engenheiro', 'Responsável por célula'),
     description:
-      'Engenheiro responsável pela célula Medição, com acesso à Gestão Operacional e às subcélulas da célula.',
-    areas: [
-      'Gestão Operacional',
-      'Medição',
-      'Laboratório de Medição',
-      'Laboratório de Homologação',
-      'Equipe de campo',
-      'Usuários',
-      'Cadastros',
-    ],
+      'Engenheiro responsável pela célula Medição, com acesso à Gestão Operacional e às subcélulas.',
+    areas: MEDICAO_CELL_AREAS,
     match: {
       workArea: 'Medição',
       jobTitle: 'Engenheiro',
@@ -152,10 +217,22 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'engenheiro-responsavel-celula-telemedicao',
-    name: 'Telemedição – Engenheiro – Responsável por célula',
+    id: 'engenheiro-responsavel-subcelula-medicao',
+    name: profileName('Medição', 'Engenheiro', 'Responsável por sub-célula'),
     description:
-      'Engenheiro responsável pela célula Telemedição, com acesso à Gestão Operacional e às atividades da área.',
+      'Engenheiro responsável por uma ou mais subcélulas da Medição (definidas na aprovação).',
+    areas: MEDICAO_SUBCELL_AREAS,
+    match: {
+      workArea: 'Medição',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Responsável por sub-célula',
+    },
+  },
+  {
+    id: 'engenheiro-responsavel-celula-telemedicao',
+    name: profileName('Telemedição', 'Engenheiro', 'Responsável por célula'),
+    description:
+      'Engenheiro responsável pela célula Telemedição, com acesso à Gestão Operacional.',
     areas: ['Gestão Operacional', 'Telemedição'],
     match: {
       workArea: 'Telemedição',
@@ -164,99 +241,21 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     },
   },
   {
-    id: 'engenheiro-responsavel-subcelula-medicao',
-    name: 'Medição – Engenheiro – Responsável por sub-célula – Medição',
-    description:
-      'Engenheiro responsável pela subcélula Medição.',
-    areas: ['Medição'],
-    match: {
-      workArea: 'Medição',
-      jobTitle: 'Engenheiro',
-      workSubtype: 'Responsável por sub-célula',
-      accessArea: 'Medição',
-    },
-  },
-  {
-    id: 'engenheiro-responsavel-subcelula-laboratorio',
-    name: 'Medição – Engenheiro – Responsável por sub-célula – Laboratório de Medição',
-    description:
-      'Engenheiro responsável pela subcélula Laboratório de Medição.',
-    areas: ['Laboratório de Medição'],
-    match: {
-      workArea: 'Medição',
-      jobTitle: 'Engenheiro',
-      workSubtype: 'Responsável por sub-célula',
-      accessArea: 'Laboratório de Medição',
-    },
-  },
-  {
-    id: 'engenheiro-responsavel-subcelula-homologacao',
-    name: 'Medição – Engenheiro – Responsável por sub-célula – Laboratório de Homologação',
-    description:
-      'Engenheiro responsável pela subcélula Laboratório de Homologação.',
-    areas: ['Laboratório de Homologação'],
-    match: {
-      workArea: 'Medição',
-      jobTitle: 'Engenheiro',
-      workSubtype: 'Responsável por sub-célula',
-      accessArea: 'Laboratório de Homologação',
-    },
-  },
-  {
-    id: 'engenheiro-responsavel-subcelula-equipe-campo',
-    name: 'Medição – Engenheiro – Responsável por sub-célula – Equipe de campo',
-    description:
-      'Engenheiro responsável pela subcélula Equipe de campo.',
-    areas: ['Equipe de campo'],
-    match: {
-      workArea: 'Medição',
-      jobTitle: 'Engenheiro',
-      workSubtype: 'Responsável por sub-célula',
-      accessArea: 'Equipe de campo',
-    },
-  },
-  {
-    id: 'engenheiro-responsavel-subcelula-usuarios',
-    name: 'Medição – Engenheiro – Responsável por sub-célula – Usuários',
-    description:
-      'Engenheiro responsável pela subcélula Usuários.',
-    areas: ['Usuários'],
-    match: {
-      workArea: 'Medição',
-      jobTitle: 'Engenheiro',
-      workSubtype: 'Responsável por sub-célula',
-      accessArea: 'Usuários',
-    },
-  },
-  {
-    id: 'engenheiro-responsavel-subcelula-cadastros',
-    name: 'Medição – Engenheiro – Responsável por sub-célula – Cadastros',
-    description:
-      'Engenheiro responsável pela subcélula Cadastros.',
-    areas: ['Cadastros'],
-    match: {
-      workArea: 'Medição',
-      jobTitle: 'Engenheiro',
-      workSubtype: 'Responsável por sub-célula',
-      accessArea: 'Cadastros',
-    },
-  },
-  {
     id: 'engenheiro-responsavel-subcelula-telemedicao',
-    name: 'Telemedição – Engenheiro – Responsável por sub-célula – Telemedição',
+    name: profileName('Telemedição', 'Engenheiro', 'Responsável por sub-célula'),
     description:
-      'Engenheiro responsável pela subcélula Telemedição.',
+      'Engenheiro responsável por subcélula(s) de Telemedição (definidas na aprovação).',
     areas: ['Telemedição'],
     match: {
       workArea: 'Telemedição',
       jobTitle: 'Engenheiro',
       workSubtype: 'Responsável por sub-célula',
-      accessArea: 'Telemedição',
     },
   },
+  // Demais cargos sem abrangência/escopo específico
   {
     id: 'gestor-medicao',
-    name: 'Medição – Gestor',
+    name: profileName('Medição', 'Gestor', 'Não aplicável'),
     description:
       'Acesso aos indicadores e dashboards consolidados das áreas de Medição sob sua concessão.',
     areas: ['Gestão Operacional', 'Medição'],
@@ -267,9 +266,8 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
   {
     id: 'analista-medicao',
-    name: 'Medição – Analista',
-    description:
-      'Acesso às atividades atribuídas ao usuário na área de Medição.',
+    name: profileName('Medição', 'Analista', 'Não aplicável'),
+    description: 'Acesso às atividades atribuídas ao usuário na área de Medição.',
     areas: ['Medição'],
     match: {
       workArea: 'Medição',
@@ -288,8 +286,12 @@ const CADASTRO_PROFILE_ID_ALIASES: Record<string, string> = {
   'engenheiro-dono-area-medicao': 'engenheiro-responsavel-celula-medicao',
   'engenheiro-dono-area-telemedicao': 'engenheiro-responsavel-celula-telemedicao',
   'engenheiro-responsavel-medicao': 'engenheiro-responsavel-subcelula-medicao',
-  'engenheiro-responsavel-laboratorio-medicao':
-    'engenheiro-responsavel-subcelula-laboratorio',
+  'engenheiro-responsavel-laboratorio-medicao': 'engenheiro-responsavel-subcelula-medicao',
+  'engenheiro-responsavel-subcelula-laboratorio': 'engenheiro-responsavel-subcelula-medicao',
+  'engenheiro-responsavel-subcelula-homologacao': 'engenheiro-responsavel-subcelula-medicao',
+  'engenheiro-responsavel-subcelula-equipe-campo': 'engenheiro-responsavel-subcelula-medicao',
+  'engenheiro-responsavel-subcelula-usuarios': 'engenheiro-responsavel-subcelula-medicao',
+  'engenheiro-responsavel-subcelula-cadastros': 'engenheiro-responsavel-subcelula-medicao',
   'engenheiro-responsavel-telemedicao': 'engenheiro-responsavel-subcelula-telemedicao',
 }
 
