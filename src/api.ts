@@ -214,6 +214,18 @@ export type MaterialRecord = {
   equipmentType: string
 }
 
+export type MeterModelRecord = {
+  id: number
+  name: string
+  manufacturer: string
+  meterType: string
+  description: string
+  createdAt: string
+  createdByUserId?: string | null
+  createdByName?: string
+  createdByRegistration?: string
+}
+
 export type RatmLaudoRecord = {
   id: string
   ratmNumber: number
@@ -640,6 +652,17 @@ export const api = {
   listMaterials: () => request<{ materials: MaterialRecord[] }>('/api/materials'),
   createMaterial: (payload: Omit<MaterialRecord, 'id'>) =>
     request<{ material: MaterialRecord }>('/api/materials', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  listMeterModels: () => request<{ models: MeterModelRecord[] }>('/api/meter-models'),
+  createMeterModel: (payload: {
+    name: string
+    manufacturer: string
+    meterType: string
+    description?: string
+  }) =>
+    request<{ model: MeterModelRecord }>('/api/meter-models', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

@@ -2332,6 +2332,18 @@ button {
   color: var(--text-soft);
 }
 
+.criar-modelo-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.criar-modelo-form {
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  background: rgba(5, 26, 44, 0.55);
+}
+
 .gallery-filters {
   display: grid;
   gap: 12px;

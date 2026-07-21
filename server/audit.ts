@@ -28,6 +28,7 @@ export type AuditEntityType =
   | 'org_cell'
   | 'org_area'
   | 'support_ticket'
+  | 'meter_model'
 
 export type AuditLogEntry = {
   action: AuditAction

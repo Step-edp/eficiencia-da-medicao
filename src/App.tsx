@@ -31,6 +31,7 @@ import type { RatmFormData } from './ratm/types'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
 import { EnsaiosCalendar } from './EnsaiosCalendar'
 import { CsdsPanel } from './CsdsPanel'
+import { CriarModeloPanel } from './CriarModeloPanel'
 import { GalleryPanel } from './GalleryPanel'
 import { SupportRequestModal } from './SupportRequestModal'
 import { AuditPanel } from './AuditPanel'
@@ -3932,7 +3933,8 @@ function HomePanel({
             selectedLabMeasurementSection !== 'Suporte' &&
             selectedLabMeasurementSection !== 'Auditoria' &&
             selectedLabMeasurementSection !== 'Galeria' &&
-            selectedLabMeasurementSection !== 'Consultar RATM' ? (
+            selectedLabMeasurementSection !== 'Consultar RATM' &&
+            selectedLabMeasurementSection !== 'Criar Modelo' ? (
               <LabMeasurementTrail
                 activeStep={selectedLabMeasurementSection}
                 onSelect={setSelectedLabMeasurementSection}
@@ -3952,6 +3954,8 @@ function HomePanel({
               <GalleryPanel />
             ) : selectedLabMeasurementSection === 'Consultar RATM' ? (
               <ConsultarRatmPanel />
+            ) : selectedLabMeasurementSection === 'Criar Modelo' ? (
+              <CriarModeloPanel />
             ) : selectedLabMeasurementSection === ENTRADA_TRAIL_STEP ? (
               <EntradaPanel onTrailCountsChange={refreshTrailStepCounts} />
             ) : selectedLabMeasurementSection === 'Agendar' ? (

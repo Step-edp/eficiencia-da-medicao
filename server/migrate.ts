@@ -459,4 +459,19 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_support_tickets_created_at
       ON support_tickets (created_at DESC)
   `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS meter_models (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      manufacturer TEXT NOT NULL DEFAULT '',
+      meter_type TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_meter_models_created_at
+      ON meter_models (created_at DESC)
+  `)
 }
