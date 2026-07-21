@@ -106,7 +106,7 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
   )
 
   const selectedProfile =
-    CADASTRO_PROFILES.find((profile) => profile.id === selectedProfileId) ?? CADASTRO_PROFILES[0]
+    getCadastroProfile(selectedProfileId) ?? CADASTRO_PROFILES[0]
 
   const loadCatalogs = useCallback(async () => {
     setLoading(true)
