@@ -2320,6 +2320,18 @@ button {
   overflow: auto;
 }
 
+.consultar-ratm-pdf-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.consultar-ratm-pdf-header p {
+  margin: 4px 0 0;
+  color: var(--text-soft);
+}
+
 .gallery-filters {
   display: grid;
   gap: 12px;
