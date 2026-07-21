@@ -78,6 +78,7 @@ export function AgendaPanel({
   const [success, setSuccess] = useState<string | null>(null)
   const [showVacationForm, setShowVacationForm] = useState(false)
   const [showAbsenceForm, setShowAbsenceForm] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const [dismissedOkAlert, setDismissedOkAlert] = useState(false)
 
   const applyAgenda = (response: {
@@ -530,39 +531,79 @@ export function AgendaPanel({
             </div>
           ) : null}
 
-          <div className="users-dashboard-card" style={{ marginTop: 18 }}>
-            <h3>Histórico registrado</h3>
-            {periods.length ? (
-              <ul className="agenda-period-list">
-                {periods.map((period) => (
-                  <li key={period.id} className="agenda-period-item">
-                    <div className="agenda-period-details">
-                      <span>
-                        <strong>{periodLabel(period)}</strong>
-                        {`: ${formatDateBr(period.startDate)} — ${formatDateBr(period.endDate)}`}
-                      </span>
-                      {period.justification ? (
-                        <span className="agenda-period-justification">
-                          Justificativa: {period.justification}
-                        </span>
-                      ) : null}
-                      {period.attachment ? (
-                        <a
-                          className="link-button"
-                          href={period.attachment}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {period.attachmentName || 'Ver anexo'}
-                        </a>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="generated-password-empty">Nenhum período cadastrado ainda.</p>
-            )}
+          <div className="agenda-history">
+            <button
+              type="button"
+              className={`agenda-action-chip agenda-history-toggle${showHistory ? ' is-active' : ''}`}
+              aria-expanded={showHistory}
+              onClick={() => setShowHistory((open) => !open)}
+            >
+              <span className="agenda-action-chip-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+                  <path
+                    d="M12 8v5l3 2"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="8.5"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                  />
+                </svg>
+              </span>
+              <span className="agenda-action-chip-text">
+                <span className="agenda-action-chip-title">Histórico registrado</span>
+                <span className="agenda-action-chip-hint">
+                  {periods.length
+                    ? `${periods.length} período${periods.length > 1 ? 's' : ''}`
+                    : 'Nenhum período ainda'}
+                </span>
+              </span>
+              <span className="agenda-history-chevron" aria-hidden="true">
+                {showHistory ? '▴' : '▾'}
+              </span>
+            </button>
+
+            {showHistory ? (
+              <div className="agenda-history-panel">
+                {periods.length ? (
+                  <ul className="agenda-period-list">
+                    {periods.map((period) => (
+                      <li key={period.id} className="agenda-period-item">
+                        <div className="agenda-period-details">
+                          <span>
+                            <strong>{periodLabel(period)}</strong>
+                            {`: ${formatDateBr(period.startDate)} — ${formatDateBr(period.endDate)}`}
+                          </span>
+                          {period.justification ? (
+                            <span className="agenda-period-justification">
+                              Justificativa: {period.justification}
+                            </span>
+                          ) : null}
+                          {period.attachment ? (
+                            <a
+                              className="link-button"
+                              href={period.attachment}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {period.attachmentName || 'Ver anexo'}
+                            </a>
+                          ) : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="generated-password-empty">Nenhum período cadastrado ainda.</p>
+                )}
+              </div>
+            ) : null}
           </div>
         </>
       )}
