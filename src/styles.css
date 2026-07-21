@@ -2305,6 +2305,21 @@ button {
   gap: 16px;
 }
 
+.consultar-ratm-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.consultar-ratm-filters {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.consultar-ratm-pdf-modal {
+  width: min(1100px, 100%);
+  max-height: min(94vh, 980px);
+  overflow: auto;
+}
+
 .gallery-filters {
   display: grid;
   gap: 12px;

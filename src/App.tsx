@@ -23,6 +23,7 @@ import {
   listUsersForCadastroProfile,
   PORTAL_AREAS,
 } from './profilesAccess'
+import { ConsultarRatmPanel } from './ratm/ConsultarRatmPanel'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
 import { SatisfactionSurveyPage } from './ratm/SatisfactionSurveyPage'
 import { mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
@@ -3930,7 +3931,8 @@ function HomePanel({
             selectedLabMeasurementSection !== 'CSDs' &&
             selectedLabMeasurementSection !== 'Suporte' &&
             selectedLabMeasurementSection !== 'Auditoria' &&
-            selectedLabMeasurementSection !== 'Galeria' ? (
+            selectedLabMeasurementSection !== 'Galeria' &&
+            selectedLabMeasurementSection !== 'Consultar RATM' ? (
               <LabMeasurementTrail
                 activeStep={selectedLabMeasurementSection}
                 onSelect={setSelectedLabMeasurementSection}
@@ -3948,6 +3950,8 @@ function HomePanel({
               <AuditPanel />
             ) : selectedLabMeasurementSection === 'Galeria' ? (
               <GalleryPanel />
+            ) : selectedLabMeasurementSection === 'Consultar RATM' ? (
+              <ConsultarRatmPanel />
             ) : selectedLabMeasurementSection === ENTRADA_TRAIL_STEP ? (
               <EntradaPanel onTrailCountsChange={refreshTrailStepCounts} />
             ) : selectedLabMeasurementSection === 'Agendar' ? (

@@ -222,6 +222,12 @@ export type RatmLaudoRecord = {
   createdAt: string
   status: 'Pendente' | 'Aprovado' | 'Reprovado'
   formData: Record<string, unknown>
+  createdByUserId?: string | null
+  createdByName?: string
+  createdByRegistration?: string
+  installation?: string
+  toi?: string
+  note?: string
 }
 
 export type CsdRecord = {

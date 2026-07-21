@@ -12,6 +12,12 @@ type RatmLaudoRow = {
   created_at: Date
   status: 'Pendente' | 'Aprovado' | 'Reprovado'
   form_data: Record<string, unknown>
+  created_by_user_id?: string | null
+  created_by_name?: string | null
+  created_by_registration?: string | null
+  installation?: string | null
+  toi?: string | null
+  note?: string | null
 }
 
 function mapRatmLaudo(row: RatmLaudoRow) {
@@ -23,12 +29,33 @@ function mapRatmLaudo(row: RatmLaudoRow) {
     createdAt: row.created_at.toISOString(),
     status: row.status,
     formData: row.form_data,
+    createdByUserId: row.created_by_user_id,
+    createdByName: row.created_by_name || '',
+    createdByRegistration: row.created_by_registration || '',
+    installation: row.installation || '',
+    toi: row.toi || '',
+    note: row.note || '',
   }
 }
 
 export async function listRatmLaudos(_req: Request, res: Response) {
   const result = await query<RatmLaudoRow>(
-    'SELECT * FROM ratm_laudos ORDER BY created_at DESC',
+    `SELECT r.*,
+            u.name AS created_by_name,
+            u.registration AS created_by_registration,
+            ms.installation,
+            ms.toi,
+            ms.note
+     FROM ratm_laudos r
+     LEFT JOIN users u ON u.id = r.created_by_user_id
+     LEFT JOIN LATERAL (
+       SELECT installation, toi, note
+       FROM meter_schedules
+       WHERE meter = r.meter
+       ORDER BY created_at DESC
+       LIMIT 1
+     ) ms ON true
+     ORDER BY r.created_at DESC`,
   )
 
   res.json({ laudos: result.rows.map(mapRatmLaudo) })
