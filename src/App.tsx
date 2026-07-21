@@ -37,6 +37,7 @@ import { CsdsPanel } from './CsdsPanel'
 import { CriarModeloPanel } from './CriarModeloPanel'
 import { ApresentacaoPanel } from './ApresentacaoPanel'
 import { SoftwaresPanel } from './SoftwaresPanel'
+import { InventarioPanel } from './InventarioPanel'
 import { GalleryPanel } from './GalleryPanel'
 import { SupportRequestModal } from './SupportRequestModal'
 import { SupportPanel } from './SupportPanel'
@@ -4095,7 +4096,8 @@ function HomePanel({
             selectedLabMeasurementSection !== 'Consultar RATM' &&
             selectedLabMeasurementSection !== 'Criar Modelo' &&
             selectedLabMeasurementSection !== 'Apresentação' &&
-            selectedLabMeasurementSection !== 'Softwares' ? (
+            selectedLabMeasurementSection !== 'Softwares' &&
+            selectedLabMeasurementSection !== 'Inventário' ? (
               <LabMeasurementTrail
                 activeStep={selectedLabMeasurementSection}
                 onSelect={setSelectedLabMeasurementSection}
@@ -4121,6 +4123,8 @@ function HomePanel({
               <ApresentacaoPanel />
             ) : selectedLabMeasurementSection === 'Softwares' ? (
               <SoftwaresPanel />
+            ) : selectedLabMeasurementSection === 'Inventário' ? (
+              <InventarioPanel />
             ) : selectedLabMeasurementSection === ENTRADA_TRAIL_STEP ? (
               <EntradaPanel onTrailCountsChange={refreshTrailStepCounts} />
             ) : selectedLabMeasurementSection === 'Agendar' ? (
