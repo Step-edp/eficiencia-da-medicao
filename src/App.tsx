@@ -702,7 +702,6 @@ function ItemIcon({ title }: { title: string }) {
     'Pedidos de Homologação': 'archive',
     'Código de materiais': 'code',
     Homologações: 'check',
-    Ensaio: 'flask',
     'Equipe de campo': 'truck',
     Usuários: 'users',
     Cadastros: 'archive',
