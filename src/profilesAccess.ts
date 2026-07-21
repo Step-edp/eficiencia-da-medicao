@@ -255,6 +255,30 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
       workSubtype: 'Responsável por sub-célula',
     },
   },
+  {
+    id: 'engenheiro-responsavel-celula-csd',
+    name: profileName('CSD', 'Engenheiro', 'Responsável por célula'),
+    description:
+      'Engenheiro responsável pela célula CSD, com acesso à Gestão Operacional e à Equipe de campo.',
+    areas: ['Gestão Operacional', 'Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Responsável por célula',
+    },
+  },
+  {
+    id: 'engenheiro-responsavel-subcelula-csd',
+    name: profileName('CSD', 'Engenheiro', 'Responsável por sub-célula'),
+    description:
+      'Engenheiro responsável por subcélula(s) do CSD (definidas na aprovação).',
+    areas: ['Equipe de campo'],
+    match: {
+      workArea: 'CSD',
+      jobTitle: 'Engenheiro',
+      workSubtype: 'Responsável por sub-célula',
+    },
+  },
   // Gestor: apenas Área – Gestor (a área é a selecionada no cadastro)
   {
     id: 'gestor-medicao',
