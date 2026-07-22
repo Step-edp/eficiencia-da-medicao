@@ -47,10 +47,10 @@ function daysBetween(dateA: string, dateB: string): number | null {
   return Math.abs(Math.round((b.getTime() - a.getTime()) / MS_PER_DAY))
 }
 
-const NOTA_DIGITS = 9
+const NINE_DIGITS = 9
 
-function formatNota(value: string): string {
-  return value.replace(/\D/g, '').slice(0, NOTA_DIGITS)
+function formatNineDigits(value: string): string {
+  return value.replace(/\D/g, '').slice(0, NINE_DIGITS)
 }
 
 type ConsolidacaoCargaPanelProps = {
@@ -105,10 +105,18 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
       return
     }
 
-    if (form.nota.length !== NOTA_DIGITS) {
+    if (form.instalacao.length !== NINE_DIGITS) {
       setFeedback({
         type: 'error',
-        message: `O campo Nota deve ter exatamente ${NOTA_DIGITS} dígitos.`,
+        message: `O campo Instalação deve ter exatamente ${NINE_DIGITS} dígitos.`,
+      })
+      return
+    }
+
+    if (form.nota.length !== NINE_DIGITS) {
+      setFeedback({
+        type: 'error',
+        message: `O campo Nota deve ter exatamente ${NINE_DIGITS} dígitos.`,
       })
       return
     }
@@ -166,15 +174,15 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                 className={isFullWidth ? 'full-width' : undefined}
               >
                 {field.label}
-                {field.key === 'nota' ? (
+                {field.key === 'instalacao' || field.key === 'nota' ? (
                   <input
                     type="text"
                     inputMode="numeric"
                     autoComplete="off"
-                    maxLength={NOTA_DIGITS}
-                    value={form.nota}
+                    maxLength={NINE_DIGITS}
+                    value={form[field.key]}
                     onChange={(event) =>
-                      updateField('nota', formatNota(event.target.value))
+                      updateField(field.key, formatNineDigits(event.target.value))
                     }
                     placeholder="000000000"
                     required
