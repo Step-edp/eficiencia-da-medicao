@@ -187,12 +187,30 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                     placeholder="000000000"
                     required
                   />
-                ) : (
+                ) : isDate ? (
                   <input
-                    type={isDate ? 'date' : 'text'}
+                    type="date"
+                    className="consolidacao-date-input"
                     value={form[field.key]}
                     onChange={(event) => updateField(field.key, event.target.value)}
-                    placeholder={isDate ? undefined : field.label}
+                    onClick={(event) => {
+                      const input = event.currentTarget
+                      if (typeof input.showPicker === 'function') {
+                        try {
+                          input.showPicker()
+                        } catch {
+                          // Navegadores podem bloquear showPicker fora de gesto confiável.
+                        }
+                      }
+                    }}
+                    required
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={form[field.key]}
+                    onChange={(event) => updateField(field.key, event.target.value)}
+                    placeholder={field.label}
                     required
                   />
                 )}

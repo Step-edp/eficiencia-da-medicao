@@ -1055,6 +1055,20 @@ button {
   color: rgba(180, 230, 245, 0.85);
 }
 
+.consolidacao-date-input {
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+.consolidacao-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 1;
+  filter: invert(1) brightness(1.35);
+  scale: 1.25;
+  padding: 0.2rem;
+  margin-left: 0.35rem;
+}
+
 .consolidacao-cliente-actions {
   display: flex;
   flex-wrap: wrap;
