@@ -46,6 +46,20 @@ function createEmptyForm(): ClientFormValues {
   return { ...EMPTY_FORM }
 }
 
+/** Formata dígitos como CNPJ: XX.XXX.XXX/XXXX-XX */
+function formatCnpj(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 14)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`
+  if (digits.length <= 8) {
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`
+  }
+  if (digits.length <= 12) {
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`
+  }
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`
+}
+
 type ConsolidacaoCargaPanelProps = {
   readOnly?: boolean
 }
@@ -150,6 +164,17 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                     <option value="Sim">Sim</option>
                     <option value="Não">Não</option>
                   </select>
+                ) : field.key === 'cnpj' ? (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={18}
+                    value={form.cnpj}
+                    onChange={(event) => updateField('cnpj', formatCnpj(event.target.value))}
+                    placeholder="00.000.000/0000-00"
+                    required
+                  />
                 ) : (
                   <input
                     type="text"
