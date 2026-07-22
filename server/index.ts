@@ -11,6 +11,10 @@ import { materialRoutes } from './routes/materials.js'
 import { meterModelRoutes, createMeterModel } from './routes/meter-models.js'
 import { presentationRoutes, createPresentation } from './routes/presentations.js'
 import { softwareRoutes, createSoftware } from './routes/softwares.js'
+import {
+  consolidacaoCargaRoutes,
+  createConsolidacaoCargaCliente,
+} from './routes/consolidacao-carga.js'
 import { getIq09Export, runIq09Script } from './routes/inventario-iq09.js'
 import {
   ratmLaudoRoutes,
@@ -159,6 +163,14 @@ async function start() {
     createSoftware,
   )
   app.get('/api/softwares/:id/attachment', ...wrap(softwareRoutes.attachment))
+
+  app.get('/api/consolidacao-carga/clientes', ...wrap(consolidacaoCargaRoutes.list))
+  app.post(
+    '/api/consolidacao-carga/clientes',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    createConsolidacaoCargaCliente,
+  )
 
   app.get('/api/inventario/iq09/:monthKey', requireAuth, getIq09Export)
   app.post(

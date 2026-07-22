@@ -254,6 +254,19 @@ export type SoftwareRecord = {
   createdByRegistration?: string
 }
 
+export type ConsolidacaoCargaClienteRecord = {
+  id: number
+  nomeCliente: string
+  instalacao: string
+  dataDenuncia: string
+  dataPrevistaMigracao: string
+  nota: string
+  createdAt: string
+  createdByUserId?: string | null
+  createdByName?: string
+  createdByRegistration?: string
+}
+
 export type RatmLaudoRecord = {
   id: string
   ratmNumber: number
@@ -736,6 +749,24 @@ export const api = {
   getSoftwareAttachment: (id: number) =>
     request<{ attachment: string; attachmentName: string }>(
       `/api/softwares/${id}/attachment`,
+    ),
+  listConsolidacaoCargaClientes: () =>
+    request<{ clients: ConsolidacaoCargaClienteRecord[] }>(
+      '/api/consolidacao-carga/clientes',
+    ),
+  createConsolidacaoCargaCliente: (payload: {
+    nomeCliente: string
+    instalacao: string
+    dataDenuncia: string
+    dataPrevistaMigracao: string
+    nota: string
+  }) =>
+    request<{ client: ConsolidacaoCargaClienteRecord }>(
+      '/api/consolidacao-carga/clientes',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
     ),
   runIq09Script: (payload: { monthKey: string }) =>
     request<{

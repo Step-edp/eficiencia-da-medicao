@@ -565,6 +565,22 @@ export async function migrate() {
       ON softwares (created_at DESC)
   `)
   await query(`
+    CREATE TABLE IF NOT EXISTS consolidacao_carga_clientes (
+      id SERIAL PRIMARY KEY,
+      nome_cliente TEXT NOT NULL,
+      instalacao TEXT NOT NULL,
+      data_denuncia DATE NOT NULL,
+      data_prevista_migracao DATE NOT NULL,
+      nota TEXT NOT NULL,
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_consolidacao_carga_clientes_created_at
+      ON consolidacao_carga_clientes (created_at DESC)
+  `)
+  await query(`
     CREATE TABLE IF NOT EXISTS iq09_exports (
       month_key TEXT PRIMARY KEY,
       columns_json JSONB NOT NULL DEFAULT '[]'::jsonb,

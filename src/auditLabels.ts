@@ -23,6 +23,8 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   demm_document: 'DEMM',
   meter_model: 'Modelo de medidor',
   presentation: 'Apresentação',
+  software: 'Software',
+  consolidacao_carga_cliente: 'Cliente consolidação da carga',
 }
 
 export function formatAuditAction(action: string) {

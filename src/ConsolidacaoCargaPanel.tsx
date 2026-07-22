@@ -1,4 +1,9 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  api,
+  ApiError,
+  type ConsolidacaoCargaClienteRecord,
+} from './api'
 import { LoginFeedback } from './LoginFeedback'
 
 const CLIENT_FORM_FIELDS = [
@@ -17,11 +22,6 @@ type ClientFieldKey = (typeof CLIENT_FORM_FIELDS)[number]['key']
 
 type ClientFormValues = Record<ClientFieldKey, string>
 
-type RegisteredClient = ClientFormValues & {
-  id: string
-  createdAt: string
-}
-
 const EMPTY_FORM: ClientFormValues = Object.fromEntries(
   CLIENT_FORM_FIELDS.map((field) => [field.key, '']),
 ) as ClientFormValues
@@ -35,6 +35,13 @@ function formatDateBr(value: string): string {
   const [year, month, day] = value.split('-')
   if (!year || !month || !day) return value
   return `${day}/${month}/${year}`
+}
+
+function formatDateTimeBr(value: string): string {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('pt-BR')
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
@@ -60,7 +67,9 @@ type ConsolidacaoCargaPanelProps = {
 export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPanelProps) {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<ClientFormValues>(createEmptyForm)
-  const [clients, setClients] = useState<RegisteredClient[]>([])
+  const [clients, setClients] = useState<ConsolidacaoCargaClienteRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -71,6 +80,29 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
     [],
   )
 
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { clients: rows } = await api.listConsolidacaoCargaClientes()
+      setClients(rows)
+    } catch (error) {
+      setClients([])
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar os clientes cadastrados.',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
   const updateField = (key: ClientFieldKey, value: string) => {
     setForm((current) => ({ ...current, [key]: value }))
   }
@@ -79,9 +111,9 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
     setForm(createEmptyForm())
   }
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
-    if (readOnly) return
+    if (readOnly || creating) return
 
     for (const key of requiredKeys) {
       if (!form[key].trim()) {
@@ -121,19 +153,34 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
       return
     }
 
-    const entry: RegisteredClient = {
-      ...form,
-      id: `${Date.now()}-${form.nomeCliente.trim()}`,
-      createdAt: new Date().toLocaleString('pt-BR'),
+    setCreating(true)
+    setFeedback(null)
+    try {
+      const { client } = await api.createConsolidacaoCargaCliente({
+        nomeCliente: form.nomeCliente.trim(),
+        instalacao: form.instalacao,
+        dataDenuncia: form.dataDenuncia,
+        dataPrevistaMigracao: form.dataPrevistaMigracao,
+        nota: form.nota,
+      })
+      setClients((current) => [client, ...current])
+      setFeedback({
+        type: 'success',
+        message: `Cliente "${client.nomeCliente}" cadastrado com sucesso.`,
+      })
+      resetForm()
+      setShowForm(false)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível cadastrar o cliente.',
+      })
+    } finally {
+      setCreating(false)
     }
-
-    setClients((current) => [entry, ...current])
-    setFeedback({
-      type: 'success',
-      message: `Cliente "${form.nomeCliente.trim()}" cadastrado com sucesso.`,
-    })
-    resetForm()
-    setShowForm(false)
   }
 
   return (
@@ -186,6 +233,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                     }
                     placeholder="000000000"
                     required
+                    disabled={creating}
                   />
                 ) : isDate ? (
                   <input
@@ -204,6 +252,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                       }
                     }}
                     required
+                    disabled={creating}
                   />
                 ) : (
                   <input
@@ -212,6 +261,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                     onChange={(event) => updateField(field.key, event.target.value)}
                     placeholder={field.label}
                     required
+                    disabled={creating}
                   />
                 )}
               </label>
@@ -226,11 +276,12 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                 resetForm()
                 setShowForm(false)
               }}
+              disabled={creating}
             >
               Cancelar
             </button>
-            <button type="submit" className="primary-button">
-              Salvar cliente
+            <button type="submit" className="primary-button" disabled={creating}>
+              {creating ? 'Salvando…' : 'Salvar cliente'}
             </button>
           </div>
         </form>
@@ -249,7 +300,11 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
             </tr>
           </thead>
           <tbody>
-            {clients.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={6}>Carregando clientes…</td>
+              </tr>
+            ) : clients.length === 0 ? (
               <tr>
                 <td colSpan={6}>
                   Nenhum cliente cadastrado. Clique em Cadastrar cliente para
@@ -264,7 +319,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                   <td>{formatDateBr(client.dataDenuncia)}</td>
                   <td>{formatDateBr(client.dataPrevistaMigracao)}</td>
                   <td>{client.nota || '—'}</td>
-                  <td>{client.createdAt}</td>
+                  <td>{formatDateTimeBr(client.createdAt)}</td>
                 </tr>
               ))
             )}

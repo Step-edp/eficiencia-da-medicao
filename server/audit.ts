@@ -32,6 +32,7 @@ export type AuditEntityType =
   | 'presentation'
   | 'software'
   | 'iq09_run'
+  | 'consolidacao_carga_cliente'
 
 export type AuditLogEntry = {
   action: AuditAction
