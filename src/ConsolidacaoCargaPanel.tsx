@@ -22,12 +22,28 @@ type ClientFieldKey = (typeof CLIENT_FORM_FIELDS)[number]['key']
 
 type ClientFormValues = Record<ClientFieldKey, string>
 
+type BulkRow = ClientFormValues & {
+  id: string
+  error?: string
+}
+
 const EMPTY_FORM: ClientFormValues = Object.fromEntries(
   CLIENT_FORM_FIELDS.map((field) => [field.key, '']),
 ) as ClientFormValues
 
 function createEmptyForm(): ClientFormValues {
   return { ...EMPTY_FORM }
+}
+
+function createBulkRow(): BulkRow {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    ...createEmptyForm(),
+  }
+}
+
+function createInitialBulkRows(count = 5): BulkRow[] {
+  return Array.from({ length: count }, () => createBulkRow())
 }
 
 function formatDateBr(value: string): string {
@@ -46,6 +62,7 @@ function formatDateTimeBr(value: string): string {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const MIN_DATE_GAP_DAYS = 180
+const NINE_DIGITS = 9
 
 function daysBetween(dateA: string, dateB: string): number | null {
   const a = new Date(`${dateA}T00:00:00`)
@@ -54,10 +71,35 @@ function daysBetween(dateA: string, dateB: string): number | null {
   return Math.abs(Math.round((b.getTime() - a.getTime()) / MS_PER_DAY))
 }
 
-const NINE_DIGITS = 9
-
 function formatNineDigits(value: string): string {
   return value.replace(/\D/g, '').slice(0, NINE_DIGITS)
+}
+
+function isRowEmpty(row: ClientFormValues): boolean {
+  return CLIENT_FORM_FIELDS.every((field) => !row[field.key].trim())
+}
+
+function validateClientRow(row: ClientFormValues): string | null {
+  for (const field of CLIENT_FORM_FIELDS) {
+    if (!row[field.key].trim()) {
+      return `Preencha o campo ${field.label}.`
+    }
+  }
+
+  if (row.instalacao.length !== NINE_DIGITS) {
+    return `O campo Instalação deve ter exatamente ${NINE_DIGITS} dígitos.`
+  }
+
+  if (row.nota.length !== NINE_DIGITS) {
+    return `O campo Nota deve ter exatamente ${NINE_DIGITS} dígitos.`
+  }
+
+  const gapDays = daysBetween(row.dataDenuncia, row.dataPrevistaMigracao)
+  if (gapDays === null || gapDays < MIN_DATE_GAP_DAYS) {
+    return 'As datas devem ter pelo menos 180 dias de diferença.'
+  }
+
+  return null
 }
 
 type ConsolidacaoCargaPanelProps = {
@@ -66,10 +108,14 @@ type ConsolidacaoCargaPanelProps = {
 
 export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPanelProps) {
   const [showForm, setShowForm] = useState(false)
+  const [showBulk, setShowBulk] = useState(false)
   const [form, setForm] = useState<ClientFormValues>(createEmptyForm)
+  const [bulkRows, setBulkRows] = useState<BulkRow[]>(createInitialBulkRows)
   const [clients, setClients] = useState<ConsolidacaoCargaClienteRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false)
+  const [pendingValidRows, setPendingValidRows] = useState<BulkRow[]>([])
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -109,6 +155,117 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
 
   const resetForm = () => {
     setForm(createEmptyForm())
+  }
+
+  const resetBulk = () => {
+    setBulkRows(createInitialBulkRows())
+    setShowBulkConfirm(false)
+    setPendingValidRows([])
+  }
+
+  const updateBulkField = (rowId: string, key: ClientFieldKey, value: string) => {
+    setBulkRows((current) =>
+      current.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              [key]: value,
+              error: undefined,
+            }
+          : row,
+      ),
+    )
+  }
+
+  const saveValidBulkRows = async (rowsToSave: BulkRow[]) => {
+    if (rowsToSave.length === 0) return
+
+    setCreating(true)
+    setFeedback(null)
+    try {
+      const { clients: created, createdCount } =
+        await api.createConsolidacaoCargaClientesBulk(
+          rowsToSave.map((row) => ({
+            nomeCliente: row.nomeCliente.trim(),
+            instalacao: row.instalacao,
+            dataDenuncia: row.dataDenuncia,
+            dataPrevistaMigracao: row.dataPrevistaMigracao,
+            nota: row.nota,
+          })),
+        )
+
+      setClients((current) => [...created, ...current])
+      setBulkRows((current) => {
+        const savedIds = new Set(rowsToSave.map((row) => row.id))
+        const remaining = current.filter((row) => !savedIds.has(row.id))
+        return remaining.length > 0 ? remaining : createInitialBulkRows()
+      })
+      setShowBulkConfirm(false)
+      setPendingValidRows([])
+      setFeedback({
+        type: 'success',
+        message:
+          createdCount === 1
+            ? '1 cliente cadastrado com sucesso.'
+            : `${createdCount} clientes cadastrados com sucesso.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível cadastrar os clientes em massa.',
+      })
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleBulkSubmit = async () => {
+    if (readOnly || creating) return
+
+    const filledRows = bulkRows.filter((row) => !isRowEmpty(row))
+    if (filledRows.length === 0) {
+      setFeedback({
+        type: 'error',
+        message: 'Preencha ao menos uma linha para cadastrar em massa.',
+      })
+      return
+    }
+
+    const validRows: BulkRow[] = []
+    const markedRows = bulkRows.map((row) => {
+      if (isRowEmpty(row)) {
+        return { ...row, error: undefined }
+      }
+      const error = validateClientRow(row)
+      if (error) {
+        return { ...row, error }
+      }
+      validRows.push(row)
+      return { ...row, error: undefined }
+    })
+
+    setBulkRows(markedRows)
+
+    const invalidCount = filledRows.length - validRows.length
+    if (invalidCount > 0) {
+      if (validRows.length === 0) {
+        setFeedback({
+          type: 'error',
+          message:
+            'Existem cadastros com erros. Corrija as linhas destacadas para continuar.',
+        })
+        return
+      }
+
+      setPendingValidRows(validRows)
+      setShowBulkConfirm(true)
+      return
+    }
+
+    await saveValidBulkRows(validRows)
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -189,9 +346,26 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
         <div className="area-actions right-aligned-actions">
           <button
             type="button"
-            className="primary-button"
+            className="secondary-button consolidacao-action-button"
             onClick={() => {
               setFeedback(null)
+              setShowForm(false)
+              resetForm()
+              setShowBulk((current) => {
+                if (current) resetBulk()
+                return !current
+              })
+            }}
+          >
+            {showBulk ? 'Fechar cadastro em massa' : 'Cadastrar em massa'}
+          </button>
+          <button
+            type="button"
+            className="primary-button consolidacao-action-button"
+            onClick={() => {
+              setFeedback(null)
+              setShowBulk(false)
+              resetBulk()
               setShowForm((current) => !current)
               if (showForm) resetForm()
             }}
@@ -285,6 +459,233 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
             </button>
           </div>
         </form>
+      ) : null}
+
+      {!readOnly && showBulk ? (
+        <div className="consolidacao-bulk-panel">
+          <p className="consolidacao-bulk-hint">
+            Preencha um caso por linha. Linhas com menos de 180 dias entre as datas
+            não serão cadastradas.
+          </p>
+          <div className="entrada-table-wrap consolidacao-bulk-table-wrap">
+            <table className="data-table consolidacao-bulk-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nome do cliente</th>
+                  <th>Instalação</th>
+                  <th>Data denúncia</th>
+                  <th>Data prevista para migração</th>
+                  <th>Nota</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {bulkRows.map((row, index) => (
+                  <tr
+                    key={row.id}
+                    className={row.error ? 'consolidacao-bulk-row-error' : undefined}
+                  >
+                    <td>{index + 1}</td>
+                    <td>
+                      <input
+                        type="text"
+                        value={row.nomeCliente}
+                        onChange={(event) =>
+                          updateBulkField(row.id, 'nomeCliente', event.target.value)
+                        }
+                        placeholder="Nome do cliente"
+                        disabled={creating}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={NINE_DIGITS}
+                        value={row.instalacao}
+                        onChange={(event) =>
+                          updateBulkField(
+                            row.id,
+                            'instalacao',
+                            formatNineDigits(event.target.value),
+                          )
+                        }
+                        placeholder="000000000"
+                        disabled={creating}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="date"
+                        className="consolidacao-date-input"
+                        value={row.dataDenuncia}
+                        onChange={(event) =>
+                          updateBulkField(row.id, 'dataDenuncia', event.target.value)
+                        }
+                        onClick={(event) => {
+                          const input = event.currentTarget
+                          if (typeof input.showPicker === 'function') {
+                            try {
+                              input.showPicker()
+                            } catch {
+                              // ignore
+                            }
+                          }
+                        }}
+                        disabled={creating}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="date"
+                        className="consolidacao-date-input"
+                        value={row.dataPrevistaMigracao}
+                        onChange={(event) =>
+                          updateBulkField(
+                            row.id,
+                            'dataPrevistaMigracao',
+                            event.target.value,
+                          )
+                        }
+                        onClick={(event) => {
+                          const input = event.currentTarget
+                          if (typeof input.showPicker === 'function') {
+                            try {
+                              input.showPicker()
+                            } catch {
+                              // ignore
+                            }
+                          }
+                        }}
+                        disabled={creating}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={NINE_DIGITS}
+                        value={row.nota}
+                        onChange={(event) =>
+                          updateBulkField(
+                            row.id,
+                            'nota',
+                            formatNineDigits(event.target.value),
+                          )
+                        }
+                        placeholder="000000000"
+                        disabled={creating}
+                      />
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="secondary-button consolidacao-bulk-remove"
+                        onClick={() =>
+                          setBulkRows((current) =>
+                            current.length <= 1
+                              ? createInitialBulkRows(1)
+                              : current.filter((item) => item.id !== row.id),
+                          )
+                        }
+                        disabled={creating}
+                      >
+                        Remover
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {bulkRows.some((row) => row.error) ? (
+            <p className="consolidacao-bulk-errors" role="status">
+              Linhas com erro foram destacadas e não serão cadastradas.
+            </p>
+          ) : null}
+
+          <div className="consolidacao-cliente-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                setBulkRows((current) => [...current, createBulkRow()])
+              }
+              disabled={creating}
+            >
+              Adicionar linha
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                resetBulk()
+                setShowBulk(false)
+              }}
+              disabled={creating}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => void handleBulkSubmit()}
+              disabled={creating}
+            >
+              {creating ? 'Salvando…' : 'Salvar cadastros'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showBulkConfirm ? (
+        <div
+          className="laudo-confirm-overlay"
+          role="presentation"
+          onClick={() => {
+            if (!creating) {
+              setShowBulkConfirm(false)
+              setPendingValidRows([])
+            }
+          }}
+        >
+          <div
+            className="laudo-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="consolidacao-bulk-confirm-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h4 id="consolidacao-bulk-confirm-title">Cadastros com erros</h4>
+            <p>
+              Existem cadastros com erros, deseja cadastrar apenas os cadastros
+              corretos?
+            </p>
+            <div className="laudo-confirm-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setShowBulkConfirm(false)
+                  setPendingValidRows([])
+                }}
+                disabled={creating}
+              >
+                Não
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => void saveValidBulkRows(pendingValidRows)}
+                disabled={creating}
+              >
+                {creating ? 'Salvando…' : 'Sim, cadastrar corretos'}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       <div className="entrada-table-wrap consolidacao-clientes-table-wrap">

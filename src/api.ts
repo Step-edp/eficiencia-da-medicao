@@ -768,6 +768,24 @@ export const api = {
         body: JSON.stringify(payload),
       },
     ),
+  createConsolidacaoCargaClientesBulk: (
+    clients: Array<{
+      nomeCliente: string
+      instalacao: string
+      dataDenuncia: string
+      dataPrevistaMigracao: string
+      nota: string
+    }>,
+  ) =>
+    request<{
+      clients: ConsolidacaoCargaClienteRecord[]
+      createdCount: number
+      errorCount: number
+      errors: Array<{ index: number; error: string }>
+    }>('/api/consolidacao-carga/clientes/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ clients }),
+    }),
   runIq09Script: (payload: { monthKey: string }) =>
     request<{
       ok: boolean

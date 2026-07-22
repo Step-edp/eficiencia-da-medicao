@@ -14,6 +14,7 @@ import { softwareRoutes, createSoftware } from './routes/softwares.js'
 import {
   consolidacaoCargaRoutes,
   createConsolidacaoCargaCliente,
+  createConsolidacaoCargaClientesBulk,
 } from './routes/consolidacao-carga.js'
 import { getIq09Export, runIq09Script } from './routes/inventario-iq09.js'
 import {
@@ -170,6 +171,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     createConsolidacaoCargaCliente,
+  )
+  app.post(
+    '/api/consolidacao-carga/clientes/bulk',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    createConsolidacaoCargaClientesBulk,
   )
 
   app.get('/api/inventario/iq09/:monthKey', requireAuth, getIq09Export)
