@@ -19,9 +19,20 @@ export const HOMOLOGATION_TRAIL_STEPS: LabTrailStep[] = [
   { key: 'Homologações', label: 'Homologações' },
 ]
 
+export const MEMORY_MASS_TRAIL_STEPS: LabTrailStep[] = [
+  { key: 'Notas', label: 'Notas' },
+  { key: 'Executadas', label: 'Executadas' },
+  { key: 'Conferência', label: 'Conferência' },
+  { key: 'Notas baixadas', label: 'Notas baixadas' },
+  { key: 'Todas as notas', label: 'Todas as notas' },
+]
+
 export const LAB_TRAIL_KEYS = new Set(LAB_TRAIL_STEPS.map((step) => step.key))
 export const HOMOLOGATION_TRAIL_KEYS = new Set(
   HOMOLOGATION_TRAIL_STEPS.map((step) => step.key),
+)
+export const MEMORY_MASS_TRAIL_KEYS = new Set(
+  MEMORY_MASS_TRAIL_STEPS.map((step) => step.key),
 )
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'

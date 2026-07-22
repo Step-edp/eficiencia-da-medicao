@@ -45,7 +45,7 @@ import { SupportPanel } from './SupportPanel'
 import { LoginFeedback } from './LoginFeedback'
 import { AuditPanel } from './AuditPanel'
 import { EntradaPanel } from './EntradaPanel'
-import { ENTRADA_TRAIL_STEP, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS } from './labTrailSteps'
+import { ENTRADA_TRAIL_STEP, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS, MEMORY_MASS_TRAIL_STEPS } from './labTrailSteps'
 import {
   api,
   ApiError,
@@ -706,6 +706,11 @@ function ItemIcon({ title }: { title: string }) {
     'Faturamento de clientes cativos': 'chart',
     'Faturamento de consumo próprio': 'chart',
     'Memória de massa': 'database',
+    Notas: 'inbox',
+    Executadas: 'check',
+    Conferência: 'search',
+    'Notas baixadas': 'archive',
+    'Todas as notas': 'layer',
     'Medidas inconsistentes': 'search',
     Migração: 'repeat',
     Arcesp: 'building',
@@ -1348,6 +1353,9 @@ function HomePanel({
   const [selectedArea, setSelectedArea] = useState<Area | null>(null)
   const [selectedMeasurementSection, setSelectedMeasurementSection] = useState<string | null>(
     () => savedNav?.selectedMeasurementSection ?? null,
+  )
+  const [selectedMemoryMassStep, setSelectedMemoryMassStep] = useState(
+    () => MEMORY_MASS_TRAIL_STEPS[0]?.key ?? 'Notas',
   )
   const [selectedLabMeasurementSection, setSelectedLabMeasurementSection] = useState<
     string | null
@@ -4029,11 +4037,25 @@ function HomePanel({
               onLogout={onLogout}
             />
             <p className="section-tag">Subárea de Medição</p>
-            <h2>{selectedMeasurementSection}</h2>
+            <h2>
+              {selectedMeasurementSection === 'Memória de massa'
+                ? selectedMemoryMassStep
+                : selectedMeasurementSection}
+            </h2>
             <p>
-              Página dedicada da subárea {selectedMeasurementSection}. Aqui você
-              poderá concentrar funcionalidades, filtros e relatórios específicos.
+              {selectedMeasurementSection === 'Memória de massa'
+                ? `Etapa ${selectedMemoryMassStep} da subárea Memória de massa.`
+                : `Página dedicada da subárea ${selectedMeasurementSection}. Aqui você poderá concentrar funcionalidades, filtros e relatórios específicos.`}
             </p>
+            {selectedMeasurementSection === 'Memória de massa' ? (
+              <LabMeasurementTrail
+                activeStep={selectedMemoryMassStep}
+                onSelect={setSelectedMemoryMassStep}
+                renderIcon={(title) => <ItemIcon title={title} />}
+                steps={MEMORY_MASS_TRAIL_STEPS}
+                ariaLabel="Trilha de Memória de massa"
+              />
+            ) : null}
             {selectedMeasurementSection === 'Geração de senha' ? (
               <div className="measurement-sections" aria-label="Opções de geração de senha">
                 <button
@@ -4617,6 +4639,9 @@ function HomePanel({
                   onClick={() => {
                     setSelectedPasswordAction(null)
                     setSelectedMeasurementSection(section)
+                    if (section === 'Memória de massa') {
+                      setSelectedMemoryMassStep(MEMORY_MASS_TRAIL_STEPS[0]?.key ?? 'Notas')
+                    }
                   }}
                 >
                   <span className="item-with-icon">
