@@ -46,7 +46,7 @@ import { SupportPanel } from './SupportPanel'
 import { LoginFeedback } from './LoginFeedback'
 import { AuditPanel } from './AuditPanel'
 import { EntradaPanel } from './EntradaPanel'
-import { ENTRADA_TRAIL_STEP, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS, MEMORY_MASS_TRAIL_STEPS } from './labTrailSteps'
+import { CONSOLIDACAO_CARGA_TRAIL_STEPS, ENTRADA_TRAIL_STEP, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS, MEMORY_MASS_TRAIL_STEPS } from './labTrailSteps'
 import {
   api,
   ApiError,
@@ -705,6 +705,10 @@ function ItemIcon({ title }: { title: string }) {
     Softwares: 'code',
     'Faturamento de clientes livres': 'chart',
     'Consolidação da Carga': 'layer',
+    'Informações iniciais': 'inbox',
+    Exportação: 'archive',
+    Tratamento: 'flask',
+    Campo: 'truck',
     'Faturamento de clientes cativos': 'chart',
     'Faturamento de consumo próprio': 'chart',
     'Memória de massa': 'database',
@@ -1423,6 +1427,9 @@ function HomePanel({
   const [selectedFaturamentoLivresAction, setSelectedFaturamentoLivresAction] = useState<
     string | null
   >(null)
+  const [selectedConsolidacaoCargaStep, setSelectedConsolidacaoCargaStep] = useState(
+    () => CONSOLIDACAO_CARGA_TRAIL_STEPS[0]?.key ?? 'Informações iniciais',
+  )
 
   useEffect(() => {
     void api
@@ -3665,12 +3672,25 @@ function HomePanel({
         selectedMeasurementSection === 'Faturamento de clientes livres' &&
         selectedFaturamentoLivresAction === 'consolidacao'
       ) {
+        const consolidacaoStepLabel =
+          CONSOLIDACAO_CARGA_TRAIL_STEPS.find(
+            (step) => step.key === selectedConsolidacaoCargaStep,
+          )?.label ?? selectedConsolidacaoCargaStep
+
         return (
           <main className="shell">
             <section className="home-card area-screen-card">
               <TopActionBar
-                onBack={() => setSelectedFaturamentoLivresAction(null)}
+                onBack={() => {
+                  setSelectedConsolidacaoCargaStep(
+                    CONSOLIDACAO_CARGA_TRAIL_STEPS[0]?.key ?? 'Informações iniciais',
+                  )
+                  setSelectedFaturamentoLivresAction(null)
+                }}
                 onHome={() => {
+                  setSelectedConsolidacaoCargaStep(
+                    CONSOLIDACAO_CARGA_TRAIL_STEPS[0]?.key ?? 'Informações iniciais',
+                  )
                   setSelectedFaturamentoLivresAction(null)
                   setSelectedMeasurementSection(null)
                   setSelectedArea(null)
@@ -3680,9 +3700,26 @@ function HomePanel({
               <p className="section-tag">Faturamento de clientes livres</p>
               <h2>Consolidação da Carga</h2>
               <p>
-                Tela dedicada para consolidação da carga de clientes livres.
+                Trilha operacional da consolidação da carga — etapa{' '}
+                {consolidacaoStepLabel}.
               </p>
-              <ConsolidacaoCargaPanel />
+              <LabMeasurementTrail
+                activeStep={selectedConsolidacaoCargaStep}
+                onSelect={setSelectedConsolidacaoCargaStep}
+                renderIcon={(title) => <ItemIcon title={title} />}
+                steps={CONSOLIDACAO_CARGA_TRAIL_STEPS}
+                ariaLabel="Trilha de Consolidação da Carga"
+              />
+              {selectedConsolidacaoCargaStep === 'Informações iniciais' ? (
+                <ConsolidacaoCargaPanel />
+              ) : (
+                <div className="consolidacao-carga-step-placeholder">
+                  <p>
+                    A etapa <strong>{consolidacaoStepLabel}</strong> será
+                    disponibilizada em breve.
+                  </p>
+                </div>
+              )}
             </section>
           </main>
         )
@@ -4098,7 +4135,12 @@ function HomePanel({
                 <button
                   className="measurement-item"
                   type="button"
-                  onClick={() => setSelectedFaturamentoLivresAction('consolidacao')}
+                  onClick={() => {
+                    setSelectedConsolidacaoCargaStep(
+                      CONSOLIDACAO_CARGA_TRAIL_STEPS[0]?.key ?? 'Informações iniciais',
+                    )
+                    setSelectedFaturamentoLivresAction('consolidacao')
+                  }}
                 >
                   <span className="item-with-icon">
                     <ItemIcon title="Consolidação da Carga" />
