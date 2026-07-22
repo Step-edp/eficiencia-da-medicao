@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError } from './api'
 import { LoginFeedback } from './LoginFeedback'
 import { LabMeasurementTrail } from './LabMeasurementTrail'
@@ -38,6 +38,15 @@ type InventoryMonth = {
 type InventarioTrailStepKey = (typeof INVENTARIO_TRAIL_STEPS)[number]['key']
 type Iq09Row = Record<string, string>
 
+type SerializedItem = {
+  id: string
+  serial: string
+  material: string
+  description: string
+  matched: boolean
+  registeredAt: string
+}
+
 function buildYearMonths(year: number): InventoryMonth[] {
   const months: InventoryMonth[] = []
 
@@ -72,6 +81,10 @@ function buildInventoryYears(reference = new Date(), yearCount = 2) {
 
 function monthTitle(month: InventoryMonth) {
   return `${month.monthLabel} de ${month.year}`
+}
+
+function normalizeSerial(value: string) {
+  return value.trim().replace(/\s+/g, '')
 }
 
 function InventarioTrailIcon({ step }: { step: string }) {
@@ -115,13 +128,28 @@ export function InventarioPanel({
   const [loadingExport, setLoadingExport] = useState(false)
   const [iq09Columns, setIq09Columns] = useState<string[]>([...IQ09_COLUMNS])
   const [iq09Rows, setIq09Rows] = useState<Iq09Row[]>([])
+  const [scanValue, setScanValue] = useState('')
+  const [lastScannedSerial, setLastScannedSerial] = useState<string | null>(null)
+  const [serializedItems, setSerializedItems] = useState<SerializedItem[]>([])
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
+  const scanInputRef = useRef<HTMLInputElement | null>(null)
 
   const openMonth =
     months.find((month) => monthTitle(month) === openMonthTitle) ?? null
+
+  const iq09BySerial = useMemo(() => {
+    const map = new Map<string, Iq09Row>()
+    for (const row of iq09Rows) {
+      const serial = normalizeSerial(row['Nº de série'] || '')
+      if (serial && !map.has(serial)) {
+        map.set(serial, row)
+      }
+    }
+    return map
+  }, [iq09Rows])
 
   // Ao trocar de mês, reinicia a trilha e carrega export salvo.
   useEffect(() => {
@@ -131,6 +159,9 @@ export function InventarioPanel({
     setRunningIq09(false)
     setIq09Columns([...IQ09_COLUMNS])
     setIq09Rows([])
+    setScanValue('')
+    setLastScannedSerial(null)
+    setSerializedItems([])
 
     if (!openMonthTitle) return
     const month = months.find((item) => monthTitle(item) === openMonthTitle)
@@ -165,6 +196,14 @@ export function InventarioPanel({
     }
   }, [openMonthTitle, months])
 
+  useEffect(() => {
+    if (activeTrailStep !== 'Serializar' || readOnly) return
+    const timer = window.setTimeout(() => {
+      scanInputRef.current?.focus()
+    }, 50)
+    return () => window.clearTimeout(timer)
+  }, [activeTrailStep, readOnly, openMonthTitle])
+
   // Próxima etapa liberada = quantidade de etapas já concluídas (em ordem).
   const unlockedIndex = completedStepKeys.length
   const iq09Completed = completedStepKeys.includes('IQ09')
@@ -194,8 +233,8 @@ export function InventarioPanel({
 
     setActiveTrailStep(stepKey as InventarioTrailStepKey)
 
-    // IQ09 só conclui ao rodar o script (botão play).
-    if (stepKey === 'IQ09') {
+    // IQ09 só conclui ao rodar o script; Serializar ao registrar séries.
+    if (stepKey === 'IQ09' || stepKey === 'Serializar') {
       setFeedback(null)
       return
     }
@@ -203,14 +242,6 @@ export function InventarioPanel({
     const isAdvancing = stepIndex === unlockedIndex
     if (isAdvancing) {
       completeStep(stepKey as InventarioTrailStepKey)
-    }
-
-    if (stepKey === 'Serializar') {
-      setFeedback({
-        type: 'success',
-        message: `Serialização solicitada para ${monthTitle(openMonth)}.`,
-      })
-      return
     }
 
     setFeedback({
@@ -249,6 +280,78 @@ export function InventarioPanel({
     } finally {
       setRunningIq09(false)
     }
+  }
+
+  const registerSerial = (rawValue: string) => {
+    const serial = normalizeSerial(rawValue)
+    if (!serial) {
+      setFeedback({
+        type: 'error',
+        message: 'Informe ou escaneie um número de série.',
+      })
+      return false
+    }
+
+    const alreadyRegistered = serializedItems.some(
+      (item) => item.serial.toLowerCase() === serial.toLowerCase(),
+    )
+    if (alreadyRegistered) {
+      setLastScannedSerial(serial)
+      setFeedback({
+        type: 'error',
+        message: `Série ${serial} já foi registrada.`,
+      })
+      return false
+    }
+
+    const match = iq09BySerial.get(serial) ?? iq09BySerial.get(serial.toUpperCase())
+    const matchedRow =
+      match ??
+      [...iq09BySerial.entries()].find(
+        ([key]) => key.toLowerCase() === serial.toLowerCase(),
+      )?.[1]
+
+    const item: SerializedItem = {
+      id: `${serial}-${Date.now()}`,
+      serial,
+      material: matchedRow?.Material || '',
+      description: matchedRow?.['Texto breve material'] || '',
+      matched: Boolean(matchedRow),
+      registeredAt: new Date().toLocaleString('pt-BR'),
+    }
+
+    setSerializedItems((current) => [item, ...current])
+    setLastScannedSerial(serial)
+    completeStep('Serializar')
+    setFeedback({
+      type: 'success',
+      message: matchedRow
+        ? `Série ${serial} registrada.`
+        : `Série ${serial} registrada (não encontrada no IQ09).`,
+    })
+    return true
+  }
+
+  const handleScanSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    if (readOnly) return
+    const registered = registerSerial(scanValue)
+    if (registered) {
+      setScanValue('')
+      scanInputRef.current?.focus()
+    }
+  }
+
+  const handleRemoveSerialized = (id: string) => {
+    if (readOnly) return
+    setSerializedItems((current) => {
+      const next = current.filter((item) => item.id !== id)
+      if (next.length === 0) {
+        setCompletedStepKeys((keys) => keys.filter((key) => key !== 'Serializar'))
+        setLastScannedSerial(null)
+      }
+      return next
+    })
   }
 
   if (openMonth) {
@@ -335,6 +438,113 @@ export function InventarioPanel({
                           {iq09Columns.map((column) => (
                             <td key={column}>{row[column] || '—'}</td>
                           ))}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : activeTrailStep === 'Serializar' ? (
+            <div className="inventario-serializar-panel">
+              <form className="inventario-serializar-scan" onSubmit={handleScanSubmit}>
+                <label htmlFor="inventario-serial-scan">
+                  Número de série (scanner ou digitação)
+                </label>
+                <div className="inventario-serializar-scan-row">
+                  <input
+                    ref={scanInputRef}
+                    id="inventario-serial-scan"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder="Escaneie ou digite o nº de série e pressione Enter"
+                    value={scanValue}
+                    disabled={readOnly}
+                    onChange={(event) => setScanValue(event.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    className="primary-button inventario-serializar-register"
+                    disabled={readOnly || !scanValue.trim()}
+                  >
+                    Registrar
+                  </button>
+                </div>
+                <p className="inventario-serializar-hint">
+                  O leitor de código de barras funciona como teclado: ao bipar, o número
+                  entra no campo e o Enter registra automaticamente.
+                </p>
+              </form>
+
+              {lastScannedSerial ? (
+                <div className="inventario-serializar-last" aria-live="polite">
+                  <span>Último número</span>
+                  <strong>{lastScannedSerial}</strong>
+                </div>
+              ) : null}
+
+              <div className="inventario-serializar-summary">
+                <span>
+                  {serializedItems.length}{' '}
+                  {serializedItems.length === 1 ? 'série registrada' : 'séries registradas'}
+                </span>
+                {iq09Rows.length > 0 ? (
+                  <span>
+                    {serializedItems.filter((item) => item.matched).length} de{' '}
+                    {iq09Rows.length} encontrados no IQ09
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="entrada-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Nº de série</th>
+                      <th>Material</th>
+                      <th>Descrição</th>
+                      <th>Status</th>
+                      <th>Registrado em</th>
+                      {readOnly ? null : <th>Ações</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {serializedItems.length === 0 ? (
+                      <tr>
+                        <td colSpan={readOnly ? 5 : 6}>
+                          Nenhuma série registrada ainda. Escaneie ou digite um número
+                          acima.
+                        </td>
+                      </tr>
+                    ) : (
+                      serializedItems.map((item) => (
+                        <tr key={item.id}>
+                          <td>
+                            <strong>{item.serial}</strong>
+                          </td>
+                          <td>{item.material || '—'}</td>
+                          <td>{item.description || '—'}</td>
+                          <td>
+                            <span
+                              className={`inventario-serial-status ${item.matched ? 'is-matched' : 'is-unmatched'}`}
+                            >
+                              {item.matched ? 'No IQ09' : 'Fora do IQ09'}
+                            </span>
+                          </td>
+                          <td>{item.registeredAt}</td>
+                          {readOnly ? null : (
+                            <td>
+                              <button
+                                type="button"
+                                className="secondary-button inventario-serial-remove"
+                                onClick={() => handleRemoveSerialized(item.id)}
+                              >
+                                Remover
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))
                     )}

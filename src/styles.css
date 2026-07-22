@@ -1167,6 +1167,127 @@ button {
   max-width: 18rem;
 }
 
+.inventario-serializar-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.inventario-serializar-scan {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1.1rem 1.15rem 1.2rem;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 216, 240, 0.18);
+  background: rgba(5, 26, 44, 0.45);
+}
+
+.inventario-serializar-scan label {
+  color: rgba(226, 232, 240, 0.88);
+  font-weight: 600;
+}
+
+.inventario-serializar-scan-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.inventario-serializar-scan-row input {
+  min-height: 48px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(24, 216, 240, 0.28);
+  background: rgba(2, 18, 31, 0.72);
+  color: var(--text-main);
+  padding: 0.7rem 0.9rem;
+  font: inherit;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+.inventario-serializar-scan-row input:focus {
+  outline: 2px solid rgba(57, 255, 0, 0.45);
+  outline-offset: 1px;
+  border-color: rgba(57, 255, 0, 0.55);
+}
+
+.inventario-serializar-register {
+  margin-top: 0;
+  min-width: 8.5rem;
+  padding: 0.75rem 1.1rem;
+  border-radius: 12px;
+}
+
+.inventario-serializar-hint {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.68);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.inventario-serializar-last {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.55rem 1rem;
+  padding: 0.95rem 1.15rem;
+  border-radius: 14px;
+  border: 1px solid rgba(57, 255, 0, 0.35);
+  background: rgba(57, 255, 0, 0.1);
+}
+
+.inventario-serializar-last span {
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.9rem;
+}
+
+.inventario-serializar-last strong {
+  font-size: 1.55rem;
+  letter-spacing: 0.04em;
+  color: #b8ff7a;
+}
+
+.inventario-serializar-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  color: rgba(226, 232, 240, 0.75);
+  font-size: 0.92rem;
+}
+
+.inventario-serial-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.inventario-serial-status.is-matched {
+  color: #9dff6a;
+  background: rgba(57, 255, 0, 0.12);
+}
+
+.inventario-serial-status.is-unmatched {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.inventario-serial-remove {
+  margin-top: 0;
+  padding: 0.45rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .inventario-serializar-scan-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .inventario-year-block {
   display: grid;
   gap: 0.75rem;
