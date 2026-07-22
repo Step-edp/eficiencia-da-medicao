@@ -1034,6 +1034,13 @@ button {
   background: rgba(5, 26, 44, 0.45);
 }
 
+.consolidacao-cep-hint {
+  margin-left: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: rgba(180, 230, 245, 0.85);
+}
+
 .consolidacao-cliente-actions {
   display: flex;
   flex-wrap: wrap;

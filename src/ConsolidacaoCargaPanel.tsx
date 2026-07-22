@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useMemo, useRef, useState } from 'react'
 import { LoginFeedback } from './LoginFeedback'
 
 const CLIENT_FORM_FIELDS = [
@@ -22,7 +22,9 @@ const CLIENT_FORM_FIELDS = [
   { key: 'rtc', label: 'RTC' },
   { key: 'demandaMaxKw', label: 'Demanda máx.(kw)' },
   { key: 'ordem', label: 'Ordem' },
-  { key: 'endereco', label: 'Endereço', fullWidth: true },
+  { key: 'cep', label: 'CEP' },
+  { key: 'rua', label: 'Rua', fullWidth: true },
+  { key: 'numero', label: 'Número' },
   { key: 'cidade', label: 'Cidade' },
   { key: 'regional', label: 'Regional' },
   { key: 'energizacao', label: 'Energização' },
@@ -36,6 +38,14 @@ type ClientFormValues = Record<ClientFieldKey, string>
 type RegisteredClient = ClientFormValues & {
   id: string
   createdAt: string
+}
+
+type ViaCepResponse = {
+  erro?: boolean
+  logradouro?: string
+  localidade?: string
+  bairro?: string
+  uf?: string
 }
 
 const EMPTY_FORM: ClientFormValues = Object.fromEntries(
@@ -60,6 +70,13 @@ function formatCnpj(value: string): string {
   return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`
 }
 
+/** Formata dígitos como CEP: 00000-000 */
+function formatCep(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 5) return digits
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`
+}
+
 type ConsolidacaoCargaPanelProps = {
   readOnly?: boolean
 }
@@ -68,10 +85,12 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<ClientFormValues>(createEmptyForm)
   const [clients, setClients] = useState<RegisteredClient[]>([])
+  const [cepLoading, setCepLoading] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
+  const cepRequestIdRef = useRef(0)
 
   const requiredKeys = useMemo(
     () => ['cliente', 'instalacao', 'cnpj'] as ClientFieldKey[],
@@ -83,7 +102,67 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
   }
 
   const resetForm = () => {
+    cepRequestIdRef.current += 1
+    setCepLoading(false)
     setForm(createEmptyForm())
+  }
+
+  const lookupCep = async (maskedCep: string) => {
+    const digits = maskedCep.replace(/\D/g, '')
+    if (digits.length !== 8) return
+
+    const requestId = ++cepRequestIdRef.current
+    setCepLoading(true)
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`)
+      if (!response.ok) {
+        throw new Error('Falha ao consultar CEP.')
+      }
+
+      const data = (await response.json()) as ViaCepResponse
+      if (requestId !== cepRequestIdRef.current) return
+
+      if (data.erro) {
+        setFeedback({
+          type: 'error',
+          message: 'CEP não encontrado. Verifique e tente novamente.',
+        })
+        setForm((current) => ({ ...current, rua: '', cidade: '' }))
+        return
+      }
+
+      setForm((current) => ({
+        ...current,
+        rua: data.logradouro?.trim() || current.rua,
+        cidade: data.localidade?.trim() || current.cidade,
+      }))
+      setFeedback(null)
+    } catch {
+      if (requestId !== cepRequestIdRef.current) return
+      setFeedback({
+        type: 'error',
+        message: 'Não foi possível buscar o CEP. Preencha rua e cidade manualmente.',
+      })
+    } finally {
+      if (requestId === cepRequestIdRef.current) {
+        setCepLoading(false)
+      }
+    }
+  }
+
+  const handleCepChange = (value: string) => {
+    const masked = formatCep(value)
+    updateField('cep', masked)
+
+    const digits = masked.replace(/\D/g, '')
+    if (digits.length < 8) {
+      cepRequestIdRef.current += 1
+      setCepLoading(false)
+      return
+    }
+
+    void lookupCep(masked)
   }
 
   const handleSubmit = (event: FormEvent) => {
@@ -155,6 +234,9 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                 className={isFullWidth ? 'full-width' : undefined}
               >
                 {field.label}
+                {field.key === 'cep' && cepLoading ? (
+                  <span className="consolidacao-cep-hint"> Buscando endereço…</span>
+                ) : null}
                 {isYesNo ? (
                   <select
                     value={form[field.key]}
@@ -175,6 +257,16 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                     placeholder="00.000.000/0000-00"
                     required
                   />
+                ) : field.key === 'cep' ? (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    maxLength={9}
+                    value={form.cep}
+                    onChange={(event) => handleCepChange(event.target.value)}
+                    placeholder="00000-000"
+                  />
                 ) : (
                   <input
                     type="text"
@@ -182,6 +274,9 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                     onChange={(event) => updateField(field.key, event.target.value)}
                     placeholder={field.label}
                     required={requiredKeys.includes(field.key)}
+                    readOnly={
+                      (field.key === 'rua' || field.key === 'cidade') && cepLoading
+                    }
                   />
                 )}
               </label>
