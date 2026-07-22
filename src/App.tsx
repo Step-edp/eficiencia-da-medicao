@@ -39,6 +39,7 @@ import { CriarModeloPanel } from './CriarModeloPanel'
 import { ApresentacaoPanel } from './ApresentacaoPanel'
 import { SoftwaresPanel } from './SoftwaresPanel'
 import { InventarioPanel } from './InventarioPanel'
+import { ConsolidacaoCargaPanel } from './ConsolidacaoCargaPanel'
 import { GalleryPanel } from './GalleryPanel'
 import { SupportRequestModal } from './SupportRequestModal'
 import { SupportPanel } from './SupportPanel'
@@ -3681,6 +3682,7 @@ function HomePanel({
               <p>
                 Tela dedicada para consolidação da carga de clientes livres.
               </p>
+              <ConsolidacaoCargaPanel />
             </section>
           </main>
         )
