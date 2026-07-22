@@ -3699,10 +3699,6 @@ function HomePanel({
               />
               <p className="section-tag">Faturamento de clientes livres</p>
               <h2>Consolidação da Carga</h2>
-              <p>
-                Trilha operacional da consolidação da carga — etapa{' '}
-                {consolidacaoStepLabel}.
-              </p>
               <LabMeasurementTrail
                 activeStep={selectedConsolidacaoCargaStep}
                 onSelect={setSelectedConsolidacaoCargaStep}
