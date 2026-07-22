@@ -78,22 +78,21 @@ function mapCliente(row: {
 function normalizePayload(raw: Record<string, unknown>): ClientPayload | { error: string } {
   const nomeCliente =
     typeof raw.nomeCliente === 'string' ? raw.nomeCliente.trim() : ''
-  const instalacaoDigits =
-    typeof raw.instalacao === 'string' ? onlyDigits(raw.instalacao, NINE_DIGITS) : ''
+  const instalacaoDigits = onlyDigits(String(raw.instalacao ?? ''), NINE_DIGITS)
   const dataDenuncia =
     typeof raw.dataDenuncia === 'string' ? raw.dataDenuncia.trim().slice(0, 10) : ''
   const dataPrevistaMigracao =
     typeof raw.dataPrevistaMigracao === 'string'
       ? raw.dataPrevistaMigracao.trim().slice(0, 10)
       : ''
-  const nota = typeof raw.nota === 'string' ? onlyDigits(raw.nota, NINE_DIGITS) : ''
+  const nota = onlyDigits(String(raw.nota ?? ''), NINE_DIGITS)
 
   if (!nomeCliente) {
     return { error: 'Informe o nome do cliente.' }
   }
   if (!instalacaoDigits) {
     return {
-      error: 'Informe a Instalação (até 9 dígitos).',
+      error: 'Informe a Instalação (1 a 9 dígitos).',
     }
   }
   if (!ISO_DATE_RE.test(dataDenuncia) || !ISO_DATE_RE.test(dataPrevistaMigracao)) {

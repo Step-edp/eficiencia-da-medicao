@@ -474,9 +474,10 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
     setCreating(true)
     setFeedback(null)
     try {
+      const instalacao = padInstalacao(form.instalacao)
       const { client } = await api.createConsolidacaoCargaCliente({
         nomeCliente: form.nomeCliente.trim(),
-        instalacao: padInstalacao(form.instalacao),
+        instalacao,
         dataDenuncia: form.dataDenuncia,
         dataPrevistaMigracao: form.dataPrevistaMigracao,
         nota: form.nota,
@@ -484,7 +485,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
       setClients((current) => [client, ...current])
       setFeedback({
         type: 'success',
-        message: `Cliente "${client.nomeCliente}" cadastrado com sucesso.`,
+        message: `Cliente "${client.nomeCliente}" cadastrado com sucesso (instalação ${client.instalacao}).`,
       })
       resetForm()
       setShowForm(false)
@@ -545,7 +546,11 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
       ) : null}
 
       {!readOnly && showForm ? (
-        <form className="form-grid consolidacao-cliente-form" onSubmit={handleSubmit}>
+        <form
+          className="form-grid consolidacao-cliente-form"
+          onSubmit={handleSubmit}
+          noValidate
+        >
           {CLIENT_FORM_FIELDS.map((field) => {
             const isDate = 'kind' in field && field.kind === 'date'
             const isFullWidth = 'fullWidth' in field && field.fullWidth
@@ -556,15 +561,34 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                 className={isFullWidth ? 'full-width' : undefined}
               >
                 {field.label}
-                {field.key === 'instalacao' || field.key === 'nota' ? (
+                {field.key === 'instalacao' ? (
                   <input
                     type="text"
                     inputMode="numeric"
                     autoComplete="off"
                     maxLength={NINE_DIGITS}
-                    value={form[field.key]}
+                    value={form.instalacao}
                     onChange={(event) =>
-                      updateField(field.key, formatNineDigits(event.target.value))
+                      updateField('instalacao', formatNineDigits(event.target.value))
+                    }
+                    onBlur={() => {
+                      if (form.instalacao.trim()) {
+                        updateField('instalacao', padInstalacao(form.instalacao))
+                      }
+                    }}
+                    placeholder="Ex.: 123456"
+                    required
+                    disabled={creating}
+                  />
+                ) : field.key === 'nota' ? (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={NINE_DIGITS}
+                    value={form.nota}
+                    onChange={(event) =>
+                      updateField('nota', formatNineDigits(event.target.value))
                     }
                     placeholder="000000000"
                     required
@@ -660,7 +684,16 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                             formatNineDigits(event.target.value),
                           )
                         }
-                        placeholder="000000000"
+                        onBlur={() => {
+                          if (row.instalacao.trim()) {
+                            updateBulkField(
+                              row.id,
+                              'instalacao',
+                              padInstalacao(row.instalacao),
+                            )
+                          }
+                        }}
+                        placeholder="Ex.: 123456"
                         disabled={creating}
                       />
                     </td>
