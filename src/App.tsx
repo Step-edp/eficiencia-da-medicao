@@ -1419,6 +1419,9 @@ function HomePanel({
   const [selectedPasswordAction, setSelectedPasswordAction] = useState<string | null>(
     () => savedNav?.selectedPasswordAction ?? null,
   )
+  const [selectedFaturamentoLivresAction, setSelectedFaturamentoLivresAction] = useState<
+    string | null
+  >(null)
 
   useEffect(() => {
     void api
@@ -3657,6 +3660,32 @@ function HomePanel({
     }
 
     if (selectedArea.title === 'Medição' && selectedMeasurementSection) {
+      if (
+        selectedMeasurementSection === 'Faturamento de clientes livres' &&
+        selectedFaturamentoLivresAction === 'consolidacao'
+      ) {
+        return (
+          <main className="shell">
+            <section className="home-card area-screen-card">
+              <TopActionBar
+                onBack={() => setSelectedFaturamentoLivresAction(null)}
+                onHome={() => {
+                  setSelectedFaturamentoLivresAction(null)
+                  setSelectedMeasurementSection(null)
+                  setSelectedArea(null)
+                }}
+                onLogout={onLogout}
+              />
+              <p className="section-tag">Faturamento de clientes livres</p>
+              <h2>Consolidação da Carga</h2>
+              <p>
+                Tela dedicada para consolidação da carga de clientes livres.
+              </p>
+            </section>
+          </main>
+        )
+      }
+
       if (selectedMeasurementSection === 'Geração de senha' && selectedPasswordAction) {
         if (selectedPasswordAction === 'fabricante') {
           return (
@@ -4028,10 +4057,12 @@ function HomePanel({
             <TopActionBar
               onBack={() => {
                 setSelectedPasswordAction(null)
+                setSelectedFaturamentoLivresAction(null)
                 setSelectedMeasurementSection(null)
               }}
               onHome={() => {
                 setSelectedPasswordAction(null)
+                setSelectedFaturamentoLivresAction(null)
                 setSelectedMeasurementSection(null)
                 setSelectedArea(null)
               }}
@@ -4062,7 +4093,11 @@ function HomePanel({
                 className="measurement-sections"
                 aria-label="Opções de Faturamento de clientes livres"
               >
-                <button className="measurement-item" type="button">
+                <button
+                  className="measurement-item"
+                  type="button"
+                  onClick={() => setSelectedFaturamentoLivresAction('consolidacao')}
+                >
                   <span className="item-with-icon">
                     <ItemIcon title="Consolidação da Carga" />
                     <span>Consolidação da Carga</span>
@@ -4652,6 +4687,7 @@ function HomePanel({
                   type="button"
                   onClick={() => {
                     setSelectedPasswordAction(null)
+                    setSelectedFaturamentoLivresAction(null)
                     setSelectedMeasurementSection(section)
                     if (section === 'Memória de massa') {
                       setSelectedMemoryMassStep(MEMORY_MASS_TRAIL_STEPS[0]?.key ?? 'Notas')
