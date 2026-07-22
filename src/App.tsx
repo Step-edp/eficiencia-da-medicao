@@ -39,7 +39,6 @@ import { CriarModeloPanel } from './CriarModeloPanel'
 import { ApresentacaoPanel } from './ApresentacaoPanel'
 import { SoftwaresPanel } from './SoftwaresPanel'
 import { InventarioPanel } from './InventarioPanel'
-import { FaturamentoLivresPanel } from './FaturamentoLivresPanel'
 import { GalleryPanel } from './GalleryPanel'
 import { SupportRequestModal } from './SupportRequestModal'
 import { SupportPanel } from './SupportPanel'
@@ -704,6 +703,7 @@ function ItemIcon({ title }: { title: string }) {
     Treinamentos: 'book',
     Softwares: 'code',
     'Faturamento de clientes livres': 'chart',
+    'Consolidação da Carga': 'layer',
     'Faturamento de clientes cativos': 'chart',
     'Faturamento de consumo próprio': 'chart',
     'Memória de massa': 'database',
@@ -4058,7 +4058,17 @@ function HomePanel({
               />
             ) : null}
             {selectedMeasurementSection === 'Faturamento de clientes livres' ? (
-              <FaturamentoLivresPanel />
+              <div
+                className="measurement-sections"
+                aria-label="Opções de Faturamento de clientes livres"
+              >
+                <button className="measurement-item" type="button">
+                  <span className="item-with-icon">
+                    <ItemIcon title="Consolidação da Carga" />
+                    <span>Consolidação da Carga</span>
+                  </span>
+                </button>
+              </div>
             ) : null}
             {selectedMeasurementSection === 'Geração de senha' ? (
               <div className="measurement-sections" aria-label="Opções de geração de senha">
