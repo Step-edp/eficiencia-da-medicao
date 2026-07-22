@@ -82,6 +82,11 @@ function formatNineDigits(value: string): string {
   return value.replace(/\D/g, '').slice(0, NINE_DIGITS)
 }
 
+function padInstalacao(value: string): string {
+  const digits = formatNineDigits(value)
+  return digits ? digits.padStart(NINE_DIGITS, '0') : ''
+}
+
 function isoToBrDate(value: string): string {
   if (!value) return ''
   const [year, month, day] = value.split('-')
@@ -242,8 +247,8 @@ function validateClientRow(row: ClientFormValues): string | null {
     }
   }
 
-  if (row.instalacao.length !== NINE_DIGITS) {
-    return `O campo Instalação deve ter exatamente ${NINE_DIGITS} dígitos.`
+  if (!row.instalacao.trim()) {
+    return 'Preencha o campo Instalação.'
   }
 
   if (row.nota.length !== NINE_DIGITS) {
@@ -343,7 +348,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
         await api.createConsolidacaoCargaClientesBulk(
           rowsToSave.map((row) => ({
             nomeCliente: row.nomeCliente.trim(),
-            instalacao: row.instalacao,
+            instalacao: padInstalacao(row.instalacao),
             dataDenuncia: row.dataDenuncia,
             dataPrevistaMigracao: row.dataPrevistaMigracao,
             nota: row.nota,
@@ -450,10 +455,10 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
       return
     }
 
-    if (form.instalacao.length !== NINE_DIGITS) {
+    if (!form.instalacao.trim()) {
       setFeedback({
         type: 'error',
-        message: `O campo Instalação deve ter exatamente ${NINE_DIGITS} dígitos.`,
+        message: 'Preencha o campo Instalação.',
       })
       return
     }
@@ -471,7 +476,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
     try {
       const { client } = await api.createConsolidacaoCargaCliente({
         nomeCliente: form.nomeCliente.trim(),
-        instalacao: form.instalacao,
+        instalacao: padInstalacao(form.instalacao),
         dataDenuncia: form.dataDenuncia,
         dataPrevistaMigracao: form.dataPrevistaMigracao,
         nota: form.nota,

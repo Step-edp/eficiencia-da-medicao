@@ -78,7 +78,7 @@ function mapCliente(row: {
 function normalizePayload(raw: Record<string, unknown>): ClientPayload | { error: string } {
   const nomeCliente =
     typeof raw.nomeCliente === 'string' ? raw.nomeCliente.trim() : ''
-  const instalacao =
+  const instalacaoDigits =
     typeof raw.instalacao === 'string' ? onlyDigits(raw.instalacao, NINE_DIGITS) : ''
   const dataDenuncia =
     typeof raw.dataDenuncia === 'string' ? raw.dataDenuncia.trim().slice(0, 10) : ''
@@ -91,9 +91,9 @@ function normalizePayload(raw: Record<string, unknown>): ClientPayload | { error
   if (!nomeCliente) {
     return { error: 'Informe o nome do cliente.' }
   }
-  if (instalacao.length !== NINE_DIGITS) {
+  if (!instalacaoDigits) {
     return {
-      error: `O campo Instalação deve ter exatamente ${NINE_DIGITS} dígitos.`,
+      error: 'Informe a Instalação (até 9 dígitos).',
     }
   }
   if (!ISO_DATE_RE.test(dataDenuncia) || !ISO_DATE_RE.test(dataPrevistaMigracao)) {
@@ -116,7 +116,7 @@ function normalizePayload(raw: Record<string, unknown>): ClientPayload | { error
 
   return {
     nomeCliente,
-    instalacao,
+    instalacao: instalacaoDigits.padStart(NINE_DIGITS, '0'),
     dataDenuncia,
     dataPrevistaMigracao,
     nota,
