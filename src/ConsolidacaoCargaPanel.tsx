@@ -1,4 +1,11 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import {
   api,
   ApiError,
@@ -73,6 +80,155 @@ function daysBetween(dateA: string, dateB: string): number | null {
 
 function formatNineDigits(value: string): string {
   return value.replace(/\D/g, '').slice(0, NINE_DIGITS)
+}
+
+function isoToBrDate(value: string): string {
+  if (!value) return ''
+  const [year, month, day] = value.split('-')
+  if (!year || !month || !day) return ''
+  return `${day}/${month}/${year}`
+}
+
+function formatBrDateTyping(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
+}
+
+function brDateToIso(value: string): string | null {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim())
+  if (!match) return null
+  const day = Number(match[1])
+  const month = Number(match[2])
+  const year = Number(match[3])
+  const date = new Date(year, month - 1, day)
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null
+  }
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+type ConsolidacaoDateFieldProps = {
+  value: string
+  onChange: (value: string) => void
+  required?: boolean
+  disabled?: boolean
+  id?: string
+}
+
+function ConsolidacaoDateField({
+  value,
+  onChange,
+  required = false,
+  disabled = false,
+  id,
+}: ConsolidacaoDateFieldProps) {
+  const pickerRef = useRef<HTMLInputElement>(null)
+  const [text, setText] = useState(() => isoToBrDate(value))
+
+  useEffect(() => {
+    setText(isoToBrDate(value))
+  }, [value])
+
+  const openCalendar = () => {
+    const input = pickerRef.current
+    if (!input || disabled) return
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker()
+        return
+      } catch {
+        // fallback: focus native date input
+      }
+    }
+    input.focus()
+    input.click()
+  }
+
+  return (
+    <div className="consolidacao-date-field">
+      <input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder="dd/mm/aaaa"
+        maxLength={10}
+        value={text}
+        required={required}
+        disabled={disabled}
+        onChange={(event) => {
+          const masked = formatBrDateTyping(event.target.value)
+          setText(masked)
+          if (!masked) {
+            onChange('')
+            return
+          }
+          const iso = brDateToIso(masked)
+          if (iso) onChange(iso)
+        }}
+        onBlur={() => {
+          if (!text.trim()) {
+            onChange('')
+            setText('')
+            return
+          }
+          const iso = brDateToIso(text)
+          if (iso) {
+            onChange(iso)
+            setText(isoToBrDate(iso))
+            return
+          }
+          setText(isoToBrDate(value))
+        }}
+      />
+      <input
+        ref={pickerRef}
+        type="date"
+        className="consolidacao-date-picker-native"
+        value={value}
+        tabIndex={-1}
+        aria-hidden="true"
+        disabled={disabled}
+        onChange={(event) => {
+          onChange(event.target.value)
+          setText(isoToBrDate(event.target.value))
+        }}
+      />
+      <button
+        type="button"
+        className="consolidacao-date-calendar-button"
+        onClick={openCalendar}
+        disabled={disabled}
+        aria-label="Abrir calendário"
+        title="Abrir calendário"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect
+            x="4"
+            y="6"
+            width="16"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+          <path
+            d="M8 3v6M16 3v6M4 10h16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+        </svg>
+      </button>
+    </div>
+  )
 }
 
 function isRowEmpty(row: ClientFormValues): boolean {
@@ -410,21 +566,9 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                     disabled={creating}
                   />
                 ) : isDate ? (
-                  <input
-                    type="date"
-                    className="consolidacao-date-input"
+                  <ConsolidacaoDateField
                     value={form[field.key]}
-                    onChange={(event) => updateField(field.key, event.target.value)}
-                    onClick={(event) => {
-                      const input = event.currentTarget
-                      if (typeof input.showPicker === 'function') {
-                        try {
-                          input.showPicker()
-                        } catch {
-                          // Navegadores podem bloquear showPicker fora de gesto confiável.
-                        }
-                      }
-                    }}
+                    onChange={(next) => updateField(field.key, next)}
                     required
                     disabled={creating}
                   />
@@ -516,48 +660,20 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                       />
                     </td>
                     <td>
-                      <input
-                        type="date"
-                        className="consolidacao-date-input"
+                      <ConsolidacaoDateField
                         value={row.dataDenuncia}
-                        onChange={(event) =>
-                          updateBulkField(row.id, 'dataDenuncia', event.target.value)
+                        onChange={(next) =>
+                          updateBulkField(row.id, 'dataDenuncia', next)
                         }
-                        onClick={(event) => {
-                          const input = event.currentTarget
-                          if (typeof input.showPicker === 'function') {
-                            try {
-                              input.showPicker()
-                            } catch {
-                              // ignore
-                            }
-                          }
-                        }}
                         disabled={creating}
                       />
                     </td>
                     <td>
-                      <input
-                        type="date"
-                        className="consolidacao-date-input"
+                      <ConsolidacaoDateField
                         value={row.dataPrevistaMigracao}
-                        onChange={(event) =>
-                          updateBulkField(
-                            row.id,
-                            'dataPrevistaMigracao',
-                            event.target.value,
-                          )
+                        onChange={(next) =>
+                          updateBulkField(row.id, 'dataPrevistaMigracao', next)
                         }
-                        onClick={(event) => {
-                          const input = event.currentTarget
-                          if (typeof input.showPicker === 'function') {
-                            try {
-                              input.showPicker()
-                            } catch {
-                              // ignore
-                            }
-                          }
-                        }}
                         disabled={creating}
                       />
                     </td>
