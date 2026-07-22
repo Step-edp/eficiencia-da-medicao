@@ -37,6 +37,16 @@ function formatDateBr(value: string): string {
   return `${day}/${month}/${year}`
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const MIN_DATE_GAP_DAYS = 180
+
+function daysBetween(dateA: string, dateB: string): number | null {
+  const a = new Date(`${dateA}T00:00:00`)
+  const b = new Date(`${dateB}T00:00:00`)
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return null
+  return Math.abs(Math.round((b.getTime() - a.getTime()) / MS_PER_DAY))
+}
+
 type ConsolidacaoCargaPanelProps = {
   readOnly?: boolean
 }
@@ -51,8 +61,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
   } | null>(null)
 
   const requiredKeys = useMemo(
-    () =>
-      ['nomeCliente', 'instalacao', 'dataDenuncia', 'dataPrevistaMigracao'] as ClientFieldKey[],
+    () => CLIENT_FORM_FIELDS.map((field) => field.key),
     [],
   )
 
@@ -78,6 +87,16 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
         })
         return
       }
+    }
+
+    const gapDays = daysBetween(form.dataDenuncia, form.dataPrevistaMigracao)
+    if (gapDays === null || gapDays < MIN_DATE_GAP_DAYS) {
+      setFeedback({
+        type: 'error',
+        message:
+          'A Data denúncia e a Data prevista para migração devem ter pelo menos 180 dias de diferença.',
+      })
+      return
     }
 
     const entry: RegisteredClient = {
@@ -138,7 +157,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                   value={form[field.key]}
                   onChange={(event) => updateField(field.key, event.target.value)}
                   placeholder={isDate ? undefined : field.label}
-                  required={requiredKeys.includes(field.key)}
+                  required
                 />
               </label>
             )
