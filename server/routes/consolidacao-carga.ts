@@ -8,17 +8,17 @@ const MIN_DATE_GAP_DAYS = 180
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
-type ConsolidacaoClienteRow = {
+type ConsolidacaoClienteMapped = {
   id: number
-  nome_cliente: string
+  nomeCliente: string
   instalacao: string
-  data_denuncia: string
-  data_prevista_migracao: string
+  dataDenuncia: string
+  dataPrevistaMigracao: string
   nota: string
-  created_at: Date
-  created_by_user_id: string | null
-  created_by_name: string | null
-  created_by_registration: string | null
+  createdAt: string
+  createdByUserId: string | null
+  createdByName: string
+  createdByRegistration: string
 }
 
 function onlyDigits(value: string, max: number) {
@@ -40,14 +40,18 @@ function toDateString(value: string | Date): string {
   return `${year}-${month}-${day}`
 }
 
-function mapCliente(
-  row: Omit<ConsolidacaoClienteRow, 'created_by_name' | 'created_by_registration'> & {
-    created_by_name?: string | null
-    created_by_registration?: string | null
-    data_denuncia: string | Date
-    data_prevista_migracao: string | Date
-  },
-) {
+function mapCliente(row: {
+  id: number
+  nome_cliente: string
+  instalacao: string
+  data_denuncia: string | Date
+  data_prevista_migracao: string | Date
+  nota: string
+  created_at: Date
+  created_by_user_id: string | null
+  created_by_name?: string | null
+  created_by_registration?: string | null
+}): ConsolidacaoClienteMapped {
   return {
     id: row.id,
     nomeCliente: row.nome_cliente,
@@ -163,7 +167,7 @@ export async function createConsolidacaoCargaCliente(req: Request, res: Response
 
   const created = mapCliente({
     ...result.rows[0],
-    created_by_name: req.user?.name ?? '',
+    created_by_name: '',
     created_by_registration: req.user?.registration ?? '',
   })
 
