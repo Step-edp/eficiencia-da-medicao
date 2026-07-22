@@ -1020,6 +1020,86 @@ button {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.faturamento-livres-panel {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.85rem;
+}
+
+.faturamento-consolidacao-form {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1.1rem 1.15rem 1.2rem;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 216, 240, 0.18);
+  background: rgba(5, 26, 44, 0.45);
+}
+
+.faturamento-consolidacao-form label {
+  color: rgba(226, 232, 240, 0.88);
+  font-weight: 600;
+}
+
+.faturamento-consolidacao-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.faturamento-consolidacao-row input {
+  min-height: 48px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(24, 216, 240, 0.28);
+  background: rgba(2, 18, 31, 0.72);
+  color: var(--text-main);
+  padding: 0.7rem 0.9rem;
+  font: inherit;
+  font-size: 1.05rem;
+}
+
+.faturamento-consolidacao-row input:focus {
+  outline: 2px solid rgba(57, 255, 0, 0.45);
+  outline-offset: 1px;
+  border-color: rgba(57, 255, 0, 0.55);
+}
+
+.faturamento-consolidacao-submit {
+  margin-top: 0;
+  min-width: 8.5rem;
+  padding: 0.75rem 1.1rem;
+  border-radius: 12px;
+}
+
+.faturamento-consolidacao-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.55rem 1rem;
+  padding: 0.95rem 1.15rem;
+  border-radius: 14px;
+  border: 1px solid rgba(57, 255, 0, 0.35);
+  background: rgba(57, 255, 0, 0.1);
+}
+
+.faturamento-consolidacao-result span {
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.9rem;
+}
+
+.faturamento-consolidacao-result strong {
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+  color: #b8ff7a;
+}
+
+@media (max-width: 720px) {
+  .faturamento-consolidacao-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .inventario-panel {
   display: grid;
   gap: 1.35rem;

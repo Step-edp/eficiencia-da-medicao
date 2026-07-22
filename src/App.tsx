@@ -39,6 +39,7 @@ import { CriarModeloPanel } from './CriarModeloPanel'
 import { ApresentacaoPanel } from './ApresentacaoPanel'
 import { SoftwaresPanel } from './SoftwaresPanel'
 import { InventarioPanel } from './InventarioPanel'
+import { FaturamentoLivresPanel } from './FaturamentoLivresPanel'
 import { GalleryPanel } from './GalleryPanel'
 import { SupportRequestModal } from './SupportRequestModal'
 import { SupportPanel } from './SupportPanel'
@@ -4055,6 +4056,9 @@ function HomePanel({
                 steps={MEMORY_MASS_TRAIL_STEPS}
                 ariaLabel="Trilha de Memória de massa"
               />
+            ) : null}
+            {selectedMeasurementSection === 'Faturamento de clientes livres' ? (
+              <FaturamentoLivresPanel />
             ) : null}
             {selectedMeasurementSection === 'Geração de senha' ? (
               <div className="measurement-sections" aria-label="Opções de geração de senha">
