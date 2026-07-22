@@ -47,6 +47,12 @@ function daysBetween(dateA: string, dateB: string): number | null {
   return Math.abs(Math.round((b.getTime() - a.getTime()) / MS_PER_DAY))
 }
 
+const NOTA_DIGITS = 9
+
+function formatNota(value: string): string {
+  return value.replace(/\D/g, '').slice(0, NOTA_DIGITS)
+}
+
 type ConsolidacaoCargaPanelProps = {
   readOnly?: boolean
 }
@@ -95,6 +101,14 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
         type: 'error',
         message:
           'A Data denúncia e a Data prevista para migração devem ter pelo menos 180 dias de diferença.',
+      })
+      return
+    }
+
+    if (form.nota.length !== NOTA_DIGITS) {
+      setFeedback({
+        type: 'error',
+        message: `O campo Nota deve ter exatamente ${NOTA_DIGITS} dígitos.`,
       })
       return
     }
@@ -152,13 +166,28 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                 className={isFullWidth ? 'full-width' : undefined}
               >
                 {field.label}
-                <input
-                  type={isDate ? 'date' : 'text'}
-                  value={form[field.key]}
-                  onChange={(event) => updateField(field.key, event.target.value)}
-                  placeholder={isDate ? undefined : field.label}
-                  required
-                />
+                {field.key === 'nota' ? (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={NOTA_DIGITS}
+                    value={form.nota}
+                    onChange={(event) =>
+                      updateField('nota', formatNota(event.target.value))
+                    }
+                    placeholder="000000000"
+                    required
+                  />
+                ) : (
+                  <input
+                    type={isDate ? 'date' : 'text'}
+                    value={form[field.key]}
+                    onChange={(event) => updateField(field.key, event.target.value)}
+                    placeholder={isDate ? undefined : field.label}
+                    required
+                  />
+                )}
               </label>
             )
           })}
