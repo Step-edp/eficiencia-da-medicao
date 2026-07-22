@@ -1,4 +1,5 @@
 import {
+  ClipboardEvent,
   FormEvent,
   useCallback,
   useEffect,
@@ -117,6 +118,140 @@ function brDateToIso(value: string): string | null {
     return null
   }
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+const BULK_FIELDS: ClientFieldKey[] = [
+  'nomeCliente',
+  'instalacao',
+  'dataDenuncia',
+  'dataPrevistaMigracao',
+  'nota',
+]
+
+function parseFlexibleDateToIso(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) return ''
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+    return trimmed.slice(0, 10)
+  }
+
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length === 8) {
+    const asBr = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
+    const isoFromDigits = brDateToIso(asBr)
+    if (isoFromDigits) return isoFromDigits
+  }
+
+  const parts = trimmed.split(/[/\-.]/).map((part) => part.trim())
+  if (parts.length === 3) {
+    const [first, second, third] = parts
+    if (third.length === 4) {
+      const iso = brDateToIso(
+        `${first.padStart(2, '0')}/${second.padStart(2, '0')}/${third}`,
+      )
+      if (iso) return iso
+    }
+    if (first.length === 4) {
+      const iso = `${first}-${second.padStart(2, '0')}-${third.padStart(2, '0')}`
+      if (brDateToIso(isoToBrDate(iso))) return iso
+      const probe = new Date(`${iso}T00:00:00`)
+      if (!Number.isNaN(probe.getTime())) return iso
+    }
+  }
+
+  const serial = Number(trimmed.replace(',', '.'))
+  if (Number.isFinite(serial) && serial > 20000 && serial < 90000) {
+    const epoch = Date.UTC(1899, 11, 30)
+    const date = new Date(epoch + Math.round(serial) * MS_PER_DAY)
+    if (!Number.isNaN(date.getTime())) {
+      const year = date.getUTCFullYear()
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(date.getUTCDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+  }
+
+  return ''
+}
+
+function normalizeBulkCell(key: ClientFieldKey, raw: string): string {
+  const value = raw.replace(/^["']|["']$/g, '').trim()
+  if (!value) return ''
+
+  if (key === 'instalacao') {
+    return padInstalacao(value)
+  }
+  if (key === 'nota') {
+    return formatNineDigits(value)
+  }
+  if (key === 'dataDenuncia' || key === 'dataPrevistaMigracao') {
+    return parseFlexibleDateToIso(value)
+  }
+  return value
+}
+
+function parseClipboardGrid(text: string): string[][] {
+  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  if (!normalized.trim()) return []
+
+  return normalized
+    .split('\n')
+    .map((line) => {
+      if (line.includes('\t')) {
+        return line.split('\t').map((cell) => cell.trim())
+      }
+      if (line.includes(';')) {
+        return line.split(';').map((cell) => cell.trim())
+      }
+      const commaCount = (line.match(/,/g) ?? []).length
+      if (commaCount >= 2) {
+        return line.split(',').map((cell) => cell.trim())
+      }
+      return [line.trim()]
+    })
+    .filter((row) => row.some((cell) => cell.length > 0))
+}
+
+function looksLikeBulkHeader(row: string[]): boolean {
+  const first = (row[0] ?? '').trim().toLowerCase()
+  const second = (row[1] ?? '').trim().toLowerCase()
+  return (
+    first === 'nome' ||
+    first === 'nome do cliente' ||
+    first === 'cliente' ||
+    (first.includes('nome') && second.includes('instal'))
+  )
+}
+
+function applyPasteGridToRows(
+  currentRows: BulkRow[],
+  grid: string[][],
+  startRow: number,
+  startCol: number,
+): BulkRow[] {
+  let rows = grid
+  if (rows.length > 0 && looksLikeBulkHeader(rows[0]) && startRow === 0 && startCol === 0) {
+    rows = rows.slice(1)
+  }
+
+  const next = currentRows.map((row) => ({ ...row }))
+  rows.forEach((cells, rowOffset) => {
+    const rowIndex = startRow + rowOffset
+    while (next.length <= rowIndex) {
+      next.push(createBulkRow())
+    }
+    const updated = { ...next[rowIndex], error: undefined }
+    cells.forEach((cell, colOffset) => {
+      const fieldIndex = startCol + colOffset
+      if (fieldIndex < 0 || fieldIndex >= BULK_FIELDS.length) return
+      const key = BULK_FIELDS[fieldIndex]
+      updated[key] = normalizeBulkCell(key, cell)
+    })
+    next[rowIndex] = updated
+  })
+
+  return next
 }
 
 type ConsolidacaoDateFieldProps = {
@@ -277,6 +412,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
   const [creating, setCreating] = useState(false)
   const [showBulkConfirm, setShowBulkConfirm] = useState(false)
   const [pendingValidRows, setPendingValidRows] = useState<BulkRow[]>([])
+  const [bulkPasteText, setBulkPasteText] = useState('')
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -320,6 +456,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
 
   const resetBulk = () => {
     setBulkRows(createInitialBulkRows())
+    setBulkPasteText('')
     setShowBulkConfirm(false)
     setPendingValidRows([])
   }
@@ -336,6 +473,76 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
           : row,
       ),
     )
+  }
+
+  const applyBulkPaste = (
+    text: string,
+    startRow = 0,
+    startCol = 0,
+    options?: { allowSingleCell?: boolean },
+  ) => {
+    const grid = parseClipboardGrid(text)
+    if (grid.length === 0) {
+      setFeedback({
+        type: 'error',
+        message: 'Não foi possível ler os dados colados.',
+      })
+      return 0
+    }
+
+    // Colagem de uma única célula no input: deixa o comportamento padrão.
+    if (
+      !options?.allowSingleCell &&
+      grid.length === 1 &&
+      (grid[0]?.length ?? 0) <= 1
+    ) {
+      return 0
+    }
+
+    setBulkRows((current) => applyPasteGridToRows(current, grid, startRow, startCol))
+    return grid.length
+  }
+
+  const handleBulkTablePaste = (event: ClipboardEvent<HTMLElement>) => {
+    if (creating) return
+
+    const text = event.clipboardData.getData('text/plain')
+    const grid = parseClipboardGrid(text)
+    if (grid.length === 0) return
+    if (grid.length === 1 && (grid[0]?.length ?? 0) <= 1) return
+
+    const target = event.target as HTMLElement | null
+    const cell = target?.closest('[data-bulk-row][data-bulk-col]') as HTMLElement | null
+    const startRow = Number(cell?.dataset.bulkRow ?? 0)
+    const startCol = Number(cell?.dataset.bulkCol ?? 0)
+
+    event.preventDefault()
+    const pastedLines = applyBulkPaste(
+      text,
+      Number.isFinite(startRow) ? startRow : 0,
+      Number.isFinite(startCol) ? startCol : 0,
+    )
+    if (pastedLines > 0) {
+      setBulkPasteText('')
+      setFeedback({
+        type: 'success',
+        message: `${pastedLines} linha(s) colada(s) na tabela.`,
+      })
+    }
+  }
+
+  const handleApplyPasteArea = () => {
+    if (creating) return
+    const pastedLines = applyBulkPaste(bulkPasteText, 0, 0, {
+      allowSingleCell: true,
+    })
+    if (pastedLines > 0) {
+      setBulkPasteText('')
+      setFeedback({
+        type: 'success',
+        message: `${pastedLines} linha(s) aplicadas na tabela.`,
+      })
+    }
   }
 
   const saveValidBulkRows = async (rowsToSave: BulkRow[]) => {
@@ -637,10 +844,56 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
       {!readOnly && showBulk ? (
         <div className="consolidacao-bulk-panel">
           <p className="consolidacao-bulk-hint">
-            Preencha um caso por linha. Linhas com menos de 180 dias entre as datas
-            não serão cadastradas.
+            Cole do Excel de uma vez (colunas: Nome do cliente, Instalação, Data
+            denúncia, Data prevista para migração, Nota). Você pode colar na área
+            abaixo ou diretamente em qualquer célula da tabela.
           </p>
-          <div className="entrada-table-wrap consolidacao-bulk-table-wrap">
+
+          <label className="consolidacao-bulk-paste-area">
+            Colar dados
+            <textarea
+              value={bulkPasteText}
+              onChange={(event) => setBulkPasteText(event.target.value)}
+              onPaste={(event) => {
+                // Aplica automaticamente ao colar na área.
+                const text = event.clipboardData.getData('text/plain')
+                if (!text.trim()) return
+                event.preventDefault()
+                const pastedLines = applyBulkPaste(text, 0, 0, {
+                  allowSingleCell: true,
+                })
+                if (pastedLines > 0) {
+                  setBulkPasteText('')
+                  setFeedback({
+                    type: 'success',
+                    message: `${pastedLines} linha(s) aplicadas na tabela.`,
+                  })
+                } else {
+                  setBulkPasteText(text)
+                }
+              }}
+              placeholder={
+                'Nome A\t123456\t01/01/2024\t01/07/2024\t123456789\nNome B\t654321\t02/01/2024\t02/07/2024\t987654321'
+              }
+              rows={4}
+              disabled={creating}
+            />
+          </label>
+          <div className="consolidacao-cliente-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleApplyPasteArea}
+              disabled={creating || !bulkPasteText.trim()}
+            >
+              Aplicar dados colados
+            </button>
+          </div>
+
+          <div
+            className="entrada-table-wrap consolidacao-bulk-table-wrap"
+            onPaste={handleBulkTablePaste}
+          >
             <table className="data-table consolidacao-bulk-table">
               <thead>
                 <tr>
@@ -663,6 +916,8 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                     <td>
                       <input
                         type="text"
+                        data-bulk-row={index}
+                        data-bulk-col={0}
                         value={row.nomeCliente}
                         onChange={(event) =>
                           updateBulkField(row.id, 'nomeCliente', event.target.value)
@@ -676,6 +931,8 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                         type="text"
                         inputMode="numeric"
                         maxLength={NINE_DIGITS}
+                        data-bulk-row={index}
+                        data-bulk-col={1}
                         value={row.instalacao}
                         onChange={(event) =>
                           updateBulkField(
@@ -697,7 +954,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                         disabled={creating}
                       />
                     </td>
-                    <td>
+                    <td data-bulk-row={index} data-bulk-col={2}>
                       <ConsolidacaoDateField
                         value={row.dataDenuncia}
                         onChange={(next) =>
@@ -706,7 +963,7 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                         disabled={creating}
                       />
                     </td>
-                    <td>
+                    <td data-bulk-row={index} data-bulk-col={3}>
                       <ConsolidacaoDateField
                         value={row.dataPrevistaMigracao}
                         onChange={(next) =>
@@ -720,6 +977,8 @@ export function ConsolidacaoCargaPanel({ readOnly = false }: ConsolidacaoCargaPa
                         type="text"
                         inputMode="numeric"
                         maxLength={NINE_DIGITS}
+                        data-bulk-row={index}
+                        data-bulk-col={4}
                         value={row.nota}
                         onChange={(event) =>
                           updateBulkField(
