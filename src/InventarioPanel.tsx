@@ -38,13 +38,11 @@ type InventoryMonth = {
 type InventarioTrailStepKey = (typeof INVENTARIO_TRAIL_STEPS)[number]['key']
 type Iq09Row = Record<string, string>
 
-function buildLastTwelveMonths(reference = new Date()): InventoryMonth[] {
+function buildYearMonths(year: number): InventoryMonth[] {
   const months: InventoryMonth[] = []
 
-  for (let offset = 0; offset < 12; offset += 1) {
-    const date = new Date(reference.getFullYear(), reference.getMonth() - offset, 1)
-    const year = date.getFullYear()
-    const monthIndex = date.getMonth()
+  for (let monthIndex = 0; monthIndex < 12; monthIndex += 1) {
+    const date = new Date(year, monthIndex, 1)
     const rawMonth = date.toLocaleDateString('pt-BR', { month: 'long' })
     const monthLabel = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1)
 
@@ -57,6 +55,19 @@ function buildLastTwelveMonths(reference = new Date()): InventoryMonth[] {
   }
 
   return months
+}
+
+/** Ano atual e anterior, cada um com Janeiro → Dezembro. */
+function buildInventoryYears(reference = new Date(), yearCount = 2) {
+  const currentYear = reference.getFullYear()
+  const groups: Array<{ year: number; months: InventoryMonth[] }> = []
+
+  for (let offset = 0; offset < yearCount; offset += 1) {
+    const year = currentYear - offset
+    groups.push({ year, months: buildYearMonths(year) })
+  }
+
+  return groups
 }
 
 function monthTitle(month: InventoryMonth) {
@@ -93,7 +104,11 @@ export function InventarioPanel({
   onMonthOpenChange,
   readOnly = false,
 }: InventarioPanelProps) {
-  const months = useMemo(() => buildLastTwelveMonths(), [])
+  const monthsByYear = useMemo(() => buildInventoryYears(), [])
+  const months = useMemo(
+    () => monthsByYear.flatMap((group) => group.months),
+    [monthsByYear],
+  )
   const [activeTrailStep, setActiveTrailStep] = useState<InventarioTrailStepKey>('IQ09')
   const [completedStepKeys, setCompletedStepKeys] = useState<InventarioTrailStepKey[]>([])
   const [runningIq09, setRunningIq09] = useState(false)
@@ -104,19 +119,6 @@ export function InventarioPanel({
     type: 'success' | 'error'
     message: string
   } | null>(null)
-
-  const monthsByYear = useMemo(() => {
-    const groups: Array<{ year: number; months: InventoryMonth[] }> = []
-    for (const month of months) {
-      const existing = groups.find((group) => group.year === month.year)
-      if (existing) {
-        existing.months.push(month)
-      } else {
-        groups.push({ year: month.year, months: [month] })
-      }
-    }
-    return groups
-  }, [months])
 
   const openMonth =
     months.find((month) => monthTitle(month) === openMonthTitle) ?? null
