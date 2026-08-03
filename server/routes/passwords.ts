@@ -308,11 +308,11 @@ export async function createPassivePasswords(req: Request, res: Response) {
   const defaultOrderNumber = String(orderNumber ?? '').trim()
   const defaultPasswordType = parsePasswordType(passwordType)
 
-  const existing = await query<{ meter: string }>(
-    'SELECT meter FROM password_records',
+  const existing = await query<{ meter: string; password: string }>(
+    'SELECT meter, password FROM password_records',
   )
-  const existingMeters = new Set(
-    existing.rows.map((row) => row.meter.trim().toLowerCase()),
+  const existingByMeter = new Map(
+    existing.rows.map((row) => [row.meter.trim().toLowerCase(), row.password]),
   )
 
   const results: Array<{
@@ -322,7 +322,7 @@ export async function createPassivePasswords(req: Request, res: Response) {
     error?: string
   }> = []
   const newRecords: PasswordRow[] = []
-  const processed = new Set<string>()
+  const processed = new Map<string, string>()
 
   for (const item of items) {
     const meter = String(item?.meter ?? '').trim()
@@ -393,17 +393,22 @@ export async function createPassivePasswords(req: Request, res: Response) {
     }
 
     const normalized = meter.toLowerCase()
-    if (existingMeters.has(normalized) || processed.has(normalized)) {
+    const existingPassword =
+      existingByMeter.get(normalized) ?? processed.get(normalized) ?? null
+    if (existingPassword !== null) {
       results.push({
         meter,
         password,
         status: 'duplicate',
-        error: 'Medidor já possui senha cadastrada.',
+        error:
+          existingPassword === password
+            ? 'Esse medidor já está cadastrado com a mesma senha'
+            : 'Esse medidor já está cadastrado com outra senha',
       })
       continue
     }
 
-    processed.add(normalized)
+    processed.set(normalized, password)
     const type =
       rowPasswordType === 'alphanumeric' ||
       rowPasswordType === 'letters' ||
@@ -443,7 +448,7 @@ export async function createPassivePasswords(req: Request, res: Response) {
       ],
     )
 
-    existingMeters.add(normalized)
+    existingByMeter.set(normalized, password)
     newRecords.push(record)
     results.push({ meter, password, status: 'created' })
   }

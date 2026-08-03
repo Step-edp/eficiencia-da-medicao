@@ -350,15 +350,24 @@ export function PassivoPanel({
       if (mode === 'massa') {
         setPasteText('')
       }
-      setFeedback({
-        type: 'success',
-        message: `${response.createdCount} senha(s) cadastrada(s)${
-          response.duplicateCount || response.invalidCount
-            ? ` · ${response.duplicateCount} duplicada(s) · ${response.invalidCount} inválida(s)`
-            : ''
-        }.`,
-      })
-    } catch (error) {
+      if (mode === 'individual' && response.createdCount === 0) {
+        const firstError =
+          response.results.find((row) => row.error)?.error ||
+          'Não foi possível cadastrar a senha passiva.'
+        setFeedback({
+          type: 'error',
+          message: firstError,
+        })
+      } else {
+        setFeedback({
+          type: 'success',
+          message: `${response.createdCount} senha(s) cadastrada(s)${
+            response.duplicateCount || response.invalidCount
+              ? ` · ${response.duplicateCount} duplicada(s) · ${response.invalidCount} inválida(s)`
+              : ''
+          }.`,
+        })
+      } catch (error) {
       setFeedback({
         type: 'error',
         message:
@@ -541,9 +550,8 @@ export function PassivoPanel({
                   <td>
                     {row.status === 'created'
                       ? 'Cadastrado'
-                      : row.status === 'duplicate'
-                        ? 'Duplicado'
-                        : row.error || 'Inválido'}
+                      : row.error ||
+                        (row.status === 'duplicate' ? 'Duplicado' : 'Inválido')}
                   </td>
                 </tr>
               ))}
