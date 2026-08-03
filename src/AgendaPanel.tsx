@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useId, useState } from 'react'
 import {
   api,
   type AbsenceType,
+  type AgendaSubstituteCandidate,
   type VacationPeriod,
   type VacationStatus,
 } from './api'
@@ -98,6 +99,12 @@ export function AgendaPanel({
   const [vacationDraftStart, setVacationDraftStart] = useState(nextVacationStart ?? '')
   const [vacationDraftEnd, setVacationDraftEnd] = useState(nextVacationEnd ?? '')
   const [editingExistingVacation, setEditingExistingVacation] = useState(false)
+  const [substituteCandidates, setSubstituteCandidates] = useState<AgendaSubstituteCandidate[]>(
+    [],
+  )
+  const [vacationSubstituteUserId, setVacationSubstituteUserId] = useState('')
+  const [absenceSubstituteUserId, setAbsenceSubstituteUserId] = useState('')
+  const [vacationDraftSubstituteUserId, setVacationDraftSubstituteUserId] = useState('')
 
   const todayIso = new Date().toISOString().slice(0, 10)
   const hasRegisteredVacation =
@@ -121,21 +128,34 @@ export function AgendaPanel({
       setEndDate(response.nextVacation.endDate)
       setVacationDraftStart(response.nextVacation.startDate)
       setVacationDraftEnd(response.nextVacation.endDate)
+      const nextSubstitute = response.nextVacation.substituteUserId ?? ''
+      setVacationSubstituteUserId(nextSubstitute)
+      setVacationDraftSubstituteUserId(nextSubstitute)
     } else {
       setStartDate('')
       setEndDate('')
       setVacationDraftStart('')
       setVacationDraftEnd('')
+      setVacationSubstituteUserId('')
+      setVacationDraftSubstituteUserId('')
     }
   }
 
-  const openVacationForm = (period?: { startDate: string; endDate: string } | null) => {
+  const openVacationForm = (period?: {
+    startDate: string
+    endDate: string
+    substituteUserId?: string | null
+  } | null) => {
     const nextStart = period?.startDate ?? startDate
     const nextEnd = period?.endDate ?? endDate
+    const nextSubstitute =
+      period?.substituteUserId ?? vacationDraftSubstituteUserId ?? vacationSubstituteUserId
     setVacationDraftStart(nextStart)
     setVacationDraftEnd(nextEnd)
+    setVacationDraftSubstituteUserId(nextSubstitute)
     setStartDate(nextStart)
     setEndDate(nextEnd)
+    setVacationSubstituteUserId(nextSubstitute)
     setEditingExistingVacation(Boolean(nextStart && nextEnd))
     setError(null)
     setSuccess(null)
@@ -145,6 +165,7 @@ export function AgendaPanel({
   const closeVacationForm = () => {
     setStartDate(vacationDraftStart)
     setEndDate(vacationDraftEnd)
+    setVacationSubstituteUserId(vacationDraftSubstituteUserId)
     setEditingExistingVacation(false)
     setError(null)
     onViewChange('overview')
@@ -153,6 +174,7 @@ export function AgendaPanel({
   const openAbsenceForm = () => {
     setAbsenceError(null)
     setSuccess(null)
+    setAbsenceSubstituteUserId('')
     onViewChange('ausencia')
   }
 
@@ -167,11 +189,11 @@ export function AgendaPanel({
 
   useEffect(() => {
     let cancelled = false
-    void api
-      .getVacationAgenda()
-      .then((response) => {
+    void Promise.all([api.getVacationAgenda(), api.listAgendaSubstituteCandidates()])
+      .then(([response, candidates]) => {
         if (cancelled) return
         applyAgenda(response)
+        setSubstituteCandidates(candidates.users)
       })
       .catch((err) => {
         if (cancelled) return
@@ -197,9 +219,17 @@ export function AgendaPanel({
       setError('A data de fim deve ser igual ou posterior ao início.')
       return
     }
+    if (!vacationSubstituteUserId) {
+      setError('Selecione o usuário que vai substituí-lo durante as férias.')
+      return
+    }
     setSaving(true)
     try {
-      const response = await api.saveVacationPeriod({ startDate, endDate })
+      const response = await api.saveVacationPeriod({
+        startDate,
+        endDate,
+        substituteUserId: vacationSubstituteUserId,
+      })
       applyAgenda(response)
       setSuccess(
         editingExistingVacation
@@ -236,6 +266,10 @@ export function AgendaPanel({
       setAbsenceError('Anexe um documento ou foto da ausência.')
       return
     }
+    if (!absenceSubstituteUserId) {
+      setAbsenceError('Selecione o usuário que vai substituí-lo durante a ausência.')
+      return
+    }
     setSavingAbsence(true)
     try {
       const response = await api.createAbsencePeriod({
@@ -245,6 +279,7 @@ export function AgendaPanel({
         justification: justification.trim(),
         attachment,
         attachmentName: attachmentName || 'anexo',
+        substituteUserId: absenceSubstituteUserId,
       })
       applyAgenda(response)
       setAbsenceStart('')
@@ -252,6 +287,7 @@ export function AgendaPanel({
       setJustification('')
       setAttachment('')
       setAttachmentName('')
+      setAbsenceSubstituteUserId('')
       setSuccess('Período de ausência registrado. O substituto cobrirá as atividades se estiver ativo.')
       onViewChange('overview')
       await onSaved()
@@ -283,7 +319,7 @@ export function AgendaPanel({
       {displayStatus === 'em_ausencia' ? (
         <div className="agenda-alert agenda-alert-blocked" role="alert">
           <strong>Bloqueado por ausência.</strong> Durante o período ativo, as atividades ficam
-          com o substituto cadastrado na liderança da área/célula.
+          com o substituto indicado no registro (ou, se ausente, o da liderança da área/célula).
         </div>
       ) : null}
 
@@ -477,6 +513,26 @@ export function AgendaPanel({
                 min={startDate || undefined}
               />
             </label>
+            <label>
+              Usuário substituto
+              <select
+                value={vacationSubstituteUserId}
+                onChange={(event) => setVacationSubstituteUserId(event.target.value)}
+                required
+                disabled={saving || locked || displayStatus === 'em_ausencia'}
+              >
+                <option value="">Selecione quem vai substituí-lo</option>
+                {substituteCandidates.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.registration})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="field-hint">
+              Se a pessoa ainda não estiver na lista, ela precisa se cadastrar e ser aprovada
+              antes de poder ser escolhida como substituto.
+            </p>
             {error ? (
               <p className="gestao-create-cell-error" role="alert">
                 {error}
@@ -605,6 +661,26 @@ export function AgendaPanel({
                 min={absenceStart || undefined}
               />
             </label>
+            <label>
+              Usuário substituto
+              <select
+                value={absenceSubstituteUserId}
+                onChange={(event) => setAbsenceSubstituteUserId(event.target.value)}
+                required
+                disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+              >
+                <option value="">Selecione quem vai substituí-lo</option>
+                {substituteCandidates.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.registration})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="field-hint">
+              Se a pessoa ainda não estiver na lista, ela precisa se cadastrar e ser aprovada
+              antes de poder ser escolhida como substituto.
+            </p>
             {absenceError ? (
               <p className="gestao-create-cell-error" role="alert">
                 {absenceError}
@@ -653,6 +729,14 @@ export function AgendaPanel({
                             Justificativa: {period.justification}
                           </span>
                         ) : null}
+                        {period.substituteName ? (
+                          <span className="agenda-period-justification">
+                            Substituto: {period.substituteName}
+                            {period.substituteRegistration
+                              ? ` (${period.substituteRegistration})`
+                              : ''}
+                          </span>
+                        ) : null}
                         {period.attachment ? (
                           <a
                             className="link-button"
@@ -672,6 +756,7 @@ export function AgendaPanel({
                             openVacationForm({
                               startDate: period.startDate,
                               endDate: period.endDate,
+                              substituteUserId: period.substituteUserId,
                             })
                           }
                         >

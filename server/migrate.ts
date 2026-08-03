@@ -278,6 +278,10 @@ export async function migrate() {
     ALTER TABLE user_vacation_periods
       ADD COLUMN IF NOT EXISTS absence_attachment_name TEXT NOT NULL DEFAULT '';
   `)
+  await query(`
+    ALTER TABLE user_vacation_periods
+      ADD COLUMN IF NOT EXISTS substitute_user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
+  `)
 
   // Renomeia área Gestão → Gestão Operacional (dados já existentes).
   await query(`

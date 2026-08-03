@@ -60,6 +60,7 @@ export async function listUsersOnAbsenceToday(): Promise<
     endDate: string
     absenceType: AbsenceType
     absenceLabel: string
+    substituteUserId: string | null
   }>
 > {
   const today = todayIso()
@@ -69,12 +70,14 @@ export async function listUsersOnAbsenceToday(): Promise<
     end_date: string
     absence_type: string
     absence_label: string
+    substitute_user_id: string | null
   }>(
     `SELECT DISTINCT ON (user_id) user_id,
             start_date::text AS start_date,
             end_date::text AS end_date,
             absence_type,
-            COALESCE(absence_label, '') AS absence_label
+            COALESCE(absence_label, '') AS absence_label,
+            substitute_user_id
      FROM user_vacation_periods
      WHERE start_date <= $1::date AND end_date >= $1::date
      ORDER BY user_id,
@@ -89,6 +92,7 @@ export async function listUsersOnAbsenceToday(): Promise<
     endDate: toDateOnly(row.end_date),
     absenceType: normalizeAbsenceType(row.absence_type),
     absenceLabel: row.absence_label?.trim() ?? '',
+    substituteUserId: row.substitute_user_id ?? null,
   }))
 }
 
@@ -97,16 +101,43 @@ export async function listUsersOnVacationToday() {
   return listUsersOnAbsenceToday()
 }
 
-/**
- * Substitutos cadastrados para o titular (células e área Gestão Operacional).
- * Preferência: célula específica; depois área.
- */
-export async function findSubstitutesForResponsible(titularUserId: string): Promise<{
+export type SubstituteResolution = {
   substituteUserId: string
   substituteName: string
   substituteRegistration: string
   sources: string[]
-} | null> {
+}
+
+async function loadApprovedUserAsSubstitute(
+  substituteUserId: string,
+  sourceLabel: string,
+): Promise<SubstituteResolution | null> {
+  const result = await query<{
+    id: string
+    name: string
+    registration: string
+  }>(
+    `SELECT id, name, registration
+     FROM users
+     WHERE id = $1 AND approval_status = 'approved'`,
+    [substituteUserId],
+  )
+  if (!result.rows[0]) return null
+  return {
+    substituteUserId: result.rows[0].id,
+    substituteName: result.rows[0].name,
+    substituteRegistration: result.rows[0].registration,
+    sources: [sourceLabel],
+  }
+}
+
+/**
+ * Substitutos cadastrados para o titular (células e área Gestão Operacional).
+ * Preferência: célula específica; depois área.
+ */
+export async function findSubstitutesForResponsible(
+  titularUserId: string,
+): Promise<SubstituteResolution | null> {
   const cells = await query<{
     substitute_user_id: string
     substitute_name: string
@@ -165,6 +196,24 @@ export async function findSubstitutesForResponsible(titularUserId: string): Prom
   }
 }
 
+/**
+ * Resolve o substituto de uma ausência: prioriza o indicado no período;
+ * se ausente, usa a liderança da área/célula.
+ */
+export async function resolveSubstituteForAbsence(
+  titularUserId: string,
+  periodSubstituteUserId?: string | null,
+): Promise<SubstituteResolution | null> {
+  if (periodSubstituteUserId && periodSubstituteUserId !== titularUserId) {
+    const fromPeriod = await loadApprovedUserAsSubstitute(
+      periodSubstituteUserId,
+      'Indicado no registro de ausência',
+    )
+    if (fromPeriod) return fromPeriod
+  }
+  return findSubstitutesForResponsible(titularUserId)
+}
+
 /** Coberturas ativas onde o usuário logado é o substituto. */
 export async function listActiveCoversForSubstitute(
   substituteUserId: string,
@@ -174,7 +223,7 @@ export async function listActiveCoversForSubstitute(
 
   const covers: AbsenceCover[] = []
   for (const period of onAbsence) {
-    const sub = await findSubstitutesForResponsible(period.userId)
+    const sub = await resolveSubstituteForAbsence(period.userId, period.substituteUserId)
     if (!sub || sub.substituteUserId !== substituteUserId) continue
 
     const titular = await query<{ name: string; registration: string }>(
@@ -233,7 +282,7 @@ export async function buildVacationSubstituteMap(): Promise<
   const onAbsence = await listUsersOnAbsenceToday()
   await Promise.all(
     onAbsence.map(async (period) => {
-      const sub = await findSubstitutesForResponsible(period.userId)
+      const sub = await resolveSubstituteForAbsence(period.userId, period.substituteUserId)
       if (!sub) return
       map.set(period.userId, {
         substituteUserId: sub.substituteUserId,

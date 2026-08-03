@@ -72,8 +72,17 @@ export type VacationPeriod = {
   justification?: string
   attachment?: string
   attachmentName?: string
+  substituteUserId?: string | null
+  substituteName?: string | null
+  substituteRegistration?: string | null
   createdAt: string
   updatedAt: string
+}
+
+export type AgendaSubstituteCandidate = {
+  id: string
+  name: string
+  registration: string
 }
 
 export type VacationAgendaResponse = {
@@ -494,7 +503,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   me: () => request<{ user: AppUser }>('/api/auth/me'),
   getVacationAgenda: () => request<VacationAgendaResponse>('/api/agenda/vacations'),
-  saveVacationPeriod: (payload: { startDate: string; endDate: string }) =>
+  listAgendaSubstituteCandidates: () =>
+    request<{ users: AgendaSubstituteCandidate[] }>('/api/agenda/substitute-candidates'),
+  saveVacationPeriod: (payload: {
+    startDate: string
+    endDate: string
+    substituteUserId: string
+  }) =>
     request<VacationAgendaResponse>('/api/agenda/vacations', {
       method: 'PUT',
       body: JSON.stringify(payload),
@@ -506,6 +521,7 @@ export const api = {
     justification: string
     attachment: string
     attachmentName?: string
+    substituteUserId: string
   }) =>
     request<VacationAgendaResponse>('/api/agenda/absences', {
       method: 'POST',

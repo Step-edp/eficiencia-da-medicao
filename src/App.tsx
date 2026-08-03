@@ -2941,8 +2941,9 @@ function HomePanel({
             ) : (
               <>
                 {' '}
-                Cadastre um substituto na liderança da área/célula para cobertura automática das
-                atividades.
+                Não há substituto definido para este período. Ao registrar férias ou ausência,
+                selecione um usuário cadastrado; se a pessoa ainda não estiver no sistema, ela
+                precisa se cadastrar primeiro.
               </>
             )}
           </div>

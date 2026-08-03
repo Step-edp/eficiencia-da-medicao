@@ -5,7 +5,7 @@ import { writeAuditLog } from '../audit.js'
 import {
   ABSENCE_TYPE_LABELS,
   type AbsenceType,
-  findSubstitutesForResponsible,
+  resolveSubstituteForAbsence,
   isAbsenceType,
   listActiveCoversForSubstitute,
 } from '../vacation-coverage.js'
@@ -22,6 +22,9 @@ export type VacationPeriodRow = {
   absence_label: string
   absence_attachment: string
   absence_attachment_name: string
+  substitute_user_id: string | null
+  substitute_name: string | null
+  substitute_registration: string | null
   created_at: Date
   updated_at: Date
 }
@@ -35,6 +38,9 @@ export type VacationPeriodView = {
   justification: string
   attachment: string
   attachmentName: string
+  substituteUserId: string | null
+  substituteName: string | null
+  substituteRegistration: string | null
   createdAt: string
   updatedAt: string
 }
@@ -97,23 +103,30 @@ function toPeriodView(row: VacationPeriodRow): VacationPeriodView {
     justification: (row.absence_label || '').trim(),
     attachment: row.absence_attachment || '',
     attachmentName: row.absence_attachment_name || '',
+    substituteUserId: row.substitute_user_id ?? null,
+    substituteName: row.substitute_name?.trim() || null,
+    substituteRegistration: row.substitute_registration?.trim() || null,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   }
 }
 
-const PERIOD_SELECT = `id, user_id, start_date::text AS start_date, end_date::text AS end_date,
-            absence_type, COALESCE(absence_label, '') AS absence_label,
-            COALESCE(absence_attachment, '') AS absence_attachment,
-            COALESCE(absence_attachment_name, '') AS absence_attachment_name,
-            created_at, updated_at`
+const PERIOD_SELECT = `p.id, p.user_id, p.start_date::text AS start_date, p.end_date::text AS end_date,
+            p.absence_type, COALESCE(p.absence_label, '') AS absence_label,
+            COALESCE(p.absence_attachment, '') AS absence_attachment,
+            COALESCE(p.absence_attachment_name, '') AS absence_attachment_name,
+            p.substitute_user_id,
+            s.name AS substitute_name,
+            s.registration AS substitute_registration,
+            p.created_at, p.updated_at`
 
 export async function listUserVacationPeriods(userId: string) {
   const result = await query<VacationPeriodRow>(
     `SELECT ${PERIOD_SELECT}
-     FROM user_vacation_periods
-     WHERE user_id = $1
-     ORDER BY start_date ASC, id ASC`,
+     FROM user_vacation_periods p
+     LEFT JOIN users s ON s.id = p.substitute_user_id
+     WHERE p.user_id = $1
+     ORDER BY p.start_date ASC, p.id ASC`,
     [userId],
   )
   return result.rows.map(toPeriodView)
@@ -124,11 +137,12 @@ async function findNextVacation(userId: string) {
   const today = todayIso()
   const result = await query<VacationPeriodRow>(
     `SELECT ${PERIOD_SELECT}
-     FROM user_vacation_periods
-     WHERE user_id = $1
-       AND absence_type = 'ferias'
-       AND end_date >= $2::date
-     ORDER BY start_date ASC, id ASC
+     FROM user_vacation_periods p
+     LEFT JOIN users s ON s.id = p.substitute_user_id
+     WHERE p.user_id = $1
+       AND p.absence_type = 'ferias'
+       AND p.end_date >= $2::date
+     ORDER BY p.start_date ASC, p.id ASC
      LIMIT 1`,
     [userId, today],
   )
@@ -140,12 +154,13 @@ async function findActiveAbsence(userId: string) {
   const today = todayIso()
   const result = await query<VacationPeriodRow>(
     `SELECT ${PERIOD_SELECT}
-     FROM user_vacation_periods
-     WHERE user_id = $1
-       AND start_date <= $2::date
-       AND end_date >= $2::date
-     ORDER BY CASE WHEN absence_type = 'ferias' THEN 0 ELSE 1 END,
-              start_date ASC, id ASC
+     FROM user_vacation_periods p
+     LEFT JOIN users s ON s.id = p.substitute_user_id
+     WHERE p.user_id = $1
+       AND p.start_date <= $2::date
+       AND p.end_date >= $2::date
+     ORDER BY CASE WHEN p.absence_type = 'ferias' THEN 0 ELSE 1 END,
+              p.start_date ASC, p.id ASC
      LIMIT 1`,
     [userId, today],
   )
@@ -202,7 +217,10 @@ export async function getVacationMetaForUser(
       `UPDATE users SET vacation_required_since = NULL WHERE id = $1 AND vacation_required_since IS NOT NULL`,
       [userId],
     )
-    const substitute = await findSubstitutesForResponsible(userId)
+    const substitute = await resolveSubstituteForAbsence(
+      userId,
+      activeAbsence.substituteUserId,
+    )
     return {
       vacationStatus: 'em_ausencia',
       vacationDeadlineAt: null,
@@ -298,6 +316,38 @@ function parseDateInput(raw: unknown): string | null {
   return value
 }
 
+async function resolveApprovedSubstitute(
+  titularUserId: string,
+  raw: unknown,
+): Promise<{ ok: true; substituteUserId: string } | { ok: false; error: string }> {
+  const substituteUserId =
+    typeof raw === 'string' ? raw.trim() : typeof raw === 'number' ? String(raw) : ''
+  if (!substituteUserId) {
+    return {
+      ok: false,
+      error: 'Selecione o usuário que vai substituí-lo durante o período.',
+    }
+  }
+  if (substituteUserId === titularUserId) {
+    return {
+      ok: false,
+      error: 'O substituto deve ser outro usuário cadastrado.',
+    }
+  }
+  const found = await query<{ id: string }>(
+    `SELECT id FROM users WHERE id = $1 AND approval_status = 'approved'`,
+    [substituteUserId],
+  )
+  if (!found.rows[0]) {
+    return {
+      ok: false,
+      error:
+        'Usuário substituto inválido ou ainda não aprovado. Se a pessoa não estiver cadastrada, peça para se cadastrar primeiro.',
+    }
+  }
+  return { ok: true, substituteUserId }
+}
+
 async function agendaResponse(userId: string, role: string, extra: Record<string, unknown> = {}) {
   const userRow = await query<{ work_subtype: string }>(
     `SELECT work_subtype FROM users WHERE id = $1`,
@@ -319,6 +369,30 @@ export async function getMyAgenda(req: Request, res: Response) {
   res.json(await agendaResponse(req.user!.id, req.user!.role))
 }
 
+/** Lista usuários aprovados elegíveis como substituto (exceto o próprio). */
+export async function listSubstituteCandidates(req: Request, res: Response) {
+  const userId = req.user!.id
+  const result = await query<{
+    id: string
+    name: string
+    registration: string
+  }>(
+    `SELECT id, name, registration
+     FROM users
+     WHERE approval_status = 'approved'
+       AND id <> $1
+     ORDER BY name ASC, registration ASC`,
+    [userId],
+  )
+  res.json({
+    users: result.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      registration: row.registration,
+    })),
+  })
+}
+
 /** Define/atualiza o próximo período de férias (obrigatório). */
 export async function upsertMyNextVacation(req: Request, res: Response) {
   const userId = req.user!.id
@@ -326,6 +400,7 @@ export async function upsertMyNextVacation(req: Request, res: Response) {
 
   const startDate = parseDateInput(req.body?.startDate)
   const endDate = parseDateInput(req.body?.endDate)
+  const substitute = await resolveApprovedSubstitute(userId, req.body?.substituteUserId)
 
   if (!startDate || !endDate) {
     res.status(400).json({
@@ -343,6 +418,10 @@ export async function upsertMyNextVacation(req: Request, res: Response) {
     })
     return
   }
+  if (!substitute.ok) {
+    res.status(400).json({ error: substitute.error })
+    return
+  }
 
   // Substitui somente férias futuras/atuais; preserva outras ausências.
   await query(
@@ -353,11 +432,11 @@ export async function upsertMyNextVacation(req: Request, res: Response) {
     [userId],
   )
 
-  const inserted = await query<VacationPeriodRow>(
-    `INSERT INTO user_vacation_periods (user_id, start_date, end_date, absence_type)
-     VALUES ($1, $2::date, $3::date, 'ferias')
-     RETURNING ${PERIOD_SELECT}`,
-    [userId, startDate, endDate],
+  const inserted = await query<{ id: number }>(
+    `INSERT INTO user_vacation_periods (user_id, start_date, end_date, absence_type, substitute_user_id)
+     VALUES ($1, $2::date, $3::date, 'ferias', $4)
+     RETURNING id`,
+    [userId, startDate, endDate, substitute.substituteUserId],
   )
 
   await query(`UPDATE users SET vacation_required_since = NULL WHERE id = $1`, [userId])
@@ -367,12 +446,27 @@ export async function upsertMyNextVacation(req: Request, res: Response) {
     entityType: 'user',
     entityId: userId,
     summary: `Período de férias registrado: ${startDate} a ${endDate}.`,
-    newData: { startDate, endDate, absenceType: 'ferias' },
+    newData: {
+      startDate,
+      endDate,
+      absenceType: 'ferias',
+      substituteUserId: substitute.substituteUserId,
+    },
   })
+
+  const periodRow = inserted.rows[0]
+    ? await query<VacationPeriodRow>(
+        `SELECT ${PERIOD_SELECT}
+         FROM user_vacation_periods p
+         LEFT JOIN users s ON s.id = p.substitute_user_id
+         WHERE p.id = $1`,
+        [inserted.rows[0].id],
+      )
+    : null
 
   res.json(
     await agendaResponse(userId, role, {
-      period: inserted.rows[0] ? toPeriodView(inserted.rows[0]) : null,
+      period: periodRow?.rows[0] ? toPeriodView(periodRow.rows[0]) : null,
     }),
   )
 }
@@ -446,11 +540,17 @@ export async function createMyAbsence(req: Request, res: Response) {
     return
   }
 
-  const inserted = await query<VacationPeriodRow>(
+  const substitute = await resolveApprovedSubstitute(userId, req.body?.substituteUserId)
+  if (!substitute.ok) {
+    res.status(400).json({ error: substitute.error })
+    return
+  }
+
+  const inserted = await query<{ id: number }>(
     `INSERT INTO user_vacation_periods
-       (user_id, start_date, end_date, absence_type, absence_label, absence_attachment, absence_attachment_name)
-     VALUES ($1, $2::date, $3::date, $4, $5, $6, $7)
-     RETURNING ${PERIOD_SELECT}`,
+       (user_id, start_date, end_date, absence_type, absence_label, absence_attachment, absence_attachment_name, substitute_user_id)
+     VALUES ($1, $2::date, $3::date, $4, $5, $6, $7, $8)
+     RETURNING id`,
     [
       userId,
       startDate,
@@ -459,10 +559,20 @@ export async function createMyAbsence(req: Request, res: Response) {
       justification,
       attachment,
       attachmentName || 'anexo',
+      substitute.substituteUserId,
     ],
   )
 
-  const periodView = inserted.rows[0] ? toPeriodView(inserted.rows[0]) : null
+  const periodRow = inserted.rows[0]
+    ? await query<VacationPeriodRow>(
+        `SELECT ${PERIOD_SELECT}
+         FROM user_vacation_periods p
+         LEFT JOIN users s ON s.id = p.substitute_user_id
+         WHERE p.id = $1`,
+        [inserted.rows[0].id],
+      )
+    : null
+  const periodView = periodRow?.rows[0] ? toPeriodView(periodRow.rows[0]) : null
 
   await writeAuditLog(req, {
     action: 'create',
@@ -476,6 +586,7 @@ export async function createMyAbsence(req: Request, res: Response) {
       justification,
       attachmentName: attachmentName || 'anexo',
       attachment: '[arquivo anexado]',
+      substituteUserId: substitute.substituteUserId,
     },
   })
 
@@ -519,6 +630,7 @@ export async function deleteMyAbsence(req: Request, res: Response) {
 
 export const vacationRoutes = {
   getMine: [requireAuth, getMyAgenda],
+  listSubstituteCandidates: [requireAuth, listSubstituteCandidates],
   upsertMine: [requireAuth, upsertMyNextVacation],
   createAbsence: [requireAuth, createMyAbsence],
   deleteAbsence: [requireAuth, deleteMyAbsence],
