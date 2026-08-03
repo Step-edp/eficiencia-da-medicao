@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type MeterScheduleRecord } from './api'
 
 type FieldTeamSchedulesPanelProps = {
@@ -12,12 +12,51 @@ type EnvelopePreview = {
   meter: string
 }
 
+function normalizeSearch(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function deliveryStatusLabel(item: MeterScheduleRecord) {
+  if (item.isLate) return 'Atrasado'
+  if (item.trailStep === 'Entrada de medidores') return 'No prazo'
+  return 'Entregue'
+}
+
+function scheduleSearchText(item: MeterScheduleRecord) {
+  return normalizeSearch(
+    [
+      item.meter,
+      item.installation,
+      item.toi,
+      item.note,
+      item.csd,
+      item.partnerName,
+      item.partnerRegistration,
+      item.scheduledAtLabel,
+      item.deliveryDeadlineLabel,
+      deliveryStatusLabel(item),
+      item.toiCollaborator1Name,
+      item.toiCollaborator1Registration,
+      item.toiCollaborator2Name,
+      item.toiCollaborator2Registration,
+      item.schedulingNotes,
+    ]
+      .filter(Boolean)
+      .join(' '),
+  )
+}
+
 export function FieldTeamConsultarPanel({
   mode = 'all',
   scopeUserId,
 }: FieldTeamSchedulesPanelProps) {
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
@@ -66,6 +105,22 @@ export function FieldTeamConsultarPanel({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [envelopePreview])
 
+  const filteredSchedules = useMemo(() => {
+    const query = normalizeSearch(searchQuery)
+    if (!query) return schedules
+    return schedules.filter((item) => scheduleSearchText(item).includes(query))
+  }, [schedules, searchQuery])
+
+  const totalCount = schedules.length
+  const shownCount = filteredSchedules.length
+  const counterLabel = isMine
+    ? shownCount === totalCount
+      ? `${totalCount} TOI${totalCount === 1 ? '' : 's'}`
+      : `${shownCount} de ${totalCount} TOI${totalCount === 1 ? '' : 's'}`
+    : shownCount === totalCount
+      ? `${totalCount} agendamento${totalCount === 1 ? '' : 's'}`
+      : `${shownCount} de ${totalCount} agendamento${totalCount === 1 ? '' : 's'}`
+
   return (
     <div className="entrada-panel">
       {isMine ? null : (
@@ -82,6 +137,44 @@ export function FieldTeamConsultarPanel({
         </div>
       ) : null}
 
+      {!loading && totalCount > 0 ? (
+        <div className="consultar-toolbar">
+          <label className="consultar-search">
+            <span className="sr-only">Pesquisar</span>
+            <span className="consultar-search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle
+                  cx="11"
+                  cy="11"
+                  r="7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <path
+                  d="M20 20l-3.5-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Pesquisar por medidor, nota, CSD, parceiro, status…"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
+          <p className="consultar-count" aria-live="polite">
+            {counterLabel}
+          </p>
+        </div>
+      ) : null}
+
       {loading ? (
         <p className="entrada-panel-empty">
           {isMine ? 'Carregando seus TOIs...' : 'Carregando agendamentos...'}
@@ -90,6 +183,8 @@ export function FieldTeamConsultarPanel({
         <p className="entrada-panel-empty">
           {isMine ? 'Nenhum TOI encontrado para o seu usuário.' : 'Nenhum agendamento encontrado.'}
         </p>
+      ) : filteredSchedules.length === 0 ? (
+        <p className="entrada-panel-empty">Nenhum resultado para a pesquisa.</p>
       ) : (
         <div className="entrada-table-wrap">
           <table className="data-table entrada-table">
@@ -108,7 +203,7 @@ export function FieldTeamConsultarPanel({
               </tr>
             </thead>
             <tbody>
-              {schedules.map((item) => (
+              {filteredSchedules.map((item) => (
                 <tr
                   key={item.id}
                   className={item.isLate ? 'schedule-row-late' : undefined}

@@ -1980,6 +1980,50 @@ button {
   color: var(--text-soft);
 }
 
+.consultar-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.consultar-search {
+  position: relative;
+  flex: 1 1 260px;
+  max-width: 420px;
+  margin: 0;
+}
+
+.consultar-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: var(--text-soft);
+  pointer-events: none;
+}
+
+.consultar-search-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.consultar-search input {
+  width: 100%;
+  padding-left: 40px;
+}
+
+.consultar-count {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
 .entrada-table-wrap {
   overflow-x: auto;
 }
