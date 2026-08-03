@@ -267,6 +267,22 @@ export type ConsolidacaoCargaClienteRecord = {
   createdByRegistration?: string
 }
 
+export type MemoriaMassaNotaStatus = 'pendente' | 'executada' | 'conferida' | 'baixada'
+
+export type MemoriaMassaNotaRecord = {
+  id: number
+  nota: string
+  instalacao: string
+  cliente: string
+  observacao: string
+  status: MemoriaMassaNotaStatus
+  createdAt: string
+  createdByUserId?: string | null
+  createdByName?: string
+  createdByRegistration?: string
+  updatedAt: string
+}
+
 export type RatmLaudoRecord = {
   id: string
   ratmNumber: number
@@ -802,6 +818,43 @@ export const api = {
     }>('/api/consolidacao-carga/clientes/bulk', {
       method: 'POST',
       body: JSON.stringify({ clients }),
+    }),
+  listMemoriaMassaNotas: (params?: { status?: MemoriaMassaNotaStatus; search?: string }) => {
+    const search = new URLSearchParams()
+    if (params?.status) search.set('status', params.status)
+    if (params?.search) search.set('search', params.search)
+    const queryString = search.toString()
+    return request<{
+      notas: MemoriaMassaNotaRecord[]
+      total: number
+      counts: Record<MemoriaMassaNotaStatus, number>
+    }>(`/api/memoria-massa/notas${queryString ? `?${queryString}` : ''}`)
+  },
+  createMemoriaMassaNotasBulk: (
+    notas: Array<{
+      nota: string
+      instalacao?: string
+      cliente?: string
+      observacao?: string
+    }>,
+  ) =>
+    request<{
+      notas: MemoriaMassaNotaRecord[]
+      inserted: number
+      skippedDuplicates: string[]
+      errors: string[]
+    }>('/api/memoria-massa/notas/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ notas }),
+    }),
+  updateMemoriaMassaNotaStatus: (id: number, status: MemoriaMassaNotaStatus) =>
+    request<{ nota: MemoriaMassaNotaRecord }>(`/api/memoria-massa/notas/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  deleteMemoriaMassaNota: (id: number) =>
+    request<{ ok: boolean; id: number; nota: string }>(`/api/memoria-massa/notas/${id}`, {
+      method: 'DELETE',
     }),
   runIq09Script: (payload: { monthKey: string }) =>
     request<{

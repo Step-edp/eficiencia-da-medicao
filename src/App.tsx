@@ -44,6 +44,7 @@ import { ReagendarPanel } from './ReagendarPanel'
 import { InventarioPanel } from './InventarioPanel'
 import { ConsolidacaoCargaPanel } from './ConsolidacaoCargaPanel'
 import { ExecutadasPanel } from './memoryMass/ExecutadasPanel'
+import { NotasPanel } from './memoryMass/NotasPanel'
 import { GalleryPanel } from './GalleryPanel'
 import { SupportRequestModal } from './SupportRequestModal'
 import { SupportPanel } from './SupportPanel'
@@ -4148,6 +4149,10 @@ function HomePanel({
                 steps={MEMORY_MASS_TRAIL_STEPS}
                 ariaLabel="Trilha de Memória de massa"
               />
+            ) : null}
+            {selectedMeasurementSection === 'Memória de massa' &&
+            selectedMemoryMassStep === 'Notas' ? (
+              <NotasPanel />
             ) : null}
             {selectedMeasurementSection === 'Memória de massa' &&
             selectedMemoryMassStep === 'Executadas' ? (

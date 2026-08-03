@@ -16,6 +16,7 @@ import {
   createConsolidacaoCargaCliente,
   createConsolidacaoCargaClientesBulk,
 } from './routes/consolidacao-carga.js'
+import { memoriaMassaNotasRoutes } from './routes/memoria-massa-notas.js'
 import { getIq09Export, runIq09Script } from './routes/inventario-iq09.js'
 import {
   ratmLaudoRoutes,
@@ -180,6 +181,15 @@ async function start() {
     rejectLabMedicaoViewOnlyMutations,
     createConsolidacaoCargaClientesBulk,
   )
+
+  app.get('/api/memoria-massa/notas', requireAuth, memoriaMassaNotasRoutes.list)
+  app.post('/api/memoria-massa/notas/bulk', requireAuth, memoriaMassaNotasRoutes.createBulk)
+  app.patch(
+    '/api/memoria-massa/notas/:id/status',
+    requireAuth,
+    memoriaMassaNotasRoutes.updateStatus,
+  )
+  app.delete('/api/memoria-massa/notas/:id', requireAuth, memoriaMassaNotasRoutes.remove)
 
   app.get('/api/inventario/iq09/:monthKey', requireAuth, getIq09Export)
   app.post(

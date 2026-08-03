@@ -592,6 +592,33 @@ export async function migrate() {
     )
   `)
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS memoria_massa_notas (
+      id SERIAL PRIMARY KEY,
+      nota TEXT NOT NULL,
+      instalacao TEXT NOT NULL DEFAULT '',
+      cliente TEXT NOT NULL DEFAULT '',
+      observacao TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pendente'
+        CHECK (status IN ('pendente', 'executada', 'conferida', 'baixada')),
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_memoria_massa_notas_status
+      ON memoria_massa_notas (status)
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_memoria_massa_notas_nota
+      ON memoria_massa_notas (nota)
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_memoria_massa_notas_created_at
+      ON memoria_massa_notas (created_at DESC)
+  `)
+
   // Consumo Irregular: Laboratório de Medição + Reagendar / Consultar Medidor / Consultar RATM.
   await query(`
     UPDATE users
