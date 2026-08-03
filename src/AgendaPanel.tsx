@@ -299,6 +299,13 @@ export function AgendaPanel({
                 type="button"
                 className={`agenda-action-chip${showVacationForm ? ' is-active' : ''}`}
                 disabled={locked || displayStatus === 'em_ausencia'}
+                title={
+                  hasRegisteredVacation
+                    ? startDate && endDate
+                      ? `${formatDateBr(startDate)} a ${formatDateBr(endDate)}`
+                      : 'Alterar período registrado'
+                    : 'Período obrigatório'
+                }
                 onClick={() => openVacationForm()}
               >
                 <span className="agenda-action-chip-icon" aria-hidden="true">
@@ -337,6 +344,7 @@ export function AgendaPanel({
                 type="button"
                 className={`agenda-action-chip${showAbsenceForm ? ' is-active' : ''}`}
                 disabled={locked || displayStatus === 'em_ausencia'}
+                title="Licença, atestado e outros"
                 onClick={() => {
                   setShowAbsenceForm(true)
                   setShowVacationForm(false)
@@ -363,6 +371,11 @@ export function AgendaPanel({
                 type="button"
                 className={`agenda-action-chip agenda-history-toggle${showHistory ? ' is-active' : ''}`}
                 aria-expanded={showHistory}
+                title={
+                  periods.length
+                    ? `${periods.length} período${periods.length > 1 ? 's' : ''}`
+                    : 'Nenhum período ainda'
+                }
                 onClick={() => {
                   setShowHistory((open) => !open)
                   setShowVacationForm(false)
