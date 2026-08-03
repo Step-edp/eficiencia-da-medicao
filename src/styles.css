@@ -4738,6 +4738,48 @@ input[type='file'] {
   flex-wrap: wrap;
 }
 
+.reagendar-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.reagendar-intro {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.reagendar-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+
+.reagendar-search label {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.reagendar-results,
+.reagendar-history {
+  display: grid;
+  gap: 14px;
+}
+
+.reagendar-history h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.reagendar-form {
+  margin-top: 4px;
+}
+
+.reagendar-row-selected td {
+  background: rgba(24, 216, 240, 0.08);
+}
+
 .schedule-form-grid {
   margin-top: 8px;
 }

@@ -323,6 +323,23 @@ export type EnsaiosManualBlock = {
   reason: string
 }
 
+export type MeterScheduleHistoryRecord = {
+  id: string
+  occurredAt: string
+  userId: string | null
+  userRegistration: string | null
+  userName: string | null
+  userRole: string | null
+  action: string
+  entityType: string
+  entityId: string | null
+  summary: string | null
+  justification: string
+  oldData: Record<string, unknown> | null
+  newData: Record<string, unknown> | null
+  metadata: Record<string, unknown>
+}
+
 export type MeterScheduleRecord = {
   id: string
   meter: string
@@ -876,10 +893,11 @@ export const api = {
   },
   listMeterSchedules: (
     trailStep?: string,
-    options?: { mine?: boolean; gallery?: boolean; forUserId?: string },
+    options?: { mine?: boolean; gallery?: boolean; forUserId?: string; meter?: string },
   ) => {
     const search = new URLSearchParams()
-    if (options?.gallery) search.set('gallery', '1')
+    if (options?.meter) search.set('meter', options.meter)
+    else if (options?.gallery) search.set('gallery', '1')
     else if (trailStep) search.set('trailStep', trailStep)
     if (options?.mine) search.set('mine', '1')
     if (options?.forUserId) search.set('forUserId', options.forUserId)
@@ -888,6 +906,21 @@ export const api = {
       `/api/meter-schedules${queryString ? `?${queryString}` : ''}`,
     )
   },
+  listMeterScheduleHistory: (meter: string, limit = 100) => {
+    const search = new URLSearchParams()
+    search.set('meter', meter)
+    search.set('limit', String(limit))
+    return request<{
+      meter: string
+      history: MeterScheduleHistoryRecord[]
+      total: number
+    }>(`/api/meter-schedules/history?${search.toString()}`)
+  },
+  rescheduleMeterSchedule: (id: string, payload: { scheduledAt: string; justification: string }) =>
+    request<{ schedule: MeterScheduleRecord }>(`/api/meter-schedules/${id}/reschedule`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   countMeterSchedules: (trailStep?: string) => {
     const search = new URLSearchParams()
     if (trailStep) search.set('trailStep', trailStep)

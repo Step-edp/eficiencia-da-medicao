@@ -5,7 +5,9 @@ import { validateScheduleNumericField } from '../numeric-field-validation.js'
 import {
   findNextAvailableSlot,
   formatAvailableSlot,
+  isScheduleDayBlocked,
 } from '../schedule-slots.js'
+import { toDateKey } from '../brazilian-holidays.js'
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 const BACKOFFICE_SCOPE = 'Lavratura de TOI - Backoffice'
@@ -104,6 +106,10 @@ export async function listMeterSchedules(req: Request, res: Response) {
     req.query.gallery === '1' ||
     req.query.gallery === 'true' ||
     req.query.gallery === 'yes'
+  const meterSearch =
+    typeof req.query.meter === 'string' && req.query.meter.trim()
+      ? req.query.meter.trim()
+      : ''
   const trailStep =
     typeof req.query.trailStep === 'string' && req.query.trailStep.trim()
       ? req.query.trailStep.trim()
@@ -120,7 +126,10 @@ export async function listMeterSchedules(req: Request, res: Response) {
   const params: unknown[] = []
   const filters: string[] = []
 
-  if (galleryMode) {
+  if (meterSearch) {
+    params.push(meterSearch)
+    filters.push(`ms.meter = $${params.length}`)
+  } else if (galleryMode) {
     filters.push(`ms.envelope_photo <> ''`)
   } else {
     params.push(trailStep)
@@ -144,7 +153,7 @@ export async function listMeterSchedules(req: Request, res: Response) {
         OR UPPER(TRIM(ms.toi_collaborator1_registration)) = $${registrationParam}
         OR UPPER(TRIM(ms.toi_collaborator2_registration)) = $${registrationParam}
       )`
-  } else if (!galleryMode) {
+  } else if (!galleryMode && !meterSearch) {
     // Consultar: Ponto Focal vê só agendamentos dos CSDs atribuídos a ele.
     const scopeUserId =
       req.user?.role === 'admin' && forUserId ? forUserId : (req.user?.id ?? '')
@@ -162,6 +171,10 @@ export async function listMeterSchedules(req: Request, res: Response) {
     }
   }
 
+  const orderBy = meterSearch
+    ? `ORDER BY ms.scheduled_at DESC, ms.created_at DESC`
+    : `ORDER BY ms.scheduled_at ASC, ms.created_at DESC`
+
   const result = await query<MeterScheduleRow>(
     `SELECT ms.*, u.registration AS created_by_registration,
             d.id AS demm_document_id, d.file_name AS demm_file_name,
@@ -177,7 +190,7 @@ export async function listMeterSchedules(req: Request, res: Response) {
      ) d ON true
      WHERE ${filters.join(' AND ')}
      ${mineFilter}
-     ORDER BY ms.scheduled_at ASC, ms.created_at DESC`,
+     ${orderBy}`,
     params,
   )
 
@@ -453,7 +466,198 @@ export async function createMeterSchedule(req: Request, res: Response) {
       ...schedule,
       envelopePhoto: schedule.envelopePhoto ? '[imagem anexada]' : '',
     },
+    metadata: { meter: schedule.meter },
   })
 
   res.status(201).json({ schedule })
+}
+
+const MIN_JUSTIFICATION_LENGTH = 5
+
+export async function rescheduleMeterSchedule(req: Request, res: Response) {
+  const id = typeof req.params.id === 'string' ? req.params.id.trim() : ''
+  if (!id) {
+    res.status(400).json({ error: 'Informe o agendamento a reagendar.' })
+    return
+  }
+
+  const { scheduledAt, justification } = req.body as {
+    scheduledAt?: string
+    justification?: string
+  }
+
+  const normalizedJustification = justification?.trim() ?? ''
+  if (normalizedJustification.length < MIN_JUSTIFICATION_LENGTH) {
+    res.status(400).json({
+      error: `Informe a justificativa (mínimo ${MIN_JUSTIFICATION_LENGTH} caracteres).`,
+    })
+    return
+  }
+
+  const scheduledAtRaw = scheduledAt?.trim() ?? ''
+  if (!scheduledAtRaw) {
+    res.status(400).json({ error: 'Informe a nova data de ensaio.' })
+    return
+  }
+
+  const nextDate = new Date(scheduledAtRaw)
+  if (Number.isNaN(nextDate.getTime())) {
+    res.status(400).json({ error: 'Data de ensaio inválida.' })
+    return
+  }
+
+  const existing = await query<Omit<MeterScheduleRow, 'created_by_registration'>>(
+    `SELECT * FROM meter_schedules WHERE id = $1 LIMIT 1`,
+    [id],
+  )
+  const current = existing.rows[0]
+  if (!current) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  const blocks = await query<{ blocked_date: string }>(
+    `SELECT blocked_date::text FROM ensaios_manual_blocks`,
+  )
+  const manualBlocks = new Set(blocks.rows.map((block) => block.blocked_date.slice(0, 10)))
+
+  if (isScheduleDayBlocked(nextDate, manualBlocks)) {
+    res.status(400).json({
+      error: `A data ${toDateKey(nextDate)} está bloqueada no calendário de ensaios.`,
+    })
+    return
+  }
+
+  const previous = mapMeterSchedule({
+    ...current,
+    created_by_registration: null,
+  })
+
+  const update = await query<Omit<MeterScheduleRow, 'created_by_registration'>>(
+    `UPDATE meter_schedules
+     SET scheduled_at = $1
+     WHERE id = $2
+     RETURNING *`,
+    [nextDate.toISOString(), id],
+  )
+
+  const updatedRow = update.rows[0]
+  if (!updatedRow) {
+    res.status(500).json({ error: 'Não foi possível atualizar o agendamento.' })
+    return
+  }
+
+  await query(
+    `UPDATE meter_registry
+     SET scheduled_at = $1
+     WHERE meter = $2`,
+    [nextDate.toISOString(), updatedRow.meter],
+  )
+
+  const schedule = mapMeterSchedule({
+    ...updatedRow,
+    created_by_registration: req.user?.registration ?? null,
+  })
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: schedule.id,
+    summary: `Medidor ${schedule.meter} reagendado de ${previous.scheduledAtLabel} para ${schedule.scheduledAtLabel}. Justificativa: ${normalizedJustification}`,
+    oldData: {
+      meter: previous.meter,
+      scheduledAt: previous.scheduledAt,
+      scheduledAtLabel: previous.scheduledAtLabel,
+    },
+    newData: {
+      meter: schedule.meter,
+      scheduledAt: schedule.scheduledAt,
+      scheduledAtLabel: schedule.scheduledAtLabel,
+    },
+    metadata: {
+      meter: schedule.meter,
+      justification: normalizedJustification,
+      previousScheduledAt: previous.scheduledAt,
+      previousScheduledAtLabel: previous.scheduledAtLabel,
+      newScheduledAt: schedule.scheduledAt,
+      newScheduledAtLabel: schedule.scheduledAtLabel,
+    },
+  })
+
+  res.json({ schedule })
+}
+
+type MeterHistoryRow = {
+  id: string
+  occurred_at: Date
+  user_id: string | null
+  user_registration: string | null
+  user_role: string | null
+  user_name: string | null
+  action: string
+  entity_type: string
+  entity_id: string | null
+  summary: string | null
+  old_data: Record<string, unknown> | null
+  new_data: Record<string, unknown> | null
+  metadata: Record<string, unknown> | null
+}
+
+export async function listMeterScheduleHistory(req: Request, res: Response) {
+  const meter =
+    typeof req.query.meter === 'string' && req.query.meter.trim()
+      ? req.query.meter.trim()
+      : ''
+
+  if (!meter) {
+    res.status(400).json({ error: 'Informe o número do medidor.' })
+    return
+  }
+
+  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500)
+
+  const result = await query<MeterHistoryRow>(
+    `SELECT a.id, a.occurred_at, a.user_id, a.user_registration, a.user_role,
+            u.name AS user_name, a.action, a.entity_type, a.entity_id, a.summary,
+            a.old_data, a.new_data, a.metadata
+     FROM audit_logs a
+     LEFT JOIN users u ON u.id = a.user_id
+     WHERE a.entity_type = 'meter_schedule'
+       AND (
+         COALESCE(a.metadata->>'meter', '') = $1
+         OR COALESCE(a.new_data->>'meter', '') = $1
+         OR COALESCE(a.old_data->>'meter', '') = $1
+         OR a.summary ILIKE '%' || $1 || '%'
+       )
+     ORDER BY a.occurred_at DESC
+     LIMIT $2`,
+    [meter, limit],
+  )
+
+  res.json({
+    meter,
+    history: result.rows.map((row) => {
+      const metadata = row.metadata ?? {}
+      const justification =
+        typeof metadata.justification === 'string' ? metadata.justification : ''
+
+      return {
+        id: String(row.id),
+        occurredAt: row.occurred_at.toISOString(),
+        userId: row.user_id,
+        userRegistration: row.user_registration,
+        userName: row.user_name,
+        userRole: row.user_role,
+        action: row.action,
+        entityType: row.entity_type,
+        entityId: row.entity_id,
+        summary: row.summary,
+        justification,
+        oldData: row.old_data,
+        newData: row.new_data,
+        metadata,
+      }
+    }),
+    total: result.rowCount ?? 0,
+  })
 }

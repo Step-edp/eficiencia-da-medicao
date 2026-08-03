@@ -313,6 +313,7 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Dashboard',
     'Consultar RATM',
     'Calendário de ensaios',
+    'Reagendar',
     'Auditoria',
     'Analisadores de Tensão',
     'Inventário',

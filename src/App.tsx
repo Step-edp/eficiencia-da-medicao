@@ -38,6 +38,7 @@ import { CsdsPanel } from './CsdsPanel'
 import { CriarModeloPanel } from './CriarModeloPanel'
 import { ApresentacaoPanel } from './ApresentacaoPanel'
 import { SoftwaresPanel } from './SoftwaresPanel'
+import { ReagendarPanel } from './ReagendarPanel'
 import { InventarioPanel } from './InventarioPanel'
 import { ConsolidacaoCargaPanel } from './ConsolidacaoCargaPanel'
 import { GalleryPanel } from './GalleryPanel'
@@ -703,6 +704,7 @@ function ItemIcon({ title }: { title: string }) {
     Suporte: 'headset',
     Treinamentos: 'book',
     Softwares: 'code',
+    Reagendar: 'repeat',
     'Faturamento de clientes livres': 'chart',
     'Consolidação da Carga': 'layer',
     'Informações iniciais': 'inbox',
@@ -1641,6 +1643,7 @@ function HomePanel({
     'Dashboard',
     'Consultar RATM',
     'Calendário de ensaios',
+    'Reagendar',
     'Criar Modelo',
     'Galeria',
     'Apresentação',
@@ -4259,6 +4262,8 @@ function HomePanel({
             ) : null}
             {selectedLabMeasurementSection === 'Calendário de ensaios' ? (
               <EnsaiosCalendar readOnly={labMedicaoReadOnly} />
+            ) : selectedLabMeasurementSection === 'Reagendar' ? (
+              <ReagendarPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'CSDs' ? (
               <CsdsPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Suporte' ? (

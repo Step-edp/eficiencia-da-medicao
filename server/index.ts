@@ -48,7 +48,9 @@ import {
   countMeterSchedules,
   createMeterSchedule,
   listFieldPartners,
+  listMeterScheduleHistory,
   listMeterSchedules,
+  rescheduleMeterSchedule,
 } from './routes/meter-schedules.js'
 import {
   createDemmDocument,
@@ -251,7 +253,14 @@ async function start() {
   app.get('/api/meter-schedules', requireAuth, listMeterSchedules)
   app.get('/api/meter-schedules/count', requireAuth, countMeterSchedules)
   app.get('/api/meter-schedules/partners', requireAuth, listFieldPartners)
+  app.get('/api/meter-schedules/history', requireAuth, listMeterScheduleHistory)
   app.post('/api/meter-schedules', requireAuth, createMeterSchedule)
+  app.post(
+    '/api/meter-schedules/:id/reschedule',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    rescheduleMeterSchedule,
+  )
   app.get('/api/meter-registry/trail-counts', requireAuth, getMeterRegistryTrailCounts)
 
   app.post('/api/demm-documents', requireAuth, rejectLabMedicaoViewOnlyMutations, createDemmDocument)
