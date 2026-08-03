@@ -56,6 +56,7 @@ export async function migrate() {
       order_number TEXT NOT NULL DEFAULT '',
       password_type TEXT NOT NULL,
       digits INTEGER NOT NULL,
+      source TEXT NOT NULL DEFAULT 'generated',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
@@ -235,6 +236,7 @@ export async function migrate() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo TEXT NOT NULL DEFAULT '';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS access_areas JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS access_processes JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE password_records ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'generated';
     ALTER TABLE ensaios_manual_blocks ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT '';
     ALTER TABLE csds ADD COLUMN IF NOT EXISTS cities JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE csds ALTER COLUMN responsible_user_id DROP NOT NULL;
@@ -627,5 +629,13 @@ export async function migrate() {
     WHERE role <> 'admin'
       AND work_area = 'Consumo Irregular'
       AND approval_status = 'approved'
+  `)
+
+  // Senhas cadastradas via Adicionar passivo (id legado ou source).
+  await query(`
+    UPDATE password_records
+    SET source = 'passivo'
+    WHERE source <> 'passivo'
+      AND id LIKE 'passivo-%'
   `)
 }

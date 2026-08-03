@@ -203,6 +203,8 @@ export type PasswordRecord = {
   orderNumber: string
   passwordType: PasswordType
   digits: number
+  source?: 'generated' | 'passivo'
+  isPassive?: boolean
   createdAt: string
 }
 

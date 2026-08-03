@@ -2636,7 +2636,11 @@ function HomePanel({
     }
 
     const content = filteredPasswordRecords
-      .map((record) => `${record.meter}\t${record.password}\t${record.manufacturer}`)
+      .map((record) => {
+        const origem =
+          record.isPassive || record.source === 'passivo' ? 'Passivo' : 'Gerada'
+        return `${record.meter}\t${record.password}\t${record.manufacturer}\t${origem}`
+      })
       .join('\n')
 
     try {
@@ -4097,11 +4101,22 @@ function HomePanel({
                   {filteredPasswordRecords.length ? (
                     filteredPasswordRecords.map((record) => (
                       <article key={record.id} className="consult-item">
-                        <strong>{record.meter}</strong>
+                        <div className="consult-item-header">
+                          <strong>{record.meter}</strong>
+                          {record.isPassive || record.source === 'passivo' ? (
+                            <span className="consult-passivo-badge">Passivo</span>
+                          ) : null}
+                        </div>
                         <span>Senha: {record.password}</span>
                         <span>Fabricante: {record.manufacturer}</span>
                         <span>Codigo de material: {record.materialType}</span>
                         <span>Numero de pedido: {record.orderNumber || '-'}</span>
+                        <span>
+                          Origem:{' '}
+                          {record.isPassive || record.source === 'passivo'
+                            ? 'Passivo'
+                            : 'Gerada'}
+                        </span>
                         <span>Data carimbo: {new Date(record.createdAt).toLocaleString('pt-BR')}</span>
                       </article>
                     ))

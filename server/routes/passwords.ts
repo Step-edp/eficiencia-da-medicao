@@ -12,10 +12,13 @@ type PasswordRow = {
   order_number: string
   password_type: string
   digits: number
+  source?: string | null
   created_at: Date
 }
 
 function mapPassword(row: PasswordRow) {
+  const source =
+    row.source === 'passivo' || row.id.startsWith('passivo-') ? 'passivo' : 'generated'
   return {
     id: row.id,
     meter: row.meter,
@@ -25,6 +28,8 @@ function mapPassword(row: PasswordRow) {
     orderNumber: row.order_number,
     passwordType: row.password_type as 'alphanumeric' | 'letters' | 'numbers',
     digits: row.digits,
+    source,
+    isPassive: source === 'passivo',
     createdAt: row.created_at.toISOString(),
   }
 }
@@ -165,13 +170,14 @@ export async function generatePasswords(req: Request, res: Response) {
       order_number: orderNumber.trim(),
       password_type: passwordType,
       digits: passwordDigits,
+      source: 'generated',
       created_at: createdAt,
     }
 
     await query(
       `INSERT INTO password_records
-       (id, meter, password, manufacturer, material_type, order_number, password_type, digits, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+       (id, meter, password, manufacturer, material_type, order_number, password_type, digits, source, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [
         record.id,
         record.meter,
@@ -181,6 +187,7 @@ export async function generatePasswords(req: Request, res: Response) {
         record.order_number,
         record.password_type,
         record.digits,
+        record.source,
         record.created_at,
       ],
     )
@@ -414,13 +421,14 @@ export async function createPassivePasswords(req: Request, res: Response) {
       order_number: rowOrderNumber,
       password_type: type,
       digits,
+      source: 'passivo',
       created_at: createdAt,
     }
 
     await query(
       `INSERT INTO password_records
-       (id, meter, password, manufacturer, material_type, order_number, password_type, digits, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+       (id, meter, password, manufacturer, material_type, order_number, password_type, digits, source, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [
         record.id,
         record.meter,
@@ -430,6 +438,7 @@ export async function createPassivePasswords(req: Request, res: Response) {
         record.order_number,
         record.password_type,
         record.digits,
+        record.source,
         record.created_at,
       ],
     )
