@@ -230,6 +230,11 @@ export function ScheduleAgendarForm() {
           />
         </label>
 
+        <p className="field-hint full-width">
+          Use este formulário para medidores que não foram agendados pela equipe de
+          campo (agendamento passivo no laboratório).
+        </p>
+
         <button className="reserve-button full-width" type="submit">
           Reservar Data
         </button>

@@ -696,7 +696,7 @@ function ItemIcon({ title }: { title: string }) {
     'Calendário de ensaios': 'calendar',
     Reagendar: 'repeat',
     'Minha produtividade': 'chart',
-    'Adicionar passivo': 'key',
+    'Adicionar passivo': 'calendar',
     'Entrada de medidores': 'inbox',
     'Criar Modelo': 'cube',
     'Aprovação de RATM': 'check',
@@ -1669,6 +1669,7 @@ function HomePanel({
     'Suporte',
     'Treinamentos',
     'Softwares',
+    'Adicionar passivo',
   ]
 
   const allAreas: Area[] = [
@@ -1775,10 +1776,6 @@ function HomePanel({
       }
     } else {
       sections = sections.filter((section) => section !== 'Minha produtividade')
-    }
-
-    if (isAdmin && !showConsumoIrregularLab && !sections.includes('Adicionar passivo')) {
-      sections = [...sections, 'Adicionar passivo']
     }
 
     return sections
@@ -4534,32 +4531,26 @@ function HomePanel({
               <ConsultarRatmPanel />
             ) : selectedLabMeasurementSection === 'Consultar Medidor' ? (
               <FieldTeamConsultarPanel />
-            ) : selectedLabMeasurementSection === 'Adicionar passivo' && isAdmin ? (
-              <PassivoPanel
-                manufacturers={manufacturers}
-                materialTypeOptions={materialTypeOptions}
-                onAddManufacturer={() => {
-                  const name = window.prompt('Digite o nome do fabricante')
-                  if (!name?.trim()) return
-                  void (async () => {
-                    try {
-                      const { name: saved } = await api.addManufacturer(name.trim())
-                      setManufacturers((prev) =>
-                        prev.includes(saved) ? prev : [...prev, saved],
-                      )
-                    } catch (error) {
-                      window.alert(
-                        error instanceof ApiError
-                          ? error.message
-                          : 'Não foi possível cadastrar o fabricante.',
-                      )
-                    }
-                  })()
-                }}
-                onCreated={(records) => {
-                  setPasswordRecords((current) => [...records, ...current])
-                }}
-              />
+            ) : selectedLabMeasurementSection === 'Adicionar passivo' ? (
+              labMedicaoReadOnly ? (
+                <>
+                  <p>
+                    Cadastro de agendamentos passivos (medidores que não foram
+                    agendados em campo) — apenas visualização.
+                  </p>
+                  <FieldTeamConsultarPanel />
+                </>
+              ) : (
+                <>
+                  <p>
+                    Cadastre o agendamento de medidores que chegaram ao laboratório
+                    sem agendamento em campo (passivo de agendamento). Não se
+                    confunde com o cadastro de senhas passivas em{' '}
+                    <strong>Medição → Geração de senha</strong>.
+                  </p>
+                  <ScheduleAgendarForm />
+                </>
+              )
             ) : selectedLabMeasurementSection === 'Criar Modelo' ? (
               <CriarModeloPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Apresentação' ? (
