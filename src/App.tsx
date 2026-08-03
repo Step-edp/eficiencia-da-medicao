@@ -2907,11 +2907,36 @@ function HomePanel({
       return
     }
 
+    const editingId = selectedCodeMaterialsAction === 'edit' ? materialForm.id : undefined
+    const materialCode = materialForm.material.trim()
+    const oldCode = materialForm.oldCode.trim()
+    const description = materialForm.description.trim()
+    const duplicate = materialRows.find((row) => {
+      if (editingId != null && row.id === editingId) return false
+      return (
+        row.material.trim() === materialCode ||
+        row.oldCode.trim() === oldCode ||
+        row.description.trim().toLowerCase() === description.toLowerCase()
+      )
+    })
+    if (duplicate) {
+      let message = 'Já existe um material com esses dados.'
+      if (duplicate.material.trim() === materialCode) {
+        message = 'Já existe um material com esse código do material.'
+      } else if (duplicate.oldCode.trim() === oldCode) {
+        message = 'Já existe um material com esse código antigo.'
+      } else {
+        message = 'Já existe um material com essa descrição.'
+      }
+      setMaterialFeedback({ type: 'error', message })
+      return
+    }
+
     const payload = {
-      material: materialForm.material.trim(),
-      oldCode: materialForm.oldCode.trim(),
+      material: materialCode,
+      oldCode,
       newCode: materialForm.newCode.trim(),
-      description: materialForm.description.trim(),
+      description,
       manufacturer: materialForm.manufacturer.trim(),
       prefix: materialForm.prefix.trim(),
       equipmentType: materialForm.equipmentType.trim(),

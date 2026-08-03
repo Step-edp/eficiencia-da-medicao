@@ -392,12 +392,6 @@ export async function createMeterSchedule(req: Request, res: Response) {
       })
       return
     }
-    if (!normalized.toiTeamReason) {
-      res.status(400).json({
-        error: 'Informe o motivo pelo qual está agendando pela equipe.',
-      })
-      return
-    }
 
     const toiUsers = await query<{
       id: string

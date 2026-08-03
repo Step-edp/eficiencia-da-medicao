@@ -235,9 +235,6 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       ) {
         nextErrors.collaborator2 = 'Os colaboradores 1 e 2 devem ser usuários diferentes.'
       }
-      if (!teamReason.trim()) {
-        nextErrors.teamReason = 'Informe o motivo pelo qual está agendando pela equipe.'
-      }
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -263,7 +260,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
               toiCollaborator1Registration: resolvedCollaborator1!.registration,
               toiCollaborator2Name: resolvedCollaborator2!.name,
               toiCollaborator2Registration: resolvedCollaborator2!.registration,
-              toiTeamReason: teamReason.trim(),
+              ...(teamReason.trim() ? { toiTeamReason: teamReason.trim() } : {}),
             }
           : {
               partnerUserId: resolvedPartner!.id,
@@ -753,10 +750,8 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
               />
             </div>
 
-            <label
-              className={`full-width${fieldErrors.teamReason ? ' has-field-error' : ''}`}
-            >
-              <RequiredLabel>Motivo pelo qual está agendando pela equipe</RequiredLabel>
+            <label className="full-width">
+              Motivo pelo qual está agendando pela equipe (opcional)
               <textarea
                 rows={3}
                 value={teamReason}
@@ -764,10 +759,8 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                   setTeamReason(event.target.value)
                   clearFieldError('teamReason')
                 }}
-                placeholder="Descreva o motivo do agendamento em nome da equipe"
-                aria-invalid={Boolean(fieldErrors.teamReason)}
+                placeholder="Se quiser, descreva o motivo do agendamento em nome da equipe"
               />
-              <FormFieldError message={fieldErrors.teamReason} />
             </label>
           </fieldset>
         ) : null}
