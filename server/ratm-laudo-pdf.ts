@@ -201,7 +201,7 @@ function drawFieldPair(
     .font('Helvetica-Bold')
     .fontSize(9)
     .fillColor(COLORS.text)
-    .text(value, x, y + 11, { width, lineBreak: false })
+    .text(value, x, y + 13, { width, lineBreak: false })
 }
 
 function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput, conclusion: string) {
@@ -292,19 +292,18 @@ function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput, conclusion: stri
 
 function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   drawSectionTitle(doc, 1, 'DADOS GERAIS')
-  ensureSpace(doc, 118)
-  const y = doc.y
-  const boxHeight = 110
-  doc.roundedRect(PAGE.margin, y, CONTENT_WIDTH, boxHeight, 8).strokeColor(COLORS.grayBorder).lineWidth(1).stroke()
-
   const form = laudo.formData
-  const colW = (CONTENT_WIDTH - 28) / 2
-  const leftX = PAGE.margin + 12
-  const rightX = PAGE.margin + 16 + colW
+  const rowStart = 14
+  const rowStep = 28
   const rows = [
     {
       left: ['Unidade Consumidora', textValue(laudo.client)],
-      right: ['Data da Coleta', textValue(form.scheduleDate) !== '—' ? textValue(form.scheduleDate) : formatDate(laudo.createdAt)],
+      right: [
+        'Data da Coleta',
+        textValue(form.scheduleDate) !== '—'
+          ? textValue(form.scheduleDate)
+          : formatDate(laudo.createdAt),
+      ],
     },
     {
       left: ['Endereço', '—'],
@@ -323,14 +322,26 @@ function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
       right: ['Número da OS / Nota', textValue(laudo.note || form.analysisRequest)],
     },
   ]
+  const boxHeight = rowStart + rows.length * rowStep + 10
+  ensureSpace(doc, boxHeight + 16)
+  const y = doc.y
+  doc
+    .roundedRect(PAGE.margin, y, CONTENT_WIDTH, boxHeight, 8)
+    .strokeColor(COLORS.grayBorder)
+    .lineWidth(1)
+    .stroke()
+
+  const colW = (CONTENT_WIDTH - 28) / 2
+  const leftX = PAGE.margin + 12
+  const rightX = PAGE.margin + 16 + colW
 
   rows.forEach((row, index) => {
-    const rowY = y + 10 + index * 18
+    const rowY = y + rowStart + index * rowStep
     drawFieldPair(doc, leftX, rowY, colW - 8, row.left[0], row.left[1])
     drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
   })
 
-  doc.y = y + boxHeight + 12
+  doc.y = y + boxHeight + 14
 }
 
 function drawProcedimentos(doc: PdfDocument) {
