@@ -21,11 +21,12 @@ type RadioGroupProps = {
 }
 
 function formatScheduleDisplay(data: RatmFormData) {
-  if ((data.scheduleLabel ?? '').trim()) return data.scheduleLabel
+  const label = (data.scheduleLabel ?? '').trim()
+  if (label) return label
   if (!data.scheduleDate) return '—'
   const [year, month, day] = data.scheduleDate.split('-')
   if (!year || !month || !day) return '—'
-  return `${day}/${month}/${year} às ${data.scheduleHour}:${data.scheduleMinute}`
+  return `${day}/${month}/${year} às ${data.scheduleHour ?? '08'}:${data.scheduleMinute ?? '30'}`
 }
 
 function displayOrDash(value?: string | null) {
