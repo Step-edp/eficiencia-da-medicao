@@ -1431,7 +1431,7 @@ function HomePanel({
   const [orgCellsBusy, setOrgCellsBusy] = useState(false)
   const [orgCellsError, setOrgCellsError] = useState<string | null>(null)
   const [selectedCodeMaterialsAction, setSelectedCodeMaterialsAction] = useState<
-    'create' | null
+    'create' | 'edit' | null
   >(() => savedNav?.selectedCodeMaterialsAction ?? null)
   const [selectedPasswordAction, setSelectedPasswordAction] = useState<string | null>(
     () => savedNav?.selectedPasswordAction ?? null,
@@ -2846,6 +2846,7 @@ function HomePanel({
 
   const resetMaterialForm = () => {
     setMaterialForm({
+      id: undefined,
       material: '',
       oldCode: '',
       newCode: '',
@@ -2856,7 +2857,22 @@ function HomePanel({
     })
   }
 
-  const handleCreateMaterial = async () => {
+  const openEditMaterial = (row: MaterialRecord) => {
+    setMaterialForm({
+      id: row.id,
+      material: row.material,
+      oldCode: row.oldCode,
+      newCode: row.newCode,
+      description: row.description,
+      manufacturer: row.manufacturer,
+      prefix: row.prefix,
+      equipmentType: row.equipmentType,
+    })
+    setPasswordFeedback(null)
+    setSelectedCodeMaterialsAction('edit')
+  }
+
+  const handleSaveMaterial = async () => {
     if (
       !materialForm.material.trim() ||
       !materialForm.oldCode.trim() ||
@@ -2878,13 +2894,34 @@ function HomePanel({
       return
     }
 
+    const payload = {
+      material: materialForm.material.trim(),
+      oldCode: materialForm.oldCode.trim(),
+      newCode: materialForm.newCode.trim(),
+      description: materialForm.description.trim(),
+      manufacturer: materialForm.manufacturer.trim(),
+      prefix: materialForm.prefix.trim(),
+      equipmentType: materialForm.equipmentType.trim(),
+    }
+
     try {
-      const { material } = await api.createMaterial(materialForm)
-      setMaterialRows((prev) => [material, ...prev])
-      setPasswordFeedback({
-        type: 'success',
-        message: `Material ${material.material} cadastrado com sucesso.`,
-      })
+      if (selectedCodeMaterialsAction === 'edit' && materialForm.id != null) {
+        const { material } = await api.updateMaterial(materialForm.id, payload)
+        setMaterialRows((prev) =>
+          prev.map((row) => (row.id === material.id ? material : row)),
+        )
+        setPasswordFeedback({
+          type: 'success',
+          message: `Material ${material.material} atualizado com sucesso.`,
+        })
+      } else {
+        const { material } = await api.createMaterial(payload)
+        setMaterialRows((prev) => [material, ...prev])
+        setPasswordFeedback({
+          type: 'success',
+          message: `Material ${material.material} cadastrado com sucesso.`,
+        })
+      }
       resetMaterialForm()
       setSelectedCodeMaterialsAction(null)
     } catch (error) {
@@ -4649,7 +4686,8 @@ function HomePanel({
       }
 
       if (selectedHomologationSection === 'Código de materiais') {
-        if (selectedCodeMaterialsAction === 'create') {
+        if (selectedCodeMaterialsAction === 'create' || selectedCodeMaterialsAction === 'edit') {
+          const isEditingMaterial = selectedCodeMaterialsAction === 'edit'
           return (
             <main className="shell">
               <section className="home-card area-screen-card">
@@ -4667,10 +4705,11 @@ function HomePanel({
                   onLogout={onLogout}
                 />
                 <p className="section-tag">Laboratório de Homologação</p>
-                <h2>Cadastrar novo material</h2>
+                <h2>{isEditingMaterial ? 'Editar material' : 'Cadastrar novo material'}</h2>
                 <p>
-                  Informe os dados do material para adicionar um novo registro na
-                  tabela de código de materiais.
+                  {isEditingMaterial
+                    ? 'Atualize os dados do material. A descrição (texto breve) deve ser única.'
+                    : 'Informe os dados do material para adicionar um novo registro na tabela de código de materiais. A descrição (texto breve) deve ser única.'}
                 </p>
 
                 {passwordFeedback ? (
@@ -4746,8 +4785,8 @@ function HomePanel({
                 </div>
 
                 <div className="area-actions">
-                  <button className="primary-button" type="button" onClick={handleCreateMaterial}>
-                    Salvar material
+                  <button className="primary-button" type="button" onClick={() => void handleSaveMaterial()}>
+                    {isEditingMaterial ? 'Salvar alterações' : 'Salvar material'}
                   </button>
                 </div>
               </section>
@@ -4840,15 +4879,28 @@ function HomePanel({
                       <th>Código antigo</th>
                       <th>Texto breve do material</th>
                       <th>Tipo do equipamento</th>
+                      {isAdmin ? <th>Ações</th> : null}
                     </tr>
                   </thead>
                   <tbody>
                     {filteredMaterialRows.map((row) => (
-                      <tr key={`${row.newCode}-${row.material}`}>
+                      <tr key={row.id ?? `${row.newCode}-${row.material}`}>
                         <td>{row.material}</td>
                         <td>{row.oldCode}</td>
                         <td>{row.description}</td>
                         <td>{row.equipmentType}</td>
+                        {isAdmin ? (
+                          <td>
+                            <button
+                              type="button"
+                              className="secondary-button compact-button"
+                              disabled={row.id == null}
+                              onClick={() => openEditMaterial(row)}
+                            >
+                              Editar
+                            </button>
+                          </td>
+                        ) : null}
                       </tr>
                     ))}
                   </tbody>

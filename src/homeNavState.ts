@@ -12,7 +12,7 @@ export type HomeNavState = {
   selectedLabMeasurementSection: string | null
   selectedHomologationSection: string | null
   selectedPasswordAction: string | null
-  selectedCodeMaterialsAction: 'create' | null
+  selectedCodeMaterialsAction: 'create' | 'edit' | null
   usersView: UsersViewTab
 }
 
@@ -59,7 +59,10 @@ export function loadHomeNavState(userId: string): HomeNavState | null {
           ? parsed.selectedPasswordAction
           : null,
       selectedCodeMaterialsAction:
-        parsed.selectedCodeMaterialsAction === 'create' ? 'create' : null,
+        parsed.selectedCodeMaterialsAction === 'create' ||
+        parsed.selectedCodeMaterialsAction === 'edit'
+          ? parsed.selectedCodeMaterialsAction
+          : null,
       usersView: isUsersViewTab(parsed.usersView) ? parsed.usersView : 'usuarios',
     }
   } catch {

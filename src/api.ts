@@ -791,6 +791,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  updateMaterial: (id: number, payload: Omit<MaterialRecord, 'id'>) =>
+    request<{ material: MaterialRecord }>(`/api/materials/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
   listMeterModels: () => request<{ models: MeterModelRecord[] }>('/api/meter-models'),
   createMeterModel: (payload: {
     name: string

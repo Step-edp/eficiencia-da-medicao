@@ -142,6 +142,7 @@ async function start() {
 
   app.get('/api/materials', ...wrap(materialRoutes.list))
   app.post('/api/materials', ...wrap(materialRoutes.create))
+  app.patch('/api/materials/:id', ...wrap(materialRoutes.update))
 
   app.get('/api/meter-models', ...wrap(meterModelRoutes.list))
   app.post(

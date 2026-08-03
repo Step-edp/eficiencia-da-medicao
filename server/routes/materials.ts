@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
-import { requireAuth } from '../auth.js'
+import { requireAuth, requireAdmin } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 
 type MaterialRow = {
@@ -27,6 +27,45 @@ function mapMaterial(row: MaterialRow) {
   }
 }
 
+async function descriptionAlreadyExists(description: string, excludeId?: number) {
+  const result = await query<{ id: number }>(
+    `SELECT id
+     FROM materials
+     WHERE lower(btrim(description)) = lower(btrim($1))
+       AND ($2::int IS NULL OR id <> $2)
+     LIMIT 1`,
+    [description, excludeId ?? null],
+  )
+  return Boolean(result.rows[0])
+}
+
+function parseMaterialPayload(body: Record<string, string | undefined>) {
+  const material = body.material?.trim() ?? ''
+  const oldCode = body.oldCode?.trim() ?? ''
+  const newCode = body.newCode?.trim() ?? ''
+  const description = body.description?.trim() ?? ''
+  const manufacturer = body.manufacturer?.trim() ?? ''
+  const prefix = body.prefix?.trim() ?? ''
+  const equipmentType = body.equipmentType?.trim() ?? ''
+
+  if (!material || !oldCode || !description || !equipmentType) {
+    return { error: 'Preencha todos os campos do material antes de salvar.' as const }
+  }
+  if (!/^\d{8}$/.test(material)) {
+    return { error: 'O código do material deve ter exatamente 8 números.' as const }
+  }
+
+  return {
+    material,
+    oldCode,
+    newCode,
+    description,
+    manufacturer,
+    prefix,
+    equipmentType,
+  }
+}
+
 export async function listMaterials(_req: Request, res: Response) {
   const result = await query<MaterialRow>(
     'SELECT * FROM materials ORDER BY id DESC',
@@ -35,16 +74,16 @@ export async function listMaterials(_req: Request, res: Response) {
 }
 
 export async function createMaterial(req: Request, res: Response) {
-  const { material, oldCode, newCode, description, manufacturer, prefix, equipmentType } =
-    req.body as Record<string, string | undefined>
-
-  if (!material?.trim() || !oldCode?.trim() || !description?.trim() || !equipmentType?.trim()) {
-    res.status(400).json({ error: 'Preencha todos os campos do material antes de salvar.' })
+  const parsed = parseMaterialPayload(req.body as Record<string, string | undefined>)
+  if ('error' in parsed) {
+    res.status(400).json({ error: parsed.error })
     return
   }
 
-  if (!/^\d{8}$/.test(material.trim())) {
-    res.status(400).json({ error: 'O código do material deve ter exatamente 8 números.' })
+  if (await descriptionAlreadyExists(parsed.description)) {
+    res.status(409).json({
+      error: 'Já existe um material com essa descrição. A descrição deve ser única.',
+    })
     return
   }
 
@@ -53,13 +92,13 @@ export async function createMaterial(req: Request, res: Response) {
      VALUES ($1,$2,$3,$4,$5,$6,$7)
      RETURNING *`,
     [
-      material.trim(),
-      oldCode.trim(),
-      newCode?.trim() ?? '',
-      description.trim(),
-      manufacturer?.trim() ?? '',
-      prefix?.trim() ?? '',
-      equipmentType.trim(),
+      parsed.material,
+      parsed.oldCode,
+      parsed.newCode,
+      parsed.description,
+      parsed.manufacturer,
+      parsed.prefix,
+      parsed.equipmentType,
     ],
   )
 
@@ -76,7 +115,74 @@ export async function createMaterial(req: Request, res: Response) {
   res.status(201).json({ material: createdMaterial })
 }
 
+export async function updateMaterial(req: Request, res: Response) {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id) || id < 1) {
+    res.status(400).json({ error: 'Identificador do material inválido.' })
+    return
+  }
+
+  const parsed = parseMaterialPayload(req.body as Record<string, string | undefined>)
+  if ('error' in parsed) {
+    res.status(400).json({ error: parsed.error })
+    return
+  }
+
+  const previous = await query<MaterialRow>(
+    'SELECT * FROM materials WHERE id = $1',
+    [id],
+  )
+  if (!previous.rows[0]) {
+    res.status(404).json({ error: 'Material não encontrado.' })
+    return
+  }
+
+  if (await descriptionAlreadyExists(parsed.description, id)) {
+    res.status(409).json({
+      error: 'Já existe um material com essa descrição. A descrição deve ser única.',
+    })
+    return
+  }
+
+  const result = await query<MaterialRow>(
+    `UPDATE materials
+     SET material = $1,
+         old_code = $2,
+         new_code = $3,
+         description = $4,
+         manufacturer = $5,
+         prefix = $6,
+         equipment_type = $7
+     WHERE id = $8
+     RETURNING *`,
+    [
+      parsed.material,
+      parsed.oldCode,
+      parsed.newCode,
+      parsed.description,
+      parsed.manufacturer,
+      parsed.prefix,
+      parsed.equipmentType,
+      id,
+    ],
+  )
+
+  const updatedMaterial = mapMaterial(result.rows[0])
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'material',
+    entityId: String(updatedMaterial.id),
+    summary: `Material ${updatedMaterial.material} atualizado`,
+    oldData: mapMaterial(previous.rows[0]),
+    newData: updatedMaterial,
+  })
+
+  res.json({ material: updatedMaterial })
+}
+
 export const materialRoutes = {
   list: [requireAuth, listMaterials],
   create: [requireAuth, createMaterial],
+  update: [requireAuth, requireAdmin, updateMaterial],
 }

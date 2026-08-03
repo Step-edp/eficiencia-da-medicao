@@ -367,7 +367,8 @@ export function PassivoPanel({
               : ''
           }.`,
         })
-      } catch (error) {
+      }
+    } catch (error) {
       setFeedback({
         type: 'error',
         message:
