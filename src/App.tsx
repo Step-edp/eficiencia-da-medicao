@@ -4013,19 +4013,19 @@ function HomePanel({
                   </label>
                   <label>
                     Codigo de material
-                    <select
+                    <input
+                      type="text"
+                      list="gerar-senha-material-codes"
                       value={selectedMaterialType}
                       onChange={(event) => setSelectedMaterialType(event.target.value)}
-                    >
-                      <option value="" disabled>
-                        Selecione
-                      </option>
+                      placeholder="Digite ou selecione o código"
+                      autoComplete="off"
+                    />
+                    <datalist id="gerar-senha-material-codes">
                       {materialTypeOptions.map((material) => (
-                        <option key={material} value={material}>
-                          {material}
-                        </option>
+                        <option key={material} value={material} />
                       ))}
-                    </select>
+                    </datalist>
                   </label>
                   <label>
                     Numero de pedido
