@@ -4820,6 +4820,30 @@ input[type='file'] {
   gap: 8px;
 }
 
+.executadas-paste-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.executadas-paste-consumo textarea {
+  border-color: rgba(232, 168, 72, 0.45);
+}
+
+.executadas-paste-demanda textarea {
+  border-color: rgba(24, 216, 240, 0.35);
+}
+
+.executadas-paste-fp textarea {
+  border-color: rgba(120, 180, 220, 0.45);
+}
+
+@media (max-width: 1100px) {
+  .executadas-paste-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .executadas-paste {
   width: 100%;
   min-height: 180px;

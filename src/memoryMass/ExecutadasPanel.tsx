@@ -56,15 +56,25 @@ function HemeraBlockTable({
 }
 
 export function ExecutadasPanel() {
-  const [pasteText, setPasteText] = useState('')
+  const [consumoPaste, setConsumoPaste] = useState('')
+  const [demandaPaste, setDemandaPaste] = useState('')
+  const [fpPaste, setFpPaste] = useState('')
   const [result, setResult] = useState<OrdenarHemeraResult | null>(null)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
 
+  const hasAnyPaste = Boolean(
+    consumoPaste.trim() || demandaPaste.trim() || fpPaste.trim(),
+  )
+
   const handleOrdenar = () => {
-    const next = ordenarDadosHemera(pasteText)
+    const next = ordenarDadosHemera({
+      consumo: consumoPaste,
+      demanda: demandaPaste,
+      fp: fpPaste,
+    })
     setResult(next)
 
     const extracted = [next.consumo, next.demanda, next.fp].filter(Boolean).length
@@ -78,19 +88,22 @@ export function ExecutadasPanel() {
       return
     }
 
-    // Espelha a macro: após ordenar, limpa a área “BD_HEMERA”.
-    setPasteText('')
+    setConsumoPaste('')
+    setDemandaPaste('')
+    setFpPaste('')
     setFeedback({
       type: 'success',
       message:
         next.errors.length > 0
           ? `Ordenado com avisos: ${extracted} bloco(s) preenchido(s). ${next.errors.join(' ')}`
-          : `Dados ordenados: Consumo, Demanda e Fator de Potência atualizados.`,
+          : 'Dados ordenados: Consumo, Demanda e Fator de Potência atualizados.',
     })
   }
 
   const handleLimpar = () => {
-    setPasteText('')
+    setConsumoPaste('')
+    setDemandaPaste('')
+    setFpPaste('')
     setResult(null)
     setFeedback(null)
   }
@@ -98,9 +111,8 @@ export function ExecutadasPanel() {
   return (
     <div className="executadas-panel">
       <p className="executadas-intro">
-        Cole aqui o conteúdo exportado do Hemera (equivalente à aba BD_HEMERA). Em seguida
-        clique em <strong>Ordenar</strong> para extrair Consumo, Demanda e Fator de Potência —
-        como o botão ORDENA da planilha.
+        Cole os dados em cada campo (como nas colunas A, I e R da planilha) e clique em{' '}
+        <strong>Ordenar</strong>.
       </p>
 
       {feedback ? (
@@ -111,28 +123,62 @@ export function ExecutadasPanel() {
         />
       ) : null}
 
-      <label className="executadas-paste-label">
-        Dados Hemera (colar)
-        <textarea
-          className="executadas-paste"
-          value={pasteText}
-          onChange={(event) => setPasteText(event.target.value)}
-          onPaste={() => {
-            setResult(null)
-            setFeedback(null)
-          }}
-          rows={10}
-          placeholder="Selecione as células no Excel/Hemera, copie (Ctrl+C) e cole aqui (Ctrl+V)…"
-          spellCheck={false}
-        />
-      </label>
+      <div className="executadas-paste-grid" aria-label="Campos para colar dados">
+        <label className={`executadas-paste-label executadas-paste-consumo`}>
+          Consumo
+          <textarea
+            className="executadas-paste"
+            value={consumoPaste}
+            onChange={(event) => setConsumoPaste(event.target.value)}
+            onPaste={() => {
+              setResult(null)
+              setFeedback(null)
+            }}
+            rows={8}
+            placeholder="Cole aqui os dados de Consumo (Ctrl+V)…"
+            spellCheck={false}
+          />
+        </label>
+
+        <label className={`executadas-paste-label executadas-paste-demanda`}>
+          Demanda
+          <textarea
+            className="executadas-paste"
+            value={demandaPaste}
+            onChange={(event) => setDemandaPaste(event.target.value)}
+            onPaste={() => {
+              setResult(null)
+              setFeedback(null)
+            }}
+            rows={8}
+            placeholder="Cole aqui os dados de Demanda (Ctrl+V)…"
+            spellCheck={false}
+          />
+        </label>
+
+        <label className={`executadas-paste-label executadas-paste-fp`}>
+          Fator de Potência
+          <textarea
+            className="executadas-paste"
+            value={fpPaste}
+            onChange={(event) => setFpPaste(event.target.value)}
+            onPaste={() => {
+              setResult(null)
+              setFeedback(null)
+            }}
+            rows={8}
+            placeholder="Cole aqui os dados de Fator de Potência (Ctrl+V)…"
+            spellCheck={false}
+          />
+        </label>
+      </div>
 
       <div className="executadas-actions">
         <button
           type="button"
           className="primary-button"
           onClick={handleOrdenar}
-          disabled={!pasteText.trim()}
+          disabled={!hasAnyPaste}
         >
           Ordenar
         </button>

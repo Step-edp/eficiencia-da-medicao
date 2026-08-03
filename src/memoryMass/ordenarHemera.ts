@@ -200,27 +200,104 @@ function extractFp(grid: HemeraGrid): HemeraBlock | null {
   return { marker: MARKERS.fp, markerLabel: found.label, rows }
 }
 
-/** Replica o botão ORDENA da planilha sobre texto colado do Hemera. */
-export function ordenarDadosHemera(pasteText: string): OrdenarHemeraResult {
-  const errors: string[] = []
-  const grid = parseHemeraPaste(pasteText)
+function gridAsBlock(
+  grid: HemeraGrid,
+  marker: string,
+  fallbackLabel: string,
+): HemeraBlock | null {
+  const rows = grid
+    .map((row) => row.map(normalizeCell))
+    .filter((row) => row.some((cell) => cell !== ''))
+  if (!rows.length) return null
+  return {
+    marker,
+    markerLabel: fallbackLabel,
+    rows,
+  }
+}
 
+function blockFromPaste(
+  pasteText: string,
+  kind: 'consumo' | 'demanda' | 'fp',
+): HemeraBlock | null {
+  const grid = parseHemeraPaste(pasteText)
   if (!grid.length || grid.every((row) => row.every((cell) => !cell))) {
+    return null
+  }
+
+  if (kind === 'consumo') {
+    return extractConsumo(grid) ?? gridAsBlock(grid, MARKERS.consumo, 'Consumo')
+  }
+  if (kind === 'demanda') {
+    return extractDemanda(grid) ?? gridAsBlock(grid, MARKERS.demanda, 'Demanda')
+  }
+  return extractFp(grid) ?? gridAsBlock(grid, MARKERS.fp, 'Fator de Potência')
+}
+
+export type OrdenarHemeraPastes = {
+  consumo: string
+  demanda: string
+  fp: string
+}
+
+/** Ordena a partir dos 3 campos (Consumo / Demanda / Fator de Potência), como A / I / R. */
+export function ordenarDadosHemera(pastes: OrdenarHemeraPastes | string): OrdenarHemeraResult {
+  // Compatibilidade: string única ainda tenta extrair os 3 blocos de um dump.
+  if (typeof pastes === 'string') {
+    const errors: string[] = []
+    const grid = parseHemeraPaste(pastes)
+
+    if (!grid.length || grid.every((row) => row.every((cell) => !cell))) {
+      return {
+        consumo: null,
+        demanda: null,
+        fp: null,
+        errors: ['Cole os dados nos campos Consumo, Demanda e Fator de Potência.'],
+      }
+    }
+
+    const consumo = extractConsumo(grid)
+    const demanda = extractDemanda(grid)
+    const fp = extractFp(grid)
+
+    if (!consumo) errors.push('Não foi encontrado o bloco "Consumo - " nos dados colados.')
+    if (!demanda) errors.push('Não foi encontrado o bloco "Demanda - " nos dados colados.')
+    if (!fp) errors.push('Não foi encontrado o bloco "Fator de Potência - " nos dados colados.')
+
+    return { consumo, demanda, fp, errors }
+  }
+
+  const errors: string[] = []
+  const consumo = blockFromPaste(pastes.consumo, 'consumo')
+  const demanda = blockFromPaste(pastes.demanda, 'demanda')
+  const fp = blockFromPaste(pastes.fp, 'fp')
+
+  if (!pastes.consumo.trim() && !pastes.demanda.trim() && !pastes.fp.trim()) {
     return {
       consumo: null,
       demanda: null,
       fp: null,
-      errors: ['Cole os dados da planilha Hemera antes de ordenar.'],
+      errors: ['Cole os dados nos campos Consumo, Demanda e Fator de Potência.'],
     }
   }
 
-  const consumo = extractConsumo(grid)
-  const demanda = extractDemanda(grid)
-  const fp = extractFp(grid)
+  if (!consumo && pastes.consumo.trim()) {
+    errors.push('Não foi possível ordenar o bloco de Consumo.')
+  } else if (!consumo) {
+    errors.push('Cole os dados de Consumo.')
+  }
 
-  if (!consumo) errors.push('Não foi encontrado o bloco "Consumo - " nos dados colados.')
-  if (!demanda) errors.push('Não foi encontrado o bloco "Demanda - " nos dados colados.')
-  if (!fp) errors.push('Não foi encontrado o bloco "Fator de Potência - " nos dados colados.')
+  if (!demanda && pastes.demanda.trim()) {
+    errors.push('Não foi possível ordenar o bloco de Demanda.')
+  } else if (!demanda) {
+    errors.push('Cole os dados de Demanda.')
+  }
+
+  if (!fp && pastes.fp.trim()) {
+    errors.push('Não foi possível ordenar o bloco de Fator de Potência.')
+  } else if (!fp) {
+    errors.push('Cole os dados de Fator de Potência.')
+  }
 
   return { consumo, demanda, fp, errors }
 }
