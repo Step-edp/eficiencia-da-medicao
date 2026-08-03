@@ -475,83 +475,118 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           vertical
         />
 
-        <label className="full-width">
-          Lacre do Involucro
-          <input
-            type="text"
-            value={data.enclosureSeal}
-            onChange={(event) => onChange({ enclosureSeal: event.target.value })}
-          />
-        </label>
+        <fieldset className="ratm-section-box full-width">
+          <legend>Lacre do Invólucro</legend>
+          <div className="ratm-section-box-grid">
+            <label className="full-width">
+              Número do lacre
+              <input
+                type="text"
+                value={data.enclosureSeal}
+                onChange={(event) => onChange({ enclosureSeal: event.target.value })}
+              />
+            </label>
 
-        <button className="scan-button align-right full-width" type="button" onClick={() => onScan('involucro')}>
-          Digitalizar
-        </button>
+            <button
+              className="scan-button align-right full-width"
+              type="button"
+              onClick={() => onScan('involucro')}
+            >
+              Digitalizar
+            </button>
 
-        <YesNoIconQuestion
-          label="Lacre igual TOI"
-          value={data.sealMatchesToi}
-          justification={data.sealMatchesToiJustification}
-          onChange={(value) => onChange({ sealMatchesToi: value })}
-          onJustificationChange={(value) =>
-            onChange({ sealMatchesToiJustification: value })
-          }
-        />
+            <YesNoIconQuestion
+              label="Lacre igual TOI"
+              value={data.sealMatchesToi}
+              justification={data.sealMatchesToiJustification}
+              onChange={(value) => onChange({ sealMatchesToi: value })}
+              onJustificationChange={(value) =>
+                onChange({ sealMatchesToiJustification: value })
+              }
+            />
 
-        <YesNoIconQuestion
-          label="Lacre igual as imagens de campo?"
-          value={data.sealMatchesFieldImages}
-          justification={data.sealMatchesFieldImagesJustification}
-          onChange={(value) => onChange({ sealMatchesFieldImages: value })}
-          onJustificationChange={(value) =>
-            onChange({ sealMatchesFieldImagesJustification: value })
-          }
-        />
+            <YesNoIconQuestion
+              label="Lacre igual as imagens de campo?"
+              value={data.sealMatchesFieldImages}
+              justification={data.sealMatchesFieldImagesJustification}
+              onChange={(value) => onChange({ sealMatchesFieldImages: value })}
+              onJustificationChange={(value) =>
+                onChange({ sealMatchesFieldImagesJustification: value })
+              }
+            />
 
-        <ClearableRadioGroup
-          legend="Status invólucro"
-          name={`enclosure-status-${index}`}
-          value={data.enclosureStatus}
-          options={['Em ordem', 'Violado', 'Sem lacre']}
-          onChange={(value) => onChange({ enclosureStatus: value })}
-          vertical
-        />
+            <ClearableRadioGroup
+              legend="Status invólucro"
+              name={`enclosure-status-${index}`}
+              value={data.enclosureStatus}
+              options={['Em ordem', 'Violado', 'Sem lacre']}
+              onChange={(value) => onChange({ enclosureStatus: value })}
+              vertical
+            />
+          </div>
+        </fieldset>
 
-        <label className="full-width">
-          Lacre 1
-          <input type="text" value={data.seal1} onChange={(event) => onChange({ seal1: event.target.value })} />
-        </label>
+        <fieldset className="ratm-section-box full-width">
+          <legend>Lacre 1</legend>
+          <div className="ratm-section-box-grid">
+            <label className="full-width">
+              Número do lacre
+              <input
+                type="text"
+                value={data.seal1}
+                onChange={(event) => onChange({ seal1: event.target.value })}
+              />
+            </label>
 
-        <button className="scan-button align-right full-width" type="button" onClick={() => onScan('lacre1')}>
-          Digitalizar
-        </button>
+            <button
+              className="scan-button align-right full-width"
+              type="button"
+              onClick={() => onScan('lacre1')}
+            >
+              Digitalizar
+            </button>
 
-        <ClearableRadioGroup
-          legend="Status lacre 1"
-          name={`seal1-status-${index}`}
-          value={data.seal1Status}
-          options={['Violado', 'Sem lacre', 'Em ordem']}
-          onChange={(value) => onChange({ seal1Status: value })}
-          vertical
-        />
+            <ClearableRadioGroup
+              legend="Status lacre 1"
+              name={`seal1-status-${index}`}
+              value={data.seal1Status}
+              options={['Violado', 'Sem lacre', 'Em ordem']}
+              onChange={(value) => onChange({ seal1Status: value })}
+              vertical
+            />
+          </div>
+        </fieldset>
 
-        <label className="full-width">
-          Lacre 2
-          <input type="text" value={data.seal2} onChange={(event) => onChange({ seal2: event.target.value })} />
-        </label>
+        <fieldset className="ratm-section-box full-width">
+          <legend>Lacre 2</legend>
+          <div className="ratm-section-box-grid">
+            <label className="full-width">
+              Número do lacre
+              <input
+                type="text"
+                value={data.seal2}
+                onChange={(event) => onChange({ seal2: event.target.value })}
+              />
+            </label>
 
-        <button className="scan-button align-right full-width" type="button" onClick={() => onScan('lacre2')}>
-          Digitalizar
-        </button>
+            <button
+              className="scan-button align-right full-width"
+              type="button"
+              onClick={() => onScan('lacre2')}
+            >
+              Digitalizar
+            </button>
 
-        <ClearableRadioGroup
-          legend="Status lacre 2"
-          name={`seal2-status-${index}`}
-          value={data.seal2Status}
-          options={['Violado', 'Sem lacre', 'Em ordem', 'N/A']}
-          onChange={(value) => onChange({ seal2Status: value })}
-          vertical
-        />
+            <ClearableRadioGroup
+              legend="Status lacre 2"
+              name={`seal2-status-${index}`}
+              value={data.seal2Status}
+              options={['Violado', 'Sem lacre', 'Em ordem', 'N/A']}
+              onChange={(value) => onChange({ seal2Status: value })}
+              vertical
+            />
+          </div>
+        </fieldset>
 
         <label className="full-width">
           Leitura medidor
