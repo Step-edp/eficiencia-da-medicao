@@ -22,10 +22,35 @@ type RadioGroupProps = {
 }
 
 function formatScheduleDisplay(data: RatmFormData) {
+  if (data.scheduleLabel.trim()) return data.scheduleLabel
   if (!data.scheduleDate) return '—'
   const [year, month, day] = data.scheduleDate.split('-')
   if (!year || !month || !day) return '—'
   return `${day}/${month}/${year} às ${data.scheduleHour}:${data.scheduleMinute}`
+}
+
+function displayOrDash(value?: string | null) {
+  const trimmed = value?.trim() ?? ''
+  return trimmed || '—'
+}
+
+function emptyScheduleFields(): Partial<RatmFormData> {
+  return {
+    meter: '',
+    meterStatus: '',
+    scheduleDate: '',
+    scheduleHour: '08',
+    scheduleMinute: '30',
+    scheduleLabel: '',
+    installation: '',
+    toi: '',
+    note: '',
+    csd: '',
+    partnerLabel: '',
+    clientPresent: '',
+    schedulingNotes: '',
+    deliveryDeadlineLabel: '',
+  }
 }
 
 function schedulePartsFromIso(iso: string) {

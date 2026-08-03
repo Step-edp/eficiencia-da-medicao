@@ -5770,6 +5770,22 @@ input[type='file'] {
   line-height: 1.3;
 }
 
+.ratm-schedule-details {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ratm-schedule-details > .full-width {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 720px) {
+  .ratm-schedule-details {
+    grid-template-columns: 1fr;
+  }
+}
+
 .radio-fieldset-header {
   display: flex;
   align-items: center;

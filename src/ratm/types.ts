@@ -5,6 +5,15 @@ export type RatmFormData = {
   scheduleDate: string
   scheduleHour: string
   scheduleMinute: string
+  scheduleLabel: string
+  installation: string
+  toi: string
+  note: string
+  csd: string
+  partnerLabel: string
+  clientPresent: string
+  schedulingNotes: string
+  deliveryDeadlineLabel: string
   client: string
   analysisRequest: string
   clientAccompanied: string
@@ -74,6 +83,15 @@ export function createEmptyRatmForm(): RatmFormData {
     scheduleDate: '',
     scheduleHour: '08',
     scheduleMinute: '30',
+    scheduleLabel: '',
+    installation: '',
+    toi: '',
+    note: '',
+    csd: '',
+    partnerLabel: '',
+    clientPresent: '',
+    schedulingNotes: '',
+    deliveryDeadlineLabel: '',
     client: '',
     analysisRequest: '',
     clientAccompanied: '',
