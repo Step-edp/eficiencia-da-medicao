@@ -5614,6 +5614,84 @@ input[type='file'] {
   accent-color: #5bf000;
 }
 
+.ratm-choice-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ratm-choice-fieldset legend {
+  margin-bottom: 10px;
+  padding: 0;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.ratm-choice-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ratm-choice-group.is-vertical {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ratm-choice-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(150, 187, 215, 0.28);
+  background: rgba(5, 26, 44, 0.72);
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease,
+    filter 140ms ease;
+}
+
+.ratm-choice-btn svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.ratm-choice-btn:hover,
+.ratm-choice-btn:focus-visible {
+  outline: none;
+  filter: brightness(1.08);
+}
+
+.ratm-choice-btn.tone-neutral.is-selected {
+  border-color: rgba(24, 216, 240, 0.7);
+  background: rgba(24, 216, 240, 0.16);
+  color: #dffcff;
+}
+
+.ratm-choice-btn.tone-positive.is-selected {
+  border-color: rgba(76, 175, 130, 0.8);
+  background: rgba(31, 138, 78, 0.38);
+  color: #b8f5d0;
+}
+
+.ratm-choice-btn.tone-negative.is-selected {
+  border-color: rgba(240, 113, 120, 0.75);
+  background: rgba(198, 40, 40, 0.3);
+  color: #ffc9cc;
+}
+
 .reserve-button {
   margin-top: 6px;
   border: 0;

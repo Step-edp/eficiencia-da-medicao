@@ -66,6 +66,27 @@ function schedulePartsFromIso(iso: string) {
   }
 }
 
+function optionChoiceTone(option: string): 'positive' | 'negative' | 'neutral' {
+  const normalized = option.trim().toLowerCase()
+  if (
+    normalized === 'aprovado' ||
+    normalized === 'sim' ||
+    normalized === 'em ordem'
+  ) {
+    return 'positive'
+  }
+  if (
+    normalized === 'reprovado' ||
+    normalized === 'não' ||
+    normalized === 'nao' ||
+    normalized === 'violado' ||
+    normalized === 'sem lacre'
+  ) {
+    return 'negative'
+  }
+  return 'neutral'
+}
+
 function ClearableRadioGroup({
   legend,
   name,
@@ -75,21 +96,52 @@ function ClearableRadioGroup({
   vertical = false,
 }: RadioGroupProps) {
   return (
-    <fieldset className="radio-fieldset full-width">
-      <legend>{legend}</legend>
-      <div className={`radio-group ${vertical ? 'radio-group-vertical' : ''}`}>
-        {options.map((option) => (
-          <label key={option} className="radio-option">
-            <input
-              type="radio"
-              name={name}
-              value={option}
-              checked={value === option}
-              onChange={() => onChange(option)}
-            />
-            <span>{option}</span>
-          </label>
-        ))}
+    <fieldset className="radio-fieldset ratm-choice-fieldset full-width">
+      {legend ? <legend>{legend}</legend> : null}
+      <div
+        className={`ratm-choice-group${vertical ? ' is-vertical' : ''}`}
+        role="radiogroup"
+        aria-label={legend || name}
+      >
+        {options.map((option) => {
+          const selected = value === option
+          const tone = optionChoiceTone(option)
+          return (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              className={`ratm-choice-btn tone-${tone}${selected ? ' is-selected' : ''}`}
+              onClick={() => onChange(option)}
+            >
+              {tone === 'positive' ? (
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M5 12.5l4.5 4.5L19 7.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              ) : null}
+              {tone === 'negative' ? (
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              ) : null}
+              <span>{option}</span>
+            </button>
+          )
+        })}
       </div>
     </fieldset>
   )
