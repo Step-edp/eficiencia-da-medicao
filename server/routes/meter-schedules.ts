@@ -103,7 +103,7 @@ async function resolvePontoFocalCsdNames(userId: string): Promise<string[] | nul
 
   const isPontoFocal =
     user.work_area?.trim() === 'CSD' &&
-    user.work_subtype?.trim() === PONTO_FOCAL_SCOPE
+    (user.work_subtype?.trim() ?? '').replace(/[–—]/g, '-') === PONTO_FOCAL_SCOPE
 
   if (!isPontoFocal) {
     return null

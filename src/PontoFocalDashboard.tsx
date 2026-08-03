@@ -47,7 +47,7 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
   }
 
   if (error) {
-    return <LoginFeedback message={error} tone="error" />
+    return <LoginFeedback type="error" message={error} />
   }
 
   if (!data) {

@@ -120,7 +120,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-tecnico-ponto-focal',
     name: profileName('CSD', 'Técnico', 'Lavratura de TOI – Ponto Focal'),
     description:
-      'Agendar e consultar medidores na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
+      'Agendar, consultar e acompanhar o Dashboard de atrasos na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -132,7 +132,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-analista-ponto-focal',
     name: profileName('CSD', 'Analista', 'Lavratura de TOI – Ponto Focal'),
     description:
-      'Agendar e consultar medidores na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
+      'Agendar, consultar e acompanhar o Dashboard de atrasos na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -180,7 +180,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-engenheiro-ponto-focal',
     name: profileName('CSD', 'Engenheiro', 'Lavratura de TOI – Ponto Focal'),
     description:
-      'Agendar e consultar medidores na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
+      'Agendar, consultar e acompanhar o Dashboard de atrasos na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -498,9 +498,16 @@ export function getHomeAreasForRole(role: UserRole): readonly PortalArea[] {
   return portalsToHomeCards(PORTAL_AREAS.filter((area) => areas.includes(area)))
 }
 
+/** Normaliza hífens tipográficos para comparação de escopos. */
+export function normalizeWorkSubtype(workSubtype?: string | null) {
+  return (workSubtype?.trim() ?? '')
+    .replace(/\u2013/g, '-') // en-dash
+    .replace(/\u2014/g, '-') // em-dash
+}
+
 /** Escopos CSD que liberam Equipe de campo (Agendar / Consultar). */
 export function isFieldTeamCsdScope(workSubtype?: string | null) {
-  const normalized = workSubtype?.trim() ?? ''
+  const normalized = normalizeWorkSubtype(workSubtype)
   return (
     normalized === 'Lavratura de TOI - Equipe de Campo' ||
     normalized === 'Lavratura de TOI' || // legado
@@ -511,7 +518,7 @@ export function isFieldTeamCsdScope(workSubtype?: string | null) {
 
 /** Escopo Lavratura de TOI - Equipe de Campo (inclui legado). */
 export function isLavraturaEquipeCampoScope(workSubtype?: string | null) {
-  const normalized = workSubtype?.trim() ?? ''
+  const normalized = normalizeWorkSubtype(workSubtype)
   return (
     normalized === 'Lavratura de TOI - Equipe de Campo' ||
     normalized === 'Lavratura de TOI' // legado
@@ -520,17 +527,17 @@ export function isLavraturaEquipeCampoScope(workSubtype?: string | null) {
 
 /** Escopo CSD – Ponto Focal – Inspeção. */
 export function isLavraturaPontoFocalScope(workSubtype?: string | null) {
-  return (workSubtype?.trim() ?? '') === 'Lavratura de TOI - Ponto Focal'
+  return normalizeWorkSubtype(workSubtype) === 'Lavratura de TOI - Ponto Focal'
 }
 
 /** Backoffice agenda em nome da equipe e exige colaboradores no formulário. */
 export function isLavraturaBackofficeScope(workSubtype?: string | null) {
-  return (workSubtype?.trim() ?? '') === 'Lavratura de TOI - Backoffice'
+  return normalizeWorkSubtype(workSubtype) === 'Lavratura de TOI - Backoffice'
 }
 
 /** Equipe de Campo e Backoffice não usam Agenda de férias. */
 export function skipsVacationAgenda(workSubtype?: string | null) {
-  const normalized = workSubtype?.trim() ?? ''
+  const normalized = normalizeWorkSubtype(workSubtype)
   return (
     normalized === 'Lavratura de TOI - Equipe de Campo' ||
     normalized === 'Lavratura de TOI' || // legado
