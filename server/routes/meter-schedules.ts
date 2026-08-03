@@ -264,6 +264,36 @@ export async function listFieldPartners(req: Request, res: Response) {
   })
 }
 
+/** Colaboradores da equipe que lavrou o TOI: apenas perfil Lavratura de TOI (Equipe de Campo). */
+export async function listToiCollaborators(req: Request, res: Response) {
+  const result = await query<{
+    id: string
+    name: string
+    registration: string
+  }>(
+    `SELECT id, name, registration
+     FROM users
+     WHERE approval_status = 'approved'
+       AND role <> 'admin'
+       AND (
+         work_subtype = 'Lavratura de TOI - Equipe de Campo'
+         OR work_subtype = 'Lavratura de TOI'
+       )
+       AND ($1::text IS NULL OR id <> $1)
+     ORDER BY registration ASC, name ASC`,
+    [req.user?.id ?? null],
+  )
+
+  res.json({
+    users: result.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      registration: row.registration,
+      label: `${row.registration} — ${row.name}`,
+    })),
+  })
+}
+
 export async function createMeterSchedule(req: Request, res: Response) {
   const {
     meter,
@@ -402,6 +432,10 @@ export async function createMeterSchedule(req: Request, res: Response) {
        FROM users
        WHERE approval_status = 'approved'
          AND role <> 'admin'
+         AND (
+           work_subtype = 'Lavratura de TOI - Equipe de Campo'
+           OR work_subtype = 'Lavratura de TOI'
+         )
          AND UPPER(TRIM(registration)) = ANY($1::text[])`,
       [
         [
@@ -422,7 +456,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     if (!collaborator1 || !collaborator2) {
       res.status(400).json({
         error:
-          'Colaboradores inválidos. Selecione usuários cadastrados na lista. Se alguém não estiver, solicite o cadastro no portal.',
+          'Colaboradores inválidos. Selecione apenas usuários com perfil Lavratura de TOI (Equipe de Campo). Se alguém não estiver na lista, solicite o cadastro no portal.',
       })
       return
     }

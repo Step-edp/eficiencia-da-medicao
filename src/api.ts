@@ -1062,6 +1062,8 @@ export const api = {
     }),
   listFieldPartners: () =>
     request<{ partners: FieldPartnerOption[] }>('/api/meter-schedules/partners'),
+  listToiCollaborators: () =>
+    request<{ users: FieldPartnerOption[] }>('/api/meter-schedules/toi-collaborators'),
   createDemmDocument: (payload: {
     meterScheduleId?: string
     fileName: string

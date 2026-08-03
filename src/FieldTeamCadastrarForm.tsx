@@ -47,7 +47,9 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
   const envelopePhotoInputId = useId()
   const { options: csdOptions, loading: csdLoading } = useCsdsOptions()
   const [partners, setPartners] = useState<FieldPartnerOption[]>([])
+  const [toiCollaborators, setToiCollaborators] = useState<FieldPartnerOption[]>([])
   const [partnersLoading, setPartnersLoading] = useState(true)
+  const [toiCollaboratorsLoading, setToiCollaboratorsLoading] = useState(false)
   const [meter, setMeter] = useState('')
   const [installation, setInstallation] = useState('')
   const [toi, setToi] = useState('')
@@ -98,6 +100,30 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
     }
   }, [])
 
+  useEffect(() => {
+    if (!requireToiTeam) {
+      setToiCollaborators([])
+      setToiCollaboratorsLoading(false)
+      return
+    }
+    let cancelled = false
+    setToiCollaboratorsLoading(true)
+    void api
+      .listToiCollaborators()
+      .then(({ users }) => {
+        if (!cancelled) setToiCollaborators(users)
+      })
+      .catch(() => {
+        if (!cancelled) setToiCollaborators([])
+      })
+      .finally(() => {
+        if (!cancelled) setToiCollaboratorsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [requireToiTeam])
+
   const clearFieldError = (field: keyof FieldTeamFieldErrors) => {
     setFieldErrors((current) => {
       if (!current[field]) return current
@@ -109,25 +135,30 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
 
   const selectedPartner = partners.find((partner) => partner.id === partnerUserId) ?? null
   const selectedCollaborator1 =
-    partners.find((partner) => partner.id === collaborator1UserId) ?? null
+    toiCollaborators.find((user) => user.id === collaborator1UserId) ?? null
   const selectedCollaborator2 =
-    partners.find((partner) => partner.id === collaborator2UserId) ?? null
+    toiCollaborators.find((user) => user.id === collaborator2UserId) ?? null
 
-  const matchUsersByRegistration = (queryValue: string) => {
+  const matchUsersByRegistration = (
+    queryValue: string,
+    source: FieldPartnerOption[],
+  ) => {
     const query = queryValue.trim().toUpperCase()
-    if (!query) return partners.slice(0, 8)
-    return partners
+    if (!query) return source.slice(0, 8)
+    return source
       .filter((partner) => partner.registration.toUpperCase().includes(query))
       .slice(0, 12)
   }
 
-  const partnerMatches = matchUsersByRegistration(partnerQuery)
-  const collaborator1Matches = matchUsersByRegistration(collaborator1Query).filter(
-    (user) => user.id !== collaborator2UserId,
-  )
-  const collaborator2Matches = matchUsersByRegistration(collaborator2Query).filter(
-    (user) => user.id !== collaborator1UserId,
-  )
+  const partnerMatches = matchUsersByRegistration(partnerQuery, partners)
+  const collaborator1Matches = matchUsersByRegistration(
+    collaborator1Query,
+    toiCollaborators,
+  ).filter((user) => user.id !== collaborator2UserId)
+  const collaborator2Matches = matchUsersByRegistration(
+    collaborator2Query,
+    toiCollaborators,
+  ).filter((user) => user.id !== collaborator1UserId)
 
   const selectPartner = (partner: FieldPartnerOption) => {
     setPartnerUserId(partner.id)
@@ -150,21 +181,25 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
     clearFieldError('collaborator2')
   }
 
-  const resolveUserFromQuery = (queryValue: string, selectedId: string) => {
+  const resolveUserFromQuery = (
+    queryValue: string,
+    selectedId: string,
+    source: FieldPartnerOption[],
+  ) => {
     const query = queryValue.trim().toUpperCase()
     if (!query) return null
-    const exact = partners.find(
+    const exact = source.find(
       (partner) => partner.registration.toUpperCase() === query,
     )
     if (exact) return exact
     if (selectedId) {
-      return partners.find((partner) => partner.id === selectedId) ?? null
+      return source.find((partner) => partner.id === selectedId) ?? null
     }
     return null
   }
 
   const resolvePartnerFromQuery = () =>
-    resolveUserFromQuery(partnerQuery, partnerUserId)
+    resolveUserFromQuery(partnerQuery, partnerUserId, partners)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -209,21 +244,23 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       resolvedCollaborator1 = resolveUserFromQuery(
         collaborator1Query,
         collaborator1UserId,
+        toiCollaborators,
       )
       resolvedCollaborator2 = resolveUserFromQuery(
         collaborator2Query,
         collaborator2UserId,
+        toiCollaborators,
       )
       if (!resolvedCollaborator1) {
         nextErrors.collaborator1 =
-          'Selecione o colaborador 1 pela matrícula na lista de usuários cadastrados.'
+          'Selecione o colaborador 1 entre os usuários com perfil Lavratura de TOI.'
       } else {
         setCollaborator1UserId(resolvedCollaborator1.id)
         setCollaborator1Query(resolvedCollaborator1.registration)
       }
       if (!resolvedCollaborator2) {
         nextErrors.collaborator2 =
-          'Selecione o colaborador 2 pela matrícula na lista de usuários cadastrados.'
+          'Selecione o colaborador 2 entre os usuários com perfil Lavratura de TOI.'
       } else {
         setCollaborator2UserId(resolvedCollaborator2.id)
         setCollaborator2Query(resolvedCollaborator2.registration)
@@ -587,9 +624,10 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
           <fieldset className="toi-team-fieldset full-width">
             <legend>Equipe que lavrou o TOI</legend>
             <p id="field-team-toi-hint" className="field-hint">
-              Pesquise pela matrícula do usuário cadastrado. Se o colaborador não estiver na
-              lista, solicite que ele faça o cadastro no portal. Ao selecionar, nome e
-              matrícula são preenchidos automaticamente.
+              Pesquise pela matrícula. Aparecem apenas usuários com perfil Lavratura de
+              TOI (Equipe de Campo). Se o colaborador não estiver na lista, solicite que
+              ele faça o cadastro no portal. Ao selecionar, nome e matrícula são
+              preenchidos automaticamente.
             </p>
 
             <div
@@ -606,7 +644,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                   spellCheck={false}
                   value={collaborator1Query}
                   placeholder={
-                    partnersLoading
+                    toiCollaboratorsLoading
                       ? 'Carregando usuários...'
                       : 'Digite a matrícula do colaborador 1'
                   }
@@ -626,7 +664,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                   aria-controls="field-team-collaborator1-list"
                   aria-describedby="field-team-toi-hint field-team-collaborator1-error"
                 />
-                {collaborator1MenuOpen && !partnersLoading ? (
+                {collaborator1MenuOpen && !toiCollaboratorsLoading ? (
                   <ul
                     id="field-team-collaborator1-list"
                     className="partner-search-results"
@@ -652,8 +690,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                       ))
                     ) : (
                       <li className="partner-search-empty">
-                        Nenhuma matrícula encontrada. Solicite que o colaborador faça o
-                        cadastro.
+                        Nenhum usuário com perfil Lavratura de TOI encontrado.
                       </li>
                     )}
                   </ul>
@@ -685,7 +722,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                   spellCheck={false}
                   value={collaborator2Query}
                   placeholder={
-                    partnersLoading
+                    toiCollaboratorsLoading
                       ? 'Carregando usuários...'
                       : 'Digite a matrícula do colaborador 2'
                   }
@@ -705,7 +742,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                   aria-controls="field-team-collaborator2-list"
                   aria-describedby="field-team-toi-hint field-team-collaborator2-error"
                 />
-                {collaborator2MenuOpen && !partnersLoading ? (
+                {collaborator2MenuOpen && !toiCollaboratorsLoading ? (
                   <ul
                     id="field-team-collaborator2-list"
                     className="partner-search-results"
@@ -731,8 +768,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                       ))
                     ) : (
                       <li className="partner-search-empty">
-                        Nenhuma matrícula encontrada. Solicite que o colaborador faça o
-                        cadastro.
+                        Nenhum usuário com perfil Lavratura de TOI encontrado.
                       </li>
                     )}
                   </ul>
