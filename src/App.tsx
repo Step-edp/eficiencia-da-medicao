@@ -2502,9 +2502,11 @@ function HomePanel({
 
   const materialTypeOptions = useMemo(() => {
     const codes = materialRows
-      .map((row) => row.newCode.trim())
+      .map((row) => row.material.trim())
       .filter(Boolean)
-    return codes.length ? Array.from(new Set(codes)) : defaultMaterialTypes
+    return codes.length
+      ? Array.from(new Set(codes)).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+      : defaultMaterialTypes
   }, [materialRows])
 
   useEffect(() => {

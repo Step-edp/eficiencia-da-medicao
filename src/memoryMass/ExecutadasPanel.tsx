@@ -146,7 +146,7 @@ export function ExecutadasPanel() {
               setFeedback(null)
             }}
             rows={8}
-            placeholder="Cole aqui os dados de Demanda (Ctrl+V)…"
+            placeholder="Cole aqui os dados de Demanda"
             spellCheck={false}
           />
         </label>
@@ -162,7 +162,7 @@ export function ExecutadasPanel() {
               setFeedback(null)
             }}
             rows={8}
-            placeholder="Cole aqui os dados de Fator de Potência (Ctrl+V)…"
+            placeholder="Cole aqui os dados de Fator de Potência"
             spellCheck={false}
           />
         </label>
