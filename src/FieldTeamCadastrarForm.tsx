@@ -625,10 +625,8 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
           <fieldset className="toi-team-fieldset full-width">
             <legend>Equipe que lavrou o TOI</legend>
             <p id="field-team-toi-hint" className="field-hint">
-              Pesquise pela matrícula. Aparecem apenas usuários com perfil Lavratura de
-              TOI (Equipe de Campo, Ponto Focal ou Backoffice). Se o colaborador não
-              estiver na lista, solicite que ele faça o cadastro no portal. Ao selecionar,
-              nome e matrícula são preenchidos automaticamente.
+              Se o colaborador não estiver na lista, solicite que ele faça o cadastro no
+              portal.
             </p>
 
             <div
