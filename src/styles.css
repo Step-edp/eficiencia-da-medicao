@@ -5773,27 +5773,34 @@ input[type='file'] {
 .ratm-yesno-question {
   display: grid;
   gap: 10px;
+  justify-items: start;
 }
 
 .ratm-yesno-row {
-  display: flex;
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 10px;
 }
 
 .ratm-yesno-label {
+  flex: 0 1 auto;
+  width: auto;
   color: var(--text-main);
   font-size: 0.95rem;
   font-weight: 600;
+  white-space: normal;
 }
 
 .ratm-yesno-actions {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 8px;
-  margin-left: 4px;
+  margin-left: 0;
 }
 
 .ratm-yesno-btn {
