@@ -130,7 +130,7 @@ export function ExecutadasPanel() {
               setFeedback(null)
             }}
             rows={8}
-            placeholder="Cole aqui os dados de Consumo (Ctrl+V)…"
+            placeholder="Cole aqui os dados de Consumo"
             spellCheck={false}
           />
         </label>
