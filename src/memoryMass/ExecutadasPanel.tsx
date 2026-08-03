@@ -110,11 +110,6 @@ export function ExecutadasPanel() {
 
   return (
     <div className="executadas-panel">
-      <p className="executadas-intro">
-        Cole os dados em cada campo (como nas colunas A, I e R da planilha) e clique em{' '}
-        <strong>Ordenar</strong>.
-      </p>
-
       {feedback ? (
         <LoginFeedback
           type={feedback.type}
