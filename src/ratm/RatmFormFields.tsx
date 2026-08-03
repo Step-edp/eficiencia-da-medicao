@@ -17,7 +17,6 @@ type RadioGroupProps = {
   value: string
   options: string[]
   onChange: (value: string) => void
-  onClear?: () => void
   vertical?: boolean
 }
 
@@ -72,19 +71,11 @@ function ClearableRadioGroup({
   value,
   options,
   onChange,
-  onClear,
   vertical = false,
 }: RadioGroupProps) {
   return (
     <fieldset className="radio-fieldset full-width">
-      <div className="radio-fieldset-header">
-        <legend>{legend}</legend>
-        {onClear ? (
-          <button className="clear-field-button" type="button" onClick={onClear} title="Limpar">
-            Limpar
-          </button>
-        ) : null}
-      </div>
+      <legend>{legend}</legend>
       <div className={`radio-group ${vertical ? 'radio-group-vertical' : ''}`}>
         {options.map((option) => (
           <label key={option} className="radio-option">
@@ -172,20 +163,34 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       const { schedules } = await api.listMeterSchedules(undefined, { meter })
       const schedule = schedules[0]
       if (!schedule) {
-        onChange({
-          meter: '',
-          meterStatus: '',
-          scheduleDate: '',
-          scheduleHour: '08',
-          scheduleMinute: '30',
-        })
+        onChange(emptyScheduleFields())
         setMeterLookupError(`Nenhum agendamento encontrado para o medidor ${meter}.`)
         return
       }
 
+      const partnerLabel = schedule.partnerName
+        ? `${schedule.partnerName}${
+            schedule.partnerRegistration ? ` (${schedule.partnerRegistration})` : ''
+          }`
+        : ''
+
       onChange({
         meter: schedule.meter,
         meterStatus: schedule.trailStep || 'Agendado',
+        scheduleLabel: schedule.scheduledAtLabel || '',
+        installation: schedule.installation || '',
+        toi: schedule.toi || '',
+        note: schedule.note || '',
+        csd: schedule.csd || '',
+        partnerLabel,
+        clientPresent:
+          schedule.clientPresent === 'sim'
+            ? 'Sim'
+            : schedule.clientPresent === 'nao'
+              ? 'Não'
+              : '',
+        schedulingNotes: schedule.schedulingNotes || '',
+        deliveryDeadlineLabel: schedule.deliveryDeadlineLabel || '',
         ...schedulePartsFromIso(schedule.scheduledAt),
       })
     } catch (error) {
@@ -249,7 +254,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
         <div className="ratm-readonly-field">
           <span className="ratm-readonly-label">Medidor</span>
-          <p className="ratm-readonly-value">{data.meter || '—'}</p>
+          <p className="ratm-readonly-value">{displayOrDash(data.meter)}</p>
         </div>
 
         {data.meterStatus ? (
@@ -259,6 +264,41 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         <div className="ratm-readonly-field full-width">
           <span className="ratm-readonly-label">Data de agendamento</span>
           <p className="ratm-readonly-value">{formatScheduleDisplay(data)}</p>
+        </div>
+
+        <div className="ratm-schedule-details full-width" aria-label="Informações do agendamento">
+          <div className="ratm-readonly-field">
+            <span className="ratm-readonly-label">Instalação</span>
+            <p className="ratm-readonly-value">{displayOrDash(data.installation)}</p>
+          </div>
+          <div className="ratm-readonly-field">
+            <span className="ratm-readonly-label">TOI</span>
+            <p className="ratm-readonly-value">{displayOrDash(data.toi)}</p>
+          </div>
+          <div className="ratm-readonly-field">
+            <span className="ratm-readonly-label">Nota</span>
+            <p className="ratm-readonly-value">{displayOrDash(data.note)}</p>
+          </div>
+          <div className="ratm-readonly-field">
+            <span className="ratm-readonly-label">CSD</span>
+            <p className="ratm-readonly-value">{displayOrDash(data.csd)}</p>
+          </div>
+          <div className="ratm-readonly-field">
+            <span className="ratm-readonly-label">Parceiro</span>
+            <p className="ratm-readonly-value">{displayOrDash(data.partnerLabel)}</p>
+          </div>
+          <div className="ratm-readonly-field">
+            <span className="ratm-readonly-label">Cliente presente</span>
+            <p className="ratm-readonly-value">{displayOrDash(data.clientPresent)}</p>
+          </div>
+          <div className="ratm-readonly-field">
+            <span className="ratm-readonly-label">Prazo de entrega</span>
+            <p className="ratm-readonly-value">{displayOrDash(data.deliveryDeadlineLabel)}</p>
+          </div>
+          <div className="ratm-readonly-field full-width">
+            <span className="ratm-readonly-label">Observações de agendamento</span>
+            <p className="ratm-readonly-value">{displayOrDash(data.schedulingNotes)}</p>
+          </div>
         </div>
 
         <label className="full-width">
@@ -277,7 +317,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.analysisRequest}
           options={['EDP', 'Cliente']}
           onChange={(value) => onChange({ analysisRequest: value })}
-          onClear={() => onChange({ analysisRequest: '' })}
         />
 
         <ClearableRadioGroup
@@ -286,7 +325,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.clientAccompanied}
           options={['Sim', 'Não']}
           onChange={(value) => onChange({ clientAccompanied: value })}
-          onClear={() => onChange({ clientAccompanied: '' })}
         />
 
         <ClearableRadioGroup
@@ -295,7 +333,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.visualTest}
           options={['Aprovado', 'Reprovado']}
           onChange={(value) => onChange({ visualTest: value })}
-          onClear={() => onChange({ visualTest: '' })}
           vertical
         />
 
@@ -305,7 +342,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.dielectric}
           options={['Aprovado', 'Reprovado']}
           onChange={(value) => onChange({ dielectric: value })}
-          onClear={() => onChange({ dielectric: '' })}
           vertical
         />
 
@@ -328,7 +364,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.enclosureStatus}
           options={['Em ordem', 'Violado', 'Sem lacre']}
           onChange={(value) => onChange({ enclosureStatus: value })}
-          onClear={() => onChange({ enclosureStatus: '' })}
           vertical
         />
 
@@ -347,7 +382,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.seal1Status}
           options={['Violado', 'Sem lacre', 'Em ordem']}
           onChange={(value) => onChange({ seal1Status: value })}
-          onClear={() => onChange({ seal1Status: '' })}
           vertical
         />
 
@@ -366,7 +400,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.seal2Status}
           options={['Violado', 'Sem lacre', 'Em ordem', 'N/A']}
           onChange={(value) => onChange({ seal2Status: value })}
-          onClear={() => onChange({ seal2Status: '' })}
           vertical
         />
 
@@ -385,7 +418,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.meterReadingPreset}
           options={['N/A']}
           onChange={(value) => onChange({ meterReadingPreset: value })}
-          onClear={() => onChange({ meterReadingPreset: '' })}
         />
 
         <ClearableRadioGroup
@@ -394,7 +426,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.meterReadingStatus}
           options={['Apagado', 'Sem leitura', 'Ilegível']}
           onChange={(value) => onChange({ meterReadingStatus: value })}
-          onClear={() => onChange({ meterReadingStatus: '' })}
           vertical
         />
 
@@ -404,7 +435,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.testBench}
           options={TEST_BENCH_OPTIONS}
           onChange={(value) => onChange({ testBench: value })}
-          onClear={() => onChange({ testBench: '' })}
           vertical
         />
 
@@ -434,7 +464,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                 value={String(data[presetKey])}
                 options={fieldKey === 'cnRc' ? ['-100', 'N/A'] : ['-100', 'N/A']}
                 onChange={(value) => onChange({ [presetKey]: value })}
-                onClear={() => onChange({ [presetKey]: '' })}
               />
             </div>
           )
@@ -446,7 +475,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.march}
           options={['Aprovado', 'Reprovado', 'NA']}
           onChange={(value) => onChange({ march: value })}
-          onClear={() => onChange({ march: '' })}
           vertical
         />
 
@@ -456,7 +484,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.recorder}
           options={['Aprovado', 'Reprovado']}
           onChange={(value) => onChange({ recorder: value })}
-          onClear={() => onChange({ recorder: '' })}
           vertical
         />
 
@@ -475,7 +502,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.interruptedPhaseOption}
           options={['N/A', 'A', 'B', 'C']}
           onChange={(value) => onChange({ interruptedPhaseOption: value })}
-          onClear={() => onChange({ interruptedPhaseOption: '' })}
         />
 
         <label className="full-width">
@@ -527,7 +553,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.fieldReportCorrect}
           options={['Sim', 'Não']}
           onChange={(value) => onChange({ fieldReportCorrect: value })}
-          onClear={() => onChange({ fieldReportCorrect: '' })}
         />
 
         <label className="full-width">
@@ -574,7 +599,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.nsType}
           options={['Consumo irregular (CI)', 'Falha na medição (FM)']}
           onChange={(value) => onChange({ nsType: value })}
-          onClear={() => onChange({ nsType: '' })}
           vertical
         />
 
@@ -586,7 +610,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.brokenMeter}
           options={['Sim', 'Não']}
           onChange={(value) => onChange({ brokenMeter: value })}
-          onClear={() => onChange({ brokenMeter: '' })}
         />
 
         <ClearableRadioGroup
@@ -595,7 +618,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.displayOff}
           options={['Sim', 'Não']}
           onChange={(value) => onChange({ displayOff: value })}
-          onClear={() => onChange({ displayOff: '' })}
         />
 
         <ClearableRadioGroup
@@ -604,7 +626,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.meterInteriorAccess}
           options={['Sim', 'Não']}
           onChange={(value) => onChange({ meterInteriorAccess: value })}
-          onClear={() => onChange({ meterInteriorAccess: '' })}
         />
 
         <ClearableRadioGroup
@@ -613,7 +634,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.damagedCoil}
           options={['Sim', 'Não']}
           onChange={(value) => onChange({ damagedCoil: value })}
-          onClear={() => onChange({ damagedCoil: '' })}
         />
 
         <ClearableRadioGroup
@@ -622,7 +642,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.apparentlyInOrder}
           options={['Sim', 'Não']}
           onChange={(value) => onChange({ apparentlyInOrder: value })}
-          onClear={() => onChange({ apparentlyInOrder: '' })}
         />
 
         <ClearableRadioGroup
@@ -631,7 +650,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.dielectricFailed}
           options={['Sim', 'Não']}
           onChange={(value) => onChange({ dielectricFailed: value })}
-          onClear={() => onChange({ dielectricFailed: '' })}
         />
 
         <ClearableRadioGroup
@@ -640,7 +658,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.foreignBodyInMeter}
           options={['Sim', 'Não']}
           onChange={(value) => onChange({ foreignBodyInMeter: value })}
-          onClear={() => onChange({ foreignBodyInMeter: '' })}
         />
 
         {data.photos.map((photo, photoIndex) => (
