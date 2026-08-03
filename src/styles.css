@@ -4985,6 +4985,54 @@ input[type='file'] {
   line-height: 1.45;
 }
 
+.produtividade-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.produtividade-intro {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.produtividade-filters {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(180px, 240px);
+}
+
+.produtividade-stats {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.produtividade-stat {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  background: rgba(5, 26, 44, 0.55);
+}
+
+.produtividade-stat-label {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.produtividade-stat-value {
+  font-size: 1.6rem;
+  color: #e8f8ff;
+}
+
+@media (max-width: 900px) {
+  .produtividade-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .executadas-planilha {
   display: grid;
   gap: 10px;

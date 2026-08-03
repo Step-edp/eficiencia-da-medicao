@@ -41,6 +41,7 @@ import { CriarModeloPanel } from './CriarModeloPanel'
 import { ApresentacaoPanel } from './ApresentacaoPanel'
 import { SoftwaresPanel } from './SoftwaresPanel'
 import { ReagendarPanel } from './ReagendarPanel'
+import { MinhaProdutividadePanel } from './MinhaProdutividadePanel'
 import { InventarioPanel } from './InventarioPanel'
 import { ConsolidacaoCargaPanel } from './ConsolidacaoCargaPanel'
 import { ExecutadasPanel } from './memoryMass/ExecutadasPanel'
@@ -693,6 +694,7 @@ function ItemIcon({ title }: { title: string }) {
     'Consultar Medidor': 'search',
     'Calendário de ensaios': 'calendar',
     Reagendar: 'repeat',
+    'Minha produtividade': 'chart',
     'Adicionar passivo': 'key',
     'Entrada de medidores': 'inbox',
     'Criar Modelo': 'cube',
@@ -1648,6 +1650,7 @@ function HomePanel({
   ]
   const labOtherSections = [
     'Dashboard',
+    'Minha produtividade',
     'Consultar RATM',
     'Consultar Medidor',
     'Calendário de ensaios',
@@ -1743,19 +1746,36 @@ function HomePanel({
     previewProfile?.id === 'consumo-irregular-analista' ||
     previewProfile?.id === 'consumo-irregular-engenheiro'
 
+  const effectiveLabJobTitle =
+    previewUser?.jobTitle ??
+    previewProfile?.match.jobTitle ??
+    currentUser.jobTitle
+  const showMinhaProdutividade =
+    (effectiveLabJobTitle?.trim() ?? '') !== 'Engenheiro'
+
   const visibleLabHighlightedSections = showConsumoIrregularLab
     ? []
     : labHighlightedSections
   const visibleLabOtherSections = (() => {
-    const base = showConsumoIrregularLab
+    let sections = showConsumoIrregularLab
       ? labOtherSections.filter((section) =>
           (CONSUMO_IRREGULAR_LAB_PROCESSES as readonly string[]).includes(section),
         )
-      : labOtherSections
-    if (isAdmin && !showConsumoIrregularLab) {
-      return [...base, 'Adicionar passivo']
+      : [...labOtherSections]
+
+    if (showMinhaProdutividade) {
+      if (!sections.includes('Minha produtividade')) {
+        sections = ['Minha produtividade', ...sections]
+      }
+    } else {
+      sections = sections.filter((section) => section !== 'Minha produtividade')
     }
-    return base
+
+    if (isAdmin && !showConsumoIrregularLab && !sections.includes('Adicionar passivo')) {
+      sections = [...sections, 'Adicionar passivo']
+    }
+
+    return sections
   })()
   const showLabTrail = !showConsumoIrregularLab
 
@@ -4365,6 +4385,18 @@ function HomePanel({
               <EnsaiosCalendar readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Reagendar' ? (
               <ReagendarPanel readOnly={labMedicaoReadOnly} />
+            ) : selectedLabMeasurementSection === 'Minha produtividade' &&
+              showMinhaProdutividade ? (
+              <MinhaProdutividadePanel
+                userId={previewUser?.id ?? currentUser.id}
+                userName={
+                  previewUser?.name ||
+                  currentUser.name ||
+                  currentUser.registration ||
+                  'Usuário'
+                }
+                laudos={ratmLaudos}
+              />
             ) : selectedLabMeasurementSection === 'CSDs' ? (
               <CsdsPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Suporte' ? (

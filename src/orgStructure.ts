@@ -311,6 +311,7 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Pesquisa de satisfação',
     'Sucata',
     'Dashboard',
+    'Minha produtividade',
     'Consultar RATM',
     'Consultar Medidor',
     'Calendário de ensaios',
