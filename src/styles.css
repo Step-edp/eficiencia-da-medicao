@@ -494,6 +494,14 @@ button {
   margin-top: 0;
 }
 
+.agenda-calendar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 720px;
+  width: 100%;
+}
+
 .agenda-action-chip {
   appearance: none;
   display: inline-flex;
