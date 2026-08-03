@@ -2620,6 +2620,15 @@ function HomePanel({
     materialEquipmentTypeFilter,
   ])
 
+  const distinctMaterialCodeCount = useMemo(() => {
+    const codes = new Set(
+      filteredMaterialRows
+        .map((row) => row.material.trim())
+        .filter(Boolean),
+    )
+    return codes.size
+  }, [filteredMaterialRows])
+
   const homologationMaterialCatalog = useMemo(() => {
     const codeDescriptionMap = new Map<string, MaterialCatalogItem>()
 
@@ -4708,8 +4717,8 @@ function HomePanel({
                 <h2>{isEditingMaterial ? 'Editar material' : 'Cadastrar novo material'}</h2>
                 <p>
                   {isEditingMaterial
-                    ? 'Atualize os dados do material. A descrição (texto breve) deve ser única.'
-                    : 'Informe os dados do material para adicionar um novo registro na tabela de código de materiais. A descrição (texto breve) deve ser única.'}
+                    ? 'Atualize os dados do material. Código do material, código antigo e descrição devem ser únicos.'
+                    : 'Informe os dados do material para adicionar um novo registro na tabela de código de materiais. Código do material, código antigo e descrição devem ser únicos.'}
                 </p>
 
                 {passwordFeedback ? (
