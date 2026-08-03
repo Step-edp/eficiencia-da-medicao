@@ -484,12 +484,14 @@ button {
   justify-items: start;
 }
 
-.agenda-calendar-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  max-width: 720px;
-  width: 100%;
+.agenda-dedicated-screen {
+  display: grid;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.agenda-history-panel-dedicated {
+  margin-top: 0;
 }
 
 .agenda-action-chip {

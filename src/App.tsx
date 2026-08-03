@@ -9,7 +9,7 @@ import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
 import { UsersDashboard } from './UsersDashboard'
 import { GestaoDashboard, CellResponsibleEditor, CreateOrgAreaForm, AreaLeadershipEditor, GestaoPessoasPanel } from './GestaoDashboard'
-import { AgendaPanel } from './AgendaPanel'
+import { AgendaPanel, agendaViewTitle, type AgendaView } from './AgendaPanel'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
   CADASTRO_PROFILES,
@@ -1368,6 +1368,7 @@ function HomePanel({
   const [navReady, setNavReady] = useState(() => !savedNav?.selectedAreaTitle)
 
   const [selectedArea, setSelectedArea] = useState<Area | null>(null)
+  const [agendaView, setAgendaView] = useState<AgendaView>('overview')
   const [selectedMeasurementSection, setSelectedMeasurementSection] = useState<string | null>(
     () => savedNav?.selectedMeasurementSection ?? null,
   )
@@ -2019,6 +2020,12 @@ function HomePanel({
       setSelectedOrgSubcell(null)
     }
   }, [isVacationBlocked, agendaArea, selectedArea?.title])
+
+  useEffect(() => {
+    if (selectedArea?.title !== 'Agenda') {
+      setAgendaView('overview')
+    }
+  }, [selectedArea?.title])
 
   useEffect(() => {
     if (navReady) return
@@ -2954,11 +2961,24 @@ function HomePanel({
     return (
       <main className="shell">
         <section className="home-card area-screen-card">
-          <TopActionBar onLogout={onLogout} />
+          <TopActionBar
+            onBack={
+              agendaView === 'overview' ? undefined : () => setAgendaView('overview')
+            }
+            onLogout={onLogout}
+          />
           <p className="section-tag">Agenda · Acesso restrito</p>
-          <h2>Agenda</h2>
+          <h2>
+            {agendaViewTitle(agendaView, {
+              hasRegisteredVacation: Boolean(
+                currentUser.nextVacationStart && currentUser.nextVacationEnd,
+              ),
+            })}
+          </h2>
           <AgendaPanel
             locked
+            view={agendaView}
+            onViewChange={setAgendaView}
             vacationStatus={currentUser.vacationStatus}
             vacationDeadlineAt={currentUser.vacationDeadlineAt}
             nextVacationStart={currentUser.nextVacationStart}
@@ -3010,10 +3030,24 @@ function HomePanel({
       return (
         <main className="shell">
           <section className="home-card area-screen-card">
-            <TopActionBar onBack={exitToHome} onHome={exitToHome} onLogout={onLogout} />
+            <TopActionBar
+              onBack={
+                agendaView === 'overview' ? exitToHome : () => setAgendaView('overview')
+              }
+              onHome={exitToHome}
+              onLogout={onLogout}
+            />
             <p className="section-tag">Área</p>
-            <h2>Agenda</h2>
+            <h2>
+              {agendaViewTitle(agendaView, {
+                hasRegisteredVacation: Boolean(
+                  currentUser.nextVacationStart && currentUser.nextVacationEnd,
+                ),
+              })}
+            </h2>
             <AgendaPanel
+              view={agendaView}
+              onViewChange={setAgendaView}
               vacationStatus={currentUser.vacationStatus}
               vacationDeadlineAt={currentUser.vacationDeadlineAt}
               nextVacationStart={currentUser.nextVacationStart}

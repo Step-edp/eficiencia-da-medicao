@@ -41,12 +41,28 @@ function periodLabel(period: VacationPeriod) {
   return period.absenceTypeLabel || (period.absenceType === 'ferias' ? 'Férias' : 'Ausência')
 }
 
+export type AgendaView = 'overview' | 'ferias' | 'ausencia' | 'historico'
+
+export function agendaViewTitle(
+  view: AgendaView,
+  options?: { hasRegisteredVacation?: boolean },
+): string {
+  if (view === 'ferias') {
+    return options?.hasRegisteredVacation ? 'Editar férias' : 'Registrar férias'
+  }
+  if (view === 'ausencia') return 'Registrar ausência'
+  if (view === 'historico') return 'Histórico registrado'
+  return 'Agenda'
+}
+
 type AgendaPanelProps = {
   vacationStatus?: VacationStatus
   vacationDeadlineAt?: string | null
   nextVacationStart?: string | null
   nextVacationEnd?: string | null
   locked?: boolean
+  view: AgendaView
+  onViewChange: (view: AgendaView) => void
   onSaved: () => Promise<void> | void
 }
 
@@ -56,6 +72,8 @@ export function AgendaPanel({
   nextVacationStart,
   nextVacationEnd,
   locked = false,
+  view,
+  onViewChange,
   onSaved,
 }: AgendaPanelProps) {
   const [periods, setPeriods] = useState<VacationPeriod[]>([])
@@ -76,9 +94,6 @@ export function AgendaPanel({
   const [error, setError] = useState<string | null>(null)
   const [absenceError, setAbsenceError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [showVacationForm, setShowVacationForm] = useState(false)
-  const [showAbsenceForm, setShowAbsenceForm] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
   const [dismissedOkAlert, setDismissedOkAlert] = useState(false)
   const [vacationDraftStart, setVacationDraftStart] = useState(nextVacationStart ?? '')
   const [vacationDraftEnd, setVacationDraftEnd] = useState(nextVacationEnd ?? '')
@@ -122,18 +137,28 @@ export function AgendaPanel({
     setStartDate(nextStart)
     setEndDate(nextEnd)
     setEditingExistingVacation(Boolean(nextStart && nextEnd))
-    setShowVacationForm(true)
-    setShowAbsenceForm(false)
-    setShowHistory(false)
     setError(null)
+    setSuccess(null)
+    onViewChange('ferias')
   }
 
   const closeVacationForm = () => {
     setStartDate(vacationDraftStart)
     setEndDate(vacationDraftEnd)
-    setShowVacationForm(false)
     setEditingExistingVacation(false)
     setError(null)
+    onViewChange('overview')
+  }
+
+  const openAbsenceForm = () => {
+    setAbsenceError(null)
+    setSuccess(null)
+    onViewChange('ausencia')
+  }
+
+  const closeAbsenceForm = () => {
+    setAbsenceError(null)
+    onViewChange('overview')
   }
 
   useEffect(() => {
@@ -181,8 +206,8 @@ export function AgendaPanel({
           ? 'Período de férias atualizado com sucesso.'
           : 'Período de férias registrado com sucesso.',
       )
-      setShowVacationForm(false)
       setEditingExistingVacation(false)
+      onViewChange('overview')
       await onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível salvar o período.')
@@ -228,7 +253,7 @@ export function AgendaPanel({
       setAttachment('')
       setAttachmentName('')
       setSuccess('Período de ausência registrado. O substituto cobrirá as atividades se estiver ativo.')
-      setShowAbsenceForm(false)
+      onViewChange('overview')
       await onSaved()
     } catch (err) {
       setAbsenceError(err instanceof Error ? err.message : 'Não foi possível salvar a ausência.')
@@ -291,13 +316,13 @@ export function AgendaPanel({
 
       {loading ? (
         <p>Carregando agenda...</p>
-      ) : (
+      ) : view === 'overview' ? (
         <>
           <section className="agenda-calendar-section" aria-label="Calendário">
             <div className="agenda-calendar-actions" role="group" aria-label="Ações da agenda">
               <button
                 type="button"
-                className={`agenda-action-chip${showVacationForm ? ' is-active' : ''}`}
+                className="agenda-action-chip"
                 disabled={locked || displayStatus === 'em_ausencia'}
                 title={
                   hasRegisteredVacation
@@ -331,26 +356,14 @@ export function AgendaPanel({
                   <span className="agenda-action-chip-title">
                     {hasRegisteredVacation ? 'Editar férias' : 'Registrar férias'}
                   </span>
-                  <span className="agenda-action-chip-hint">
-                    {hasRegisteredVacation
-                      ? startDate && endDate
-                        ? `${formatDateBr(startDate)} a ${formatDateBr(endDate)}`
-                        : 'Alterar período registrado'
-                      : 'Período obrigatório'}
-                  </span>
                 </span>
               </button>
               <button
                 type="button"
-                className={`agenda-action-chip${showAbsenceForm ? ' is-active' : ''}`}
+                className="agenda-action-chip"
                 disabled={locked || displayStatus === 'em_ausencia'}
                 title="Licença, atestado e outros"
-                onClick={() => {
-                  setShowAbsenceForm(true)
-                  setShowVacationForm(false)
-                  setShowHistory(false)
-                  setAbsenceError(null)
-                }}
+                onClick={openAbsenceForm}
               >
                 <span className="agenda-action-chip-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
@@ -364,22 +377,19 @@ export function AgendaPanel({
                 </span>
                 <span className="agenda-action-chip-text">
                   <span className="agenda-action-chip-title">Registrar ausência</span>
-                  <span className="agenda-action-chip-hint">Licença, atestado e outros</span>
                 </span>
               </button>
               <button
                 type="button"
-                className={`agenda-action-chip agenda-history-toggle${showHistory ? ' is-active' : ''}`}
-                aria-expanded={showHistory}
+                className="agenda-action-chip"
                 title={
                   periods.length
                     ? `${periods.length} período${periods.length > 1 ? 's' : ''}`
                     : 'Nenhum período ainda'
                 }
                 onClick={() => {
-                  setShowHistory((open) => !open)
-                  setShowVacationForm(false)
-                  setShowAbsenceForm(false)
+                  setSuccess(null)
+                  onViewChange('historico')
                 }}
               >
                 <span className="agenda-action-chip-icon" aria-hidden="true">
@@ -402,288 +412,17 @@ export function AgendaPanel({
                 </span>
                 <span className="agenda-action-chip-text">
                   <span className="agenda-action-chip-title">Histórico registrado</span>
-                  <span className="agenda-action-chip-hint">
-                    {periods.length
-                      ? `${periods.length} período${periods.length > 1 ? 's' : ''}`
-                      : 'Nenhum período ainda'}
-                  </span>
-                </span>
-                <span className="agenda-history-chevron" aria-hidden="true">
-                  {showHistory ? '▴' : '▾'}
                 </span>
               </button>
             </div>
-
-            {showHistory ? (
-              <div className="agenda-history-panel">
-                {periods.length ? (
-                  <ul className="agenda-period-list">
-                    {periods.map((period) => {
-                      const canEditVacation =
-                        !locked &&
-                        displayStatus !== 'em_ausencia' &&
-                        (period.absenceType ?? 'ferias') === 'ferias' &&
-                        period.endDate >= todayIso
-
-                      return (
-                      <li key={period.id} className="agenda-period-item">
-                        <div className="agenda-period-details">
-                          <span>
-                            <strong>{periodLabel(period)}</strong>
-                            {`: ${formatDateBr(period.startDate)} — ${formatDateBr(period.endDate)}`}
-                          </span>
-                          {period.justification ? (
-                            <span className="agenda-period-justification">
-                              Justificativa: {period.justification}
-                            </span>
-                          ) : null}
-                          {period.attachment ? (
-                            <a
-                              className="link-button"
-                              href={period.attachment}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              {period.attachmentName || 'Ver anexo'}
-                            </a>
-                          ) : null}
-                        </div>
-                        {canEditVacation ? (
-                          <button
-                            type="button"
-                            className="secondary-button compact-button"
-                            onClick={() =>
-                              openVacationForm({
-                                startDate: period.startDate,
-                                endDate: period.endDate,
-                              })
-                            }
-                          >
-                            Editar
-                          </button>
-                        ) : null}
-                      </li>
-                      )
-                    })}
-                  </ul>
-                ) : (
-                  <p className="generated-password-empty">Nenhum período cadastrado ainda.</p>
-                )}
-              </div>
-            ) : null}
 
             <AgendaCalendar
               periods={periods}
               vacationStart={startDate}
               vacationEnd={endDate}
-              interactive={
-                showVacationForm && !saving && !locked && displayStatus !== 'em_ausencia'
-              }
-              onSelectDate={
-                showVacationForm
-                  ? (isoDate) => {
-                      const next = nextVacationRangeFromClick(isoDate, startDate, endDate)
-                      setStartDate(next.startDate)
-                      setEndDate(next.endDate)
-                      setError(null)
-                    }
-                  : undefined
-              }
+              interactive={false}
             />
           </section>
-
-          {showVacationForm ? (
-            <div className="users-dashboard-card" style={{ marginTop: 18 }}>
-              <h3>
-                {editingExistingVacation
-                  ? 'Editar período de férias'
-                  : 'Próximas férias (obrigatório)'}
-              </h3>
-              <p className="users-dashboard-ranking-hint">
-                Use o calendário acima ou os campos abaixo para{' '}
-                {editingExistingVacation ? 'alterar' : 'definir'} o período.
-              </p>
-              <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitVacation}>
-                <label>
-                  Início das férias
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(event) => setStartDate(event.target.value)}
-                    required
-                    disabled={saving || locked || displayStatus === 'em_ausencia'}
-                  />
-                </label>
-                <label>
-                  Fim das férias
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(event) => setEndDate(event.target.value)}
-                    required
-                    disabled={saving || locked || displayStatus === 'em_ausencia'}
-                    min={startDate || undefined}
-                  />
-                </label>
-                {error ? (
-                  <p className="gestao-create-cell-error" role="alert">
-                    {error}
-                  </p>
-                ) : null}
-                <div className="agenda-form-actions">
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    disabled={saving}
-                    onClick={closeVacationForm}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="primary-button"
-                    disabled={saving || locked || displayStatus === 'em_ausencia'}
-                  >
-                    {saving
-                      ? 'Salvando…'
-                      : editingExistingVacation
-                        ? 'Salvar alterações'
-                        : 'Salvar período de férias'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          ) : null}
-
-          {showAbsenceForm ? (
-            <div className="users-dashboard-card" style={{ marginTop: 18 }}>
-              <h3>Outros períodos de ausência</h3>
-              <p className="users-dashboard-ranking-hint">
-                Licença, atestado, treinamento e demais ausências também acionam o substituto.
-              </p>
-              <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitAbsence}>
-                <label>
-                  Tipo de ausência
-                  <select
-                    value={absenceType}
-                    onChange={(event) => setAbsenceType(event.target.value as AbsenceType)}
-                    disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
-                  >
-                    {OTHER_ABSENCE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Justificativa
-                  <textarea
-                    value={justification}
-                    onChange={(event) => setJustification(event.target.value)}
-                    placeholder="Descreva o motivo da ausência"
-                    rows={3}
-                    required
-                    disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
-                  />
-                </label>
-                <div className="full-width">
-                  <span className="agenda-attachment-label">Documento ou foto</span>
-                  <div className="file-picker">
-                    <input
-                      id={attachmentInputId}
-                      className="file-picker-input"
-                      type="file"
-                      accept="image/*,application/pdf"
-                      required={!attachment}
-                      disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0]
-                        if (!file) {
-                          setAttachment('')
-                          setAttachmentName('')
-                          return
-                        }
-                        void readAttachmentAsDataUrl(file)
-                          .then((dataUrl) => {
-                            setAttachment(dataUrl)
-                            setAttachmentName(file.name)
-                            setAbsenceError(null)
-                          })
-                          .catch((error: unknown) => {
-                            setAttachment('')
-                            setAttachmentName('')
-                            event.target.value = ''
-                            setAbsenceError(
-                              error instanceof Error
-                                ? error.message
-                                : 'Não foi possível carregar o arquivo.',
-                            )
-                          })
-                      }}
-                    />
-                    <label htmlFor={attachmentInputId} className="file-picker-button">
-                      Anexar arquivo
-                    </label>
-                    <span className="file-picker-name">
-                      {attachmentName || 'Nenhum arquivo selecionado'}
-                    </span>
-                  </div>
-                  {attachment.startsWith('data:image/') ? (
-                    <span className="envelope-photo-preview">
-                      <img src={attachment} alt="Pré-visualização do anexo" />
-                    </span>
-                  ) : null}
-                </div>
-                <label>
-                  Início
-                  <input
-                    type="date"
-                    value={absenceStart}
-                    onChange={(event) => setAbsenceStart(event.target.value)}
-                    required
-                    disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
-                  />
-                </label>
-                <label>
-                  Fim
-                  <input
-                    type="date"
-                    value={absenceEnd}
-                    onChange={(event) => setAbsenceEnd(event.target.value)}
-                    required
-                    disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
-                    min={absenceStart || undefined}
-                  />
-                </label>
-                {absenceError ? (
-                  <p className="gestao-create-cell-error" role="alert">
-                    {absenceError}
-                  </p>
-                ) : null}
-                <div className="agenda-form-actions">
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    disabled={savingAbsence}
-                    onClick={() => {
-                      setShowAbsenceForm(false)
-                      setAbsenceError(null)
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="primary-button"
-                    disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
-                  >
-                    {savingAbsence ? 'Salvando…' : 'Salvar ausência'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          ) : null}
 
           {success ? (
             <div className="agenda-success has-dismiss" role="status">
@@ -699,6 +438,264 @@ export function AgendaPanel({
             </div>
           ) : null}
         </>
+      ) : view === 'ferias' ? (
+        <section className="agenda-dedicated-screen" aria-label="Registrar férias">
+          <p className="entrada-panel-intro">
+            Selecione o período no calendário ou preencha as datas abaixo.
+          </p>
+          <AgendaCalendar
+            periods={periods}
+            vacationStart={startDate}
+            vacationEnd={endDate}
+            interactive={!saving && !locked && displayStatus !== 'em_ausencia'}
+            onSelectDate={(isoDate) => {
+              const next = nextVacationRangeFromClick(isoDate, startDate, endDate)
+              setStartDate(next.startDate)
+              setEndDate(next.endDate)
+              setError(null)
+            }}
+          />
+          <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitVacation}>
+            <label>
+              Início das férias
+              <input
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+                required
+                disabled={saving || locked || displayStatus === 'em_ausencia'}
+              />
+            </label>
+            <label>
+              Fim das férias
+              <input
+                type="date"
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+                required
+                disabled={saving || locked || displayStatus === 'em_ausencia'}
+                min={startDate || undefined}
+              />
+            </label>
+            {error ? (
+              <p className="gestao-create-cell-error" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <div className="agenda-form-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={saving}
+                onClick={closeVacationForm}
+              >
+                Voltar
+              </button>
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={saving || locked || displayStatus === 'em_ausencia'}
+              >
+                {saving
+                  ? 'Salvando…'
+                  : editingExistingVacation
+                    ? 'Salvar alterações'
+                    : 'Salvar período de férias'}
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : view === 'ausencia' ? (
+        <section className="agenda-dedicated-screen" aria-label="Registrar ausência">
+          <p className="entrada-panel-intro">
+            Licença, atestado, treinamento e demais ausências também acionam o substituto.
+          </p>
+          <form className="gestao-create-cell-form agenda-form" onSubmit={handleSubmitAbsence}>
+            <label>
+              Tipo de ausência
+              <select
+                value={absenceType}
+                onChange={(event) => setAbsenceType(event.target.value as AbsenceType)}
+                disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+              >
+                {OTHER_ABSENCE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Justificativa
+              <textarea
+                value={justification}
+                onChange={(event) => setJustification(event.target.value)}
+                placeholder="Descreva o motivo da ausência"
+                rows={3}
+                required
+                disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+              />
+            </label>
+            <div className="full-width">
+              <span className="agenda-attachment-label">Documento ou foto</span>
+              <div className="file-picker">
+                <input
+                  id={attachmentInputId}
+                  className="file-picker-input"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  required={!attachment}
+                  disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (!file) {
+                      setAttachment('')
+                      setAttachmentName('')
+                      return
+                    }
+                    void readAttachmentAsDataUrl(file)
+                      .then((dataUrl) => {
+                        setAttachment(dataUrl)
+                        setAttachmentName(file.name)
+                        setAbsenceError(null)
+                      })
+                      .catch((error: unknown) => {
+                        setAttachment('')
+                        setAttachmentName('')
+                        event.target.value = ''
+                        setAbsenceError(
+                          error instanceof Error
+                            ? error.message
+                            : 'Não foi possível carregar o arquivo.',
+                        )
+                      })
+                  }}
+                />
+                <label htmlFor={attachmentInputId} className="file-picker-button">
+                  Anexar arquivo
+                </label>
+                <span className="file-picker-name">
+                  {attachmentName || 'Nenhum arquivo selecionado'}
+                </span>
+              </div>
+              {attachment.startsWith('data:image/') ? (
+                <span className="envelope-photo-preview">
+                  <img src={attachment} alt="Pré-visualização do anexo" />
+                </span>
+              ) : null}
+            </div>
+            <label>
+              Início
+              <input
+                type="date"
+                value={absenceStart}
+                onChange={(event) => setAbsenceStart(event.target.value)}
+                required
+                disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+              />
+            </label>
+            <label>
+              Fim
+              <input
+                type="date"
+                value={absenceEnd}
+                onChange={(event) => setAbsenceEnd(event.target.value)}
+                required
+                disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+                min={absenceStart || undefined}
+              />
+            </label>
+            {absenceError ? (
+              <p className="gestao-create-cell-error" role="alert">
+                {absenceError}
+              </p>
+            ) : null}
+            <div className="agenda-form-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={savingAbsence}
+                onClick={closeAbsenceForm}
+              >
+                Voltar
+              </button>
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={savingAbsence || locked || displayStatus === 'em_ausencia'}
+              >
+                {savingAbsence ? 'Salvando…' : 'Salvar ausência'}
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : (
+        <section className="agenda-dedicated-screen" aria-label="Histórico registrado">
+          <div className="agenda-history-panel agenda-history-panel-dedicated">
+            {periods.length ? (
+              <ul className="agenda-period-list">
+                {periods.map((period) => {
+                  const canEditVacation =
+                    !locked &&
+                    displayStatus !== 'em_ausencia' &&
+                    (period.absenceType ?? 'ferias') === 'ferias' &&
+                    period.endDate >= todayIso
+
+                  return (
+                    <li key={period.id} className="agenda-period-item">
+                      <div className="agenda-period-details">
+                        <span>
+                          <strong>{periodLabel(period)}</strong>
+                          {`: ${formatDateBr(period.startDate)} — ${formatDateBr(period.endDate)}`}
+                        </span>
+                        {period.justification ? (
+                          <span className="agenda-period-justification">
+                            Justificativa: {period.justification}
+                          </span>
+                        ) : null}
+                        {period.attachment ? (
+                          <a
+                            className="link-button"
+                            href={period.attachment}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {period.attachmentName || 'Ver anexo'}
+                          </a>
+                        ) : null}
+                      </div>
+                      {canEditVacation ? (
+                        <button
+                          type="button"
+                          className="secondary-button compact-button"
+                          onClick={() =>
+                            openVacationForm({
+                              startDate: period.startDate,
+                              endDate: period.endDate,
+                            })
+                          }
+                        >
+                          Editar
+                        </button>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="generated-password-empty">Nenhum período cadastrado ainda.</p>
+            )}
+          </div>
+          <div className="agenda-form-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => onViewChange('overview')}
+            >
+              Voltar
+            </button>
+          </div>
+        </section>
       )}
     </div>
   )
