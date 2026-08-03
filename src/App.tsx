@@ -4769,7 +4769,7 @@ function HomePanel({
               <h2>Código de materiais</h2>
               <p>
                 Consulte a estrutura de materiais homologados com seus códigos antigo
-                e novo, descrição e identificação técnica.
+                e novo, texto breve e identificação técnica.
               </p>
 
               <div className="area-actions right-aligned-actions">
@@ -4806,12 +4806,12 @@ function HomePanel({
                   />
                 </label>
                 <label>
-                  Descrição do material
+                  Texto breve do material
                   <input
                     type="text"
                     value={materialDescriptionFilter}
                     onChange={(event) => setMaterialDescriptionFilter(event.target.value)}
-                    placeholder="Filtrar por descrição"
+                    placeholder="Filtrar por texto breve"
                   />
                 </label>
                 <label>
@@ -4837,7 +4837,7 @@ function HomePanel({
                     <tr>
                       <th>Código do material</th>
                       <th>Código antigo</th>
-                      <th>Descrição do material</th>
+                      <th>Texto breve do material</th>
                       <th>Tipo do equipamento</th>
                     </tr>
                   </thead>
