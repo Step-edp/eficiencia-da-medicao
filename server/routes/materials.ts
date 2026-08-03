@@ -27,17 +27,47 @@ function mapMaterial(row: MaterialRow) {
   }
 }
 
-async function descriptionAlreadyExists(description: string, excludeId?: number) {
-  const result = await query<{ id: number }>(
-    `SELECT id
-     FROM materials
-     WHERE lower(btrim(description)) = lower(btrim($1))
-       AND ($2::int IS NULL OR id <> $2)
-     LIMIT 1`,
-    [description, excludeId ?? null],
+async function findMaterialConflict(
+  fields: { material: string; oldCode: string; description: string },
+  excludeId?: number,
+): Promise<'material' | 'oldCode' | 'description' | null> {
+  const result = await query<{
+    same_material: boolean
+    same_old_code: boolean
+    same_description: boolean
+  }>(
+    `SELECT
+       EXISTS (
+         SELECT 1 FROM materials
+         WHERE btrim(material) = btrim($1)
+           AND ($4::int IS NULL OR id <> $4)
+       ) AS same_material,
+       EXISTS (
+         SELECT 1 FROM materials
+         WHERE btrim(old_code) = btrim($2)
+           AND ($4::int IS NULL OR id <> $4)
+       ) AS same_old_code,
+       EXISTS (
+         SELECT 1 FROM materials
+         WHERE lower(btrim(description)) = lower(btrim($3))
+           AND ($4::int IS NULL OR id <> $4)
+       ) AS same_description`,
+    [fields.material, fields.oldCode, fields.description, excludeId ?? null],
   )
-  return Boolean(result.rows[0])
+
+  const row = result.rows[0]
+  if (!row) return null
+  if (row.same_material) return 'material'
+  if (row.same_old_code) return 'oldCode'
+  if (row.same_description) return 'description'
+  return null
 }
+
+const CONFLICT_MESSAGES = {
+  material: 'Já existe um material com esse código do material.',
+  oldCode: 'Já existe um material com esse código antigo.',
+  description: 'Já existe um material com essa descrição.',
+} as const
 
 function parseMaterialPayload(body: Record<string, string | undefined>) {
   const material = body.material?.trim() ?? ''
@@ -80,10 +110,9 @@ export async function createMaterial(req: Request, res: Response) {
     return
   }
 
-  if (await descriptionAlreadyExists(parsed.description)) {
-    res.status(409).json({
-      error: 'Já existe um material com essa descrição. A descrição deve ser única.',
-    })
+  const conflict = await findMaterialConflict(parsed)
+  if (conflict) {
+    res.status(409).json({ error: CONFLICT_MESSAGES[conflict] })
     return
   }
 
@@ -137,10 +166,9 @@ export async function updateMaterial(req: Request, res: Response) {
     return
   }
 
-  if (await descriptionAlreadyExists(parsed.description, id)) {
-    res.status(409).json({
-      error: 'Já existe um material com essa descrição. A descrição deve ser única.',
-    })
+  const conflict = await findMaterialConflict(parsed, id)
+  if (conflict) {
+    res.status(409).json({ error: CONFLICT_MESSAGES[conflict] })
     return
   }
 
