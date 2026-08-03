@@ -1,4 +1,5 @@
-import type { ChangeEvent } from 'react'
+import { useState, type ChangeEvent } from 'react'
+import { api, ApiError } from '../api'
 import type { RatmFormData } from './types'
 import { IRREGULARITY_CODES, ITEM_LOOKUP_OPTIONS, TEST_BENCH_OPTIONS } from './types'
 
@@ -18,6 +19,26 @@ type RadioGroupProps = {
   onChange: (value: string) => void
   onClear?: () => void
   vertical?: boolean
+}
+
+function formatScheduleDisplay(data: RatmFormData) {
+  if (!data.scheduleDate) return '—'
+  const [year, month, day] = data.scheduleDate.split('-')
+  if (!year || !month || !day) return '—'
+  return `${day}/${month}/${year} às ${data.scheduleHour}:${data.scheduleMinute}`
+}
+
+function schedulePartsFromIso(iso: string) {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) {
+    return { scheduleDate: '', scheduleHour: '08', scheduleMinute: '30' }
+  }
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return {
+    scheduleDate: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    scheduleHour: pad(date.getHours()),
+    scheduleMinute: pad(date.getMinutes()),
+  }
 }
 
 function ClearableRadioGroup({
@@ -97,6 +118,9 @@ function PhotoUpload({ label, value, onChange }: PhotoUploadProps) {
 }
 
 export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFormFieldsProps) {
+  const [searchingMeter, setSearchingMeter] = useState(false)
+  const [meterLookupError, setMeterLookupError] = useState('')
+
   const irregularityDescription =
     IRREGULARITY_CODES[data.irregularityCode] ?? 'Selecione um código válido.'
 
@@ -109,16 +133,45 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     onChange({ photos })
   }
 
-  const handleMeterSearch = () => {
+  const handleMeterSearch = async () => {
     const meter = data.meterSearch.trim()
     if (!meter) {
+      setMeterLookupError('Informe o número do medidor.')
       return
     }
 
-    onChange({
-      meter,
-      meterStatus: 'Aprovado',
-    })
+    setSearchingMeter(true)
+    setMeterLookupError('')
+
+    try {
+      const { schedules } = await api.listMeterSchedules(undefined, { meter })
+      const schedule = schedules[0]
+      if (!schedule) {
+        onChange({
+          meter: '',
+          meterStatus: '',
+          scheduleDate: '',
+          scheduleHour: '08',
+          scheduleMinute: '30',
+        })
+        setMeterLookupError(`Nenhum agendamento encontrado para o medidor ${meter}.`)
+        return
+      }
+
+      onChange({
+        meter: schedule.meter,
+        meterStatus: schedule.trailStep || 'Agendado',
+        ...schedulePartsFromIso(schedule.scheduledAt),
+      })
+    } catch (error) {
+      setMeterLookupError(
+        error instanceof ApiError
+          ? error.message
+          : 'Não foi possível buscar o agendamento do medidor.',
+      )
+    } finally {
+      setSearchingMeter(false)
+    }
   }
 
   return (
@@ -136,11 +189,25 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             <input
               type="text"
               value={data.meterSearch}
-              onChange={(event) => onChange({ meterSearch: event.target.value })}
+              onChange={(event) => {
+                onChange({ meterSearch: event.target.value })
+                setMeterLookupError('')
+              }}
               placeholder="Digite o Nº do medidor"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  void handleMeterSearch()
+                }
+              }}
             />
-            <button className="secondary-button search-button" type="button" onClick={handleMeterSearch}>
-              Buscar
+            <button
+              className="secondary-button search-button"
+              type="button"
+              onClick={() => void handleMeterSearch()}
+              disabled={searchingMeter}
+            >
+              {searchingMeter ? 'Buscando…' : 'Buscar'}
             </button>
           </div>
         </label>
@@ -149,51 +216,25 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           Digitalizar
         </button>
 
-        <label>
-          Medidor
-          <input
-            type="text"
-            value={data.meter}
-            onChange={(event) => onChange({ meter: event.target.value })}
-          />
-        </label>
+        {meterLookupError ? (
+          <p className="field-error full-width" role="alert">
+            {meterLookupError}
+          </p>
+        ) : null}
+
+        <div className="ratm-readonly-field">
+          <span className="ratm-readonly-label">Medidor</span>
+          <p className="ratm-readonly-value">{data.meter || '—'}</p>
+        </div>
 
         {data.meterStatus ? (
           <p className="ratm-status-line full-width">Status - {data.meterStatus}</p>
         ) : null}
 
-        <label className="full-width">
-          Data de agendamento
-          <div className="datetime-row">
-            <input
-              type="date"
-              value={data.scheduleDate}
-              onChange={(event) => onChange({ scheduleDate: event.target.value })}
-            />
-            <select
-              value={data.scheduleHour}
-              onChange={(event) => onChange({ scheduleHour: event.target.value })}
-              aria-label="Hora"
-            >
-              {Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0')).map((hour) => (
-                <option key={hour} value={hour}>
-                  {hour}
-                </option>
-              ))}
-            </select>
-            <select
-              value={data.scheduleMinute}
-              onChange={(event) => onChange({ scheduleMinute: event.target.value })}
-              aria-label="Minuto"
-            >
-              {Array.from({ length: 60 }, (_, minute) => String(minute).padStart(2, '0')).map((minute) => (
-                <option key={minute} value={minute}>
-                  :{minute}
-                </option>
-              ))}
-            </select>
-          </div>
-        </label>
+        <div className="ratm-readonly-field full-width">
+          <span className="ratm-readonly-label">Data de agendamento</span>
+          <p className="ratm-readonly-value">{formatScheduleDisplay(data)}</p>
+        </div>
 
         <label className="full-width">
           Cliente
