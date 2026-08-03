@@ -5779,7 +5779,7 @@ input[type='file'] {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
 }
 
@@ -5793,6 +5793,7 @@ input[type='file'] {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  margin-left: 4px;
 }
 
 .ratm-yesno-btn {
