@@ -5565,7 +5565,12 @@ input[type='file'] {
 }
 
 .toi-team-fieldset > .field-hint {
-  margin: 4px 0 20px;
+  margin: 6px 0 36px;
+  display: block;
+}
+
+.toi-team-fieldset > .partner-search {
+  margin-top: 4px;
 }
 
 .toi-team-grid {
