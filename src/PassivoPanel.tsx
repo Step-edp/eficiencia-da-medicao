@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react'
-import { api, ApiError, type PasswordRecord, type PasswordType } from '../api'
-import { LoginFeedback } from '../LoginFeedback'
+import { api, ApiError, type PasswordRecord, type PasswordType } from './api'
+import { LoginFeedback } from './LoginFeedback'
 
 type PassiveRowResult = {
   meter: string
