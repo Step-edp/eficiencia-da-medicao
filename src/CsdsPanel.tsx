@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type CsdRecord, type FieldTeamUserOption } from './api'
 import { CSD_CITY_OPTIONS } from './csdCities'
+import { LoginFeedback } from './LoginFeedback'
 
 function PencilIcon() {
   return (
@@ -347,9 +348,11 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
       </div>
 
       {feedback ? (
-        <div className={`login-feedback ${feedback.type}`} role="status">
-          {feedback.message}
-        </div>
+        <LoginFeedback
+          type={feedback.type}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
       ) : null}
 
       {!readOnly && showForm ? (
