@@ -120,7 +120,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-tecnico-ponto-focal',
     name: profileName('CSD', 'Técnico', 'Lavratura de TOI – Ponto Focal'),
     description:
-      'Consultar medidores na Equipe de campo provenientes de lavratura de TOI, com acesso a Suporte e Agenda.',
+      'Agendar e consultar medidores na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -132,7 +132,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-analista-ponto-focal',
     name: profileName('CSD', 'Analista', 'Lavratura de TOI – Ponto Focal'),
     description:
-      'Consultar medidores na Equipe de campo provenientes de lavratura de TOI, com acesso a Suporte e Agenda.',
+      'Agendar e consultar medidores na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',

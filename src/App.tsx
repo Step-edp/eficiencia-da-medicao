@@ -1800,9 +1800,9 @@ function HomePanel({
       return ['Agendar', 'Meus TOIs']
     }
 
-    // Ponto Focal: apenas Consultar.
+    // Ponto Focal: Agendar (com equipe do TOI) e Consultar.
     if (isLavraturaPontoFocalScope(activeFieldTeamSubtype)) {
-      return ['Consultar']
+      return ['Agendar', 'Consultar']
     }
 
     return ['Agendar', 'Consultar', 'Meus TOIs']
@@ -4317,7 +4317,10 @@ function HomePanel({
             ) : null}
             {selectedFieldTeamSection === 'Agendar' ? (
               <FieldTeamCadastrarForm
-                requireToiTeam={isLavraturaBackofficeScope(currentUser.workSubtype)}
+                requireToiTeam={
+                  isLavraturaBackofficeScope(activeFieldTeamSubtype) ||
+                  isLavraturaPontoFocalScope(activeFieldTeamSubtype)
+                }
               />
             ) : selectedFieldTeamSection === 'Meus TOIs' ? (
               <FieldTeamConsultarPanel mode="mine" />
