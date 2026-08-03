@@ -148,3 +148,14 @@ export function createEmptyRatmForm(): RatmFormData {
     photos: ['', '', '', ''],
   }
 }
+
+/** Garante campos novos em rascunhos/laudos antigos. */
+export function normalizeRatmForm(data?: Partial<RatmFormData> | null): RatmFormData {
+  return {
+    ...createEmptyRatmForm(),
+    ...(data ?? {}),
+    photos: Array.isArray(data?.photos) && data.photos.length
+      ? [...data.photos, '', '', '', ''].slice(0, 4)
+      : ['', '', '', ''],
+  }
+}

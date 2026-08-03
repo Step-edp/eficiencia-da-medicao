@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { RatmFormFields } from './RatmFormFields'
 import { clearRatmDraft, loadRatmDraft, saveRatmDraft } from './ratmDraft'
-import { createEmptyRatmForm, type RatmFormData } from './types'
+import { createEmptyRatmForm, normalizeRatmForm, type RatmFormData } from './types'
 
 type RatmWorkflowProps = {
   count: number
@@ -17,7 +17,7 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
   const [forms, setForms] = useState<RatmFormData[]>(() => {
     const draft = loadRatmDraft()
     if (draft?.count === count) {
-      return draft.forms
+      return draft.forms.map((form) => normalizeRatmForm(form))
     }
 
     return Array.from({ length: count }, () => createEmptyRatmForm())

@@ -1,4 +1,5 @@
 import type { RatmFormData } from './types'
+import { normalizeRatmForm } from './types'
 
 const DRAFT_STORAGE_KEY = 'eficiencia-ratm-draft'
 
@@ -21,7 +22,10 @@ export function loadRatmDraft(): RatmDraft | null {
       return null
     }
 
-    return parsed
+    return {
+      ...parsed,
+      forms: parsed.forms.map((form) => normalizeRatmForm(form)),
+    }
   } catch {
     return null
   }

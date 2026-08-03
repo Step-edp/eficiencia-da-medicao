@@ -8,7 +8,7 @@ import {
   buildWhatsAppSurveyUrl,
   isValidWhatsappNumber,
 } from './satisfactionSurvey'
-import { createEmptyRatmForm, type RatmFormData } from './types'
+import { normalizeRatmForm, type RatmFormData } from './types'
 
 type RatmLaudoViewerProps = {
   laudo: RatmLaudo
@@ -19,10 +19,7 @@ type RatmLaudoViewerProps = {
 }
 
 function laudoToFormData(laudo: RatmLaudo): RatmFormData {
-  return {
-    ...createEmptyRatmForm(),
-    ...(laudo.formData as RatmFormData),
-  }
+  return normalizeRatmForm(laudo.formData as Partial<RatmFormData>)
 }
 
 export function RatmLaudoViewer({
