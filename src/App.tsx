@@ -2521,13 +2521,16 @@ function HomePanel({
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean)
 
+    if (!normalizedMeterFilters.length) {
+      return []
+    }
+
     return passwordRecords.filter((record) => {
       const normalizedRecordMeter = record.meter.trim().toLowerCase()
-      const matchesMeter = normalizedMeterFilters.length
-        ? normalizedMeterFilters.length === 1
+      const matchesMeter =
+        normalizedMeterFilters.length === 1
           ? normalizedRecordMeter.includes(normalizedMeterFilters[0])
           : normalizedMeterFilters.includes(normalizedRecordMeter)
-        : true
       const matchesManufacturer =
         filterManufacturer === 'Todos' ? true : record.manufacturer === filterManufacturer
       const matchesMaterialType =
@@ -4104,7 +4107,9 @@ function HomePanel({
                     ))
                   ) : (
                     <p className="generated-password-empty">
-                      Nenhum registro encontrado com os filtros atuais.
+                      {filterMetersInput.trim()
+                        ? 'Nenhum registro encontrado com os filtros atuais.'
+                        : 'Digite um ou mais medidores para consultar as senhas.'}
                     </p>
                   )}
                 </div>
