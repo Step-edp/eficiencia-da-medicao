@@ -460,13 +460,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
         </label>
 
         <div className={`full-width partner-search${fieldErrors.partner ? ' has-field-error' : ''}`}>
-          <div className="partner-search-label-row">
-            <RequiredLabel>Parceiro</RequiredLabel>
-            <p id="field-team-partner-hint" className="field-hint partner-search-label-hint">
-              Pesquise pela matrícula do usuário cadastrado. Se o parceiro não estiver na
-              lista, solicite que ele faça o cadastro no portal.
-            </p>
-          </div>
+          <RequiredLabel>Parceiro</RequiredLabel>
           <div className="partner-search-control">
             <input
               type="text"
@@ -494,7 +488,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
               aria-autocomplete="list"
               aria-expanded={partnerMenuOpen}
               aria-controls="field-team-partner-list"
-              aria-describedby="field-team-partner-hint field-team-partner-error"
+              aria-describedby="field-team-partner-error"
               required
             />
             {partnerMenuOpen && !partnersLoading ? (
