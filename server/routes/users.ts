@@ -5,6 +5,7 @@ import { clearAuthCookie, requireAdmin, requireAuth, setAuthCookie, signSsoToken
 import { writeAuditLog } from '../audit.js'
 import {
   isAllowedEngineerSubtype,
+  isConsumoIrregularWorkArea,
   isCsdEngineerLavraturaScope,
   isEngineerAreaSubtype,
   isEngineerProcessSubtype,
@@ -13,6 +14,7 @@ import {
   normalizeEngineerSubtype,
   portalAreasFromProcesses,
   portalsCoveredByCellResponsibility,
+  consumoIrregularAccessProcesses,
 } from '../engineer-access.js'
 import { listCatalogValues } from './catalog-options.js'
 import { isMailConfigured, sendRegistrationRejectedEmail } from '../mail.js'
@@ -35,6 +37,9 @@ function accessAreasForTechnician(workArea: string, subtype: string): string[] {
   }
   if (workArea === 'CSD') {
     return ['Equipe de campo']
+  }
+  if (workArea === 'Consumo Irregular') {
+    return ['Laboratório de Medição']
   }
   return []
 }
@@ -563,7 +568,11 @@ export async function approveUser(req: Request, res: Response) {
   let storedSubtype = ''
   let storedAccessAreas: string[] = []
   let storedAccessProcesses: string[] = []
-  if (jobTitle === 'Engenheiro' && isCsdEngineerLavraturaScope(normalizedSubtype)) {
+  if (isConsumoIrregularWorkArea(workArea)) {
+    storedSubtype = ''
+    storedAccessAreas = ['Laboratório de Medição']
+    storedAccessProcesses = consumoIrregularAccessProcesses()
+  } else if (jobTitle === 'Engenheiro' && isCsdEngineerLavraturaScope(normalizedSubtype)) {
     storedSubtype = normalizedSubtype
     storedAccessAreas = accessAreasForTechnician(workArea, normalizedSubtype)
   } else if (jobTitle === 'Engenheiro') {
@@ -967,7 +976,11 @@ export async function updateUser(req: Request, res: Response) {
   let storedAccessAreas: string[] = []
   let storedAccessProcesses: string[] = []
 
-  if (
+  if (isConsumoIrregularWorkArea(normalizedWorkArea)) {
+    storedSubtype = ''
+    storedAccessAreas = ['Laboratório de Medição']
+    storedAccessProcesses = consumoIrregularAccessProcesses()
+  } else if (
     normalizedJobTitle === 'Engenheiro' &&
     isCsdEngineerLavraturaScope(normalizedSubtype)
   ) {

@@ -1,6 +1,7 @@
 import type { UserRole } from './api'
 import {
   BUSINESS_AREA_TO_HOME_PORTALS,
+  isConsumoIrregularWorkArea,
   isEngineerAreaSubtype,
   isEngineerSubcellSubtype,
 } from './registrationOptions'
@@ -375,7 +376,45 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
       jobTitle: 'Estagiário',
     },
   },
+  {
+    id: 'consumo-irregular',
+    name: profileName('Consumo Irregular', 'Operacional'),
+    description:
+      'Acesso a Reagendar, Consultar Medidor e Consultar RATM no Laboratório de Medição.',
+    areas: ['Laboratório de Medição'],
+    match: {
+      workArea: 'Consumo Irregular',
+      jobTitle: 'Técnico',
+    },
+  },
+  {
+    id: 'consumo-irregular-analista',
+    name: profileName('Consumo Irregular', 'Analista'),
+    description:
+      'Acesso a Reagendar, Consultar Medidor e Consultar RATM no Laboratório de Medição.',
+    areas: ['Laboratório de Medição'],
+    match: {
+      workArea: 'Consumo Irregular',
+      jobTitle: 'Analista',
+    },
+  },
+  {
+    id: 'consumo-irregular-engenheiro',
+    name: profileName('Consumo Irregular', 'Engenheiro'),
+    description:
+      'Acesso a Reagendar, Consultar Medidor e Consultar RATM no Laboratório de Medição.',
+    areas: ['Laboratório de Medição'],
+    match: {
+      workArea: 'Consumo Irregular',
+      jobTitle: 'Engenheiro',
+    },
+  },
 ]
+
+/** Área Consumo Irregular: Reagendar, Consultar Medidor e Consultar RATM. */
+export function isConsumoIrregular(user: { workArea?: string | null }) {
+  return isConsumoIrregularWorkArea(user.workArea)
+}
 
 /** Estagiário da Medição: Agenda + Suporte + lista de processos atribuídos. */
 export function isMedicaoEstagiario(user: {
@@ -554,6 +593,11 @@ export function getAccessiblePortals(user: {
     !portals.includes('Equipe de campo')
   ) {
     portals = [...portals, 'Equipe de campo']
+  }
+
+  // Consumo Irregular: Laboratório de Medição (Reagendar, Consultar Medidor, Consultar RATM).
+  if (isConsumoIrregular(user) && !portals.includes('Laboratório de Medição')) {
+    portals = [...portals, 'Laboratório de Medição']
   }
 
   if (skipsVacationAgenda(user.workSubtype)) {

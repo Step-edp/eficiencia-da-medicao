@@ -23,10 +23,12 @@ import {
   isLavraturaPontoFocalScope,
   isMedicaoEstagiario,
   isLabMedicaoViewOnly,
+  isConsumoIrregular,
   skipsVacationAgenda,
   listUsersForCadastroProfile,
   PORTAL_AREAS,
 } from './profilesAccess'
+import { CONSUMO_IRREGULAR_LAB_PROCESSES } from './registrationOptions'
 import { ConsultarRatmPanel } from './ratm/ConsultarRatmPanel'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
 import { SatisfactionSurveyPage } from './ratm/SatisfactionSurveyPage'
@@ -685,7 +687,9 @@ function ItemIcon({ title }: { title: string }) {
     Ensaiar: 'flask',
     Agendar: 'calendar',
     'Consultar RATM': 'search',
+    'Consultar Medidor': 'search',
     'Calendário de ensaios': 'calendar',
+    Reagendar: 'repeat',
     'Entrada de medidores': 'inbox',
     'Criar Modelo': 'cube',
     'Aprovação de RATM': 'check',
@@ -704,7 +708,6 @@ function ItemIcon({ title }: { title: string }) {
     Suporte: 'headset',
     Treinamentos: 'book',
     Softwares: 'code',
-    Reagendar: 'repeat',
     'Faturamento de clientes livres': 'chart',
     'Consolidação da Carga': 'layer',
     'Informações iniciais': 'inbox',
@@ -1642,6 +1645,7 @@ function HomePanel({
   const labOtherSections = [
     'Dashboard',
     'Consultar RATM',
+    'Consultar Medidor',
     'Calendário de ensaios',
     'Reagendar',
     'Criar Modelo',
@@ -1727,6 +1731,23 @@ function HomePanel({
     resolvedPreviewProfileId !== ADMIN_PREVIEW_PROFILE_ID
       ? getCadastroProfile(resolvedPreviewProfileId) ?? null
       : null
+
+  const showConsumoIrregularLab =
+    (!isAdmin && isConsumoIrregular(currentUser)) ||
+    (previewUser != null && isConsumoIrregular(previewUser)) ||
+    previewProfile?.id === 'consumo-irregular' ||
+    previewProfile?.id === 'consumo-irregular-analista' ||
+    previewProfile?.id === 'consumo-irregular-engenheiro'
+
+  const visibleLabHighlightedSections = showConsumoIrregularLab
+    ? []
+    : labHighlightedSections
+  const visibleLabOtherSections = showConsumoIrregularLab
+    ? labOtherSections.filter((section) =>
+        (CONSUMO_IRREGULAR_LAB_PROCESSES as readonly string[]).includes(section),
+      )
+    : labOtherSections
+  const showLabTrail = !showConsumoIrregularLab
 
   const activeFieldTeamSubtype =
     previewUser?.workSubtype ??
@@ -2918,6 +2939,7 @@ function HomePanel({
       currentUser.workArea?.trim() === 'CSD' &&
       isFieldTeamCsdScope(currentUser.workSubtype)
     ) &&
+    !isConsumoIrregular(currentUser) &&
     currentUser.vacationStatus === 'ok'
 
   // Link fixo (#/compras/pedidos-homologacao) e perfil Compras puro abrem o formulário.
@@ -4252,7 +4274,9 @@ function HomePanel({
                 dados do laboratório, sem executar cadastros, ensaios ou aprovações.
               </div>
             ) : null}
-            {LAB_TRAIL_KEYS.has(selectedLabMeasurementSection) && !inventarioMonthTitle ? (
+            {LAB_TRAIL_KEYS.has(selectedLabMeasurementSection) &&
+            !inventarioMonthTitle &&
+            showLabTrail ? (
               <LabMeasurementTrail
                 activeStep={selectedLabMeasurementSection}
                 onSelect={setSelectedLabMeasurementSection}
@@ -4277,6 +4301,8 @@ function HomePanel({
               <GalleryPanel />
             ) : selectedLabMeasurementSection === 'Consultar RATM' ? (
               <ConsultarRatmPanel />
+            ) : selectedLabMeasurementSection === 'Consultar Medidor' ? (
+              <FieldTeamConsultarPanel />
             ) : selectedLabMeasurementSection === 'Criar Modelo' ? (
               <CriarModeloPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Apresentação' ? (
@@ -4749,17 +4775,19 @@ function HomePanel({
           ) : null}
           {selectedArea.title === 'Laboratório de Medição' ? (
             <>
-              <LabMeasurementTrail
-                activeStep={null}
-                onSelect={setSelectedLabMeasurementSection}
-                renderIcon={(title) => <ItemIcon title={title} />}
-              />
-              {labHighlightedSections.length > 0 ? (
+              {showLabTrail ? (
+                <LabMeasurementTrail
+                  activeStep={null}
+                  onSelect={setSelectedLabMeasurementSection}
+                  renderIcon={(title) => <ItemIcon title={title} />}
+                />
+              ) : null}
+              {visibleLabHighlightedSections.length > 0 ? (
                 <div
                   className="measurement-sections lab-highlighted-sections"
                   aria-label="Processos em evidência do laboratório"
                 >
-                  {labHighlightedSections.map((section) => (
+                  {visibleLabHighlightedSections.map((section) => (
                     <button
                       key={section}
                       className="measurement-item measurement-item-highlighted"
@@ -4774,14 +4802,20 @@ function HomePanel({
                   ))}
                 </div>
               ) : null}
-              {labOtherSections.length > 0 ? (
+              {visibleLabOtherSections.length > 0 ? (
                 <>
-                  <h3 className="lab-other-heading">Demais processos</h3>
+                  {showLabTrail ? (
+                    <h3 className="lab-other-heading">Demais processos</h3>
+                  ) : null}
                   <div
                     className="measurement-sections lab-other-sections"
-                    aria-label="Demais processos do laboratório"
+                    aria-label={
+                      showLabTrail
+                        ? 'Demais processos do laboratório'
+                        : 'Processos do laboratório'
+                    }
                   >
-                  {labOtherSections.map((section) => (
+                  {visibleLabOtherSections.map((section) => (
                     <button
                       key={section}
                       className="measurement-item"

@@ -149,9 +149,26 @@ export const BUSINESS_AREA_TO_HOME_PORTALS: Record<string, readonly EngineerHome
   ],
   Telemedição: ['Telemedição'],
   CSD: ['Equipe de campo'],
-  'Consumo Irregular': ['Equipe de campo'],
+  'Consumo Irregular': ['Laboratório de Medição'],
   'Grandes Clientes': ['Medição'],
   Qualidade: ['Laboratório de Medição'],
+}
+
+/** Processos liberados para a área Consumo Irregular. */
+export const CONSUMO_IRREGULAR_LAB_PROCESSES = [
+  'Reagendar',
+  'Consultar Medidor',
+  'Consultar RATM',
+] as const
+
+export function consumoIrregularAccessProcesses(): string[] {
+  return CONSUMO_IRREGULAR_LAB_PROCESSES.map((process) =>
+    encodeAccessProcess('Laboratório de Medição', process),
+  )
+}
+
+export function isConsumoIrregularWorkArea(value: string | null | undefined) {
+  return (value?.trim() ?? '') === 'Consumo Irregular'
 }
 
 export type AccessProcess = {
