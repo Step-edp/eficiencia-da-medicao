@@ -348,46 +348,26 @@ export async function createMeterSchedule(req: Request, res: Response) {
     normalized.clientPresent = 'nao'
   }
 
-  if (!normalized.partnerUserId) {
-    res.status(400).json({
-      error:
-        'Selecione o parceiro. Se ele não estiver na lista, solicite que faça o cadastro no portal.',
-    })
-    return
-  }
-
-  const partnerResult = await query<{
-    id: string
-    name: string
-    registration: string
-  }>(
-    `SELECT id, name, registration
-     FROM users
-     WHERE id = $1
-       AND approval_status = 'approved'
-       AND role <> 'admin'`,
-    [normalized.partnerUserId],
-  )
-  const partner = partnerResult.rows[0]
-  if (!partner) {
-    res.status(400).json({
-      error:
-        'Parceiro inválido. Se ele não estiver na lista, solicite que faça o cadastro no portal.',
-    })
-    return
-  }
-  if (req.user?.id && partner.id === req.user.id) {
-    res.status(400).json({ error: 'Selecione um parceiro diferente de você.' })
-    return
-  }
-
   let requiresToiTeam = false
   if (req.user?.id) {
     const userResult = await query<{ work_subtype: string }>(
       `SELECT work_subtype FROM users WHERE id = $1`,
       [req.user.id],
     )
-    requiresToiTeam = (userResult.rows[0]?.work_subtype?.trim() ?? '') === BACKOFFICE_SCOPE
+    const subtype = userResult.rows[0]?.work_subtype?.trim() ?? ''
+    requiresToiTeam = subtype === BACKOFFICE_SCOPE || subtype === PONTO_FOCAL_SCOPE
+  }
+
+  const hasToiTeamPayload = Boolean(
+    normalized.toiCollaborator1Name &&
+      normalized.toiCollaborator1Registration &&
+      normalized.toiCollaborator2Name &&
+      normalized.toiCollaborator2Registration,
+  )
+  // Aceita modo equipe TOI também quando o front envia os colaboradores
+  // (ex.: admin em pré-visualização de Ponto Focal / Backoffice).
+  if (hasToiTeamPayload) {
+    requiresToiTeam = true
   }
 
   if (requiresToiTeam) {
@@ -399,7 +379,16 @@ export async function createMeterSchedule(req: Request, res: Response) {
     ) {
       res.status(400).json({
         error:
-          'Informe nome e matrícula dos colaboradores 1 e 2 da equipe que lavrou o TOI.',
+          'Selecione os colaboradores 1 e 2 da equipe que lavrou o TOI na lista de usuários cadastrados.',
+      })
+      return
+    }
+    if (
+      normalized.toiCollaborator1Registration.toUpperCase() ===
+      normalized.toiCollaborator2Registration.toUpperCase()
+    ) {
+      res.status(400).json({
+        error: 'Os colaboradores 1 e 2 devem ser usuários diferentes.',
       })
       return
     }
@@ -407,6 +396,80 @@ export async function createMeterSchedule(req: Request, res: Response) {
       res.status(400).json({
         error: 'Informe o motivo pelo qual está agendando pela equipe.',
       })
+      return
+    }
+
+    const toiUsers = await query<{
+      id: string
+      name: string
+      registration: string
+    }>(
+      `SELECT id, name, registration
+       FROM users
+       WHERE approval_status = 'approved'
+         AND role <> 'admin'
+         AND UPPER(TRIM(registration)) = ANY($1::text[])`,
+      [
+        [
+          normalized.toiCollaborator1Registration.toUpperCase(),
+          normalized.toiCollaborator2Registration.toUpperCase(),
+        ],
+      ],
+    )
+    const byRegistration = new Map(
+      toiUsers.rows.map((row) => [row.registration.trim().toUpperCase(), row]),
+    )
+    const collaborator1 = byRegistration.get(
+      normalized.toiCollaborator1Registration.toUpperCase(),
+    )
+    const collaborator2 = byRegistration.get(
+      normalized.toiCollaborator2Registration.toUpperCase(),
+    )
+    if (!collaborator1 || !collaborator2) {
+      res.status(400).json({
+        error:
+          'Colaboradores inválidos. Selecione usuários cadastrados na lista. Se alguém não estiver, solicite o cadastro no portal.',
+      })
+      return
+    }
+    normalized.toiCollaborator1Name = collaborator1.name
+    normalized.toiCollaborator1Registration = collaborator1.registration
+    normalized.toiCollaborator2Name = collaborator2.name
+    normalized.toiCollaborator2Registration = collaborator2.registration
+  }
+
+  let partner: { id: string; name: string; registration: string } | null = null
+  if (!requiresToiTeam) {
+    if (!normalized.partnerUserId) {
+      res.status(400).json({
+        error:
+          'Selecione o parceiro. Se ele não estiver na lista, solicite que faça o cadastro no portal.',
+      })
+      return
+    }
+
+    const partnerResult = await query<{
+      id: string
+      name: string
+      registration: string
+    }>(
+      `SELECT id, name, registration
+       FROM users
+       WHERE id = $1
+         AND approval_status = 'approved'
+         AND role <> 'admin'`,
+      [normalized.partnerUserId],
+    )
+    partner = partnerResult.rows[0] ?? null
+    if (!partner) {
+      res.status(400).json({
+        error:
+          'Parceiro inválido. Se ele não estiver na lista, solicite que faça o cadastro no portal.',
+      })
+      return
+    }
+    if (req.user?.id && partner.id === req.user.id) {
+      res.status(400).json({ error: 'Selecione um parceiro diferente de você.' })
       return
     }
   }
@@ -466,9 +529,9 @@ export async function createMeterSchedule(req: Request, res: Response) {
       normalized.toiCollaborator2Name,
       normalized.toiCollaborator2Registration,
       normalized.toiTeamReason,
-      partner.id,
-      partner.name,
-      partner.registration,
+      partner?.id ?? null,
+      partner?.name ?? '',
+      partner?.registration ?? '',
       normalized.envelopePhoto,
       nextSlot.toISOString(),
       ENTRADA_TRAIL_STEP,

@@ -1048,7 +1048,7 @@ export const api = {
     csd: string
     clientPresent: 'sim' | 'nao'
     schedulingNotes?: string
-    partnerUserId: string
+    partnerUserId?: string
     envelopePhoto: string
     toiCollaborator1Name?: string
     toiCollaborator1Registration?: string
