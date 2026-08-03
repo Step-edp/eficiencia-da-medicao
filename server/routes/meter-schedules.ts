@@ -12,6 +12,7 @@ import {
   formatDeliveryDeadlineLabel,
   isMeterDeliveryLate,
   lastFridayBeforeAssay,
+  toCalendarDate,
 } from '../delivery-deadline.js'
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
@@ -768,5 +769,215 @@ export async function listMeterScheduleHistory(req: Request, res: Response) {
       }
     }),
     total: result.rowCount ?? 0,
+  })
+}
+
+function calendarDaysBetween(from: Date, to: Date): number {
+  const start = toCalendarDate(from).getTime()
+  const end = toCalendarDate(to).getTime()
+  return Math.max(0, Math.round((end - start) / (24 * 60 * 60 * 1000)))
+}
+
+function monthKeyFromDate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+function monthLabelFromKey(key: string): string {
+  const [year, month] = key.split('-')
+  const date = new Date(Number(year), Number(month) - 1, 1)
+  const label = date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+  return label.charAt(0).toUpperCase() + label.slice(1)
+}
+
+/** Dashboard de atraso de entrega para Ponto Focal (CSDs sob responsabilidade). */
+export async function getPontoFocalDashboard(req: Request, res: Response) {
+  const forUserId =
+    typeof req.query.forUserId === 'string' && req.query.forUserId.trim()
+      ? req.query.forUserId.trim()
+      : ''
+  const scopeUserId =
+    req.user?.role === 'admin' && forUserId ? forUserId : (req.user?.id ?? '')
+
+  if (!scopeUserId) {
+    res.status(401).json({ error: 'Autenticação necessária.' })
+    return
+  }
+
+  const csdNames = await resolvePontoFocalCsdNames(scopeUserId)
+  if (csdNames === null) {
+    res.status(403).json({
+      error: 'Dashboard disponível apenas para o perfil Ponto Focal.',
+    })
+    return
+  }
+
+  if (csdNames.length === 0) {
+    res.json({
+      csdNames: [],
+      current: {
+        total: 0,
+        late: 0,
+        onTimePending: 0,
+        deliveredOnTime: 0,
+        deliveredLate: 0,
+        delayedOverall: 0,
+        onTimeOverall: 0,
+        lateProportion: 0,
+        onTimeProportion: 0,
+        delayedOverallProportion: 0,
+        onTimeOverallProportion: 0,
+      },
+      delay: {
+        maxDays: 0,
+        averageDays: 0,
+        delayedCount: 0,
+      },
+      monthly: [],
+    })
+    return
+  }
+
+  const result = await query<{
+    id: string
+    meter: string
+    scheduled_at: Date
+    trail_step: string
+    created_at: Date
+    entry_at: Date | null
+  }>(
+    `SELECT ms.id, ms.meter, ms.scheduled_at, ms.trail_step, ms.created_at,
+            d.created_at AS entry_at
+     FROM meter_schedules ms
+     LEFT JOIN LATERAL (
+       SELECT created_at
+       FROM demm_documents
+       WHERE meter_schedule_id = ms.id OR meter = ms.meter
+       ORDER BY created_at ASC
+       LIMIT 1
+     ) d ON true
+     WHERE UPPER(TRIM(ms.csd)) = ANY($1::text[])
+     ORDER BY ms.scheduled_at ASC`,
+    [csdNames.map((name) => name.toUpperCase())],
+  )
+
+  const now = new Date()
+  let late = 0
+  let onTimePending = 0
+  let deliveredOnTime = 0
+  let deliveredLate = 0
+  const delayDaysSamples: number[] = []
+  const monthlyMap = new Map<
+    string,
+    { late: number; deliveredOnTime: number; onTimePending: number; deliveredLate: number }
+  >()
+
+  const bumpMonth = (
+    key: string,
+    field: 'late' | 'deliveredOnTime' | 'onTimePending' | 'deliveredLate',
+  ) => {
+    const current = monthlyMap.get(key) ?? {
+      late: 0,
+      deliveredOnTime: 0,
+      onTimePending: 0,
+      deliveredLate: 0,
+    }
+    current[field] += 1
+    monthlyMap.set(key, current)
+  }
+
+  for (const row of result.rows) {
+    const deadline = lastFridayBeforeAssay(row.scheduled_at)
+    const monthKey = monthKeyFromDate(deadline)
+    const hasEntry =
+      Boolean(row.entry_at) || row.trail_step.trim() !== ENTRADA_TRAIL_STEP
+
+    if (hasEntry) {
+      if (row.entry_at) {
+        const daysLate = calendarDaysBetween(deadline, row.entry_at)
+        if (daysLate > 0) {
+          deliveredLate += 1
+          delayDaysSamples.push(daysLate)
+          bumpMonth(monthKey, 'deliveredLate')
+        } else {
+          deliveredOnTime += 1
+          bumpMonth(monthKey, 'deliveredOnTime')
+        }
+      } else {
+        deliveredOnTime += 1
+        bumpMonth(monthKey, 'deliveredOnTime')
+      }
+      continue
+    }
+
+    const currentlyLate = isMeterDeliveryLate({
+      scheduledAt: row.scheduled_at,
+      trailStep: row.trail_step,
+      entradaTrailStep: ENTRADA_TRAIL_STEP,
+      now,
+    })
+    if (currentlyLate) {
+      late += 1
+      const daysLate = calendarDaysBetween(deadline, now)
+      delayDaysSamples.push(daysLate)
+      bumpMonth(monthKey, 'late')
+    } else {
+      onTimePending += 1
+      bumpMonth(monthKey, 'onTimePending')
+    }
+  }
+
+  const total = result.rows.length
+  const delayedOverall = late + deliveredLate
+  const onTimeOverall = deliveredOnTime + onTimePending
+  const lateProportion = total > 0 ? late / total : 0
+  const onTimeProportion = total > 0 ? deliveredOnTime / total : 0
+  const delayedOverallProportion = total > 0 ? delayedOverall / total : 0
+  const onTimeOverallProportion = total > 0 ? onTimeOverall / total : 0
+  const maxDays = delayDaysSamples.length ? Math.max(...delayDaysSamples) : 0
+  const averageDays = delayDaysSamples.length
+    ? delayDaysSamples.reduce((sum, value) => sum + value, 0) / delayDaysSamples.length
+    : 0
+
+  const monthly = [...monthlyMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-12)
+    .map(([key, values]) => {
+      const monthLate = values.late + values.deliveredLate
+      const monthOnTime = values.deliveredOnTime + values.onTimePending
+      const monthTotal = monthLate + monthOnTime
+      return {
+        monthKey: key,
+        label: monthLabelFromKey(key),
+        late: monthLate,
+        onTime: monthOnTime,
+        deliveredOnTime: values.deliveredOnTime,
+        onTimePending: values.onTimePending,
+        total: monthTotal,
+        lateProportion: monthTotal > 0 ? monthLate / monthTotal : 0,
+        onTimeProportion: monthTotal > 0 ? monthOnTime / monthTotal : 0,
+      }
+    })
+
+  res.json({
+    csdNames,
+    current: {
+      total,
+      late,
+      onTimePending,
+      deliveredOnTime,
+      deliveredLate,
+      delayedOverall,
+      onTimeOverall,
+      lateProportion,
+      onTimeProportion,
+      delayedOverallProportion,
+      onTimeOverallProportion,
+    },
+    delay: {
+      maxDays,
+      averageDays: Math.round(averageDays * 10) / 10,
+      delayedCount: delayDaysSamples.length,
+    },
+    monthly,
   })
 }

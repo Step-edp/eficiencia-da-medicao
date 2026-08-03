@@ -4,6 +4,7 @@ import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
 import { FieldTeamConsultarPanel } from './FieldTeamConsultarPanel'
+import { PontoFocalDashboard } from './PontoFocalDashboard'
 import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
@@ -1805,9 +1806,9 @@ function HomePanel({
       return ['Agendar', 'Meus TOIs']
     }
 
-    // Ponto Focal: Agendar (com equipe do TOI) e Consultar.
+    // Ponto Focal: Agendar, Consultar e Dashboard de atrasos.
     if (isLavraturaPontoFocalScope(activeFieldTeamSubtype)) {
-      return ['Agendar', 'Consultar']
+      return ['Agendar', 'Consultar', 'Dashboard']
     }
 
     return ['Agendar', 'Consultar', 'Meus TOIs']
@@ -4434,6 +4435,14 @@ function HomePanel({
               />
             ) : selectedFieldTeamSection === 'Meus TOIs' ? (
               <FieldTeamConsultarPanel mode="mine" />
+            ) : selectedFieldTeamSection === 'Dashboard' ? (
+              <PontoFocalDashboard
+                forUserId={
+                  isAdmin && previewUser && isLavraturaPontoFocalScope(previewUser.workSubtype)
+                    ? previewUser.id
+                    : undefined
+                }
+              />
             ) : (
               <FieldTeamConsultarPanel
                 scopeUserId={
@@ -5865,7 +5874,7 @@ function getAreaCardClassName(title: string) {
     return 'area-card-equipe-campo'
   }
 
-  if (title === 'Consultar' || title === 'Meus TOIs') {
+  if (title === 'Consultar' || title === 'Meus TOIs' || title === 'Dashboard') {
     return 'area-card-equipe-campo'
   }
 

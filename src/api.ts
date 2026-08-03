@@ -367,6 +367,39 @@ export type MeterScheduleHistoryRecord = {
   metadata: Record<string, unknown>
 }
 
+export type PontoFocalDashboardData = {
+  csdNames: string[]
+  current: {
+    total: number
+    late: number
+    onTimePending: number
+    deliveredOnTime: number
+    deliveredLate: number
+    delayedOverall: number
+    onTimeOverall: number
+    lateProportion: number
+    onTimeProportion: number
+    delayedOverallProportion: number
+    onTimeOverallProportion: number
+  }
+  delay: {
+    maxDays: number
+    averageDays: number
+    delayedCount: number
+  }
+  monthly: Array<{
+    monthKey: string
+    label: string
+    late: number
+    onTime: number
+    deliveredOnTime: number
+    onTimePending: number
+    total: number
+    lateProportion: number
+    onTimeProportion: number
+  }>
+}
+
 export type MeterScheduleRecord = {
   id: string
   meter: string
@@ -1024,6 +1057,14 @@ export const api = {
       history: MeterScheduleHistoryRecord[]
       total: number
     }>(`/api/meter-schedules/history?${search.toString()}`)
+  },
+  getPontoFocalDashboard: (forUserId?: string) => {
+    const search = new URLSearchParams()
+    if (forUserId) search.set('forUserId', forUserId)
+    const queryString = search.toString()
+    return request<PontoFocalDashboardData>(
+      `/api/meter-schedules/ponto-focal-dashboard${queryString ? `?${queryString}` : ''}`,
+    )
   },
   rescheduleMeterSchedule: (id: string, payload: { scheduledAt: string; justification: string }) =>
     request<{ schedule: MeterScheduleRecord }>(`/api/meter-schedules/${id}/reschedule`, {

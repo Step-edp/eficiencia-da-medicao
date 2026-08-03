@@ -48,6 +48,7 @@ import { rejectLabMedicaoViewOnlyMutations } from './lab-view-only.js'
 import {
   countMeterSchedules,
   createMeterSchedule,
+  getPontoFocalDashboard,
   listFieldPartners,
   listToiCollaborators,
   listMeterScheduleHistory,
@@ -272,6 +273,7 @@ async function start() {
   app.get('/api/meter-schedules/partners', requireAuth, listFieldPartners)
   app.get('/api/meter-schedules/toi-collaborators', requireAuth, listToiCollaborators)
   app.get('/api/meter-schedules/history', requireAuth, listMeterScheduleHistory)
+  app.get('/api/meter-schedules/ponto-focal-dashboard', requireAuth, getPontoFocalDashboard)
   app.post('/api/meter-schedules', requireAuth, createMeterSchedule)
   app.post(
     '/api/meter-schedules/:id/reschedule',
