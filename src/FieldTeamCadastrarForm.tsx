@@ -376,7 +376,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
           <div className="partner-search-label-row">
             <RequiredLabel>Número do Invólucro</RequiredLabel>
             <p id="field-team-envelope-hint" className="field-hint partner-search-label-hint">
-              A foto deve aparecer nítidamente o número do invólucro e o medidor dentro dele.
+              A foto deve aparecer nítidamente o número do invólucro e o medidor dentro dele. E o invólucro lacrado.
             </p>
           </div>
           <div className="file-picker">
