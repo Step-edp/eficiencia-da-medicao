@@ -1604,6 +1604,10 @@ function HomePanel({
     type: 'success' | 'error'
     message: string
   } | null>(null)
+  const [materialFeedback, setMaterialFeedback] = useState<{
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [userPendingDelete, setUserPendingDelete] = useState<AppUser | null>(null)
   const isAdmin = currentUser.role === 'admin'
@@ -2877,7 +2881,7 @@ function HomePanel({
       prefix: row.prefix,
       equipmentType: row.equipmentType,
     })
-    setPasswordFeedback(null)
+    setMaterialFeedback(null)
     setSelectedCodeMaterialsAction('edit')
   }
 
@@ -2888,7 +2892,7 @@ function HomePanel({
       !materialForm.description.trim() ||
       !materialForm.equipmentType.trim()
     ) {
-      setPasswordFeedback({
+      setMaterialFeedback({
         type: 'error',
         message: 'Preencha todos os campos do material antes de salvar.',
       })
@@ -2896,7 +2900,7 @@ function HomePanel({
     }
 
     if (!/^\d{8}$/.test(materialForm.material.trim())) {
-      setPasswordFeedback({
+      setMaterialFeedback({
         type: 'error',
         message: 'O código do material deve ter exatamente 8 números.',
       })
@@ -2919,14 +2923,14 @@ function HomePanel({
         setMaterialRows((prev) =>
           prev.map((row) => (row.id === material.id ? material : row)),
         )
-        setPasswordFeedback({
+        setMaterialFeedback({
           type: 'success',
           message: `Material ${material.material} atualizado com sucesso.`,
         })
       } else {
         const { material } = await api.createMaterial(payload)
         setMaterialRows((prev) => [material, ...prev])
-        setPasswordFeedback({
+        setMaterialFeedback({
           type: 'success',
           message: `Material ${material.material} cadastrado com sucesso.`,
         })
@@ -2934,7 +2938,7 @@ function HomePanel({
       resetMaterialForm()
       setSelectedCodeMaterialsAction(null)
     } catch (error) {
-      setPasswordFeedback({
+      setMaterialFeedback({
         type: 'error',
         message:
           error instanceof ApiError
@@ -4721,11 +4725,11 @@ function HomePanel({
                     : 'Informe os dados do material para adicionar um novo registro na tabela de código de materiais. Código do material, código antigo e descrição devem ser únicos.'}
                 </p>
 
-                {passwordFeedback ? (
+                {materialFeedback ? (
                   <LoginFeedback
-                    type={passwordFeedback.type}
-                    message={passwordFeedback.message}
-                    onClose={() => setPasswordFeedback(null)}
+                    type={materialFeedback.type}
+                    message={materialFeedback.message}
+                    onClose={() => setMaterialFeedback(null)}
                   />
                 ) : null}
 
@@ -4821,13 +4825,21 @@ function HomePanel({
                 e novo, texto breve e identificação técnica.
               </p>
 
+              {materialFeedback ? (
+                <LoginFeedback
+                  type={materialFeedback.type}
+                  message={materialFeedback.message}
+                  onClose={() => setMaterialFeedback(null)}
+                />
+              ) : null}
+
               <div className="area-actions right-aligned-actions">
                 <button
                   className="primary-button"
                   type="button"
                   onClick={() => {
                     resetMaterialForm()
-                    setPasswordFeedback(null)
+                    setMaterialFeedback(null)
                     setSelectedCodeMaterialsAction('create')
                   }}
                 >
