@@ -4730,7 +4730,7 @@ function HomePanel({
                     </select>
                   </label>
                   <label className="full-width">
-                    Descrição
+                    Texto breve do material
                     <textarea
                       rows={4}
                       value={materialForm.description}
