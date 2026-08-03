@@ -4880,6 +4880,17 @@ function HomePanel({
                 </label>
               </div>
 
+              <p className="materials-count" aria-live="polite">
+                {distinctMaterialCodeCount === 0
+                  ? 'Nenhum código de material encontrado.'
+                  : distinctMaterialCodeCount === 1
+                    ? '1 código de material diferente'
+                    : `${distinctMaterialCodeCount} códigos de material diferentes`}
+                {filteredMaterialRows.length !== materialRows.length
+                  ? ` · ${filteredMaterialRows.length} registro(s) na lista filtrada`
+                  : null}
+              </p>
+
               <div className="table-wrap" aria-label="Tabela de código de materiais">
                 <table className="data-table">
                   <thead>

@@ -4367,6 +4367,12 @@ body.laudo-viewer-open {
   align-items: start;
 }
 
+.materials-count {
+  margin: 12px 0 8px;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
 .link-share-card {
   display: grid;
   gap: 14px;
