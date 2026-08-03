@@ -94,6 +94,83 @@ function ClearableRadioGroup({
   )
 }
 
+type YesNoIconQuestionProps = {
+  label: string
+  value: string
+  justification: string
+  onChange: (value: string) => void
+  onJustificationChange: (value: string) => void
+}
+
+function YesNoIconQuestion({
+  label,
+  value,
+  justification,
+  onChange,
+  onJustificationChange,
+}: YesNoIconQuestionProps) {
+  return (
+    <div className="ratm-yesno-question full-width">
+      <div className="ratm-yesno-row">
+        <span className="ratm-yesno-label">{label}</span>
+        <div className="ratm-yesno-actions" role="group" aria-label={label}>
+          <button
+            type="button"
+            className={`ratm-yesno-btn is-no${value === 'nao' ? ' is-active' : ''}`}
+            aria-pressed={value === 'nao'}
+            aria-label={`${label}: Não`}
+            title="Não"
+            onClick={() => onChange('nao')}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M6 6l12 12M18 6L6 18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className={`ratm-yesno-btn is-yes${value === 'sim' ? ' is-active' : ''}`}
+            aria-pressed={value === 'sim'}
+            aria-label={`${label}: Sim`}
+            title="Sim"
+            onClick={() => {
+              onChange('sim')
+              onJustificationChange('')
+            }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M5 12.5l4.5 4.5L19 7.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+      {value === 'nao' ? (
+        <label className="ratm-yesno-justification">
+          Justificativa
+          <textarea
+            value={justification}
+            onChange={(event) => onJustificationChange(event.target.value)}
+            rows={3}
+            placeholder="Descreva a justificativa"
+          />
+        </label>
+      ) : null}
+    </div>
+  )
+}
+
 type PhotoUploadProps = {
   label: string
   value: string
@@ -357,6 +434,26 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         <button className="scan-button align-right full-width" type="button" onClick={() => onScan('involucro')}>
           Digitalizar
         </button>
+
+        <YesNoIconQuestion
+          label="Lacre igual TOI"
+          value={data.sealMatchesToi}
+          justification={data.sealMatchesToiJustification}
+          onChange={(value) => onChange({ sealMatchesToi: value })}
+          onJustificationChange={(value) =>
+            onChange({ sealMatchesToiJustification: value })
+          }
+        />
+
+        <YesNoIconQuestion
+          label="Lacre igual as imagens de campo?"
+          value={data.sealMatchesFieldImages}
+          justification={data.sealMatchesFieldImagesJustification}
+          onChange={(value) => onChange({ sealMatchesFieldImages: value })}
+          onJustificationChange={(value) =>
+            onChange({ sealMatchesFieldImagesJustification: value })
+          }
+        />
 
         <ClearableRadioGroup
           legend="Status invólucro"

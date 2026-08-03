@@ -21,6 +21,10 @@ export type RatmFormData = {
   visualTest: string
   dielectric: string
   enclosureSeal: string
+  sealMatchesToi: string
+  sealMatchesToiJustification: string
+  sealMatchesFieldImages: string
+  sealMatchesFieldImagesJustification: string
   enclosureStatus: string
   seal1: string
   seal1Status: string
@@ -99,6 +103,10 @@ export function createEmptyRatmForm(): RatmFormData {
     visualTest: '',
     dielectric: '',
     enclosureSeal: '',
+    sealMatchesToi: '',
+    sealMatchesToiJustification: '',
+    sealMatchesFieldImages: '',
+    sealMatchesFieldImagesJustification: '',
     enclosureStatus: '',
     seal1: '',
     seal1Status: '',
