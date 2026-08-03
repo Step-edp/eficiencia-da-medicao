@@ -11,856 +11,751 @@ type RatmLaudoPdfInput = {
   createdAt: string
   status: string
   formData: Record<string, unknown>
+  createdByName?: string
+  createdByRegistration?: string
+  installation?: string
+  toi?: string
+  note?: string
 }
 
 const IRREGULARITY_CODES: Record<string, string> = {
   '23': 'MANCAL FORA DE POSIÇÃO',
 }
 
-const LAB_LOCAL =
-  'Laboratório de Metrologia EDP SP — Av. Cassiano Ricardo, 1973 — Jardim Alvorada, São José dos Campos — SP'
-
 const PAGE = {
   width: 595.28,
   height: 841.89,
-  margin: 42,
-  headerFirst: 108,
-  headerNext: 52,
-  footer: 36,
+  margin: 36,
+  footer: 48,
 }
 
 const CONTENT_WIDTH = PAGE.width - PAGE.margin * 2
-const COLUMN_GAP = 14
-const COLUMN_WIDTH = (CONTENT_WIDTH - COLUMN_GAP) / 2
 const CONTENT_BOTTOM = PAGE.height - PAGE.margin - PAGE.footer
 
 const COLORS = {
-  navy: '#0E3157',
-  navyDark: '#031424',
-  cyan: '#18D8F0',
-  cyanDark: '#0EA8C4',
+  navy: '#0B3A66',
+  navyDark: '#072A4A',
+  titleBlue: '#0E4A7A',
+  cyan: '#18A8C8',
   green: '#1FA971',
-  greenBg: '#E8F8F0',
-  red: '#D64545',
-  redBg: '#FDECEC',
-  amber: '#C47D0E',
-  amberBg: '#FFF6E8',
-  text: '#1B2838',
-  textMuted: '#5A6B7D',
+  greenSoft: '#E7F7EF',
+  red: '#C62828',
+  redSoft: '#FDECEC',
+  grayBorder: '#D7DEE7',
+  graySoft: '#F4F7FA',
+  grayBox: '#EEF2F6',
+  text: '#1F2A37',
+  textMuted: '#5B6B7C',
   textLight: '#8A97A8',
-  border: '#D4DEE8',
-  surface: '#F5F8FB',
-  surfaceAlt: '#EEF3F8',
   white: '#FFFFFF',
+  footerBar: '#0A2540',
 }
 
 function textValue(value: unknown) {
-  if (value === null || value === undefined) {
-    return '—'
-  }
-
+  if (value === null || value === undefined) return '—'
   const normalized = String(value).trim()
   return normalized || '—'
 }
 
-function yesNo(value: unknown) {
-  const normalized = textValue(value)
-  if (normalized === '—') {
-    return 'Não'
-  }
-
-  return normalized
-}
-
 function formatDate(isoDate: string) {
-  return new Date(isoDate).toLocaleDateString('pt-BR')
+  const date = new Date(isoDate)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('pt-BR')
 }
 
-function formatDateTime(isoDate: string) {
-  return new Date(isoDate).toLocaleString('pt-BR')
+function pad(value: number) {
+  return String(value).padStart(2, '0')
 }
 
-function dataUrlToBuffer(dataUrl: string) {
-  const match = dataUrl.match(/^data:image\/\w+;base64,(.+)$/)
-  if (!match) {
-    return null
-  }
-
-  return Buffer.from(match[1], 'base64')
+function buildLaudoNumber(laudo: RatmLaudoPdfInput) {
+  const date = new Date(laudo.createdAt)
+  const year = date.getFullYear()
+  const month = pad(date.getMonth() + 1)
+  const seq = String(laudo.ratmNumber).padStart(6, '0')
+  return `LMED-${year}/${month}-${seq}`
 }
 
-function buildRatmNumber(laudo: RatmLaudoPdfInput) {
-  const year = new Date(laudo.createdAt).getFullYear()
-  return `${laudo.ratmNumber}_${laudo.meter}_${year}`
-}
-
-function buildTechnicalReport(form: Record<string, unknown>) {
-  if (form.apparentlyInOrder === 'Sim') {
-    return { text: 'MEDIDOR EM ORDEM', tone: 'success' as const }
-  }
-
+function isFraudConclusion(form: Record<string, unknown>) {
+  if (form.apparentlyInOrder === 'Sim') return false
   if (form.visualTest === 'Reprovado' || form.dielectric === 'Reprovado' || form.march === 'Reprovado') {
-    return { text: 'MEDIDOR REPROVADO NOS ENSAIOS', tone: 'danger' as const }
+    return true
   }
-
-  if (
+  return (
     form.brokenMeter === 'Sim' ||
     form.damagedCoil === 'Sim' ||
-    form.dielectricFailed === 'Sim'
-  ) {
-    return { text: 'MEDIDOR COM NÃO CONFORMIDADE IDENTIFICADA', tone: 'warning' as const }
-  }
-
-  return { text: 'MEDIDOR EM ORDEM', tone: 'success' as const }
+    form.dielectricFailed === 'Sim' ||
+    form.foreignBodyInMeter === 'Sim' ||
+    form.meterInteriorAccess === 'Sim' ||
+    form.displayOff === 'Sim'
+  )
 }
 
-function statusTone(status: string): 'neutral' | 'success' | 'danger' {
-  if (status === 'Aprovado') {
-    return 'success'
-  }
-
-  if (status === 'Reprovado') {
-    return 'danger'
-  }
-
-  return 'neutral'
+function irregularityLabel(form: Record<string, unknown>) {
+  const code = textValue(form.fieldIrregularityCode)
+  const fallback = textValue(form.irregularityCode)
+  const key = code !== '—' ? code : fallback
+  return IRREGULARITY_CODES[key] ?? (key !== '—' ? `Código ${key}` : 'Irregularidade não especificada')
 }
 
-function yesNoTone(value: unknown): 'neutral' | 'success' | 'danger' | 'warning' {
-  const normalized = yesNo(value).toLowerCase()
+function parsePercent(value: unknown): number | null {
+  if (value == null) return null
+  const raw = String(value).trim().replace('%', '').replace(',', '.')
+  if (!raw) return null
+  const num = Number(raw)
+  return Number.isFinite(num) ? num : null
+}
 
-  if (normalized === 'sim' || normalized === 'aprovado' || normalized === 'ok') {
-    return 'success'
+function worstAccuracy(form: Record<string, unknown>): number | null {
+  const values = [form.cp, form.cn, form.ci, form.cnRi, form.cnRc]
+    .map(parsePercent)
+    .filter((value): value is number => value != null)
+  if (!values.length) return null
+  return values.reduce((worst, value) =>
+    Math.abs(value) > Math.abs(worst) ? value : worst,
+  )
+}
+
+function formatPercent(value: number | null) {
+  if (value == null) return '—'
+  const formatted = value.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  return `${value > 0 ? '+' : ''}${formatted}%`
+}
+
+function ensaioResult(value: unknown, inverted = false): { label: string; irregular: boolean } {
+  const normalized = textValue(value).toLowerCase()
+  if (normalized === '—') return { label: 'Não informado', irregular: false }
+
+  if (['aprovado', 'ok', 'em ordem'].includes(normalized)) {
+    return { label: inverted ? 'Irregular' : 'Regular', irregular: inverted }
   }
-
-  if (normalized === 'reprovado' || normalized === 'não conforme') {
-    return 'danger'
+  if (['reprovado', 'não conforme', 'nao conforme'].includes(normalized)) {
+    return { label: 'Irregular', irregular: true }
   }
-
+  if (normalized === 'sim') {
+    return { label: inverted ? 'Irregular' : 'Regular', irregular: inverted }
+  }
   if (normalized === 'não' || normalized === 'nao') {
-    return 'neutral'
+    return { label: inverted ? 'Regular' : 'Irregular', irregular: !inverted }
   }
-
-  return 'warning'
+  return { label: textValue(value), irregular: false }
 }
 
-function toneColors(tone: 'neutral' | 'success' | 'danger' | 'warning') {
-  switch (tone) {
-    case 'success':
-      return { fill: COLORS.greenBg, stroke: '#B8E6CF', text: COLORS.green }
-    case 'danger':
-      return { fill: COLORS.redBg, stroke: '#F5C2C2', text: COLORS.red }
-    case 'warning':
-      return { fill: COLORS.amberBg, stroke: '#F0D9A8', text: COLORS.amber }
-    default:
-      return { fill: COLORS.surfaceAlt, stroke: COLORS.border, text: COLORS.textMuted }
-  }
-}
-
-function contentTop(isFirstPage: boolean) {
-  return isFirstPage ? PAGE.headerFirst : PAGE.headerNext
-}
-
-function ensureSpace(doc: PdfDocument, height = 60) {
+function ensureSpace(doc: PdfDocument, height: number) {
   if (doc.y + height > CONTENT_BOTTOM) {
     doc.addPage()
-    doc.y = contentTop(false)
+    doc.y = PAGE.margin
   }
 }
 
-function drawBrandMark(doc: PdfDocument, x: number, y: number, onDark = false) {
+function drawEdpMark(doc: PdfDocument, x: number, y: number) {
   doc.save()
-  doc.translate(x + 12, y + 18)
+  doc.translate(x + 10, y + 14)
   doc.rotate(-18)
-
-  doc
-    .lineCap('round')
-    .lineWidth(3.5)
-    .strokeColor('#6D3EF2')
-    .moveTo(0, -8)
-    .bezierCurveTo(10, -14, 18, -6, 14, 4)
-    .stroke()
-
-  doc
-    .lineWidth(3)
-    .strokeColor('#39FF00')
-    .moveTo(2, -4)
-    .bezierCurveTo(8, -9, 14, -3, 11, 5)
-    .stroke()
-
-  doc
-    .lineWidth(2.5)
-    .strokeColor('#18D8F0')
-    .moveTo(4, 0)
-    .bezierCurveTo(8, -4, 12, 0, 10, 6)
-    .stroke()
-
+  doc.lineCap('round')
+  doc.lineWidth(3.2).strokeColor('#2F6BFF').moveTo(0, -7).bezierCurveTo(9, -12, 16, -5, 12, 4).stroke()
+  doc.lineWidth(2.8).strokeColor('#39FF00').moveTo(2, -3).bezierCurveTo(7, -8, 13, -2, 10, 5).stroke()
+  doc.lineWidth(2.2).strokeColor('#18D8F0').moveTo(4, 1).bezierCurveTo(8, -3, 11, 1, 9, 6).stroke()
   doc.restore()
 
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(22)
-    .fillColor(onDark ? COLORS.white : COLORS.navyDark)
-    .text('EDP', x + 28, y + 2, { lineBreak: false })
-
-  doc
-    .font('Helvetica')
-    .fontSize(8.5)
-    .fillColor(onDark ? '#B8C9DA' : COLORS.textMuted)
-    .text('Laboratório de Medição', x + 28, y + 26, { lineBreak: false })
+  doc.font('Helvetica-Bold').fontSize(16).fillColor(COLORS.navyDark).text('edp', x + 26, y + 2, {
+    lineBreak: false,
+  })
+  doc.font('Helvetica').fontSize(8).fillColor(COLORS.textMuted).text('SP', x + 56, y + 8, {
+    lineBreak: false,
+  })
 }
 
-function drawBadge(
-  doc: PdfDocument,
-  x: number,
-  y: number,
-  label: string,
-  tone: 'neutral' | 'success' | 'danger' | 'warning',
-) {
-  const colors = toneColors(tone)
-  const width = doc.widthOfString(label) + 18
-  const height = 18
-
-  doc
-    .roundedRect(x, y, width, height, 9)
-    .fillAndStroke(colors.fill, colors.stroke)
-
+function drawSectionTitle(doc: PdfDocument, index: number, title: string) {
+  ensureSpace(doc, 28)
+  const y = doc.y
+  doc.circle(PAGE.margin + 7, y + 7, 8).fill(COLORS.navy)
   doc
     .font('Helvetica-Bold')
     .fontSize(8)
-    .fillColor(colors.text)
-    .text(label, x, y + 4, { width, align: 'center', lineBreak: false })
-
-  return width
-}
-
-function drawDocumentHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput, isFirstPage: boolean) {
-  const headerHeight = isFirstPage ? PAGE.headerFirst - 12 : PAGE.headerNext - 8
-  const ratmId = buildRatmNumber(laudo)
-
-  doc
-    .save()
-    .rect(0, 0, PAGE.width, headerHeight)
-    .fill(COLORS.navyDark)
-    .restore()
-
-  doc
-    .save()
-    .rect(0, headerHeight - 4, PAGE.width, 4)
-    .fill(COLORS.cyan)
-    .restore()
-
-  drawBrandMark(doc, PAGE.margin, isFirstPage ? 18 : 12, true)
-
-  if (isFirstPage) {
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(13.5)
-      .fillColor(COLORS.white)
-      .text('Relatório de Avaliação Técnica de Medidor', PAGE.margin + 120, 20, {
-        width: CONTENT_WIDTH - 120,
-        align: 'right',
-        lineBreak: false,
-      })
-
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(11)
-      .fillColor(COLORS.cyan)
-      .text(`RATM N° ${ratmId}`, PAGE.margin + 120, 38, {
-        width: CONTENT_WIDTH - 120,
-        align: 'right',
-        lineBreak: false,
-      })
-
-    const metaY = 62
-    doc
-      .roundedRect(PAGE.margin, metaY, CONTENT_WIDTH, 34, 8)
-      .fillAndStroke('#0A2238', '#1A3A57')
-
-    doc
-      .font('Helvetica')
-      .fontSize(8)
-      .fillColor('#B8C9DA')
-      .text('Medidor', PAGE.margin + 14, metaY + 8, { lineBreak: false })
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(9.5)
-      .fillColor(COLORS.white)
-      .text(laudo.meter, PAGE.margin + 14, metaY + 18, { lineBreak: false })
-
-    doc
-      .font('Helvetica')
-      .fontSize(8)
-      .fillColor('#B8C9DA')
-      .text('Cliente', PAGE.margin + 150, metaY + 8, { lineBreak: false })
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(9.5)
-      .fillColor(COLORS.white)
-      .text(laudo.client, PAGE.margin + 150, metaY + 18, { width: 180, lineBreak: false })
-
-    doc
-      .font('Helvetica')
-      .fontSize(8)
-      .fillColor('#B8C9DA')
-      .text('Emissão', PAGE.margin + 360, metaY + 8, { lineBreak: false })
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(9.5)
-      .fillColor(COLORS.white)
-      .text(formatDateTime(laudo.createdAt), PAGE.margin + 360, metaY + 18, { lineBreak: false })
-
-    const badgeLabel = laudo.status.toUpperCase()
-    const badgeWidth = doc.widthOfString(badgeLabel) + 18
-    drawBadge(
-      doc,
-      PAGE.margin + CONTENT_WIDTH - badgeWidth - 12,
-      metaY + 8,
-      badgeLabel,
-      statusTone(laudo.status),
-    )
-  } else {
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(10)
-      .fillColor(COLORS.white)
-      .text(`RATM N° ${ratmId}`, PAGE.margin + 120, 16, {
-        width: CONTENT_WIDTH - 120,
-        align: 'right',
-        lineBreak: false,
-      })
-  }
-
-  doc.y = contentTop(isFirstPage)
-}
-
-function drawPageFooter(doc: PdfDocument, laudo: RatmLaudoPdfInput, pageNumber: number, pageCount: number) {
-  const footerY = PAGE.height - PAGE.margin - 14
-
-  doc
-    .save()
-    .moveTo(PAGE.margin, footerY - 8)
-    .lineTo(PAGE.margin + CONTENT_WIDTH, footerY - 8)
-    .strokeColor(COLORS.border)
-    .lineWidth(0.6)
-    .stroke()
-    .restore()
-
-  doc
-    .font('Helvetica')
-    .fontSize(7.5)
-    .fillColor(COLORS.textLight)
-    .text(
-      `Documento gerado eletronicamente — Eficiência da Medição | Laudo ${laudo.id}`,
-      PAGE.margin,
-      footerY,
-      { width: CONTENT_WIDTH * 0.72, lineBreak: false },
-    )
-
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(7.5)
-    .fillColor(COLORS.textMuted)
-    .text(`Página ${pageNumber} de ${pageCount}`, PAGE.margin, footerY, {
-      width: CONTENT_WIDTH,
-      align: 'right',
-      lineBreak: false,
-    })
-}
-
-function drawSectionHeader(doc: PdfDocument, title: string) {
-  ensureSpace(doc, 48)
-
-  const y = doc.y
-
-  doc
-    .roundedRect(PAGE.margin, y, CONTENT_WIDTH, 24, 6)
-    .fill(COLORS.navy)
-
-  doc
-    .save()
-    .rect(PAGE.margin, y, 5, 24)
-    .fill(COLORS.cyan)
-    .restore()
-
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(10)
     .fillColor(COLORS.white)
-    .text(title.toUpperCase(), PAGE.margin + 14, y + 7, {
-      width: CONTENT_WIDTH - 20,
-      lineBreak: false,
-    })
-
-  doc.y = y + 32
+    .text(String(index), PAGE.margin + 1, y + 3, { width: 12, align: 'center', lineBreak: false })
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(11)
+    .fillColor(COLORS.titleBlue)
+    .text(title, PAGE.margin + 22, y + 1, { lineBreak: false })
+  doc.y = y + 20
 }
 
-function drawFieldCell(
+function drawFieldPair(
   doc: PdfDocument,
   x: number,
   y: number,
   width: number,
   label: string,
   value: string,
-  shaded = false,
 ) {
-  doc
-    .roundedRect(x, y, width, 34, 5)
-    .fillAndStroke(shaded ? COLORS.surface : COLORS.white, COLORS.border)
-
-  doc
-    .font('Helvetica')
-    .fontSize(7.5)
-    .fillColor(COLORS.textLight)
-    .text(label, x + 10, y + 7, { width: width - 16, lineBreak: false })
-
+  doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.textMuted).text(label, x, y, {
+    width,
+    lineBreak: false,
+  })
   doc
     .font('Helvetica-Bold')
     .fontSize(9)
     .fillColor(COLORS.text)
-    .text(value, x + 10, y + 18, { width: width - 16 })
+    .text(value, x, y + 11, { width, lineBreak: false })
 }
 
-function drawFieldGrid(
-  doc: PdfDocument,
-  rows: Array<Array<{ label: string; value: string }>>,
-) {
-  rows.forEach((row, rowIndex) => {
-    ensureSpace(doc, 42)
-    const y = doc.y
-    const cellWidth =
-      row.length === 1 ? CONTENT_WIDTH : (CONTENT_WIDTH - COLUMN_GAP * (row.length - 1)) / row.length
+function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput, conclusion: string) {
+  drawEdpMark(doc, PAGE.margin, PAGE.margin)
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(9)
+    .fillColor(COLORS.navy)
+    .text('Laboratório de Medição', PAGE.margin + 78, PAGE.margin + 2, { lineBreak: false })
+  doc
+    .font('Helvetica')
+    .fontSize(8)
+    .fillColor(COLORS.textMuted)
+    .text('EDP SP', PAGE.margin + 78, PAGE.margin + 14, { lineBreak: false })
 
-    row.forEach((field, columnIndex) => {
-      const x = PAGE.margin + columnIndex * (cellWidth + COLUMN_GAP)
-      drawFieldCell(doc, x, y, cellWidth, field.label, field.value, rowIndex % 2 === 1)
+  const rightX = PAGE.width - PAGE.margin - 170
+  doc
+    .font('Helvetica')
+    .fontSize(7)
+    .fillColor(COLORS.textMuted)
+    .text('Nº DO LAUDO', rightX, PAGE.margin + 2, { width: 170, align: 'right', lineBreak: false })
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(10)
+    .fillColor(COLORS.navyDark)
+    .text(buildLaudoNumber(laudo), rightX, PAGE.margin + 12, {
+      width: 170,
+      align: 'right',
+      lineBreak: false,
+    })
+  doc
+    .font('Helvetica')
+    .fontSize(7)
+    .fillColor(COLORS.textMuted)
+    .text('DATA DE EMISSÃO', rightX, PAGE.margin + 28, {
+      width: 170,
+      align: 'right',
+      lineBreak: false,
+    })
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(9)
+    .fillColor(COLORS.text)
+    .text(formatDate(laudo.createdAt), rightX, PAGE.margin + 38, {
+      width: 170,
+      align: 'right',
+      lineBreak: false,
     })
 
-    doc.y = y + 40
-  })
-
-  doc.moveDown(0.15)
-}
-
-function drawFullWidthField(doc: PdfDocument, label: string, value: string) {
-  ensureSpace(doc, 42)
-  const y = doc.y
-
   doc
-    .roundedRect(PAGE.margin, y, CONTENT_WIDTH, 34, 5)
-    .fillAndStroke(COLORS.surface, COLORS.border)
-
-  doc
-    .font('Helvetica')
-    .fontSize(7.5)
-    .fillColor(COLORS.textLight)
-    .text(label, PAGE.margin + 10, y + 7, { width: CONTENT_WIDTH - 20, lineBreak: false })
+    .moveTo(PAGE.margin, PAGE.margin + 54)
+    .lineTo(PAGE.width - PAGE.margin, PAGE.margin + 54)
+    .strokeColor(COLORS.grayBorder)
+    .lineWidth(1)
+    .stroke()
 
   doc
     .font('Helvetica-Bold')
-    .fontSize(9)
-    .fillColor(COLORS.text)
-    .text(value, PAGE.margin + 10, y + 18, { width: CONTENT_WIDTH - 20 })
+    .fontSize(16)
+    .fillColor(COLORS.titleBlue)
+    .text('LAUDO DE PERÍCIA / FRAUDE EM MEDIDOR', PAGE.margin, PAGE.margin + 64, {
+      width: CONTENT_WIDTH - 190,
+      lineBreak: false,
+    })
 
-  doc.y = y + 40
-  doc.moveDown(0.1)
+  const boxX = PAGE.width - PAGE.margin - 180
+  const boxY = PAGE.margin + 58
+  doc.roundedRect(boxX, boxY, 180, 42, 6).fillAndStroke(COLORS.graySoft, COLORS.grayBorder)
+  doc.circle(boxX + 16, boxY + 21, 8).fill(COLORS.green)
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(8)
+    .fillColor(COLORS.white)
+    .text('✓', boxX + 12, boxY + 16, { lineBreak: false })
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(7)
+    .fillColor(COLORS.navy)
+    .text('LAUDO CONCLUSIVO:', boxX + 30, boxY + 8, { width: 140, lineBreak: false })
+  doc
+    .font('Helvetica')
+    .fontSize(7)
+    .fillColor(COLORS.text)
+    .text(conclusion, boxX + 30, boxY + 18, { width: 140 })
+
+  doc.y = Math.max(boxY + 52, PAGE.margin + 100)
 }
 
-function drawYesNoGrid(doc: PdfDocument, items: Array<{ label: string; value: unknown }>) {
-  ensureSpace(doc, 52)
+function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
+  drawSectionTitle(doc, 1, 'DADOS GERAIS')
+  ensureSpace(doc, 118)
+  const y = doc.y
+  const boxHeight = 110
+  doc.roundedRect(PAGE.margin, y, CONTENT_WIDTH, boxHeight, 8).strokeColor(COLORS.grayBorder).lineWidth(1).stroke()
 
-  const columns = 2
-  const cellWidth = (CONTENT_WIDTH - COLUMN_GAP) / columns
-  let column = 0
-  let rowY = doc.y
+  const form = laudo.formData
+  const colW = (CONTENT_WIDTH - 28) / 2
+  const leftX = PAGE.margin + 12
+  const rightX = PAGE.margin + 16 + colW
+  const rows = [
+    {
+      left: ['Unidade Consumidora', textValue(laudo.client)],
+      right: ['Data da Coleta', textValue(form.scheduleDate) !== '—' ? textValue(form.scheduleDate) : formatDate(laudo.createdAt)],
+    },
+    {
+      left: ['Endereço', '—'],
+      right: ['Data de Entrada no Laboratório', formatDate(laudo.createdAt)],
+    },
+    {
+      left: ['Instalação', textValue(laudo.installation)],
+      right: ['Data(s) do(s) Ensaio(s)', formatDate(laudo.createdAt)],
+    },
+    {
+      left: ['Medidor (nº de série)', textValue(form.meter || laudo.meter)],
+      right: ['Solicitante', textValue(form.fieldInspectionBy || laudo.createdByName)],
+    },
+    {
+      left: ['Marca / Modelo', textValue(form.itemLookup)],
+      right: ['Número da OS / Nota', textValue(laudo.note || form.analysisRequest)],
+    },
+  ]
 
-  items.forEach((item, index) => {
-    if (column === 0 && index > 0) {
-      rowY += 28
-      ensureSpace(doc, 32)
-      if (doc.y > rowY) {
-        rowY = doc.y
-      }
-    }
-
-    const x = PAGE.margin + column * (cellWidth + COLUMN_GAP)
-    const tone = yesNoTone(item.value)
-    const colors = toneColors(tone)
-    const value = yesNo(item.value)
-
-    doc
-      .roundedRect(x, rowY, cellWidth, 22, 5)
-      .fillAndStroke(colors.fill, colors.stroke)
-
-    doc
-      .font('Helvetica')
-      .fontSize(7.5)
-      .fillColor(COLORS.textMuted)
-      .text(item.label, x + 8, rowY + 6, {
-        width: cellWidth - 70,
-        lineBreak: false,
-      })
-
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(8)
-      .fillColor(colors.text)
-      .text(value, x + cellWidth - 58, rowY + 6, {
-        width: 50,
-        align: 'right',
-        lineBreak: false,
-      })
-
-    column = (column + 1) % columns
+  rows.forEach((row, index) => {
+    const rowY = y + 10 + index * 18
+    drawFieldPair(doc, leftX, rowY, colW - 8, row.left[0], row.left[1])
+    drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
   })
 
-  doc.y = rowY + 30
-  doc.moveDown(0.2)
+  doc.y = y + boxHeight + 12
 }
 
-function drawCallout(
-  doc: PdfDocument,
-  title: string,
-  tone: 'success' | 'danger' | 'warning',
-) {
-  ensureSpace(doc, 56)
-  const colors = toneColors(tone)
+function drawProcedimentos(doc: PdfDocument) {
+  drawSectionTitle(doc, 2, 'PROCEDIMENTOS E REFERÊNCIAS')
+  ensureSpace(doc, 70)
+  const items = [
+    'Portaria INMETRO nº 493/2021 — requisitos metrológicos para medidores em serviço.',
+    'Resolução Normativa ANEEL nº 1.000/2021 — direitos e deveres dos consumidores.',
+    'ABNT NBR ISO/IEC 17025 — requisitos gerais para competência de laboratórios.',
+    'Procedimentos internos do Laboratório de Medição EDP SP para perícia metrológica.',
+  ]
+  items.forEach((item) => {
+    ensureSpace(doc, 16)
+    const y = doc.y
+    doc.circle(PAGE.margin + 4, y + 4, 2).fill(COLORS.cyan)
+    doc
+      .font('Helvetica')
+      .fontSize(8)
+      .fillColor(COLORS.text)
+      .text(item, PAGE.margin + 12, y, { width: CONTENT_WIDTH - 12 })
+    doc.y = Math.max(doc.y, y + 14)
+  })
+  doc.y += 6
+}
+
+function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
+  drawSectionTitle(doc, 3, 'ENSAIOS REALIZADOS')
+  ensureSpace(doc, 92)
   const y = doc.y
+  const gap = 8
+  const boxW = (CONTENT_WIDTH - gap * 4) / 5
+  const boxH = 78
+
+  const ensaios = [
+    { title: 'Inspeção visual', result: ensaioResult(form.visualTest) },
+    {
+      title: 'Integridade',
+      result: ensaioResult(
+        form.brokenMeter === 'Sim' || form.damagedCoil === 'Sim' || form.foreignBodyInMeter === 'Sim'
+          ? 'Reprovado'
+          : form.apparentlyInOrder === 'Sim'
+            ? 'Aprovado'
+            : form.brokenMeter || form.apparentlyInOrder,
+        false,
+      ),
+    },
+    {
+      title: 'Exatidão',
+      result: (() => {
+        const worst = worstAccuracy(form)
+        if (worst == null) return ensaioResult(form.cn || form.cp)
+        return Math.abs(worst) > 4
+          ? { label: 'Irregular', irregular: true }
+          : { label: 'Regular', irregular: false }
+      })(),
+    },
+    { title: 'Marcha em vazio', result: ensaioResult(form.march) },
+    { title: 'Dielétrico', result: ensaioResult(form.dielectric || form.dielectricFailed, form.dielectricFailed === 'Sim') },
+  ]
+
+  ensaios.forEach((ensaio, index) => {
+    const x = PAGE.margin + index * (boxW + gap)
+    doc.roundedRect(x, y, boxW, boxH, 8).fillAndStroke(COLORS.white, COLORS.grayBorder)
+    doc.circle(x + boxW / 2, y + 16, 8).fill(COLORS.grayBox)
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(7.5)
+      .fillColor(COLORS.navy)
+      .text(ensaio.title, x + 4, y + 30, { width: boxW - 8, align: 'center' })
+    doc
+      .font('Helvetica')
+      .fontSize(6.5)
+      .fillColor(COLORS.green)
+      .text('RESULTADO', x + 4, y + 46, { width: boxW - 8, align: 'center', lineBreak: false })
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .fillColor(ensaio.result.irregular ? COLORS.red : COLORS.green)
+      .text(ensaio.result.label, x + 4, y + 56, { width: boxW - 8, align: 'center', lineBreak: false })
+  })
+
+  doc.y = y + boxH + 14
+}
+
+function drawResultado(doc: PdfDocument, laudo: RatmLaudoPdfInput, fraud: boolean) {
+  drawSectionTitle(doc, 4, 'RESULTADO DA PERÍCIA')
+  ensureSpace(doc, 150)
+  const y = doc.y
+  const leftW = CONTENT_WIDTH * 0.58
+  const rightW = CONTENT_WIDTH - leftW - 10
+  const form = laudo.formData
+
+  const conclusion = fraud
+    ? 'Constatada fraude no medidor de energia elétrica.'
+    : 'Não constatada irregularidade metrológica no medidor.'
 
   doc
-    .roundedRect(PAGE.margin, y, CONTENT_WIDTH, 34, 8)
-    .fillAndStroke(colors.fill, colors.stroke)
-
-  doc
-    .save()
-    .rect(PAGE.margin, y, 5, 34)
-    .fill(colors.text)
-    .restore()
-
+    .font('Helvetica-Bold')
+    .fontSize(8)
+    .fillColor(COLORS.textMuted)
+    .text('Conclusão', PAGE.margin, y, { lineBreak: false })
   doc
     .font('Helvetica-Bold')
     .fontSize(11)
-    .fillColor(colors.text)
-    .text(title, PAGE.margin + 16, y + 11, { width: CONTENT_WIDTH - 24, lineBreak: false })
+    .fillColor(fraud ? COLORS.red : COLORS.green)
+    .text(conclusion, PAGE.margin, y + 12, { width: leftW - 8 })
 
-  doc.y = y + 42
-}
-
-function drawParagraphBlock(doc: PdfDocument, paragraphs: string[]) {
-  ensureSpace(doc, 60)
-
-  const y = doc.y
+  const detailY = doc.y + 8
   doc
-    .roundedRect(PAGE.margin, y, CONTENT_WIDTH, 58, 8)
-    .fillAndStroke(COLORS.surface, COLORS.border)
+    .font('Helvetica')
+    .fontSize(8)
+    .fillColor(COLORS.text)
+    .text(
+      fraud
+        ? 'Com base nos ensaios realizados no Laboratório de Medição da EDP SP, foram identificadas evidências de alteração/irregularidade capazes de comprometer o registro correto do consumo de energia elétrica.'
+        : 'Com base nos ensaios realizados no Laboratório de Medição da EDP SP, o medidor apresentou comportamento metrológico compatível com os limites estabelecidos pela regulamentação vigente.',
+      PAGE.margin,
+      detailY,
+      { width: leftW - 8 },
+    )
 
-  let textY = y + 12
-  paragraphs.forEach((paragraph) => {
-    doc
-      .font('Helvetica')
-      .fontSize(8.2)
-      .fillColor(COLORS.textMuted)
-      .text(paragraph, PAGE.margin + 14, textY, {
-        width: CONTENT_WIDTH - 28,
-        align: 'justify',
-        lineGap: 2,
-      })
-    textY = doc.y + 4
+  const bulletsStart = doc.y + 8
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(COLORS.navy).text('Detalhamento', PAGE.margin, bulletsStart, {
+    lineBreak: false,
   })
 
-  doc.y = Math.max(doc.y, y + 58) + 8
-}
+  const details = [
+    `Irregularidade: ${irregularityLabel(form)}`,
+    `Observações: ${textValue(form.irregularityNotes)}`,
+    `Observações do laboratório: ${textValue(form.laboratoryNotes)}`,
+    `Laudo de campo correto: ${textValue(form.fieldReportCorrect)}`,
+    `TOI: ${textValue(laudo.toi)}`,
+  ]
 
-function drawSignatureSection(doc: PdfDocument) {
-  ensureSpace(doc, 90)
-  doc.moveDown(0.2)
-
-  const y = doc.y
-  const boxWidth = (CONTENT_WIDTH - COLUMN_GAP) / 2
-  const boxHeight = 72
-
-  ;[
-    { title: 'Assinatura do Cliente', subtitle: 'Cliente / Representante' },
-    { title: 'Responsável Técnico', subtitle: 'Aprovado por' },
-  ].forEach((block, index) => {
-    const x = PAGE.margin + index * (boxWidth + COLUMN_GAP)
-
-    doc
-      .roundedRect(x, y, boxWidth, boxHeight, 8)
-      .fillAndStroke(COLORS.white, COLORS.border)
-
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(8.5)
-      .fillColor(COLORS.textMuted)
-      .text(block.title, x + 12, y + 12, { width: boxWidth - 24, lineBreak: false })
-
-    doc
-      .moveTo(x + 12, y + 52)
-      .lineTo(x + boxWidth - 12, y + 52)
-      .strokeColor(COLORS.border)
-      .lineWidth(0.8)
-      .stroke()
-
+  let bulletY = bulletsStart + 14
+  details.forEach((item) => {
+    doc.circle(PAGE.margin + 3, bulletY + 3, 1.5).fill(COLORS.cyan)
     doc
       .font('Helvetica')
       .fontSize(7.5)
-      .fillColor(COLORS.textLight)
-      .text(block.subtitle, x + 12, y + 56, { width: boxWidth - 24, align: 'center', lineBreak: false })
+      .fillColor(COLORS.text)
+      .text(item, PAGE.margin + 10, bulletY, { width: leftW - 14 })
+    bulletY = Math.max(doc.y + 2, bulletY + 12)
   })
 
-  doc.y = y + boxHeight + 8
+  const boxX = PAGE.margin + leftW + 10
+  const boxH = Math.max(132, bulletY - y)
+  doc.roundedRect(boxX, y, rightW, boxH, 8).fillAndStroke(COLORS.grayBox, COLORS.grayBorder)
+
+  const worst = worstAccuracy(form)
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(7)
+    .fillColor(COLORS.textMuted)
+    .text('ERRO DE MEDIÇÃO ENCONTRADO', boxX + 10, y + 12, {
+      width: rightW - 20,
+      align: 'center',
+      lineBreak: false,
+    })
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(22)
+    .fillColor(COLORS.red)
+    .text(formatPercent(worst), boxX + 10, y + 28, {
+      width: rightW - 20,
+      align: 'center',
+      lineBreak: false,
+    })
+  doc
+    .font('Helvetica')
+    .fontSize(8)
+    .fillColor(COLORS.textMuted)
+    .text(worst != null && worst < 0 ? 'Submedição' : worst != null && worst > 0 ? 'Sobremedição' : 'Não informado', boxX + 10, y + 54, {
+      width: rightW - 20,
+      align: 'center',
+      lineBreak: false,
+    })
+
+  doc
+    .moveTo(boxX + 14, y + 72)
+    .lineTo(boxX + rightW - 14, y + 72)
+    .strokeColor(COLORS.grayBorder)
+    .lineWidth(0.8)
+    .stroke()
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(7)
+    .fillColor(COLORS.textMuted)
+    .text('LEITURA DO MEDIDOR', boxX + 10, y + 82, {
+      width: rightW - 20,
+      align: 'center',
+      lineBreak: false,
+    })
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(16)
+    .fillColor(COLORS.navyDark)
+    .text(textValue(form.meterReading), boxX + 10, y + 96, {
+      width: rightW - 20,
+      align: 'center',
+      lineBreak: false,
+    })
+  doc
+    .font('Helvetica')
+    .fontSize(7.5)
+    .fillColor(COLORS.textMuted)
+    .text(textValue(form.meterReadingStatus), boxX + 10, y + 116, {
+      width: rightW - 20,
+      align: 'center',
+      lineBreak: false,
+    })
+
+  doc.y = y + boxH + 12
 }
 
-function drawPhotoSection(doc: PdfDocument, photos: string[]) {
-  if (!photos.length) {
-    return
-  }
+function drawObservacoes(doc: PdfDocument) {
+  drawSectionTitle(doc, 5, 'OBSERVAÇÕES')
+  ensureSpace(doc, 54)
+  doc
+    .font('Helvetica')
+    .fontSize(7.5)
+    .fillColor(COLORS.textMuted)
+    .text(
+      'Este laudo é válido somente para o medidor identificado neste documento e para as condições de ensaio registradas. O cliente poderá comparecer a uma loja de atendimento ou interpor recurso no prazo de 15 dias, nos termos da Resolução Normativa ANEEL nº 1.000/2021. A análise observou os procedimentos da Portaria INMETRO nº 493/2021, admitindo erros máximos para medidores em serviço conforme regulamentação vigente.',
+      PAGE.margin,
+      doc.y,
+      { width: CONTENT_WIDTH, align: 'justify' },
+    )
+  doc.y += 10
+}
 
+function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
+  ensureSpace(doc, 110)
+  const y = doc.y
+  const gap = 12
+  const boxW = (CONTENT_WIDTH - gap * 2) / 3
+  const elaborador = textValue(laudo.formData.fieldInspectionBy || laudo.createdByName)
+  const boxes = [
+    { title: 'ELABORADO POR', name: elaborador, role: 'Técnico do Laboratório' },
+    { title: 'REVISADO POR', name: '—', role: 'Responsável Técnico' },
+    {
+      title: 'APROVADO POR',
+      name: laudo.status === 'Aprovado' ? textValue(laudo.createdByName) : '—',
+      role: 'Aprovador do Laudo',
+    },
+  ]
+
+  boxes.forEach((box, index) => {
+    const x = PAGE.margin + index * (boxW + gap)
+    doc.roundedRect(x, y, boxW, 88, 8).strokeColor(COLORS.grayBorder).lineWidth(1).stroke()
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(7)
+      .fillColor(COLORS.textMuted)
+      .text(box.title, x + 8, y + 8, { width: boxW - 16, align: 'center', lineBreak: false })
+    doc
+      .moveTo(x + 18, y + 42)
+      .lineTo(x + boxW - 18, y + 42)
+      .strokeColor(COLORS.grayBorder)
+      .lineWidth(0.8)
+      .stroke()
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .fillColor(COLORS.text)
+      .text(box.name, x + 8, y + 48, { width: boxW - 16, align: 'center', lineBreak: false })
+    doc
+      .font('Helvetica')
+      .fontSize(7)
+      .fillColor(COLORS.textMuted)
+      .text(box.role, x + 8, y + 62, { width: boxW - 16, align: 'center', lineBreak: false })
+    if (laudo.createdByRegistration && index === 0) {
+      doc
+        .font('Helvetica')
+        .fontSize(6.5)
+        .fillColor(COLORS.textLight)
+        .text(`Matrícula ${laudo.createdByRegistration}`, x + 8, y + 74, {
+          width: boxW - 16,
+          align: 'center',
+          lineBreak: false,
+        })
+    }
+  })
+
+  doc.y = y + 100
+}
+
+function drawAccreditation(doc: PdfDocument) {
+  ensureSpace(doc, 46)
+  const y = doc.y
+  doc.roundedRect(PAGE.margin, y, CONTENT_WIDTH, 40, 6).fillAndStroke(COLORS.graySoft, COLORS.grayBorder)
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(8)
+    .fillColor(COLORS.navy)
+    .text('Credenciamento / Qualidade', PAGE.margin + 12, y + 8, { lineBreak: false })
+  doc
+    .font('Helvetica')
+    .fontSize(7)
+    .fillColor(COLORS.textMuted)
+    .text(
+      'Ensaios conduzidos sob sistema de gestão alinhado à ABNT NBR ISO/IEC 17025 e procedimentos metrológicos do Laboratório de Medição EDP SP.',
+      PAGE.margin + 12,
+      y + 20,
+      { width: CONTENT_WIDTH - 24 },
+    )
+  doc.y = y + 48
+}
+
+function drawPhotos(doc: PdfDocument, photos: string[]) {
+  if (!photos.length) return
   doc.addPage()
-  doc.y = contentTop(false)
-
-  drawSectionHeader(doc, 'Registro Fotográfico')
+  doc.y = PAGE.margin
+  drawSectionTitle(doc, 6, 'REGISTRO FOTOGRÁFICO')
 
   const columns = 2
   const gap = 12
   const cellWidth = (CONTENT_WIDTH - gap) / columns
   const imageHeight = 150
-  const cellHeight = imageHeight + 36
+  const cellHeight = imageHeight + 28
   let rowY = doc.y
 
   photos.forEach((photo, index) => {
     const column = index % columns
-
     if (column === 0) {
       ensureSpace(doc, cellHeight + 8)
       rowY = doc.y
     }
-
     const x = PAGE.margin + column * (cellWidth + gap)
-    const buffer = dataUrlToBuffer(photo)
-
-    doc
-      .roundedRect(x, rowY, cellWidth, cellHeight, 8)
-      .fillAndStroke(COLORS.white, COLORS.border)
-
+    const match = photo.match(/^data:image\/\w+;base64,(.+)$/)
+    doc.roundedRect(x, rowY, cellWidth, cellHeight, 8).strokeColor(COLORS.grayBorder).lineWidth(1).stroke()
     doc
       .font('Helvetica-Bold')
-      .fontSize(8.5)
+      .fontSize(8)
       .fillColor(COLORS.navy)
-      .text(`Foto ${index + 1}`, x + 10, rowY + 8, { width: cellWidth - 20, lineBreak: false })
-
-    if (buffer) {
-      const imageY = rowY + 22
+      .text(`Foto ${index + 1}`, x + 8, rowY + 6, { lineBreak: false })
+    if (match) {
+      const buffer = Buffer.from(match[1], 'base64')
       doc.save()
-      doc.roundedRect(x + 8, imageY, cellWidth - 16, imageHeight, 6).clip()
-      doc.image(buffer, x + 8, imageY, {
+      doc.roundedRect(x + 8, rowY + 20, cellWidth - 16, imageHeight, 4).clip()
+      doc.image(buffer, x + 8, rowY + 20, {
         fit: [cellWidth - 16, imageHeight],
         align: 'center',
         valign: 'center',
       })
       doc.restore()
     }
-
     if (column === columns - 1 || index === photos.length - 1) {
       doc.y = rowY + cellHeight + 8
     }
   })
 }
 
+function drawFooter(doc: PdfDocument, page: number, total: number) {
+  const barY = PAGE.height - 28
+  doc.rect(0, barY, PAGE.width, 28).fill(COLORS.footerBar)
+  doc
+    .font('Helvetica')
+    .fontSize(7)
+    .fillColor('#B8C9DA')
+    .text('EDP SP — Laboratório de Medição', PAGE.margin, barY + 9, { lineBreak: false })
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(7)
+    .fillColor(COLORS.white)
+    .text('ENERGIA QUE TRANSFORMA O AMANHÃ', 0, barY + 9, {
+      width: PAGE.width,
+      align: 'center',
+      lineBreak: false,
+    })
+  doc
+    .font('Helvetica')
+    .fontSize(7)
+    .fillColor('#B8C9DA')
+    .text(`Página ${page} de ${total}`, PAGE.width - PAGE.margin - 70, barY + 9, {
+      width: 70,
+      align: 'right',
+      lineBreak: false,
+    })
+}
+
 export function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Response) {
   const form = laudo.formData
-  const irregularityCode = textValue(form.irregularityCode)
-  const fieldIrregularityCode = textValue(form.fieldIrregularityCode)
-  const irregularityDescription =
-    IRREGULARITY_CODES[fieldIrregularityCode !== '—' ? fieldIrregularityCode : irregularityCode] ??
-    'Não especificada'
-  const technicalReport = buildTechnicalReport(form)
+  const fraud = isFraudConclusion(form)
+  const conclusion = fraud
+    ? 'Constatada fraude no medidor de energia elétrica.'
+    : 'Não constatada irregularidade no medidor de energia elétrica.'
 
   const doc = new PDFDocument({
     size: 'A4',
     margins: {
       top: PAGE.margin,
-      bottom: PAGE.margin,
+      bottom: PAGE.margin + PAGE.footer,
       left: PAGE.margin,
       right: PAGE.margin,
     },
     bufferPages: true,
     info: {
-      Title: `RATM ${buildRatmNumber(laudo)} - Medidor ${laudo.meter}`,
-      Author: 'EDP - Laboratório de Medição',
-      Subject: 'Relatório de Avaliação Técnica de Medidor RATM',
+      Title: `Laudo de Perícia ${buildLaudoNumber(laudo)} - Medidor ${laudo.meter}`,
+      Author: 'EDP SP - Laboratório de Medição',
+      Subject: 'Laudo de Perícia / Fraude em Medidor',
     },
   })
 
   doc.pipe(res)
 
-  doc.on('pageAdded', () => {
-    drawDocumentHeader(doc, laudo, false)
-  })
-
-  drawDocumentHeader(doc, laudo, true)
-
-  drawSectionHeader(doc, 'Dados da Instalação')
-  drawFieldGrid(doc, [
-    [
-      { label: 'Cliente', value: laudo.client },
-      { label: 'Instalação', value: '—' },
-    ],
-    [
-      { label: 'Medidor', value: textValue(form.meter) },
-      { label: 'Leitura', value: textValue(form.meterReading) },
-    ],
-    [
-      { label: 'Nota / TOI', value: '—' },
-      { label: 'Status do medidor', value: textValue(form.meterStatus) },
-    ],
-  ])
-
-  drawSectionHeader(doc, 'Dados do Padrão')
-  drawFieldGrid(doc, [
-    [
-      { label: 'Patrimônio / Serial', value: textValue(form.testBench) },
-      { label: 'Modelo', value: textValue(form.itemLookup) },
-    ],
-    [
-      { label: 'Fabricante', value: '—' },
-      { label: 'Classe de exatidão', value: '—' },
-    ],
-    [
-      { label: 'Validade certificado', value: '—' },
-      { label: 'Certificado de calibração', value: '—' },
-    ],
-  ])
-  drawFullWidthField(doc, 'Local', LAB_LOCAL)
-
-  drawSectionHeader(doc, 'Dados do Medidor')
-  drawFieldGrid(doc, [
-    [
-      { label: '1° lacre tampa', value: textValue(form.seal1) },
-      { label: 'Status lacre 1', value: textValue(form.seal1Status) },
-    ],
-    [
-      { label: '2° lacre tampa', value: textValue(form.seal2) },
-      { label: 'Status lacre 2', value: textValue(form.seal2Status) },
-    ],
-    [
-      { label: 'N° medidor', value: textValue(form.meter) },
-      { label: 'Lacre do invólucro', value: textValue(form.enclosureSeal) },
-    ],
-    [
-      { label: 'Tipo', value: textValue(form.itemLookup) },
-      { label: 'Status invólucro', value: textValue(form.enclosureStatus) },
-    ],
-    [
-      { label: 'Fabricante', value: '—' },
-      { label: 'Modelo', value: '—' },
-    ],
-  ])
-
-  drawSectionHeader(doc, 'Resultados de Ensaio')
-  drawYesNoGrid(doc, [
-    { label: 'Medidor quebrado / furado', value: form.brokenMeter },
-    { label: 'Display apagado / não liga', value: form.displayOff },
-    { label: 'Facilidade de acesso ao interior', value: form.meterInteriorAccess },
-    { label: 'Bobina danificada', value: form.damagedCoil },
-    { label: 'Aparentemente em ordem', value: form.apparentlyInOrder },
-    { label: 'Reprovado no dielétrico', value: form.dielectricFailed },
-    { label: 'Corpo estranho no interior', value: form.foreignBodyInMeter },
-    { label: 'Inspeção geral', value: form.visualTest },
-    { label: 'Borne queimado', value: form.interruptedPhase },
-  ])
-
-  drawSectionHeader(doc, 'Resultados de Ensaio de Exatidão')
-  drawFieldGrid(doc, [
-    [
-      { label: 'Exatidão carga pequena ativa FP1', value: textValue(form.cp) },
-      { label: 'Exatidão carga nominal ativa FP1', value: textValue(form.cn) },
-    ],
-    [
-      {
-        label: 'Exatidão carga nominal ativa FP 0,5 Ind',
-        value: textValue(form.ci),
-      },
-      {
-        label: 'Exatidão carga nominal reativa FP 0,5 Ind',
-        value: textValue(form.cnRi),
-      },
-    ],
-    [
-      {
-        label: 'Exatidão carga nominal reativa FP 0,8 Cap',
-        value: textValue(form.cnRc),
-      },
-      { label: 'Registro de energia sem carga', value: textValue(form.meterReadingPreset) },
-    ],
-    [
-      { label: 'Registrador / mostrador', value: textValue(form.recorder) },
-      { label: 'Marcha', value: textValue(form.march) },
-    ],
-    [
-      { label: 'Ensaio visual', value: textValue(form.visualTest) },
-      { label: 'Dielétrico', value: textValue(form.dielectric) },
-    ],
-  ])
-
-  drawSectionHeader(doc, 'Relatório Técnico')
-  drawCallout(doc, technicalReport.text, technicalReport.tone)
-  drawParagraphBlock(doc, [
-    'Análise realizada conforme procedimentos estabelecidos pela Portaria nº 493 de 10/12/2021, emitida pelo órgão metrológico oficial INMETRO, admitindo erros máximos para medidores em serviço de ±4,0% (diferente nos eletrônicos).',
-    'O Cliente deverá comparecer a uma loja de atendimento ou interpor recurso no prazo de 15 dias (Art. 253 da Resolução 1000 da ANEEL).',
-  ])
-
-  drawSectionHeader(doc, 'Irregularidades')
-  drawFieldGrid(doc, [
-    [{ label: 'Descrição da irregularidade', value: irregularityDescription }],
-    [{ label: 'Observações da irregularidade', value: textValue(form.irregularityNotes) }],
-    [{ label: 'Observações para laboratório', value: textValue(form.laboratoryNotes) }],
-    [
-      { label: 'Laudo de campo correto', value: textValue(form.fieldReportCorrect) },
-      { label: 'Tipo NS', value: textValue(form.nsType) },
-    ],
-  ])
-
-  drawSectionHeader(doc, 'Dados da Realização da Avaliação Técnica')
-  drawFieldGrid(doc, [
-    [
-      { label: 'Realizado por', value: textValue(form.fieldInspectionBy) },
-      { label: 'Aprovado por', value: '—' },
-    ],
-    [
-      { label: 'Data', value: formatDate(laudo.createdAt) },
-      { label: 'Análise a pedido', value: textValue(form.analysisRequest) },
-    ],
-    [
-      { label: 'Cliente compareceu à calibração?', value: textValue(form.clientAccompanied) },
-      { label: 'Status leitura', value: textValue(form.meterReadingStatus) },
-    ],
-    [
-      { label: 'CN preset', value: textValue(form.cnPreset) },
-      { label: 'CI preset', value: textValue(form.ciPreset) },
-    ],
-    [
-      { label: 'CP preset', value: textValue(form.cpPreset) },
-      { label: 'Fase interrompida', value: textValue(form.interruptedPhaseOption) },
-    ],
-  ])
-
-  drawSignatureSection(doc)
+  drawHeader(doc, laudo, conclusion)
+  drawDadosGerais(doc, laudo)
+  drawProcedimentos(doc)
+  drawEnsaios(doc, form)
+  drawResultado(doc, laudo, fraud)
+  drawObservacoes(doc)
+  drawAssinaturas(doc, laudo)
+  drawAccreditation(doc)
 
   const photos = Array.isArray(form.photos)
-    ? form.photos.filter((photo): photo is string => typeof photo === 'string' && photo.length > 0)
+    ? form.photos.filter((photo): photo is string => typeof photo === 'string' && photo.startsWith('data:image/'))
     : []
+  drawPhotos(doc, photos)
 
-  drawPhotoSection(doc, photos)
-
-  const pageRange = doc.bufferedPageRange()
-  const pageCount = pageRange.count
-
-  for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
-    doc.switchToPage(pageRange.start + pageIndex)
-    drawPageFooter(doc, laudo, pageIndex + 1, pageCount)
+  const range = doc.bufferedPageRange()
+  for (let index = 0; index < range.count; index += 1) {
+    doc.switchToPage(range.start + index)
+    drawFooter(doc, index + 1, range.count)
   }
 
   doc.flushPages()

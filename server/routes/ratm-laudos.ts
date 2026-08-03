@@ -244,7 +244,25 @@ export async function downloadRatmLaudoPdf(req: Request, res: Response) {
   const { id } = req.params
 
   try {
-    const result = await query<RatmLaudoRow>('SELECT * FROM ratm_laudos WHERE id = $1', [id])
+    const result = await query<RatmLaudoRow>(
+      `SELECT r.*,
+              u.name AS created_by_name,
+              u.registration AS created_by_registration,
+              ms.installation,
+              ms.toi,
+              ms.note
+       FROM ratm_laudos r
+       LEFT JOIN users u ON u.id = r.created_by_user_id
+       LEFT JOIN LATERAL (
+         SELECT installation, toi, note
+         FROM meter_schedules
+         WHERE meter = r.meter
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) ms ON true
+       WHERE r.id = $1`,
+      [id],
+    )
 
     if (!result.rows[0]) {
       res.status(404).json({ error: 'Laudo não encontrado.' })
@@ -252,7 +270,7 @@ export async function downloadRatmLaudoPdf(req: Request, res: Response) {
     }
 
     const laudo = mapRatmLaudo(result.rows[0])
-    const filename = `laudo-ratm-${laudo.ratmNumber}-${laudo.meter}.pdf`
+    const filename = `laudo-pericia-${laudo.ratmNumber}-${laudo.meter}.pdf`
 
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
