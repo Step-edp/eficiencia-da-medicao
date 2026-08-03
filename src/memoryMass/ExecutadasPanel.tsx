@@ -3,57 +3,11 @@ import { LoginFeedback } from '../LoginFeedback'
 import {
   blockPeriodLabel,
   ordenarDadosHemera,
-  type HemeraBlock,
+  planilhaToTsv,
   type OrdenarHemeraResult,
 } from './ordenarHemera'
 
-function HemeraBlockTable({
-  title,
-  period,
-  block,
-  tone,
-}: {
-  title: string
-  period: string
-  block: HemeraBlock | null
-  tone: 'consumo' | 'demanda' | 'fp'
-}) {
-  const colCount = useMemo(() => {
-    if (!block?.rows.length) return 1
-    return Math.max(...block.rows.map((row) => row.length), 1)
-  }, [block])
-
-  return (
-    <section className={`executadas-block executadas-block-${tone}`}>
-      <header className="executadas-block-header">
-        <h3>
-          {period ? `${period} ` : ''}
-          {title}
-        </h3>
-        <span className="executadas-block-meta">
-          {block ? `${block.rows.length} linha(s)` : 'Sem dados'}
-        </span>
-      </header>
-      {!block || block.rows.length === 0 ? (
-        <p className="executadas-block-empty">Nenhum dado ordenado neste bloco.</p>
-      ) : (
-        <div className="entrada-table-wrap">
-          <table className="data-table executadas-data-table">
-            <tbody>
-              {block.rows.map((row, rowIndex) => (
-                <tr key={`${tone}-${rowIndex}`}>
-                  {Array.from({ length: colCount }, (_, colIndex) => (
-                    <td key={`${tone}-${rowIndex}-${colIndex}`}>{row[colIndex] || '—'}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  )
-}
+const PREVIEW_ROWS = 40
 
 export function ExecutadasPanel() {
   const [consumoPaste, setConsumoPaste] = useState('')
@@ -69,6 +23,11 @@ export function ExecutadasPanel() {
     consumoPaste.trim() || demandaPaste.trim() || fpPaste.trim(),
   )
 
+  const previewRows = useMemo(
+    () => result?.planilha.slice(0, PREVIEW_ROWS) ?? [],
+    [result],
+  )
+
   const handleOrdenar = () => {
     const next = ordenarDadosHemera({
       consumo: consumoPaste,
@@ -77,27 +36,39 @@ export function ExecutadasPanel() {
     })
     setResult(next)
 
-    const extracted = [next.consumo, next.demanda, next.fp].filter(Boolean).length
-    if (extracted === 0) {
+    if (!next.planilha.length) {
       setFeedback({
         type: 'error',
         message:
           next.errors[0] ??
-          'Não foi possível ordenar os dados. Verifique o conteúdo colado.',
+          'Não foi possível montar a planilha. Verifique o conteúdo colado (como na macro do Hemera).',
       })
       return
     }
 
-    setConsumoPaste('')
-    setDemandaPaste('')
-    setFpPaste('')
     setFeedback({
       type: 'success',
       message:
         next.errors.length > 0
-          ? `Ordenado com avisos: ${extracted} bloco(s) preenchido(s). ${next.errors.join(' ')}`
-          : 'Dados ordenados: Consumo, Demanda e Fator de Potência atualizados.',
+          ? `Planilha montada com ${next.planilha.length} linha(s), com avisos: ${next.errors.join(' ')}`
+          : `Planilha montada com ${next.planilha.length} linha(s) (Consumo + Demanda + FP).`,
     })
+  }
+
+  const handleCopiarPlanilha = async () => {
+    if (!result?.planilha.length) return
+    try {
+      await navigator.clipboard.writeText(planilhaToTsv(result.planilha))
+      setFeedback({
+        type: 'success',
+        message: 'Planilha copiada. Cole na aba MÊS_ANO do Excel (a partir de Data).',
+      })
+    } catch {
+      setFeedback({
+        type: 'error',
+        message: 'Não foi possível copiar automaticamente. Tente novamente.',
+      })
+    }
   }
 
   const handleLimpar = () => {
@@ -117,6 +88,13 @@ export function ExecutadasPanel() {
           onClose={() => setFeedback(null)}
         />
       ) : null}
+
+      <p className="executadas-hint">
+        Cole a partir das colunas A (Consumo), I (Demanda) e R (Fator de Potência) do
+        BD_HEMERA, incluindo a linha do título (<strong>Consumo - </strong>,{' '}
+        <strong>Demanda - </strong>, <strong>Fator de Potência - </strong>), como na
+        macro Ordena Dados.
+      </p>
 
       <div className="executadas-paste-grid" aria-label="Campos para colar dados">
         <label className={`executadas-paste-label executadas-paste-consumo`}>
@@ -177,32 +155,69 @@ export function ExecutadasPanel() {
         >
           Ordenar
         </button>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => void handleCopiarPlanilha()}
+          disabled={!result?.planilha.length}
+        >
+          Copiar planilha
+        </button>
         <button type="button" className="secondary-button" onClick={handleLimpar}>
           Limpar
         </button>
       </div>
 
-      {result ? (
-        <div className="executadas-results" aria-label="Dados ordenados">
-          <HemeraBlockTable
-            title="CONSUMO"
-            period={blockPeriodLabel(result.consumo, '')}
-            block={result.consumo}
-            tone="consumo"
-          />
-          <HemeraBlockTable
-            title="DEMANDA"
-            period={blockPeriodLabel(result.demanda, '')}
-            block={result.demanda}
-            tone="demanda"
-          />
-          <HemeraBlockTable
-            title="FP"
-            period={blockPeriodLabel(result.fp, '')}
-            block={result.fp}
-            tone="fp"
-          />
-        </div>
+      {result?.planilha.length ? (
+        <section className="executadas-planilha" aria-label="Planilha montada">
+          <header className="executadas-block-header">
+            <h3>
+              Planilha MÊS_ANO
+              {result.consumo ? ` · ${blockPeriodLabel(result.consumo, '')}` : ''}
+            </h3>
+            <span className="executadas-block-meta">
+              {result.planilha.length} linha(s)
+              {result.planilha.length > PREVIEW_ROWS
+                ? ` · prévia ${PREVIEW_ROWS}`
+                : ''}
+            </span>
+          </header>
+
+          <div className="entrada-table-wrap executadas-planilha-wrap">
+            <table className="data-table executadas-data-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Dia</th>
+                  <th>Postos</th>
+                  <th>kWh</th>
+                  <th>kVArh ind</th>
+                  <th>kVArh cap</th>
+                  <th>kW</th>
+                  <th>kVAr ind</th>
+                  <th>kVAr cap</th>
+                  <th>Fator</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previewRows.map((row, index) => (
+                  <tr key={`planilha-${index}`}>
+                    <td>{row.data || '—'}</td>
+                    <td>{row.dia || '—'}</td>
+                    <td>{row.posto || '—'}</td>
+                    <td>{row.consumo[0] || '—'}</td>
+                    <td>{row.consumo[1] || '—'}</td>
+                    <td>{row.consumo[2] || '—'}</td>
+                    <td>{row.demanda[0] || '—'}</td>
+                    <td>{row.demanda[1] || '—'}</td>
+                    <td>{row.demanda[2] || '—'}</td>
+                    <td>{row.fp || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       ) : null}
     </div>
   )
