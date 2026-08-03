@@ -226,7 +226,43 @@ function detectPasswordType(password: string): 'alphanumeric' | 'letters' | 'num
   return 'numbers'
 }
 
-/** Cadastro em massa de senhas já existentes (passivo) — exclusivo do administrador. */
+function parsePasswordType(
+  value: unknown,
+): 'alphanumeric' | 'letters' | 'numbers' | '' {
+  const raw = String(value ?? '')
+    .trim()
+    .toLowerCase()
+  if (!raw) return ''
+  if (
+    raw === 'alphanumeric' ||
+    raw === 'alphanumerico' ||
+    raw === 'alphanumérico' ||
+    raw === 'alfa' ||
+    raw === 'misto'
+  ) {
+    return 'alphanumeric'
+  }
+  if (
+    raw === 'letters' ||
+    raw === 'letras' ||
+    raw === 'só letras' ||
+    raw === 'so letras'
+  ) {
+    return 'letters'
+  }
+  if (
+    raw === 'numbers' ||
+    raw === 'numeros' ||
+    raw === 'números' ||
+    raw === 'só números' ||
+    raw === 'so numeros'
+  ) {
+    return 'numbers'
+  }
+  return ''
+}
+
+/** Cadastro individual/em massa de senhas já existentes (passivo) — exclusivo do administrador. */
 export async function createPassivePasswords(req: Request, res: Response) {
   const {
     records,
@@ -235,7 +271,15 @@ export async function createPassivePasswords(req: Request, res: Response) {
     orderNumber,
     passwordType,
   } = req.body as {
-    records?: Array<{ meter?: string; password?: string }>
+    records?: Array<{
+      meter?: string
+      password?: string
+      manufacturer?: string
+      materialType?: string
+      orderNumber?: string
+      passwordType?: string
+      digits?: number | string
+    }>
     manufacturer?: string
     materialType?: string
     orderNumber?: string
@@ -251,12 +295,11 @@ export async function createPassivePasswords(req: Request, res: Response) {
     res.status(400).json({ error: 'Limite de 5000 registros por importação.' })
     return
   }
-  if (!manufacturer?.trim() || !materialType?.trim() || !orderNumber?.trim()) {
-    res.status(400).json({
-      error: 'Preencha fabricante, código de material e número de pedido.',
-    })
-    return
-  }
+
+  const defaultManufacturer = String(manufacturer ?? '').trim()
+  const defaultMaterialType = String(materialType ?? '').trim()
+  const defaultOrderNumber = String(orderNumber ?? '').trim()
+  const defaultPasswordType = parsePasswordType(passwordType)
 
   const existing = await query<{ meter: string }>(
     'SELECT meter FROM password_records',
@@ -277,6 +320,14 @@ export async function createPassivePasswords(req: Request, res: Response) {
   for (const item of items) {
     const meter = String(item?.meter ?? '').trim()
     const password = String(item?.password ?? '').trim()
+    const rowManufacturer =
+      String(item?.manufacturer ?? '').trim() || defaultManufacturer
+    const rowMaterialType =
+      String(item?.materialType ?? '').trim() || defaultMaterialType
+    const rowOrderNumber =
+      String(item?.orderNumber ?? '').trim() || defaultOrderNumber
+    const rowPasswordType =
+      parsePasswordType(item?.passwordType) || defaultPasswordType
 
     if (!meter || !password) {
       results.push({
@@ -284,6 +335,16 @@ export async function createPassivePasswords(req: Request, res: Response) {
         password: password || '—',
         status: 'invalid',
         error: 'Medidor e senha são obrigatórios.',
+      })
+      continue
+    }
+
+    if (!rowManufacturer || !rowMaterialType || !rowOrderNumber) {
+      results.push({
+        meter,
+        password,
+        status: 'invalid',
+        error: 'Fabricante, código de material e número de pedido são obrigatórios.',
       })
       continue
     }
@@ -308,6 +369,22 @@ export async function createPassivePasswords(req: Request, res: Response) {
       continue
     }
 
+    const digitsRaw = item?.digits
+    let digits = password.length
+    if (digitsRaw !== undefined && digitsRaw !== null && String(digitsRaw).trim() !== '') {
+      const parsedDigits = Number(digitsRaw)
+      if (!Number.isInteger(parsedDigits) || parsedDigits < 1 || parsedDigits > 100) {
+        results.push({
+          meter,
+          password,
+          status: 'invalid',
+          error: 'Dígitos deve ser um inteiro entre 1 e 100.',
+        })
+        continue
+      }
+      digits = parsedDigits
+    }
+
     const normalized = meter.toLowerCase()
     if (existingMeters.has(normalized) || processed.has(normalized)) {
       results.push({
@@ -321,10 +398,10 @@ export async function createPassivePasswords(req: Request, res: Response) {
 
     processed.add(normalized)
     const type =
-      passwordType === 'alphanumeric' ||
-      passwordType === 'letters' ||
-      passwordType === 'numbers'
-        ? passwordType
+      rowPasswordType === 'alphanumeric' ||
+      rowPasswordType === 'letters' ||
+      rowPasswordType === 'numbers'
+        ? rowPasswordType
         : detectPasswordType(password)
 
     const createdAt = new Date()
@@ -332,11 +409,11 @@ export async function createPassivePasswords(req: Request, res: Response) {
       id: `passivo-${Date.now()}-${newRecords.length}-${meter}`,
       meter,
       password,
-      manufacturer: manufacturer.trim(),
-      material_type: materialType.trim(),
-      order_number: orderNumber.trim(),
+      manufacturer: rowManufacturer,
+      material_type: rowMaterialType,
+      order_number: rowOrderNumber,
       password_type: type,
-      digits: password.length,
+      digits,
       created_at: createdAt,
     }
 
@@ -369,9 +446,9 @@ export async function createPassivePasswords(req: Request, res: Response) {
       summary: `${newRecords.length} senha(s) passiva(s) cadastrada(s)`,
       newData: {
         meters: newRecords.map((record) => record.meter),
-        manufacturer: manufacturer.trim(),
-        materialType: materialType.trim(),
-        orderNumber: orderNumber.trim(),
+        manufacturer: defaultManufacturer || undefined,
+        materialType: defaultMaterialType || undefined,
+        orderNumber: defaultOrderNumber || undefined,
         createdCount: newRecords.length,
         duplicateCount: results.filter((item) => item.status === 'duplicate').length,
         invalidCount: results.filter((item) => item.status === 'invalid').length,

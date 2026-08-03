@@ -4749,6 +4749,29 @@ input[type='file'] {
   color: var(--text-soft);
 }
 
+.passivo-mode-toggle {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid rgba(120, 170, 255, 0.35);
+  border-radius: 10px;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.passivo-mode-toggle button {
+  background: transparent;
+  color: var(--text-soft);
+  border: 0;
+  padding: 8px 16px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.passivo-mode-toggle button.passivo-mode-active {
+  background: rgba(56, 132, 255, 0.22);
+  color: #fff;
+}
+
 .passivo-paste-label {
   display: grid;
   gap: 8px;

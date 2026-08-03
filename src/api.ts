@@ -735,10 +735,18 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   createPassivePasswords: (payload: {
-    records: Array<{ meter: string; password: string }>
-    manufacturer: string
-    materialType: string
-    orderNumber: string
+    records: Array<{
+      meter: string
+      password: string
+      manufacturer?: string
+      materialType?: string
+      orderNumber?: string
+      passwordType?: PasswordType | ''
+      digits?: number
+    }>
+    manufacturer?: string
+    materialType?: string
+    orderNumber?: string
     passwordType?: PasswordType | ''
   }) =>
     request<{

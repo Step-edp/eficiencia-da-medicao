@@ -693,6 +693,7 @@ function ItemIcon({ title }: { title: string }) {
     'Consultar Medidor': 'search',
     'Calendário de ensaios': 'calendar',
     Reagendar: 'repeat',
+    'Adicionar passivo': 'key',
     'Entrada de medidores': 'inbox',
     'Criar Modelo': 'cube',
     'Aprovação de RATM': 'check',
@@ -1745,11 +1746,17 @@ function HomePanel({
   const visibleLabHighlightedSections = showConsumoIrregularLab
     ? []
     : labHighlightedSections
-  const visibleLabOtherSections = showConsumoIrregularLab
-    ? labOtherSections.filter((section) =>
-        (CONSUMO_IRREGULAR_LAB_PROCESSES as readonly string[]).includes(section),
-      )
-    : labOtherSections
+  const visibleLabOtherSections = (() => {
+    const base = showConsumoIrregularLab
+      ? labOtherSections.filter((section) =>
+          (CONSUMO_IRREGULAR_LAB_PROCESSES as readonly string[]).includes(section),
+        )
+      : labOtherSections
+    if (isAdmin && !showConsumoIrregularLab) {
+      return [...base, 'Adicionar passivo']
+    }
+    return base
+  })()
   const showLabTrail = !showConsumoIrregularLab
 
   const activeFieldTeamSubtype =
@@ -4351,6 +4358,32 @@ function HomePanel({
               <ConsultarRatmPanel />
             ) : selectedLabMeasurementSection === 'Consultar Medidor' ? (
               <FieldTeamConsultarPanel />
+            ) : selectedLabMeasurementSection === 'Adicionar passivo' && isAdmin ? (
+              <PassivoPanel
+                manufacturers={manufacturers}
+                materialTypeOptions={materialTypeOptions}
+                onAddManufacturer={() => {
+                  const name = window.prompt('Digite o nome do fabricante')
+                  if (!name?.trim()) return
+                  void (async () => {
+                    try {
+                      const { name: saved } = await api.addManufacturer(name.trim())
+                      setManufacturers((prev) =>
+                        prev.includes(saved) ? prev : [...prev, saved],
+                      )
+                    } catch (error) {
+                      window.alert(
+                        error instanceof ApiError
+                          ? error.message
+                          : 'Não foi possível cadastrar o fabricante.',
+                      )
+                    }
+                  })()
+                }}
+                onCreated={(records) => {
+                  setPasswordRecords((current) => [...records, ...current])
+                }}
+              />
             ) : selectedLabMeasurementSection === 'Criar Modelo' ? (
               <CriarModeloPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Apresentação' ? (
