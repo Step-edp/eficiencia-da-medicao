@@ -49,6 +49,7 @@ import { GalleryPanel } from './GalleryPanel'
 import { SupportRequestModal } from './SupportRequestModal'
 import { SupportPanel } from './SupportPanel'
 import { LoginFeedback } from './LoginFeedback'
+import { PassivoPanel } from './PassivoPanel'
 import { AuditPanel } from './AuditPanel'
 import { EntradaPanel } from './EntradaPanel'
 import { CONSOLIDACAO_CARGA_TRAIL_STEPS, ENTRADA_TRAIL_STEP, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS, MEMORY_MASS_TRAIL_STEPS } from './labTrailSteps'
@@ -3962,6 +3963,34 @@ function HomePanel({
           )
         }
 
+        if (selectedPasswordAction === 'passivo' && isAdmin) {
+          return (
+            <main className="shell">
+              <section className="home-card area-screen-card">
+                <TopActionBar
+                  onBack={() => setSelectedPasswordAction(null)}
+                  onHome={() => {
+                    setSelectedPasswordAction(null)
+                    setSelectedMeasurementSection(null)
+                    setSelectedArea(null)
+                  }}
+                  onLogout={onLogout}
+                />
+                <p className="section-tag">Geração de Senha</p>
+                <h2>Adicionar passivo</h2>
+                <PassivoPanel
+                  manufacturers={manufacturers}
+                  materialTypeOptions={materialTypeOptions}
+                  onAddManufacturer={() => setSelectedPasswordAction('fabricante')}
+                  onCreated={(records) => {
+                    setPasswordRecords((current) => [...records, ...current])
+                  }}
+                />
+              </section>
+            </main>
+          )
+        }
+
         if (selectedPasswordAction === 'consultar') {
           return (
             <main className="shell">
@@ -4196,6 +4225,15 @@ function HomePanel({
                 >
                   Consultar senhas
                 </button>
+                {isAdmin ? (
+                  <button
+                    className="measurement-item"
+                    type="button"
+                    onClick={() => setSelectedPasswordAction('passivo')}
+                  >
+                    Adicionar passivo
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </section>

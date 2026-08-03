@@ -4738,6 +4738,31 @@ input[type='file'] {
   flex-wrap: wrap;
 }
 
+.passivo-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.passivo-intro {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.passivo-paste-label {
+  display: grid;
+  gap: 8px;
+}
+
+.passivo-paste-label textarea {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  white-space: pre;
+}
+
 .reagendar-panel {
   display: grid;
   gap: 16px;

@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
-import { requireAuth } from '../auth.js'
+import { requireAuth, requireAdmin } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 
 type PasswordRow = {
@@ -218,9 +218,181 @@ export async function generatePasswords(req: Request, res: Response) {
   })
 }
 
+function detectPasswordType(password: string): 'alphanumeric' | 'letters' | 'numbers' {
+  const hasLetter = /[A-Za-z]/.test(password)
+  const hasNumber = /\d/.test(password)
+  if (hasLetter && hasNumber) return 'alphanumeric'
+  if (hasLetter) return 'letters'
+  return 'numbers'
+}
+
+/** Cadastro em massa de senhas já existentes (passivo) — exclusivo do administrador. */
+export async function createPassivePasswords(req: Request, res: Response) {
+  const {
+    records,
+    manufacturer,
+    materialType,
+    orderNumber,
+    passwordType,
+  } = req.body as {
+    records?: Array<{ meter?: string; password?: string }>
+    manufacturer?: string
+    materialType?: string
+    orderNumber?: string
+    passwordType?: 'alphanumeric' | 'letters' | 'numbers' | ''
+  }
+
+  const items = Array.isArray(records) ? records : []
+  if (!items.length) {
+    res.status(400).json({ error: 'Informe ao menos um medidor e senha.' })
+    return
+  }
+  if (items.length > 5000) {
+    res.status(400).json({ error: 'Limite de 5000 registros por importação.' })
+    return
+  }
+  if (!manufacturer?.trim() || !materialType?.trim() || !orderNumber?.trim()) {
+    res.status(400).json({
+      error: 'Preencha fabricante, código de material e número de pedido.',
+    })
+    return
+  }
+
+  const existing = await query<{ meter: string }>(
+    'SELECT meter FROM password_records',
+  )
+  const existingMeters = new Set(
+    existing.rows.map((row) => row.meter.trim().toLowerCase()),
+  )
+
+  const results: Array<{
+    meter: string
+    password: string
+    status: 'created' | 'duplicate' | 'invalid'
+    error?: string
+  }> = []
+  const newRecords: PasswordRow[] = []
+  const processed = new Set<string>()
+
+  for (const item of items) {
+    const meter = String(item?.meter ?? '').trim()
+    const password = String(item?.password ?? '').trim()
+
+    if (!meter || !password) {
+      results.push({
+        meter: meter || '—',
+        password: password || '—',
+        status: 'invalid',
+        error: 'Medidor e senha são obrigatórios.',
+      })
+      continue
+    }
+
+    if (!/^\d+$/.test(meter)) {
+      results.push({
+        meter,
+        password,
+        status: 'invalid',
+        error: 'Medidor deve conter somente números.',
+      })
+      continue
+    }
+
+    if (password.length < 1 || password.length > 100) {
+      results.push({
+        meter,
+        password,
+        status: 'invalid',
+        error: 'Senha deve ter entre 1 e 100 caracteres.',
+      })
+      continue
+    }
+
+    const normalized = meter.toLowerCase()
+    if (existingMeters.has(normalized) || processed.has(normalized)) {
+      results.push({
+        meter,
+        password,
+        status: 'duplicate',
+        error: 'Medidor já possui senha cadastrada.',
+      })
+      continue
+    }
+
+    processed.add(normalized)
+    const type =
+      passwordType === 'alphanumeric' ||
+      passwordType === 'letters' ||
+      passwordType === 'numbers'
+        ? passwordType
+        : detectPasswordType(password)
+
+    const createdAt = new Date()
+    const record: PasswordRow = {
+      id: `passivo-${Date.now()}-${newRecords.length}-${meter}`,
+      meter,
+      password,
+      manufacturer: manufacturer.trim(),
+      material_type: materialType.trim(),
+      order_number: orderNumber.trim(),
+      password_type: type,
+      digits: password.length,
+      created_at: createdAt,
+    }
+
+    await query(
+      `INSERT INTO password_records
+       (id, meter, password, manufacturer, material_type, order_number, password_type, digits, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [
+        record.id,
+        record.meter,
+        record.password,
+        record.manufacturer,
+        record.material_type,
+        record.order_number,
+        record.password_type,
+        record.digits,
+        record.created_at,
+      ],
+    )
+
+    existingMeters.add(normalized)
+    newRecords.push(record)
+    results.push({ meter, password, status: 'created' })
+  }
+
+  if (newRecords.length) {
+    await writeAuditLog(req, {
+      action: 'create',
+      entityType: 'password_record',
+      summary: `${newRecords.length} senha(s) passiva(s) cadastrada(s)`,
+      newData: {
+        meters: newRecords.map((record) => record.meter),
+        manufacturer: manufacturer.trim(),
+        materialType: materialType.trim(),
+        orderNumber: orderNumber.trim(),
+        createdCount: newRecords.length,
+        duplicateCount: results.filter((item) => item.status === 'duplicate').length,
+        invalidCount: results.filter((item) => item.status === 'invalid').length,
+      },
+      metadata: { source: 'passivo' },
+    })
+  }
+
+  res.status(201).json({
+    results,
+    records: newRecords.map(mapPassword),
+    createdCount: newRecords.length,
+    duplicateCount: results.filter((item) => item.status === 'duplicate').length,
+    invalidCount: results.filter((item) => item.status === 'invalid').length,
+  })
+}
+
 export const passwordRoutes = {
   list: [requireAuth, listPasswordRecords],
   manufacturers: [requireAuth, listManufacturers],
   addManufacturer: [requireAuth, addManufacturer],
   generate: [requireAuth, generatePasswords],
+  createPassive: [requireAuth, requireAdmin, createPassivePasswords],
 }

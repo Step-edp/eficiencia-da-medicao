@@ -734,6 +734,28 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  createPassivePasswords: (payload: {
+    records: Array<{ meter: string; password: string }>
+    manufacturer: string
+    materialType: string
+    orderNumber: string
+    passwordType?: PasswordType | ''
+  }) =>
+    request<{
+      results: Array<{
+        meter: string
+        password: string
+        status: 'created' | 'duplicate' | 'invalid'
+        error?: string
+      }>
+      records: PasswordRecord[]
+      createdCount: number
+      duplicateCount: number
+      invalidCount: number
+    }>('/api/password-records/passive', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   listMaterials: () => request<{ materials: MaterialRecord[] }>('/api/materials'),
   createMaterial: (payload: Omit<MaterialRecord, 'id'>) =>
     request<{ material: MaterialRecord }>('/api/materials', {
