@@ -69,12 +69,10 @@ export function FieldTeamConsultarPanel({
   return (
     <div className="entrada-panel">
       {isMine ? null : (
-        <div className="entrada-panel-header">
-          <p>
-            Consulta dos medidores agendados. Perfis Ponto Focal veem apenas os agendamentos
-            dos CSDs (localidades) atribuídos a eles.
-          </p>
-        </div>
+        <p className="entrada-panel-intro">
+          Consulta dos medidores agendados. Perfis Ponto Focal veem apenas os agendamentos
+          dos CSDs (localidades) atribuídos a eles.
+        </p>
       )}
 
       {feedback ? (
