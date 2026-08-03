@@ -555,13 +555,18 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     <th>CSD</th>
                     <th>Cliente presente</th>
                     <th>Data agendada</th>
+                    <th>Prazo entrega</th>
+                    <th>Status entrega</th>
                     <th>Agendado por</th>
                     <th>Registrado em</th>
                   </tr>
                 </thead>
                 <tbody>
                   {schedules.map((schedule) => (
-                    <tr key={schedule.id}>
+                    <tr
+                      key={schedule.id}
+                      className={schedule.isLate ? 'schedule-row-late' : undefined}
+                    >
                       <td>{schedule.meter}</td>
                       <td>{schedule.installation}</td>
                       <td>{schedule.toi}</td>
@@ -569,6 +574,14 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                       <td>{schedule.csd}</td>
                       <td>{schedule.clientPresent === 'sim' ? 'Sim' : 'Não'}</td>
                       <td>{schedule.scheduledAtLabel}</td>
+                      <td>{schedule.deliveryDeadlineLabel || '—'}</td>
+                      <td>
+                        {schedule.isLate ? (
+                          <span className="schedule-late-badge">Atrasado</span>
+                        ) : (
+                          <span className="schedule-ok-badge">No prazo</span>
+                        )}
+                      </td>
                       <td>{schedule.createdByRegistration ?? '—'}</td>
                       <td>{formatDateTime(schedule.createdAt)}</td>
                     </tr>

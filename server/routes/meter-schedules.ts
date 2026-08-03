@@ -8,6 +8,11 @@ import {
   isScheduleDayBlocked,
 } from '../schedule-slots.js'
 import { toDateKey } from '../brazilian-holidays.js'
+import {
+  formatDeliveryDeadlineLabel,
+  isMeterDeliveryLate,
+  lastFridayBeforeAssay,
+} from '../delivery-deadline.js'
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 const BACKOFFICE_SCOPE = 'Lavratura de TOI - Backoffice'
@@ -43,6 +48,13 @@ type MeterScheduleRow = {
 }
 
 function mapMeterSchedule(row: MeterScheduleRow) {
+  const deliveryDeadlineAt = lastFridayBeforeAssay(row.scheduled_at)
+  const isLate = isMeterDeliveryLate({
+    scheduledAt: row.scheduled_at,
+    trailStep: row.trail_step,
+    entradaTrailStep: ENTRADA_TRAIL_STEP,
+  })
+
   return {
     id: row.id,
     meter: row.meter,
@@ -63,6 +75,9 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     envelopePhoto: row.envelope_photo || '',
     scheduledAt: row.scheduled_at.toISOString(),
     scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
+    deliveryDeadlineAt: deliveryDeadlineAt.toISOString(),
+    deliveryDeadlineLabel: formatDeliveryDeadlineLabel(deliveryDeadlineAt),
+    isLate,
     trailStep: row.trail_step,
     source: row.source,
     createdAt: row.created_at.toISOString(),
@@ -194,8 +209,17 @@ export async function listMeterSchedules(req: Request, res: Response) {
     params,
   )
 
+  const schedules = result.rows.map(mapMeterSchedule)
+  schedules.sort((a, b) => {
+    if (a.isLate !== b.isLate) return a.isLate ? -1 : 1
+    return (
+      new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime() ||
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+  })
+
   res.json({
-    schedules: result.rows.map(mapMeterSchedule),
+    schedules,
     total: result.rowCount ?? 0,
   })
 }

@@ -378,6 +378,9 @@ export type MeterScheduleRecord = {
   envelopePhoto?: string
   scheduledAt: string
   scheduledAtLabel: string
+  deliveryDeadlineAt?: string
+  deliveryDeadlineLabel?: string
+  isLate?: boolean
   trailStep: string
   source: string
   createdAt: string

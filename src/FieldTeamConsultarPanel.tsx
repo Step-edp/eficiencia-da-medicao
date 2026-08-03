@@ -71,7 +71,8 @@ export function FieldTeamConsultarPanel({
       {isMine ? null : (
         <p className="entrada-panel-intro">
           Consulta dos medidores agendados. Perfis Ponto Focal veem apenas os agendamentos
-          dos CSDs (localidades) atribuídos a eles.
+          dos CSDs (localidades) atribuídos a eles. A entrega deve ocorrer na última sexta
+          antes da data de ensaio; após esse prazo o medidor fica <strong>atrasado</strong>.
         </p>
       )}
 
@@ -102,11 +103,16 @@ export function FieldTeamConsultarPanel({
                 <th>CSD</th>
                 <th>Parceiro</th>
                 <th>Data agendada</th>
+                <th>Prazo entrega</th>
+                <th>Status entrega</th>
               </tr>
             </thead>
             <tbody>
               {schedules.map((item) => (
-                <tr key={item.id}>
+                <tr
+                  key={item.id}
+                  className={item.isLate ? 'schedule-row-late' : undefined}
+                >
                   <td>{item.meter}</td>
                   <td>{item.installation || '—'}</td>
                   <td>{item.toi || '—'}</td>
@@ -146,6 +152,16 @@ export function FieldTeamConsultarPanel({
                       : '—'}
                   </td>
                   <td>{item.scheduledAtLabel || '—'}</td>
+                  <td>{item.deliveryDeadlineLabel || '—'}</td>
+                  <td>
+                    {item.isLate ? (
+                      <span className="schedule-late-badge">Atrasado</span>
+                    ) : item.trailStep === 'Entrada de medidores' ? (
+                      <span className="schedule-ok-badge">No prazo</span>
+                    ) : (
+                      'Entregue'
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

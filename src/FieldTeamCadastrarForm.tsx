@@ -70,6 +70,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
   const [slotModal, setSlotModal] = useState<{
     meter: string
     slot: string
+    deliveryDeadline: string
   } | null>(null)
   const [copiedSlot, setCopiedSlot] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<FieldTeamFieldErrors>({})
@@ -222,6 +223,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       setSlotModal({
         meter: schedule.meter,
         slot: schedule.scheduledAtLabel,
+        deliveryDeadline: schedule.deliveryDeadlineLabel || '',
       })
       setMeter('')
       setInstallation('')
@@ -677,7 +679,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                 </p>
                 <div className="schedule-slot-date-row">
                   <p id="schedule-slot-date-label" className="available-slot-value">
-                    {slotModal.slot}
+                    Ensaio: {slotModal.slot}
                   </p>
                   <button
                     type="button"
@@ -720,6 +722,13 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                     )}
                   </button>
                 </div>
+                {slotModal.deliveryDeadline ? (
+                  <p className="schedule-slot-deadline-note">
+                    Prazo de entrega (última sexta antes do ensaio):{' '}
+                    <strong>{slotModal.deliveryDeadline}</strong>. Após essa data o
+                    medidor consta como atrasado.
+                  </p>
+                ) : null}
               </div>
             </div>,
             document.body,

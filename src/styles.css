@@ -1973,6 +1973,34 @@ button {
   white-space: nowrap;
 }
 
+.schedule-row-late td {
+  background: rgba(180, 60, 40, 0.16);
+}
+
+.schedule-late-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ffd4cc;
+  background: rgba(200, 64, 48, 0.35);
+  border: 1px solid rgba(240, 120, 96, 0.55);
+}
+
+.schedule-ok-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #d9f7e8;
+  background: rgba(34, 160, 110, 0.28);
+  border: 1px solid rgba(80, 210, 150, 0.45);
+}
+
 .lab-trail-connector {
   flex: 0 0 18px;
   align-self: center;
@@ -5248,6 +5276,13 @@ input[type='file'] {
   margin: 0 0 16px;
   color: var(--text-soft);
   line-height: 1.5;
+}
+
+.schedule-slot-deadline-note {
+  margin: 12px 0 0;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .schedule-slot-modal .available-slot-title {
