@@ -244,21 +244,25 @@ export function PassivoPanel({
       </label>
       <label>
         Código de material
-        <select
+        <input
+          type="text"
+          list="passivo-material-codes"
           value={materialType}
           onChange={(event) => setMaterialType(event.target.value)}
+          placeholder={
+            mode === 'individual'
+              ? 'Digite ou selecione o código'
+              : 'Opcional (padrão) — digite ou selecione'
+          }
           required={mode === 'individual'}
           disabled={saving}
-        >
-          <option value="" disabled={mode === 'individual'}>
-            {mode === 'individual' ? 'Selecione' : 'Opcional (padrão)'}
-          </option>
+          autoComplete="off"
+        />
+        <datalist id="passivo-material-codes">
           {materialTypeOptions.map((material) => (
-            <option key={material} value={material}>
-              {material}
-            </option>
+            <option key={material} value={material} />
           ))}
-        </select>
+        </datalist>
       </label>
       <label>
         Número de pedido
