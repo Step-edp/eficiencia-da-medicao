@@ -658,7 +658,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.march}
           options={['Aprovado', 'Reprovado', 'NA']}
           onChange={(value) => onChange({ march: value })}
-          vertical
         />
 
         <ClearableRadioGroup
@@ -667,7 +666,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.recorder}
           options={['Aprovado', 'Reprovado']}
           onChange={(value) => onChange({ recorder: value })}
-          vertical
         />
 
         <label className="full-width">
