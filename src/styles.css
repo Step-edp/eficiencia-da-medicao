@@ -2936,6 +2936,21 @@ button {
   word-break: break-all;
 }
 
+.consult-leituras-notice {
+  margin: 4px 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  background: rgba(120, 80, 10, 0.28);
+  color: #fde68a;
+}
+
+.consult-leituras-notice p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .consult-passivo-badge {
   display: inline-flex;
   align-items: center;

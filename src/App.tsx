@@ -4223,6 +4223,17 @@ function HomePanel({
                     : 'Pesquise as senhas salvas no banco local por medidor, fabricante e codigo de material.'}
                 </p>
 
+                {isLeiturasFaturamentoProfile ? (
+                  <div className="consult-leituras-notice" role="note">
+                    <p>
+                      O passivo de senhas ainda está sendo adicionado à base do
+                      aplicativo, então nem todas as senhas estarão disponíveis.
+                      Caso não localize a senha aqui, procure um ponto focal da
+                      Medição.
+                    </p>
+                  </div>
+                ) : null}
+
                 {isLeiturasFaturamentoProfile ? null : (
                   <>
                     <div className="consult-filters-grid">
