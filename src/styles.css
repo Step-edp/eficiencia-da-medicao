@@ -5791,6 +5791,12 @@ input[type='file'] {
   font-size: 1.2rem;
 }
 
+.ratm-nav-trailing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .ratm-nav-button {
   width: 42px;
   height: 42px;
@@ -5800,11 +5806,30 @@ input[type='file'] {
   color: #5bf000;
   font-size: 1.6rem;
   line-height: 1;
+  cursor: pointer;
 }
 
 .ratm-nav-button:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.ratm-nav-close {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 124, 124, 0.35);
+  border-radius: 12px;
+  background: rgba(110, 23, 23, 0.28);
+  color: #ffd7d7;
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ratm-nav-close:hover,
+.ratm-nav-close:focus-visible {
+  border-color: rgba(255, 124, 124, 0.55);
+  background: rgba(140, 30, 30, 0.4);
 }
 
 .ratm-form-panel {

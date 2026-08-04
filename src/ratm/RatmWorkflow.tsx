@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LoginFeedback } from '../LoginFeedback'
 import { RatmFormFields } from './RatmFormFields'
 import { clearRatmDraft, loadRatmDraft, saveRatmDraft } from './ratmDraft'
 import { createEmptyRatmForm, normalizeRatmForm, type RatmFormData } from './types'
@@ -22,10 +23,10 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
 
     return Array.from({ length: count }, () => createEmptyRatmForm())
   })
-  const restoredDraft = (() => {
+  const [showRestoredDraft, setShowRestoredDraft] = useState(() => {
     const draft = loadRatmDraft()
     return draft?.count === count
-  })()
+  })
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -79,6 +80,16 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
     setActiveIndex((prev) => Math.min(prev + 1, count - 1))
   }
 
+  const handleCloseRatm = () => {
+    const confirmed = window.confirm(
+      'Fechar o RATM descarta todo o preenchimento e o rascunho. Deseja continuar?',
+    )
+    if (!confirmed) return
+
+    clearRatmDraft()
+    onBack()
+  }
+
   const handleFinish = async () => {
     const invalidIndex = forms.findIndex((form) => !form.meter.trim())
 
@@ -106,22 +117,30 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
 
   return (
     <div className="ratm-workflow">
-      {restoredDraft ? (
-        <div className="login-feedback success" role="status">
-          Rascunho do RATM restaurado automaticamente.
-        </div>
+      {showRestoredDraft ? (
+        <LoginFeedback
+          type="success"
+          message="Rascunho do RATM restaurado automaticamente."
+          onClose={() => setShowRestoredDraft(false)}
+        />
       ) : null}
 
       {feedback ? (
-        <div className={`login-feedback ${feedback.type}`} role="status">
-          {feedback.message}
-        </div>
+        <LoginFeedback
+          type={feedback.type}
+          message={feedback.message}
+          onClose={
+            feedback.type === 'success' ? () => setFeedback(null) : undefined
+          }
+        />
       ) : null}
 
       {scanMessage ? (
-        <div className="login-feedback success" role="status">
-          {scanMessage}
-        </div>
+        <LoginFeedback
+          type="success"
+          message={scanMessage}
+          onClose={() => setScanMessage(null)}
+        />
       ) : null}
 
       <div className="ratm-nav-bar">
@@ -135,15 +154,26 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
           ‹
         </button>
         <strong className="ratm-nav-title">RATM {activeIndex + 1}</strong>
-        <button
-          className="ratm-nav-button"
-          type="button"
-          onClick={handleNext}
-          disabled={activeIndex >= count - 1}
-          aria-label="Próximo RATM"
-        >
-          ›
-        </button>
+        <div className="ratm-nav-trailing">
+          <button
+            className="ratm-nav-button"
+            type="button"
+            onClick={handleNext}
+            disabled={activeIndex >= count - 1}
+            aria-label="Próximo RATM"
+          >
+            ›
+          </button>
+          <button
+            className="ratm-nav-close"
+            type="button"
+            onClick={handleCloseRatm}
+            aria-label="Fechar RATM e descartar preenchimento"
+            title="Fechar RATM (descarta tudo)"
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       <RatmFormFields
@@ -155,10 +185,14 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
       />
 
       <div className="ratm-workflow-actions">
-        <button className="secondary-button" type="button" onClick={() => {
-          clearRatmDraft()
-          onBack()
-        }}>
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={() => {
+            clearRatmDraft()
+            onBack()
+          }}
+        >
           Alterar quantidade
         </button>
         {activeIndex < count - 1 ? (
