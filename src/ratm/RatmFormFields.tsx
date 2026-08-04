@@ -542,7 +542,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               value={data.enclosureStatus}
               options={['Em ordem', 'Violado', 'Sem lacre']}
               onChange={(value) => onChange({ enclosureStatus: value })}
-              vertical
             />
           </div>
         </RatmExpandableSection>
@@ -572,7 +571,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               value={data.seal1Status}
               options={['Violado', 'Sem lacre', 'Em ordem']}
               onChange={(value) => onChange({ seal1Status: value })}
-              vertical
             />
           </div>
         </RatmExpandableSection>
@@ -602,7 +600,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               value={data.seal2Status}
               options={['Violado', 'Sem lacre', 'Em ordem', 'N/A']}
               onChange={(value) => onChange({ seal2Status: value })}
-              vertical
             />
           </div>
         </RatmExpandableSection>
@@ -630,7 +627,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.meterReadingStatus}
           options={['Apagado', 'Sem leitura', 'Ilegível']}
           onChange={(value) => onChange({ meterReadingStatus: value })}
-          vertical
         />
 
         <ClearableRadioGroup
