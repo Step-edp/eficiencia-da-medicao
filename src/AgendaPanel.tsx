@@ -311,7 +311,8 @@ export function AgendaPanel({
       {displayStatus === 'bloqueado' ? (
         <div className="agenda-alert agenda-alert-blocked" role="alert">
           <strong>Perfil bloqueado.</strong> O prazo de 7 dias para registrar o próximo período de
-          férias expirou. Você só pode usar a Agenda até concluir o registro.
+          férias expirou. Você só pode registrar as férias aqui; ao salvar o período, o perfil
+          é desbloqueado.
           {deadlineLabel ? ` Prazo encerrou em ${deadlineLabel}.` : null}
         </div>
       ) : null}
@@ -359,13 +360,15 @@ export function AgendaPanel({
               <button
                 type="button"
                 className="agenda-action-chip"
-                disabled={locked || displayStatus === 'em_ausencia'}
+                disabled={displayStatus === 'em_ausencia'}
                 title={
                   hasRegisteredVacation
                     ? startDate && endDate
                       ? `${formatDateBr(startDate)} a ${formatDateBr(endDate)}`
                       : 'Alterar período registrado'
-                    : 'Período obrigatório'
+                    : locked
+                      ? 'Registre as férias para desbloquear o perfil'
+                      : 'Período obrigatório'
                 }
                 onClick={() => openVacationForm()}
               >
@@ -398,7 +401,11 @@ export function AgendaPanel({
                 type="button"
                 className="agenda-action-chip"
                 disabled={locked || displayStatus === 'em_ausencia'}
-                title="Licença, atestado e outros"
+                title={
+                  locked
+                    ? 'Disponível após registrar as férias e desbloquear o perfil'
+                    : 'Licença, atestado e outros'
+                }
                 onClick={openAbsenceForm}
               >
                 <span className="agenda-action-chip-icon" aria-hidden="true">
@@ -483,7 +490,7 @@ export function AgendaPanel({
             periods={periods}
             vacationStart={startDate}
             vacationEnd={endDate}
-            interactive={!saving && !locked && displayStatus !== 'em_ausencia'}
+            interactive={!saving && displayStatus !== 'em_ausencia'}
             onSelectDate={(isoDate) => {
               const next = nextVacationRangeFromClick(isoDate, startDate, endDate)
               setStartDate(next.startDate)
@@ -499,7 +506,7 @@ export function AgendaPanel({
                 value={startDate}
                 onChange={(event) => setStartDate(event.target.value)}
                 required
-                disabled={saving || locked || displayStatus === 'em_ausencia'}
+                disabled={saving || displayStatus === 'em_ausencia'}
               />
             </label>
             <label>
@@ -509,7 +516,7 @@ export function AgendaPanel({
                 value={endDate}
                 onChange={(event) => setEndDate(event.target.value)}
                 required
-                disabled={saving || locked || displayStatus === 'em_ausencia'}
+                disabled={saving || displayStatus === 'em_ausencia'}
                 min={startDate || undefined}
               />
             </label>
@@ -519,7 +526,7 @@ export function AgendaPanel({
                 value={vacationSubstituteUserId}
                 onChange={(event) => setVacationSubstituteUserId(event.target.value)}
                 required
-                disabled={saving || locked || displayStatus === 'em_ausencia'}
+                disabled={saving || displayStatus === 'em_ausencia'}
               >
                 <option value="">Selecione quem vai substituí-lo</option>
                 {substituteCandidates.map((user) => (
@@ -550,7 +557,7 @@ export function AgendaPanel({
               <button
                 type="submit"
                 className="primary-button"
-                disabled={saving || locked || displayStatus === 'em_ausencia'}
+                disabled={saving || displayStatus === 'em_ausencia'}
               >
                 {saving
                   ? 'Salvando…'
@@ -712,7 +719,6 @@ export function AgendaPanel({
               <ul className="agenda-period-list">
                 {periods.map((period) => {
                   const canEditVacation =
-                    !locked &&
                     displayStatus !== 'em_ausencia' &&
                     (period.absenceType ?? 'ferias') === 'ferias' &&
                     period.endDate >= todayIso

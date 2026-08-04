@@ -1732,7 +1732,7 @@ function HomePanel({
       title: 'Agenda',
       description: 'Registro obrigatório do próximo período de férias.',
       details:
-        'Informe suas próximas férias. Sem registro o status fica pendente; após 7 dias o perfil é bloqueado.',
+        'Informe suas próximas férias. Sem registro o status fica pendente; após 7 dias o perfil fica restrito à Agenda até registrar as férias.',
     },
   ]
 
@@ -5336,7 +5336,7 @@ function HomePanel({
                 {currentUser.vacationDeadlineAt
                   ? ` até ${new Date(currentUser.vacationDeadlineAt).toLocaleString('pt-BR')}`
                   : ' nos próximos 7 dias'}
-                . Depois disso o perfil será bloqueado.
+                . Depois disso o perfil fica restrito à Agenda até o registro das férias.
               </p>
               {agendaArea ? (
                 <button
