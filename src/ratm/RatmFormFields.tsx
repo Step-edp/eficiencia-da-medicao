@@ -463,7 +463,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.visualTest}
           options={['Aprovado', 'Reprovado']}
           onChange={(value) => onChange({ visualTest: value })}
-          vertical
         />
 
         <ClearableRadioGroup
@@ -472,7 +471,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.dielectric}
           options={['Aprovado', 'Reprovado']}
           onChange={(value) => onChange({ dielectric: value })}
-          vertical
         />
 
         <fieldset className="ratm-section-box full-width">
