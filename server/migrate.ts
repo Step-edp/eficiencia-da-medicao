@@ -651,4 +651,21 @@ export async function migrate() {
       AND work_area = 'CSD'
       AND REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-') = 'Leituras de faturamento'
   `)
+
+  // Remove a base de medidores importada do Excel (contadores da trilha do lab).
+  await query(`
+    CREATE TABLE IF NOT EXISTS app_runtime_flags (
+      key TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  const clearRegistryFlag = await query<{ key: string }>(
+    `SELECT key FROM app_runtime_flags WHERE key = 'clear_meter_registry_import_v1'`,
+  )
+  if (!clearRegistryFlag.rows.length) {
+    await query(`DELETE FROM meter_registry`)
+    await query(
+      `INSERT INTO app_runtime_flags (key) VALUES ('clear_meter_registry_import_v1')`,
+    )
+  }
 }

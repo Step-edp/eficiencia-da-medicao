@@ -1,6 +1,5 @@
 import bcrypt from 'bcryptjs'
 import { query } from './db.js'
-import { ensureMeterRegistryImported } from './import-meter-registry.js'
 import { syncMeterRegistryTrailSteps } from './routes/meter-registry.js'
 import { ensureCatalogOptionsSeeded } from './routes/catalog-options.js'
 import { ensureOrgCellsSeeded } from './routes/org-cells.js'
@@ -99,15 +98,13 @@ export async function seed() {
   await ensureOrgCellsSeeded()
 
   try {
-    const imported = await ensureMeterRegistryImported()
-    if (imported > 0) {
-      console.log(`Base de medidores importada: ${imported} registro(s).`)
-    }
+    // Base Excel não é mais importada automaticamente no seed.
+    // Para popular: npx tsx server/import-meter-registry.ts
     const synced = await syncMeterRegistryTrailSteps()
     if (synced > 0) {
       console.log(`Trilha da base de medidores sincronizada: ${synced} registro(s).`)
     }
   } catch (error) {
-    console.error('Falha ao importar base de medidores:', error)
+    console.error('Falha ao sincronizar trilha da base de medidores:', error)
   }
 }
