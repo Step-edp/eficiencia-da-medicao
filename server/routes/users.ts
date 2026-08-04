@@ -825,7 +825,10 @@ export async function updateUser(req: Request, res: Response) {
           cpf = $7,
           personal_description = $8,
           hobby = $9,
-          profile_photo = $10,
+          profile_photo = CASE
+            WHEN NULLIF($10, '') IS NULL THEN profile_photo
+            ELSE $10
+          END,
           password_hash = COALESCE($11, password_hash),
           password_plain = COALESCE($12, password_plain)
          WHERE id = $1 AND role = 'admin'
@@ -938,7 +941,8 @@ export async function updateUser(req: Request, res: Response) {
   }
   if (
     allowedLocalities.length > 0
-      ? !allowedLocalities.includes(normalizedLocality)
+      ? !allowedLocalities.includes(normalizedLocality) &&
+        normalizedLocality !== (target.locality?.trim() ?? '')
       : !normalizedLocality
   ) {
     res.status(400).json({ error: 'Selecione a localidade.' })
@@ -947,7 +951,11 @@ export async function updateUser(req: Request, res: Response) {
 
   let storedCompany = ''
   if (normalizedEmploymentType === 'Terceira') {
-    if (!normalizedCompany || !allowedTerceiras.includes(normalizedCompany)) {
+    if (
+      !normalizedCompany ||
+      (!allowedTerceiras.includes(normalizedCompany) &&
+        normalizedCompany !== (target.third_party_company?.trim() ?? ''))
+    ) {
       res.status(400).json({ error: 'Selecione a empresa terceira.' })
       return
     }
@@ -1101,7 +1109,10 @@ export async function updateUser(req: Request, res: Response) {
         access_processes = $16::jsonb,
         personal_description = $17,
         hobby = $18,
-        profile_photo = $19,
+        profile_photo = CASE
+          WHEN NULLIF($19, '') IS NULL THEN profile_photo
+          ELSE $19
+        END,
         password_hash = COALESCE($20, password_hash),
         password_plain = COALESCE($21, password_plain)
        WHERE id = $1

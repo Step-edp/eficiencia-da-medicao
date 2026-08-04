@@ -5,6 +5,7 @@ import {
   ApiError,
   type AppUser,
 } from './api'
+import { LoginFeedback } from './LoginFeedback'
 import { roleLabel } from './profilesAccess'
 import {
   buildRequestedProfile,
@@ -131,7 +132,16 @@ export function UserDetailModal({
   const [csdScopeOptions, setCsdScopeOptions] = useState<string[]>([
     ...TECHNICIAN_SCOPES_BY_AREA.CSD,
   ])
+  const [localFeedback, setLocalFeedback] = useState<{
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
   const photoInputId = `user-photo-${user.id}`
+
+  const emitFeedback = (feedback: { type: 'success' | 'error'; message: string }) => {
+    setLocalFeedback(feedback)
+    onFeedback(feedback)
+  }
 
   useEffect(() => {
     void api
@@ -277,10 +287,11 @@ export function UserDetailModal({
 
   const handleSave = async (event: FormEvent) => {
     event.preventDefault()
+    setLocalFeedback(null)
 
     if (isAdminUser) {
       if (!name.trim() || !registration.trim() || !email.trim()) {
-        onFeedback({
+        emitFeedback({
           type: 'error',
           message: 'Nome, matrícula e e-mail são obrigatórios.',
         })
@@ -299,7 +310,7 @@ export function UserDetailModal({
       !whatsapp.trim() ||
       !birthDate
     ) {
-      onFeedback({
+      emitFeedback({
         type: 'error',
         message: 'Preencha todos os campos obrigatórios antes de salvar.',
       })
@@ -307,12 +318,12 @@ export function UserDetailModal({
     }
 
     if (!isAdminUser && needsCompany && !thirdPartyCompany) {
-      onFeedback({ type: 'error', message: 'Selecione a empresa terceira.' })
+      emitFeedback({ type: 'error', message: 'Selecione a empresa terceira.' })
       return
     }
 
     if (!isAdminUser && subtypeOptions.length > 0 && !workSubtype) {
-      onFeedback({
+      emitFeedback({
         type: 'error',
         message:
           jobTitle === 'Engenheiro'
@@ -323,7 +334,7 @@ export function UserDetailModal({
     }
 
     if (!isAdminUser && needsHomeSubareas && accessAreas.length === 0) {
-      onFeedback({
+      emitFeedback({
         type: 'error',
         message: 'Selecione ao menos uma subárea da home.',
       })
@@ -333,7 +344,7 @@ export function UserDetailModal({
     if (!isAdminUser && needsHomeSubareas) {
       const conflict = accessAreas.find((area) => takenSubcellAreas.has(area))
       if (conflict) {
-        onFeedback({
+        emitFeedback({
           type: 'error',
           message: `A subárea "${conflict}" já possui responsável: ${takenSubcellAreas.get(conflict)}.`,
         })
@@ -346,9 +357,17 @@ export function UserDetailModal({
       needsSpecificProcesses &&
       (selectedProcessAreas.length === 0 || accessProcesses.length === 0)
     ) {
-      onFeedback({
+      emitFeedback({
         type: 'error',
         message: 'Selecione a(s) subárea(s) e ao menos um processo específico dentro delas.',
+      })
+      return
+    }
+
+    if (showPassword && password.trim() && password.trim().length < 4) {
+      emitFeedback({
+        type: 'error',
+        message: 'A senha precisa ter pelo menos 4 caracteres.',
       })
       return
     }
@@ -393,10 +412,13 @@ export function UserDetailModal({
         ...(showPassword && password.trim() ? { password: password.trim() } : {}),
       })
       onSaved(updated)
+      setPassword(updated.password ?? password)
+      setObservation(updated.personalDescription ?? observation)
+      setProfilePhoto(updated.profilePhoto ?? profilePhoto)
       setEditing(false)
-      onFeedback({ type: 'success', message: 'Informações do usuário atualizadas.' })
+      emitFeedback({ type: 'success', message: 'Informações do usuário atualizadas.' })
     } catch (error) {
-      onFeedback({
+      emitFeedback({
         type: 'error',
         message:
           error instanceof ApiError
@@ -419,7 +441,7 @@ export function UserDetailModal({
       onClose()
       onFeedback({ type: 'success', message: 'Usuário excluído.' })
     } catch (error) {
-      onFeedback({
+      emitFeedback({
         type: 'error',
         message:
           error instanceof ApiError
@@ -466,6 +488,14 @@ export function UserDetailModal({
         <p className="user-detail-subtitle">
           {roleLabel(user.role)} · {statusLabel(user.approvalStatus)}
         </p>
+
+        {localFeedback ? (
+          <LoginFeedback
+            type={localFeedback.type}
+            message={localFeedback.message}
+            onClose={() => setLocalFeedback(null)}
+          />
+        ) : null}
 
         {profilePhoto ? (
           <img
