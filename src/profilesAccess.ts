@@ -205,7 +205,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-tecnico-leituras',
     name: profileName('CSD', 'Técnico', 'Leituras de faturamento'),
     description:
-      'Consultar senhas cadastradas em Medição. Sem acesso à Equipe de campo.',
+      'Consultar senhas cadastradas direto na home. Sem acesso à Equipe de campo nem ao card Medição.',
     areas: ['Medição'],
     match: {
       workArea: 'CSD',
@@ -217,7 +217,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-analista-leituras',
     name: profileName('CSD', 'Analista', 'Leituras de faturamento'),
     description:
-      'Consultar senhas cadastradas em Medição. Sem acesso à Equipe de campo.',
+      'Consultar senhas cadastradas direto na home. Sem acesso à Equipe de campo nem ao card Medição.',
     areas: ['Medição'],
     match: {
       workArea: 'CSD',

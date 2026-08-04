@@ -736,6 +736,7 @@ function ItemIcon({ title }: { title: string }) {
     Pirâmide: 'layer',
     Capex: 'chart',
     'Geração de senha': 'lock',
+    'Consultar senhas': 'lock',
     'Geração de número de série': 'key',
     'Sap Hana': 'monitor',
     Ensaio: 'flask',
@@ -1793,10 +1794,6 @@ function HomePanel({
     activeFieldTeamSubtype,
   )
 
-  const visibleMeasurementSections = isLeiturasFaturamentoProfile
-    ? measurementSections.filter((section) => section === 'Geração de senha')
-    : measurementSections
-
   const fieldTeamSections = (() => {
     const hasLavraturaAccess =
       isFieldTeamCsdScope(currentUser.workSubtype) ||
@@ -1828,6 +1825,7 @@ function HomePanel({
     isFieldTeamCsdScope(previewProfile?.match.workSubtype)
 
   const fieldTeamArea = allAreas.find((area) => area.title === 'Equipe de campo') ?? null
+  const medicaoArea = allAreas.find((area) => area.title === 'Medição') ?? null
 
   const areas = allAreas.filter((area) => {
     if (!allowedHomeAreas.includes(area.title as (typeof allowedHomeAreas)[number])) {
@@ -1836,8 +1834,21 @@ function HomePanel({
     if (flattenFieldTeamHome && area.title === 'Equipe de campo') {
       return false
     }
+    // Leituras de faturamento: Consultar senhas fica na home, sem card Medição.
+    if (isLeiturasFaturamentoProfile && area.title === 'Medição') {
+      return false
+    }
     return true
   })
+
+  const openConsultarSenhas = () => {
+    if (!medicaoArea) return
+    setSelectedOrgCell(null)
+    setSelectedOrgSubcell(null)
+    setSelectedArea(medicaoArea)
+    setSelectedMeasurementSection('Geração de senha')
+    setSelectedPasswordAction('consultar')
+  }
 
   const showEstagiarioHome =
     (previewUser != null && isMedicaoEstagiario(previewUser)) ||
@@ -2103,14 +2114,16 @@ function HomePanel({
   }, [flattenFieldTeamHome, selectedArea?.title, selectedFieldTeamSection])
 
   useEffect(() => {
-    if (
-      isLeiturasFaturamentoProfile &&
-      selectedMeasurementSection === 'Geração de senha' &&
-      !selectedPasswordAction
-    ) {
-      setSelectedPasswordAction('consultar')
-    }
-  }, [isLeiturasFaturamentoProfile, selectedMeasurementSection, selectedPasswordAction])
+    if (!isLeiturasFaturamentoProfile) return
+    if (selectedArea?.title !== 'Medição') return
+    if (selectedPasswordAction === 'consultar') return
+    setSelectedMeasurementSection('Geração de senha')
+    setSelectedPasswordAction('consultar')
+  }, [
+    isLeiturasFaturamentoProfile,
+    selectedArea?.title,
+    selectedPasswordAction,
+  ])
 
   useEffect(() => {
     if (
@@ -4160,7 +4173,15 @@ function HomePanel({
             <main className="shell">
               <section className="home-card area-screen-card">
                 <TopActionBar
-                  onBack={() => setSelectedPasswordAction(null)}
+                  onBack={() => {
+                    if (isLeiturasFaturamentoProfile) {
+                      setSelectedPasswordAction(null)
+                      setSelectedMeasurementSection(null)
+                      setSelectedArea(null)
+                      return
+                    }
+                    setSelectedPasswordAction(null)
+                  }}
                   onHome={() => {
                     setSelectedPasswordAction(null)
                     setSelectedMeasurementSection(null)
@@ -4168,7 +4189,9 @@ function HomePanel({
                   }}
                   onLogout={onLogout}
                 />
-                <p className="section-tag">Geração de Senha</p>
+                <p className="section-tag">
+                  {isLeiturasFaturamentoProfile ? 'Senhas' : 'Geração de Senha'}
+                </p>
                 <h2>Consultar senhas</h2>
                 <p>
                   Pesquise as senhas salvas no banco local por medidor, fabricante e
@@ -4387,12 +4410,6 @@ function HomePanel({
               </div>
             ) : null}
             {selectedMeasurementSection === 'Geração de senha' ? (
-              isLeiturasFaturamentoProfile ? (
-                <p>
-                  Neste perfil, a consulta de senhas abre automaticamente. Use voltar se
-                  precisar retornar à home.
-                </p>
-              ) : (
               <div className="measurement-sections" aria-label="Opções de geração de senha">
                 <button
                   className="measurement-item"
@@ -4418,7 +4435,6 @@ function HomePanel({
                   </button>
                 ) : null}
               </div>
-              )
             ) : null}
           </section>
         </main>
@@ -5060,7 +5076,7 @@ function HomePanel({
           {selectedArea.details ? <p>{selectedArea.details}</p> : null}
           {selectedArea.title === 'Medição' ? (
             <div className="measurement-sections" aria-label="Subáreas de medição">
-              {visibleMeasurementSections.map((section) => (
+              {measurementSections.map((section) => (
                 <button
                   key={section}
                   className="measurement-item"
@@ -5072,21 +5088,11 @@ function HomePanel({
                     if (section === 'Memória de massa') {
                       setSelectedMemoryMassStep(MEMORY_MASS_TRAIL_STEPS[0]?.key ?? 'Notas')
                     }
-                    if (
-                      section === 'Geração de senha' &&
-                      isLeiturasFaturamentoProfile
-                    ) {
-                      setSelectedPasswordAction('consultar')
-                    }
                   }}
                 >
                   <span className="item-with-icon">
                     <ItemIcon title={section} />
-                    <span>
-                      {section === 'Geração de senha' && isLeiturasFaturamentoProfile
-                        ? 'Consultar senhas'
-                        : section}
-                    </span>
+                    <span>{section}</span>
                   </span>
                 </button>
               ))}
@@ -5400,6 +5406,18 @@ function HomePanel({
                 </button>
               ))
             : null}
+          {isLeiturasFaturamentoProfile ? (
+            <button
+              className={`area-card ${getAreaCardClassName('Consultar senhas')}`}
+              type="button"
+              onClick={openConsultarSenhas}
+            >
+              <span className="area-card-title">
+                <ItemIcon title="Consultar senhas" />
+                <span>Consultar senhas</span>
+              </span>
+            </button>
+          ) : null}
           <button
             className={`area-card ${getAreaCardClassName('Suporte')}`}
             type="button"
@@ -5878,7 +5896,7 @@ function getAreaCardClassName(title: string) {
     return 'area-card-gestao'
   }
 
-  if (title === 'Medição') {
+  if (title === 'Medição' || title === 'Consultar senhas') {
     return 'area-card-medicao'
   }
 
