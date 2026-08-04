@@ -204,8 +204,9 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   {
     id: 'csd-tecnico-leituras',
     name: profileName('CSD', 'Técnico', 'Leituras de faturamento'),
-    description: 'Atividades de leituras de faturamento no escopo CSD.',
-    areas: ['Equipe de campo'],
+    description:
+      'Consultar senhas cadastradas em Medição. Sem acesso à Equipe de campo.',
+    areas: ['Medição'],
     match: {
       workArea: 'CSD',
       jobTitle: 'Técnico',
@@ -215,8 +216,9 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   {
     id: 'csd-analista-leituras',
     name: profileName('CSD', 'Analista', 'Leituras de faturamento'),
-    description: 'Atividades de leituras de faturamento no escopo CSD.',
-    areas: ['Equipe de campo'],
+    description:
+      'Consultar senhas cadastradas em Medição. Sem acesso à Equipe de campo.',
+    areas: ['Medição'],
     match: {
       workArea: 'CSD',
       jobTitle: 'Analista',
@@ -505,6 +507,11 @@ export function normalizeWorkSubtype(workSubtype?: string | null) {
     .replace(/\u2014/g, '-') // em-dash
 }
 
+/** Escopo CSD – Leituras de faturamento (consulta de senhas em Medição). */
+export function isCsdLeiturasFaturamentoScope(workSubtype?: string | null) {
+  return normalizeWorkSubtype(workSubtype) === 'Leituras de faturamento'
+}
+
 /** Escopos CSD que liberam Equipe de campo (Agendar / Consultar). */
 export function isFieldTeamCsdScope(workSubtype?: string | null) {
   const normalized = normalizeWorkSubtype(workSubtype)
@@ -600,6 +607,17 @@ export function getAccessiblePortals(user: {
     !portals.includes('Equipe de campo')
   ) {
     portals = [...portals, 'Equipe de campo']
+  }
+
+  // CSD Leituras de faturamento: Medição (consulta de senha), sem Equipe de campo.
+  if (
+    user.workArea?.trim() === 'CSD' &&
+    isCsdLeiturasFaturamentoScope(user.workSubtype)
+  ) {
+    portals = portals.filter((portal) => portal !== 'Equipe de campo')
+    if (!portals.includes('Medição')) {
+      portals = [...portals, 'Medição']
+    }
   }
 
   // Consumo Irregular: Laboratório de Medição (Reagendar, Consultar Medidor, Consultar RATM).

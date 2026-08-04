@@ -65,7 +65,6 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Lavratura de TOI - Equipe de Campo',
     'Lavratura de TOI - Ponto Focal',
     'Lavratura de TOI - Backoffice',
-    'Leituras de faturamento',
   ],
   Usuários: ['Gestão de usuários', 'Aprovação de cadastros', 'Dashboard de usuários'],
   Cadastros: ['Listas suspensas', 'Perfis de acesso'],

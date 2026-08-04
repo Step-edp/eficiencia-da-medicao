@@ -642,4 +642,13 @@ export async function migrate() {
     WHERE source <> 'passivo'
       AND id LIKE 'passivo-%'
   `)
+
+  // CSD Leituras de faturamento: Medição (consulta de senha), sem Equipe de campo.
+  await query(`
+    UPDATE users
+    SET access_areas = '["Medição"]'::jsonb
+    WHERE role <> 'admin'
+      AND work_area = 'CSD'
+      AND REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-') = 'Leituras de faturamento'
+  `)
 }

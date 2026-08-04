@@ -19,6 +19,7 @@ import {
   getHomeAreasForUser,
   getAccessiblePortals,
   isFieldTeamCsdScope,
+  isCsdLeiturasFaturamentoScope,
   isLavraturaBackofficeScope,
   isLavraturaEquipeCampoScope,
   isLavraturaPontoFocalScope,
@@ -1647,6 +1648,7 @@ function HomePanel({
     'Geração de número de série',
     'Sap Hana',
   ]
+
   const labHighlightedSections = [
     'Auditoria',
     'Analisadores de Tensão',
@@ -1786,6 +1788,14 @@ function HomePanel({
     previewUser?.workSubtype ??
     previewProfile?.match.workSubtype ??
     currentUser.workSubtype
+
+  const isLeiturasFaturamentoProfile = isCsdLeiturasFaturamentoScope(
+    activeFieldTeamSubtype,
+  )
+
+  const visibleMeasurementSections = isLeiturasFaturamentoProfile
+    ? measurementSections.filter((section) => section === 'Geração de senha')
+    : measurementSections
 
   const fieldTeamSections = (() => {
     const hasLavraturaAccess =
@@ -2091,6 +2101,16 @@ function HomePanel({
       setSelectedArea(null)
     }
   }, [flattenFieldTeamHome, selectedArea?.title, selectedFieldTeamSection])
+
+  useEffect(() => {
+    if (
+      isLeiturasFaturamentoProfile &&
+      selectedMeasurementSection === 'Geração de senha' &&
+      !selectedPasswordAction
+    ) {
+      setSelectedPasswordAction('consultar')
+    }
+  }, [isLeiturasFaturamentoProfile, selectedMeasurementSection, selectedPasswordAction])
 
   useEffect(() => {
     if (
@@ -4367,6 +4387,12 @@ function HomePanel({
               </div>
             ) : null}
             {selectedMeasurementSection === 'Geração de senha' ? (
+              isLeiturasFaturamentoProfile ? (
+                <p>
+                  Neste perfil, a consulta de senhas abre automaticamente. Use voltar se
+                  precisar retornar à home.
+                </p>
+              ) : (
               <div className="measurement-sections" aria-label="Opções de geração de senha">
                 <button
                   className="measurement-item"
@@ -4392,6 +4418,7 @@ function HomePanel({
                   </button>
                 ) : null}
               </div>
+              )
             ) : null}
           </section>
         </main>
@@ -5033,7 +5060,7 @@ function HomePanel({
           {selectedArea.details ? <p>{selectedArea.details}</p> : null}
           {selectedArea.title === 'Medição' ? (
             <div className="measurement-sections" aria-label="Subáreas de medição">
-              {measurementSections.map((section) => (
+              {visibleMeasurementSections.map((section) => (
                 <button
                   key={section}
                   className="measurement-item"
@@ -5045,11 +5072,21 @@ function HomePanel({
                     if (section === 'Memória de massa') {
                       setSelectedMemoryMassStep(MEMORY_MASS_TRAIL_STEPS[0]?.key ?? 'Notas')
                     }
+                    if (
+                      section === 'Geração de senha' &&
+                      isLeiturasFaturamentoProfile
+                    ) {
+                      setSelectedPasswordAction('consultar')
+                    }
                   }}
                 >
                   <span className="item-with-icon">
                     <ItemIcon title={section} />
-                    <span>{section}</span>
+                    <span>
+                      {section === 'Geração de senha' && isLeiturasFaturamentoProfile
+                        ? 'Consultar senhas'
+                        : section}
+                    </span>
                   </span>
                 </button>
               ))}

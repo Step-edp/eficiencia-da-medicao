@@ -32,6 +32,9 @@ function accessAreasForTechnician(workArea: string, subtype: string): string[] {
   if (workArea === 'Medição' && subtype === 'Atividades administrativas da Medição') {
     return ['Medição']
   }
+  if (workArea === 'CSD' && subtype === 'Leituras de faturamento') {
+    return ['Medição']
+  }
   if (workArea === 'CSD' && subtype === 'Lavratura de TOI - Ponto Focal') {
     return ['Equipe de campo']
   }
