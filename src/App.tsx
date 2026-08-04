@@ -2593,6 +2593,11 @@ function HomePanel({
         normalizedMeterFilters.length === 1
           ? normalizedRecordMeter.includes(normalizedMeterFilters[0])
           : normalizedMeterFilters.includes(normalizedRecordMeter)
+
+      if (isLeiturasFaturamentoProfile) {
+        return matchesMeter
+      }
+
       const matchesManufacturer =
         filterManufacturer === 'Todos' ? true : record.manufacturer === filterManufacturer
       const matchesMaterialType =
@@ -2618,6 +2623,7 @@ function HomePanel({
     filterMaterialType,
     filterStartDate,
     filterEndDate,
+    isLeiturasFaturamentoProfile,
   ])
 
   const filteredMaterialRows = useMemo(() => {
@@ -2708,6 +2714,9 @@ function HomePanel({
 
     const content = filteredPasswordRecords
       .map((record) => {
+        if (isLeiturasFaturamentoProfile) {
+          return `${record.meter}\t${record.password}`
+        }
         const origem =
           record.isPassive || record.source === 'passivo' ? 'Passivo' : 'Gerada'
         return `${record.meter}\t${record.password}\t${record.manufacturer}\t${origem}`
@@ -2724,6 +2733,21 @@ function HomePanel({
       setPasswordFeedback({
         type: 'error',
         message: 'Não foi possível copiar a pesquisa automaticamente.',
+      })
+    }
+  }
+
+  const handleCopySinglePassword = async (meter: string, password: string) => {
+    try {
+      await navigator.clipboard.writeText(password)
+      setPasswordFeedback({
+        type: 'success',
+        message: `Senha do medidor ${meter} copiada.`,
+      })
+    } catch {
+      setPasswordFeedback({
+        type: 'error',
+        message: 'Não foi possível copiar a senha.',
       })
     }
   }
@@ -4194,111 +4218,163 @@ function HomePanel({
                 </p>
                 <h2>Consultar senhas</h2>
                 <p>
-                  Pesquise as senhas salvas no banco local por medidor, fabricante e
-                  codigo de material.
+                  {isLeiturasFaturamentoProfile
+                    ? 'Digite o número do medidor para ver a senha e copiar.'
+                    : 'Pesquise as senhas salvas no banco local por medidor, fabricante e codigo de material.'}
                 </p>
 
-                <div className="consult-filters-grid">
-                  <label>
-                    Fabricante
-                    <select
-                      value={filterManufacturer}
-                      onChange={(event) => setFilterManufacturer(event.target.value)}
-                    >
-                      <option value="Todos">Todos</option>
-                      {manufacturers.map((manufacturer) => (
-                        <option key={manufacturer} value={manufacturer}>
-                          {manufacturer}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                {isLeiturasFaturamentoProfile ? null : (
+                  <>
+                    <div className="consult-filters-grid">
+                      <label>
+                        Fabricante
+                        <select
+                          value={filterManufacturer}
+                          onChange={(event) => setFilterManufacturer(event.target.value)}
+                        >
+                          <option value="Todos">Todos</option>
+                          {manufacturers.map((manufacturer) => (
+                            <option key={manufacturer} value={manufacturer}>
+                              {manufacturer}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
 
-                  <label>
-                    Codigo de material
-                    <select
-                      value={filterMaterialType}
-                      onChange={(event) => setFilterMaterialType(event.target.value)}
-                    >
-                      <option value="Todos">Todos</option>
-                      {materialTypeOptions.map((material) => (
-                        <option key={material} value={material}>
-                          {material}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      <label>
+                        Codigo de material
+                        <select
+                          value={filterMaterialType}
+                          onChange={(event) => setFilterMaterialType(event.target.value)}
+                        >
+                          <option value="Todos">Todos</option>
+                          {materialTypeOptions.map((material) => (
+                            <option key={material} value={material}>
+                              {material}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
 
-                  <label>
-                    Data inicial
-                    <input
-                      type="date"
-                      value={filterStartDate}
-                      onChange={(event) => setFilterStartDate(event.target.value)}
-                    />
-                  </label>
+                      <label>
+                        Data inicial
+                        <input
+                          type="date"
+                          value={filterStartDate}
+                          onChange={(event) => setFilterStartDate(event.target.value)}
+                        />
+                      </label>
 
-                  <label>
-                    Data final
-                    <input
-                      type="date"
-                      value={filterEndDate}
-                      onChange={(event) => setFilterEndDate(event.target.value)}
-                    />
-                  </label>
-                </div>
+                      <label>
+                        Data final
+                        <input
+                          type="date"
+                          value={filterEndDate}
+                          onChange={(event) => setFilterEndDate(event.target.value)}
+                        />
+                      </label>
+                    </div>
 
-                <div className="area-actions">
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    onClick={handleCopyFilteredPasswords}
-                  >
-                    Copiar pesquisa
-                  </button>
-                </div>
+                    <div className="area-actions">
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={handleCopyFilteredPasswords}
+                      >
+                        Copiar pesquisa
+                      </button>
+                    </div>
+                  </>
+                )}
 
                 <label className="consult-meter-field">
-                  Medidores
-                  <textarea
-                    rows={4}
-                    placeholder="Digite um ou mais medidores, um por linha ou separados por vírgula"
-                    value={filterMetersInput}
-                    onChange={(event) => setFilterMetersInput(event.target.value)}
-                  />
+                  {isLeiturasFaturamentoProfile ? 'Medidor' : 'Medidores'}
+                  {isLeiturasFaturamentoProfile ? (
+                    <input
+                      type="text"
+                      placeholder="Digite o número do medidor"
+                      value={filterMetersInput}
+                      onChange={(event) => setFilterMetersInput(event.target.value)}
+                      autoComplete="off"
+                    />
+                  ) : (
+                    <textarea
+                      rows={4}
+                      placeholder="Digite um ou mais medidores, um por linha ou separados por vírgula"
+                      value={filterMetersInput}
+                      onChange={(event) => setFilterMetersInput(event.target.value)}
+                    />
+                  )}
                 </label>
 
                 <div className="consult-results" aria-label="Resultados da consulta de senhas">
                   {filteredPasswordRecords.length ? (
-                    filteredPasswordRecords.map((record) => (
-                      <article key={record.id} className="consult-item">
-                        <div className="consult-item-header">
-                          <strong>{record.meter}</strong>
-                          {record.isPassive || record.source === 'passivo' ? (
-                            <span className="consult-passivo-badge">Passivo</span>
-                          ) : null}
-                        </div>
-                        <span>Senha: {record.password}</span>
-                        <span>Fabricante: {record.manufacturer}</span>
-                        <span>Codigo de material: {record.materialType}</span>
-                        <span>Numero de pedido: {record.orderNumber || '-'}</span>
-                        <span>
-                          Origem:{' '}
-                          {record.isPassive || record.source === 'passivo'
-                            ? 'Passivo'
-                            : 'Gerada'}
-                        </span>
-                        <span>Data carimbo: {new Date(record.createdAt).toLocaleString('pt-BR')}</span>
-                      </article>
-                    ))
+                    filteredPasswordRecords.map((record) =>
+                      isLeiturasFaturamentoProfile ? (
+                        <article key={record.id} className="consult-item consult-item-simple">
+                          <div className="consult-item-header">
+                            <strong>{record.meter}</strong>
+                          </div>
+                          <div className="consult-simple-password-row">
+                            <span className="consult-simple-password">{record.password}</span>
+                            <button
+                              className="secondary-button"
+                              type="button"
+                              onClick={() =>
+                                void handleCopySinglePassword(record.meter, record.password)
+                              }
+                            >
+                              Copiar
+                            </button>
+                          </div>
+                        </article>
+                      ) : (
+                        <article key={record.id} className="consult-item">
+                          <div className="consult-item-header">
+                            <strong>{record.meter}</strong>
+                            {record.isPassive || record.source === 'passivo' ? (
+                              <span className="consult-passivo-badge">Passivo</span>
+                            ) : null}
+                          </div>
+                          <span>Senha: {record.password}</span>
+                          <span>Fabricante: {record.manufacturer}</span>
+                          <span>Codigo de material: {record.materialType}</span>
+                          <span>Numero de pedido: {record.orderNumber || '-'}</span>
+                          <span>
+                            Origem:{' '}
+                            {record.isPassive || record.source === 'passivo'
+                              ? 'Passivo'
+                              : 'Gerada'}
+                          </span>
+                          <span>
+                            Data carimbo:{' '}
+                            {new Date(record.createdAt).toLocaleString('pt-BR')}
+                          </span>
+                        </article>
+                      ),
+                    )
                   ) : (
                     <p className="generated-password-empty">
                       {filterMetersInput.trim()
-                        ? 'Nenhum registro encontrado com os filtros atuais.'
-                        : 'Digite um ou mais medidores para consultar as senhas.'}
+                        ? 'Nenhuma senha encontrada para este medidor.'
+                        : isLeiturasFaturamentoProfile
+                          ? 'Digite o número do medidor para consultar a senha.'
+                          : 'Digite um ou mais medidores para consultar as senhas.'}
                     </p>
                   )}
                 </div>
+
+                {isLeiturasFaturamentoProfile && filteredPasswordRecords.length > 1 ? (
+                  <div className="area-actions">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => void handleCopyFilteredPasswords()}
+                    >
+                      Copiar todas
+                    </button>
+                  </div>
+                ) : null}
 
                 {passwordFeedback ? (
                   <LoginFeedback
