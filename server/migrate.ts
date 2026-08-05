@@ -549,6 +549,25 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'cadastrado'
   `)
   await query(`
+    CREATE TABLE IF NOT EXISTS app_data_cleanups (
+      key TEXT PRIMARY KEY,
+      executed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  {
+    const cleanupKey = 'clear_meter_models_2026_08_05'
+    const claimed = await query<{ key: string }>(
+      `INSERT INTO app_data_cleanups (key)
+       VALUES ($1)
+       ON CONFLICT (key) DO NOTHING
+       RETURNING key`,
+      [cleanupKey],
+    )
+    if (claimed.rows.length) {
+      await query(`DELETE FROM meter_models`)
+    }
+  }
+  await query(`
     CREATE TABLE IF NOT EXISTS presentations (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
