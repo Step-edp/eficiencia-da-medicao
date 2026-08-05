@@ -3,7 +3,12 @@ import { api, ApiError, type MeterModelRecord } from './api'
 import { LoginFeedback } from './LoginFeedback'
 
 const METER_TYPE_OPTIONS = ['Eletrônico', 'Eletromecânico']
-const VOLTAGE_OPTIONS = ['240V', '120V', '240V • 120V', '230V']
+const VOLTAGE_OPTIONS = [
+  '240V',
+  '120V',
+  '230V',
+  'Min. 120V (Bolinha) Máx. 240V',
+]
 const CURRENT_OPTIONS = [
   'Min. 15A • Máx. 100A',
   'Min. 15A • Máx. 120A',
@@ -179,6 +184,28 @@ function matchOption(value: string, options: readonly string[]): string | null {
   return null
 }
 
+function matchVoltageOption(value: string): string | null {
+  const matched = matchOption(value, VOLTAGE_OPTIONS)
+  if (matched) return matched
+
+  const normalized = normalizeOptionValue(value)
+  const legacyLabels = [
+    '240V • 120V',
+    '240V 120V',
+    '240V-120V',
+    '240V bolinha 120V',
+    '120V • 240V',
+    '120V 240V',
+  ]
+  if (legacyLabels.some((label) => normalizeOptionValue(label) === normalized)) {
+    return 'Min. 120V (Bolinha) Máx. 240V'
+  }
+  if (normalized.includes('bolinha') && normalized.includes('120') && normalized.includes('240')) {
+    return 'Min. 120V (Bolinha) Máx. 240V'
+  }
+  return null
+}
+
 function modelCharacteristicsKey(fields: {
   name: string
   manufacturer: string
@@ -280,7 +307,7 @@ function validatePassiveModelRow(
     }
   }
 
-  if (voltageRaw && !matchOption(voltageRaw, VOLTAGE_OPTIONS)) {
+  if (voltageRaw && !matchVoltageOption(voltageRaw)) {
     return {
       valid: false,
       duplicate: false,
@@ -330,7 +357,7 @@ function validatePassiveModelRow(
     name,
     manufacturer,
     meterType,
-    voltage: voltageRaw ? matchOption(voltageRaw, VOLTAGE_OPTIONS) || voltageRaw : '',
+    voltage: voltageRaw ? matchVoltageOption(voltageRaw) || voltageRaw : '',
     current: currentRaw ? matchOption(currentRaw, CURRENT_OPTIONS) || currentRaw : '',
     wiresElements: wiresRaw
       ? matchOption(wiresRaw, WIRES_ELEMENTS_OPTIONS) || wiresRaw

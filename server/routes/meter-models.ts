@@ -4,7 +4,12 @@ import { requireAuth, requireAdmin } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 
 const METER_TYPE_OPTIONS = ['Eletrônico', 'Eletromecânico']
-const VOLTAGE_OPTIONS = ['240V', '120V', '240V • 120V', '230V']
+const VOLTAGE_OPTIONS = [
+  '240V',
+  '120V',
+  '230V',
+  'Min. 120V (Bolinha) Máx. 240V',
+]
 const CURRENT_OPTIONS = [
   'Min. 15A • Máx. 100A',
   'Min. 15A • Máx. 120A',
@@ -122,6 +127,28 @@ function matchOption(value: string, options: readonly string[]): string | null {
   return null
 }
 
+function matchVoltageOption(value: string): string | null {
+  const matched = matchOption(value, VOLTAGE_OPTIONS)
+  if (matched) return matched
+
+  const normalized = normalizeOptionValue(value)
+  const legacyLabels = [
+    '240V • 120V',
+    '240V 120V',
+    '240V-120V',
+    '240V bolinha 120V',
+    '120V • 240V',
+    '120V 240V',
+  ]
+  if (legacyLabels.some((label) => normalizeOptionValue(label) === normalized)) {
+    return 'Min. 120V (Bolinha) Máx. 240V'
+  }
+  if (normalized.includes('bolinha') && normalized.includes('120') && normalized.includes('240')) {
+    return 'Min. 120V (Bolinha) Máx. 240V'
+  }
+  return null
+}
+
 function parseMeterTypeLabel(value: string): string {
   const raw = normalizeOptionValue(value)
   if (!raw) return ''
@@ -171,7 +198,7 @@ function validatePassiveModelFields(fields: {
 
   let voltage = ''
   if (fields.voltage) {
-    const matched = matchOption(fields.voltage, VOLTAGE_OPTIONS)
+    const matched = matchVoltageOption(fields.voltage)
     if (!matched) {
       return { ok: false, error: `Tensão inválida: ${fields.voltage}` }
     }
