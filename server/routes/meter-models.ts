@@ -8,7 +8,7 @@ const VOLTAGE_OPTIONS = [
   '240V',
   '120V',
   '230V',
-  'Min. 120V • Máx. 240V',
+  'Min. 120V \u2022 Máx. 240V',
 ]
 const CURRENT_OPTIONS = [
   'Min. 15A • Máx. 100A',
@@ -144,17 +144,17 @@ function matchVoltageOption(value: string): string | null {
     'Min. 120V (•) Máx. 240V',
   ]
   if (legacyLabels.some((label) => normalizeOptionValue(label) === normalized)) {
-    return 'Min. 120V • Máx. 240V'
+    return 'Min. 120V \u2022 Máx. 240V'
   }
   if (normalized.includes('bolinha') && normalized.includes('120') && normalized.includes('240')) {
-    return 'Min. 120V • Máx. 240V'
+    return 'Min. 120V \u2022 Máx. 240V'
   }
   if (
     normalized.includes('120') &&
     normalized.includes('240') &&
     (normalized.includes('min') || normalized.includes('max'))
   ) {
-    return 'Min. 120V • Máx. 240V'
+    return 'Min. 120V \u2022 Máx. 240V'
   }
   return null
 }
