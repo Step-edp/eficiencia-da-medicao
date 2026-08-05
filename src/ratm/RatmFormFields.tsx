@@ -43,16 +43,23 @@ function RatmExpandableSection({
   children: ReactNode
   defaultOpen?: boolean
 }) {
+  const [open, setOpen] = useState(defaultOpen)
+
   return (
-    <details className="ratm-expandable full-width" defaultOpen={defaultOpen}>
-      <summary className="ratm-expandable-summary">
+    <section className={`ratm-expandable full-width${open ? ' is-open' : ''}`}>
+      <button
+        type="button"
+        className="ratm-expandable-summary"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
         <span className="ratm-expandable-title">{title}</span>
         <span className="ratm-expandable-chevron" aria-hidden="true">
           ▾
         </span>
-      </summary>
-      <div className="ratm-expandable-body">{children}</div>
-    </details>
+      </button>
+      {open ? <div className="ratm-expandable-body">{children}</div> : null}
+    </section>
   )
 }
 
