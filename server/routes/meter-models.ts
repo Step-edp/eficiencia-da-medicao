@@ -141,19 +141,20 @@ function matchVoltageOption(value: string): string | null {
     '120V 240V',
     'Min. 120V (Bolinha) Máx. 240V',
     'Min. 120V Bolinha Máx. 240V',
+    'Min. 120V (•) Máx. 240V',
   ]
   if (legacyLabels.some((label) => normalizeOptionValue(label) === normalized)) {
-    return 'Min. 120V (•) Máx. 240V'
+    return 'Min. 120V • Máx. 240V'
   }
   if (normalized.includes('bolinha') && normalized.includes('120') && normalized.includes('240')) {
-    return 'Min. 120V (•) Máx. 240V'
+    return 'Min. 120V • Máx. 240V'
   }
   if (
     normalized.includes('120') &&
     normalized.includes('240') &&
     (normalized.includes('min') || normalized.includes('max'))
   ) {
-    return 'Min. 120V (•) Máx. 240V'
+    return 'Min. 120V • Máx. 240V'
   }
   return null
 }
