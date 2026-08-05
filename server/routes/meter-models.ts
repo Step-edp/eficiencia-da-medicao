@@ -31,6 +31,7 @@ const CLASS_OPTIONS = [
 ]
 const CONSTANT_OPTIONS = [
   '1,8',
+  '3',
   '3,6',
   '4,0',
   '4,8',
@@ -46,7 +47,6 @@ const CONSTANT_OPTIONS = [
   '0,3125',
   '6,25',
   '2',
-  '3',
   '10',
   '6',
 ]
