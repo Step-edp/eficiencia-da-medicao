@@ -261,7 +261,7 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
           </label>
 
           <label>
-            Fios/Elem
+            Fios • Elementos
             <select
               value={wiresElements}
               onChange={(event) => setWiresElements(event.target.value)}
