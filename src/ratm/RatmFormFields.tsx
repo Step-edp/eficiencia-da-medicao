@@ -614,7 +614,12 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           <input
             type="text"
             value={data.meterReading}
-            onChange={(event) => onChange({ meterReading: event.target.value })}
+            onChange={(event) =>
+              onChange({
+                meterReading: event.target.value,
+                meterReadingPreset: '',
+              })
+            }
           />
         </label>
 
@@ -623,7 +628,12 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           name={`reading-preset-${index}`}
           value={data.meterReadingPreset}
           options={['N/A']}
-          onChange={(value) => onChange({ meterReadingPreset: value })}
+          onChange={(value) =>
+            onChange({
+              meterReadingPreset: value,
+              meterReading: value,
+            })
+          }
         />
 
         <ClearableRadioGroup
