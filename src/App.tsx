@@ -4717,10 +4717,7 @@ function HomePanel({
                   em <strong>Consultar RATM</strong> e medidores nas demais etapas da trilha.
                 </p>
               ) : (
-                <>
-                  <p>Escolha quantos RATMs deseja realizar de uma vez (máximo 10).</p>
-                  <EnsaiarForm onFinish={handleRatmFinish} />
-                </>
+                <EnsaiarForm onFinish={handleRatmFinish} />
               )
             ) : selectedLabMeasurementSection === 'Aprovação de RATM' ? (
               <RatmAprovacaoPanel
