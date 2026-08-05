@@ -501,7 +501,7 @@ export function CriarModeloPanel({
 
       return validated
     })
-  }, [editableRows, manufacturer, meterType, models])
+  }, [editableRows, meterType, models])
 
   const invalidPreviewCount = useMemo(
     () => previewRows.filter((row) => !row.valid).length,
@@ -597,7 +597,6 @@ export function CriarModeloPanel({
       try {
         const response = await api.createPassiveMeterModels({
           records,
-          manufacturer: manufacturer.trim() || undefined,
           meterType: meterType.trim() || undefined,
         })
         setResults(response.results)
