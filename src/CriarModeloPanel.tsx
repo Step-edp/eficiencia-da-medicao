@@ -1021,22 +1021,11 @@ export function CriarModeloPanel({
           }`}
           onSubmit={(event) => void handleCreate(event)}
         >
-          {formMode === 'passivo' ? (
-            <p className="passivo-intro full-width">
-              Cadastro de modelos passivos em massa. Campos:{' '}
-              <strong>modelo</strong>, <strong>tipo</strong>,{' '}
-              <strong>fabricante</strong>, <strong>tensão</strong>,{' '}
-              <strong>corrente</strong>, <strong>fios • elementos</strong>,{' '}
-              <strong>classe</strong> e <strong>constante</strong>.
-            </p>
-          ) : null}
-
           {formMode === 'create' ? (
             modelFields
           ) : (
               <>
                 <label className="passivo-paste-label full-width">
-                  Colar registros (em massa)
                   <textarea
                     rows={8}
                     value={pasteText}
@@ -1046,6 +1035,7 @@ export function CriarModeloPanel({
                     }
                     spellCheck={false}
                     disabled={creating}
+                    aria-label="Colar registros em massa"
                   />
                 </label>
                 <p className="field-hint full-width">
