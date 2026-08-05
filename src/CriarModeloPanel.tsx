@@ -478,7 +478,7 @@ export function CriarModeloPanel({
     return editableRows.map((row) => {
       const validated = validatePassiveModelRow(row, {
         manufacturer: '',
-        meterType: meterType.trim(),
+        meterType: '',
       })
 
       if (!validated.valid) {
@@ -501,7 +501,7 @@ export function CriarModeloPanel({
 
       return validated
     })
-  }, [editableRows, meterType, models])
+  }, [editableRows, models])
 
   const invalidPreviewCount = useMemo(
     () => previewRows.filter((row) => !row.valid).length,
@@ -610,7 +610,6 @@ export function CriarModeloPanel({
       try {
         const response = await api.createPassiveMeterModels({
           records,
-          meterType: meterType.trim() || undefined,
         })
         setResults(response.results)
         if (response.models.length) {
@@ -907,36 +906,6 @@ export function CriarModeloPanel({
             modelFields
           ) : (
               <>
-                <p className="field-hint full-width">
-                  Opcional: o tipo padrão abaixo preenche linhas sem esse valor.
-                </p>
-                <fieldset className="radio-fieldset criar-modelo-voltage full-width">
-                  <legend>Tipo (padrão)</legend>
-                  <div
-                    className="ratm-choice-group"
-                    role="radiogroup"
-                    aria-label="Tipo padrão"
-                  >
-                    {METER_TYPE_OPTIONS.map((option) => {
-                      const selected = meterType === option
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          role="radio"
-                          aria-checked={selected}
-                          className={`ratm-choice-btn tone-neutral${
-                            selected ? ' is-selected' : ''
-                          }`}
-                          disabled={creating}
-                          onClick={() => setMeterType(option)}
-                        >
-                          <span>{option}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </fieldset>
                 <label className="passivo-paste-label full-width">
                   Colar registros (em massa)
                   <textarea
