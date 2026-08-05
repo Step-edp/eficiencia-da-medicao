@@ -1,5 +1,11 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState, type WheelEvent } from 'react'
-import { api, ApiError, type MeterModelRecord } from './api'
+import {
+  api,
+  ApiError,
+  type MeterModelRecord,
+  type UnregisteredMeterModelRecord,
+} from './api'
+import { formatAuditDate } from './auditLabels'
 import { LoginFeedback } from './LoginFeedback'
 
 const METER_TYPE_OPTIONS = ['Eletrônico', 'Eletromecânico']
@@ -76,6 +82,7 @@ const MANUFACTURER_OPTIONS = [
 ]
 
 type FormMode = 'create' | 'passivo' | null
+type PanelView = 'lista' | 'nao-registrados'
 
 type PassiveModelInput = {
   name: string
@@ -477,9 +484,13 @@ export function CriarModeloPanel({
   isAdmin?: boolean
 }) {
   const [models, setModels] = useState<MeterModelRecord[]>([])
+  const [unregistered, setUnregistered] = useState<UnregisteredMeterModelRecord[]>(
+    [],
+  )
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [formMode, setFormMode] = useState<FormMode>(null)
+  const [panelView, setPanelView] = useState<PanelView>('lista')
   const [pasteText, setPasteText] = useState('')
   const [editableRows, setEditableRows] = useState<PassiveModelInput[]>([])
   const [results, setResults] = useState<PassiveRowResult[]>([])
@@ -589,10 +600,15 @@ export function CriarModeloPanel({
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const { models: rows } = await api.listMeterModels()
+      const [{ models: rows }, { records }] = await Promise.all([
+        api.listMeterModels(),
+        api.listUnregisteredMeterModels(),
+      ])
       setModels(rows)
+      setUnregistered(records)
     } catch (error) {
       setModels([])
+      setUnregistered([])
       setFeedback({
         type: 'error',
         message:
@@ -624,9 +640,17 @@ export function CriarModeloPanel({
   }
 
   const openForm = (mode: FormMode) => {
+    setPanelView('lista')
     setFormMode((current) => (current === mode ? null : mode))
     resetForm()
     setFeedback(null)
+  }
+
+  const openUnregisteredHistory = () => {
+    setFormMode(null)
+    resetForm()
+    setFeedback(null)
+    setPanelView('nao-registrados')
   }
 
   const handleCreate = async (event: FormEvent) => {
@@ -642,69 +666,29 @@ export function CriarModeloPanel({
         return
       }
 
-      const okIndexes: number[] = []
-      const records = editableRows.filter((_, index) => {
-        const preview = previewRows[index]
-        const isOk = Boolean(preview?.valid && !preview.duplicate)
-        if (isOk) okIndexes.push(index)
-        return isOk
-      })
-
-      if (!records.length) {
-        setFeedback({
-          type: 'error',
-          message:
-            'Nenhuma linha OK para cadastrar. Corrija as inválidas/repetidas ou remova-as.',
-        })
-        return
-      }
-
       setCreating(true)
       setFeedback(null)
       try {
         const response = await api.createPassiveMeterModels({
-          records,
+          records: editableRows,
         })
         setResults(response.results)
         if (response.models.length) {
           setModels((currentRows) => [...response.models, ...currentRows])
         }
 
-        const remaining = editableRows.filter((_, index) => {
-          const okPosition = okIndexes.indexOf(index)
-          if (okPosition < 0) return true
-          const status = response.results[okPosition]?.status
-          return status === 'invalid' || status === 'duplicate'
-        })
+        const { records } = await api.listUnregisteredMeterModels()
+        setUnregistered(records)
 
-        setEditableRows(remaining)
-        setPasteText(
-          remaining
-            .map((row) =>
-              [
-                row.name,
-                row.meterType,
-                row.manufacturer,
-                row.voltage,
-                row.current,
-                row.wiresElements,
-                row.accuracyClass,
-                row.constant,
-              ]
-                .map((value) => value ?? '')
-                .join('\t'),
-            )
-            .join('\n'),
-        )
+        setEditableRows([])
+        setPasteText('')
 
-        const ignoredClient =
-          editableRows.length - records.length
-        const ignoredServer = response.duplicateCount + response.invalidCount
+        const ignored = response.unregisteredCount
         setFeedback({
-          type: response.createdCount ? 'success' : 'error',
+          type: response.createdCount || ignored ? 'success' : 'error',
           message: `${response.createdCount} modelo(s) OK cadastrado(s)${
-            ignoredClient + ignoredServer > 0
-              ? ` · ${ignoredClient + ignoredServer} linha(s) ignorada(s) (inválida/repetida)`
+            ignored
+              ? ` · ${ignored} enviado(s) ao Histórico de não registrados`
               : ''
           }.`,
         })
@@ -906,12 +890,100 @@ export function CriarModeloPanel({
 
   return (
     <div className="criar-modelo-panel">
+      {panelView === 'nao-registrados' ? (
+        <section
+          className="agenda-dedicated-screen"
+          aria-label="Histórico de não registrados"
+        >
+          <p className="entrada-panel-intro">
+            Modelos enviados no passivo que não entraram no cadastro (inválidos
+            ou repetidos).
+          </p>
+          <div className="area-actions right-aligned-actions criar-modelo-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => setPanelView('lista')}
+            >
+              Voltar
+            </button>
+          </div>
+          {loading ? (
+            <p className="entrada-panel-empty">Carregando histórico...</p>
+          ) : unregistered.length ? (
+            <div className="entrada-table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Modelo</th>
+                    <th>Tipo</th>
+                    <th>Fabricante</th>
+                    <th>Tensão</th>
+                    <th>Corrente</th>
+                    <th>Fios • Elementos</th>
+                    <th>Classe</th>
+                    <th>Constante</th>
+                    <th>Motivo</th>
+                    <th>Enviado por</th>
+                    <th>Em</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {unregistered.map((row) => (
+                    <tr
+                      key={row.id}
+                      className={
+                        row.status === 'invalid'
+                          ? 'modelo-passivo-row-invalid'
+                          : 'modelo-passivo-row-duplicate'
+                      }
+                    >
+                      <td>{row.name}</td>
+                      <td>{row.meterType}</td>
+                      <td>{row.manufacturer}</td>
+                      <td>{row.voltage}</td>
+                      <td>{row.current}</td>
+                      <td>{row.wiresElements}</td>
+                      <td>{row.accuracyClass}</td>
+                      <td>{row.constant}</td>
+                      <td>
+                        {row.status === 'duplicate'
+                          ? row.reason || 'Repetido'
+                          : row.reason || 'Inválido'}
+                      </td>
+                      <td>
+                        {row.createdByName ||
+                          row.createdByRegistration ||
+                          '—'}
+                      </td>
+                      <td>{formatAuditDate(row.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="entrada-panel-empty">
+              Nenhum modelo no histórico de não registrados.
+            </p>
+          )}
+        </section>
+      ) : (
+        <>
       <p className="entrada-panel-intro">
         Cadastre e consulte os modelos de medidores do laboratório, incluindo
         tensão, corrente, fios/elementos e classe.
       </p>
 
       <div className="area-actions right-aligned-actions criar-modelo-actions">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={openUnregisteredHistory}
+        >
+          Histórico de não registrados
+          {unregistered.length ? ` (${unregistered.length})` : ''}
+        </button>
         {isAdmin ? (
           <button
             type="button"
@@ -997,7 +1069,8 @@ export function CriarModeloPanel({
                       <p className="field-hint modelo-passivo-invalid-hint">
                         Vermelho = valor fora das opções. Amarelo = repetido (já
                         cadastrado ou duplicado na colagem). Ao cadastrar, só as
-                        linhas OK entram; repetidas e inválidas são ignoradas.
+                        linhas OK entram; inválidas e repetidas vão para o
+                        Histórico de não registrados.
                       </p>
                     ) : null}
                     <div
@@ -1399,6 +1472,8 @@ export function CriarModeloPanel({
             </tbody>
           </table>
         </div>
+      )}
+        </>
       )}
     </div>
   )

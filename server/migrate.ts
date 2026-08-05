@@ -549,6 +549,27 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'cadastrado'
   `)
   await query(`
+    CREATE TABLE IF NOT EXISTS meter_model_unregistered (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL DEFAULT '',
+      manufacturer TEXT NOT NULL DEFAULT '',
+      meter_type TEXT NOT NULL DEFAULT '',
+      voltage TEXT NOT NULL DEFAULT '',
+      current_rating TEXT NOT NULL DEFAULT '',
+      wires_elements TEXT NOT NULL DEFAULT '',
+      accuracy_class TEXT NOT NULL DEFAULT '',
+      meter_constant TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL,
+      reason TEXT NOT NULL DEFAULT '',
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_meter_model_unregistered_created_at
+      ON meter_model_unregistered (created_at DESC)
+  `)
+  await query(`
     CREATE TABLE IF NOT EXISTS app_data_cleanups (
       key TEXT PRIMARY KEY,
       executed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

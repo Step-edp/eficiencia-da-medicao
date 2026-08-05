@@ -246,6 +246,24 @@ export type MeterModelRecord = {
   createdByRegistration?: string
 }
 
+export type UnregisteredMeterModelRecord = {
+  id: number
+  name: string
+  manufacturer: string
+  meterType: string
+  voltage: string
+  current: string
+  wiresElements: string
+  accuracyClass: string
+  constant: string
+  status: 'invalid' | 'duplicate'
+  reason: string
+  createdAt: string
+  createdByUserId?: string | null
+  createdByName?: string
+  createdByRegistration?: string
+}
+
 export type PresentationRecord = {
   id: number
   name: string
@@ -836,6 +854,10 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   listMeterModels: () => request<{ models: MeterModelRecord[] }>('/api/meter-models'),
+  listUnregisteredMeterModels: () =>
+    request<{ records: UnregisteredMeterModelRecord[] }>(
+      '/api/meter-models/unregistered',
+    ),
   createMeterModel: (payload: {
     name: string
     manufacturer: string
@@ -883,6 +905,7 @@ export const api = {
       createdCount: number
       duplicateCount: number
       invalidCount: number
+      unregisteredCount: number
     }>('/api/meter-models/passive', {
       method: 'POST',
       body: JSON.stringify(payload),

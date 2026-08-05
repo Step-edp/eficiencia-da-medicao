@@ -147,6 +147,10 @@ async function start() {
   app.patch('/api/materials/:id', ...wrap(materialRoutes.update))
 
   app.get('/api/meter-models', ...wrap(meterModelRoutes.list))
+  app.get(
+    '/api/meter-models/unregistered',
+    ...wrap(meterModelRoutes.listUnregistered),
+  )
   app.post(
     '/api/meter-models',
     requireAuth,

@@ -540,9 +540,6 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
     })
   }
 
-  const invalidCount = prepared.filter((row) => row.status === 'invalid').length
-  const duplicateCount = prepared.filter((row) => row.status === 'duplicate').length
-
   const results: Array<{
     name: string
     manufacturer: string
@@ -554,24 +551,48 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
     constant: string
     status: 'created' | 'duplicate' | 'invalid'
     error?: string
-  }> = prepared
-    .filter((row) => row.status !== 'ready')
-    .map((row) => ({
-      name: row.name,
-      manufacturer: row.manufacturer,
-      meterType: row.meterType,
-      voltage: row.voltage,
-      current: row.current,
-      wiresElements: row.wiresElements,
-      accuracyClass: row.accuracyClass,
-      constant: row.constant,
-      status: row.status,
-      error: row.error,
-    }))
+  }> = []
   const newModels: ReturnType<typeof mapMeterModel>[] = []
+  let unregisteredCount = 0
 
   for (const row of prepared) {
-    if (row.status !== 'ready') continue
+    if (row.status === 'invalid' || row.status === 'duplicate') {
+      await query(
+        `INSERT INTO meter_model_unregistered (
+           name, manufacturer, meter_type, voltage, current_rating,
+           wires_elements, accuracy_class, meter_constant,
+           status, reason, created_by_user_id
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          row.name === '—' ? '' : row.name,
+          row.manufacturer === '—' ? '' : row.manufacturer,
+          row.meterType === '—' ? '' : row.meterType,
+          row.voltage === '—' ? '' : row.voltage,
+          row.current === '—' ? '' : row.current,
+          row.wiresElements === '—' ? '' : row.wiresElements,
+          row.accuracyClass === '—' ? '' : row.accuracyClass,
+          row.constant === '—' ? '' : row.constant,
+          row.status,
+          row.error,
+          req.user?.id ?? null,
+        ],
+      )
+      unregisteredCount += 1
+      results.push({
+        name: row.name,
+        manufacturer: row.manufacturer,
+        meterType: row.meterType,
+        voltage: row.voltage,
+        current: row.current,
+        wiresElements: row.wiresElements,
+        accuracyClass: row.accuracyClass,
+        constant: row.constant,
+        status: row.status,
+        error: row.error,
+      })
+      continue
+    }
 
     const result = await query<
       Omit<MeterModelRow, 'created_by_name' | 'created_by_registration'>
@@ -618,16 +639,22 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
     })
   }
 
-  if (newModels.length) {
+  const duplicateCount = results.filter((item) => item.status === 'duplicate').length
+  const invalidCount = results.filter((item) => item.status === 'invalid').length
+
+  if (newModels.length || unregisteredCount) {
     await writeAuditLog(req, {
       action: 'create',
       entityType: 'meter_model',
-      summary: `${newModels.length} modelo(s) passivo(s) cadastrado(s)`,
+      summary: newModels.length
+        ? `${newModels.length} modelo(s) passivo(s) cadastrado(s)`
+        : `${unregisteredCount} modelo(s) passivo(s) não registrado(s)`,
       newData: {
         names: newModels.map((model) => model.name),
         createdCount: newModels.length,
-        duplicateCount: results.filter((item) => item.status === 'duplicate').length,
-        invalidCount: results.filter((item) => item.status === 'invalid').length,
+        duplicateCount,
+        invalidCount,
+        unregisteredCount,
       },
       metadata: { source: 'passivo' },
     })
@@ -637,13 +664,66 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
     results,
     models: newModels,
     createdCount: newModels.length,
-    duplicateCount: results.filter((item) => item.status === 'duplicate').length,
-    invalidCount: results.filter((item) => item.status === 'invalid').length,
+    duplicateCount,
+    invalidCount,
+    unregisteredCount,
   })
+}
+
+type UnregisteredRow = {
+  id: number
+  name: string
+  manufacturer: string
+  meter_type: string
+  voltage: string
+  current_rating: string
+  wires_elements: string
+  accuracy_class: string
+  meter_constant: string
+  status: string
+  reason: string
+  created_at: Date
+  created_by_user_id: string | null
+  created_by_name: string | null
+  created_by_registration: string | null
+}
+
+function mapUnregistered(row: UnregisteredRow) {
+  return {
+    id: row.id,
+    name: row.name || '—',
+    manufacturer: row.manufacturer || '—',
+    meterType: row.meter_type || '—',
+    voltage: row.voltage || '—',
+    current: row.current_rating || '—',
+    wiresElements: row.wires_elements || '—',
+    accuracyClass: row.accuracy_class || '—',
+    constant: row.meter_constant || '—',
+    status: row.status === 'duplicate' ? 'duplicate' : 'invalid',
+    reason: row.reason || '',
+    createdAt: row.created_at.toISOString(),
+    createdByUserId: row.created_by_user_id,
+    createdByName: row.created_by_name || '',
+    createdByRegistration: row.created_by_registration || '',
+  }
+}
+
+export async function listUnregisteredMeterModels(_req: Request, res: Response) {
+  const result = await query<UnregisteredRow>(
+    `SELECT u.*,
+            usr.name AS created_by_name,
+            usr.registration AS created_by_registration
+     FROM meter_model_unregistered u
+     LEFT JOIN users usr ON usr.id = u.created_by_user_id
+     ORDER BY u.created_at DESC, u.id DESC
+     LIMIT 2000`,
+  )
+  res.json({ records: result.rows.map(mapUnregistered) })
 }
 
 export const meterModelRoutes = {
   list: [requireAuth, listMeterModels],
+  listUnregistered: [requireAuth, listUnregisteredMeterModels],
   create: [requireAuth, createMeterModel],
   createPassive: [requireAuth, requireAdmin, createPassiveMeterModels],
 }
