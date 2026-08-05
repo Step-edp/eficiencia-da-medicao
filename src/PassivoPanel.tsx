@@ -293,6 +293,19 @@ export function PassivoPanel({
     </>
   )
 
+  const clearForm = () => {
+    setMeter('')
+    setPassword('')
+    setDigits('')
+    setManufacturer('')
+    setMaterialType('')
+    setOrderNumber('')
+    setPasswordType('')
+    setPasteText('')
+    setResults([])
+    setFeedback(null)
+  }
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
 
@@ -534,6 +547,25 @@ export function PassivoPanel({
             : mode === 'individual'
               ? 'Cadastrar passivo'
               : 'Cadastrar em massa'}
+        </button>
+        <button
+          type="button"
+          className="secondary-button passivo-clear-button"
+          onClick={clearForm}
+          disabled={saving}
+          aria-label="Limpar campos"
+          title="Limpar campos"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+            <path
+              d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 12h8l1-12"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Limpar
         </button>
       </div>
 
