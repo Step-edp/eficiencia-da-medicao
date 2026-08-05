@@ -210,10 +210,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   const [demmModalFeedback, setDemmModalFeedback] = useState<DemmModalFeedback | null>(null)
   const [submittingDemm, setSubmittingDemm] = useState(false)
   const [deletingDemmId, setDeletingDemmId] = useState<string | null>(null)
-  const [metersBase, setMetersBase] = useState<{
-    meters: DemmMeterAnalysisRecord[]
-    loading: boolean
-  }>({ meters: [], loading: false })
   const [analysisModal, setAnalysisModal] = useState<{
     title: string
     fileName?: string
@@ -309,32 +305,14 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     }
   }
 
-  const openMetersBase = async () => {
+  const openMetersBase = () => {
     setView('metersBase')
-    setMetersBase({ meters: [], loading: true })
     setFeedback(null)
-
-    try {
-      const response = await api.getDemmMetersBase()
-      setMetersBase({
-        meters: response.meters,
-        loading: false,
-      })
-    } catch (error) {
-      setMetersBase({ meters: [], loading: false })
-      setFeedback({
-        type: 'error',
-        message:
-          error instanceof ApiError
-            ? error.message
-            : 'Não foi possível carregar a base de medidores.',
-      })
-    }
+    void loadData()
   }
 
   const closeMetersBase = () => {
     setView('overview')
-    setMetersBase({ meters: [], loading: false })
   }
 
   const handleDemmSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -493,8 +471,8 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             )}
             <button
               type="button"
-              onClick={() => void openMetersBase()}
-              disabled={loading || demmDocuments.length === 0}
+              onClick={() => openMetersBase()}
+              disabled={loading}
             >
               Ver base de medidores
             </button>
