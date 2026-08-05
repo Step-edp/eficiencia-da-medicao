@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react'
-import { api, ApiError, type MeterModelRecord } from './api'
+import { api, ApiError, type MeterModelRecord, type PasswordRecord } from './api'
 import { LoginFeedback } from './LoginFeedback'
+import { PassivoPanel } from './PassivoPanel'
 
 const METER_TYPE_OPTIONS = ['Eletrônico', 'Eletromecânico']
 const VOLTAGE_OPTIONS = ['240V', '120V', '240V • 120V', '230V']
@@ -69,11 +70,26 @@ const MANUFACTURER_OPTIONS = [
   'APREL',
 ]
 
-export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
+export function CriarModeloPanel({
+  readOnly = false,
+  isAdmin = false,
+  manufacturers = [],
+  materialTypeOptions = [],
+  onAddManufacturer,
+  onPassivoCreated,
+}: {
+  readOnly?: boolean
+  isAdmin?: boolean
+  manufacturers?: string[]
+  materialTypeOptions?: string[]
+  onAddManufacturer?: () => void
+  onPassivoCreated?: (records: PasswordRecord[]) => void
+}) {
   const [models, setModels] = useState<MeterModelRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [showPassivo, setShowPassivo] = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
@@ -171,20 +187,34 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
         tensão, corrente, fios/elementos e classe.
       </p>
 
-      {readOnly ? null : (
-        <div className="area-actions right-aligned-actions">
+      <div className="area-actions right-aligned-actions criar-modelo-actions">
+        {isAdmin ? (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              setShowPassivo((current) => !current)
+              setShowForm(false)
+              setFeedback(null)
+            }}
+          >
+            {showPassivo ? 'Fechar passivo' : 'Adicionar passivo'}
+          </button>
+        ) : null}
+        {readOnly ? null : (
           <button
             type="button"
             className="primary-button"
             onClick={() => {
               setShowForm((current) => !current)
+              setShowPassivo(false)
               setFeedback(null)
             }}
           >
             {showForm ? 'Fechar formulário' : 'Criar modelo'}
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {feedback ? (
         <LoginFeedback
@@ -193,6 +223,24 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
           onClose={
             feedback.type === 'success' ? () => setFeedback(null) : undefined
           }
+        />
+      ) : null}
+
+      {isAdmin && showPassivo ? (
+        <PassivoPanel
+          manufacturers={manufacturers}
+          materialTypeOptions={materialTypeOptions}
+          onAddManufacturer={() => onAddManufacturer?.()}
+          onCreated={(records) => {
+            onPassivoCreated?.(records)
+            setFeedback({
+              type: 'success',
+              message:
+                records.length === 1
+                  ? 'Senha passiva cadastrada com sucesso.'
+                  : `${records.length} senhas passivas cadastradas com sucesso.`,
+            })
+          }}
         />
       ) : null}
 

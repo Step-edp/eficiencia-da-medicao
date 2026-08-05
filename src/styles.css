@@ -3317,6 +3317,10 @@ button {
   gap: 16px;
 }
 
+.criar-modelo-actions {
+  gap: 10px;
+}
+
 .criar-modelo-form {
   padding: 16px;
   border-radius: 14px;
