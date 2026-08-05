@@ -4,15 +4,7 @@ import { LoginFeedback } from './LoginFeedback'
 
 const METER_TYPE_OPTIONS = ['Eletrônico', 'Eletromecânico']
 const VOLTAGE_OPTIONS = ['240V', '120V', '240V • 120V', '230V']
-const CURRENT_OPTIONS = [
-  '1,5(6)A',
-  '5(100)A',
-  '10(100)A',
-  '15(100)A',
-  '30(100)A',
-  '120A',
-  '200A',
-]
+const CURRENT_OPTIONS = ['15/100A', '15/120A', '2,5/10A', '30/200A', '2,5/20A', '15A']
 const WIRES_ELEMENTS_OPTIONS = ['2F', '3F', '2 elementos', '3 elementos']
 const CLASS_OPTIONS = ['A', 'B', 'C', '0,2', '0,5', '1', '2']
 const CONSTANT_OPTIONS = [
