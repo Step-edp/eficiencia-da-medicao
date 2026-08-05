@@ -1529,7 +1529,7 @@ export function CriarModeloPanel({
           <table className="data-table">
             <thead>
               <tr>
-                {readOnly ? null : <th>Ações</th>}
+                {readOnly ? null : <th aria-label="Ações" />}
                 <th>Modelo</th>
                 <th>Tipo</th>
                 <th>Fabricante</th>
@@ -1552,11 +1552,13 @@ export function CriarModeloPanel({
                       <td>
                         <button
                           type="button"
-                          className="secondary-button compact-button"
+                          className="csds-icon-button"
                           disabled={creating}
                           onClick={() => openEdit(model)}
+                          aria-label={`Editar modelo ${model.name}`}
+                          title="Editar"
                         >
-                          Editar
+                          <PencilIcon />
                         </button>
                       </td>
                     )}
