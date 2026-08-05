@@ -28,10 +28,29 @@ const CONSTANT_OPTIONS = [
   '8000',
   '10000',
 ]
+const MANUFACTURER_OPTIONS = [
+  'NANSEN',
+  'ELETRA',
+  'ELO',
+  'LANDIS GYR',
+  'SCHLUMBERGER',
+  'CBM',
+  'GE',
+  'ELSTER',
+  'ABB',
+  'ITRON',
+  'DOWERTECH',
+  'SIEMENS',
+  'INEPAR',
+  'WESTINGHOUSE',
+  'ECIL',
+  'FAE',
+  'ACTARIS',
+  'APREL',
+]
 
 export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [models, setModels] = useState<MeterModelRecord[]>([])
-  const [manufacturers, setManufacturers] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -51,12 +70,8 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [{ models: rows }, manufacturersResponse] = await Promise.all([
-        api.listMeterModels(),
-        api.listManufacturers().catch(() => ({ manufacturers: [] as string[] })),
-      ])
+      const { models: rows } = await api.listMeterModels()
       setModels(rows)
-      setManufacturers(manufacturersResponse.manufacturers ?? [])
     } catch (error) {
       setModels([])
       setFeedback({
@@ -179,20 +194,19 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
           </label>
           <label>
             Fabricante
-            <input
-              type="text"
-              list="criar-modelo-manufacturers"
+            <select
               value={manufacturer}
               onChange={(event) => setManufacturer(event.target.value)}
-              placeholder="Fabricante"
               required
               disabled={creating}
-            />
-            <datalist id="criar-modelo-manufacturers">
-              {manufacturers.map((item) => (
-                <option key={item} value={item} />
+            >
+              <option value="">Selecione o fabricante</option>
+              {MANUFACTURER_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
               ))}
-            </datalist>
+            </select>
           </label>
           <label>
             Tipo
