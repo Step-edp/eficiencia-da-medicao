@@ -339,7 +339,7 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
                 <th>Tipo</th>
                 <th>Tensão</th>
                 <th>Corrente</th>
-                <th>Fios/Elem</th>
+                <th>Fios • Elementos</th>
                 <th>Classe</th>
                 <th>Constante</th>
                 <th>Criado por</th>
