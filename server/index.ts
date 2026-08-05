@@ -8,7 +8,7 @@ import { authRoutes } from './routes/users.js'
 import { homologationRoutes } from './routes/homologation.js'
 import { passwordRoutes } from './routes/passwords.js'
 import { materialRoutes } from './routes/materials.js'
-import { meterModelRoutes, createMeterModel } from './routes/meter-models.js'
+import { meterModelRoutes, createMeterModel, updateMeterModel } from './routes/meter-models.js'
 import { presentationRoutes, createPresentation } from './routes/presentations.js'
 import { softwareRoutes, createSoftware } from './routes/softwares.js'
 import {
@@ -156,6 +156,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     createMeterModel,
+  )
+  app.patch(
+    '/api/meter-models/:id',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    updateMeterModel,
   )
   app.post('/api/meter-models/passive', ...wrap(meterModelRoutes.createPassive))
 

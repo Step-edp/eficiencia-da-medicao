@@ -244,6 +244,10 @@ export type MeterModelRecord = {
   createdByUserId?: string | null
   createdByName?: string
   createdByRegistration?: string
+  updatedAt?: string | null
+  updatedByUserId?: string | null
+  updatedByName?: string
+  updatedByRegistration?: string
 }
 
 export type UnregisteredMeterModelRecord = {
@@ -872,6 +876,24 @@ export const api = {
   }) =>
     request<{ model: MeterModelRecord }>('/api/meter-models', {
       method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateMeterModel: (
+    id: number,
+    payload: {
+      name: string
+      manufacturer: string
+      meterType: string
+      description?: string
+      voltage?: string
+      current?: string
+      wiresElements?: string
+      accuracyClass?: string
+      constant?: string
+    },
+  ) =>
+    request<{ model: MeterModelRecord }>(`/api/meter-models/${id}`, {
+      method: 'PATCH',
       body: JSON.stringify(payload),
     }),
   createPassiveMeterModels: (payload: {

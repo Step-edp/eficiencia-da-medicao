@@ -92,6 +92,10 @@ type MeterModelRow = {
   created_by_user_id: string | null
   created_by_name: string | null
   created_by_registration: string | null
+  updated_at: Date | null
+  updated_by_user_id: string | null
+  updated_by_name: string | null
+  updated_by_registration: string | null
 }
 
 type MeterModelInput = {
@@ -283,6 +287,10 @@ function mapMeterModel(row: MeterModelRow) {
     createdByUserId: row.created_by_user_id,
     createdByName: row.created_by_name || '',
     createdByRegistration: row.created_by_registration || '',
+    updatedAt: row.updated_at ? row.updated_at.toISOString() : null,
+    updatedByUserId: row.updated_by_user_id,
+    updatedByName: row.updated_by_name || '',
+    updatedByRegistration: row.updated_by_registration || '',
   }
 }
 
@@ -313,10 +321,13 @@ function duplicateKey(parts: {
 export async function listMeterModels(_req: Request, res: Response) {
   const result = await query<MeterModelRow>(
     `SELECT m.*,
-            u.name AS created_by_name,
-            u.registration AS created_by_registration
+            creator.name AS created_by_name,
+            creator.registration AS created_by_registration,
+            updater.name AS updated_by_name,
+            updater.registration AS updated_by_registration
      FROM meter_models m
-     LEFT JOIN users u ON u.id = m.created_by_user_id
+     LEFT JOIN users creator ON creator.id = m.created_by_user_id
+     LEFT JOIN users updater ON updater.id = m.updated_by_user_id
      ORDER BY m.created_at DESC, m.id DESC`,
   )
   res.json({ models: result.rows.map(mapMeterModel) })
@@ -349,7 +360,15 @@ export async function createMeterModel(req: Request, res: Response) {
     return
   }
 
-  const result = await query<Omit<MeterModelRow, 'created_by_name' | 'created_by_registration'>>(
+  const result = await query<
+    Omit<
+      MeterModelRow,
+      | 'created_by_name'
+      | 'created_by_registration'
+      | 'updated_by_name'
+      | 'updated_by_registration'
+    >
+  >(
     `INSERT INTO meter_models (
        name, manufacturer, meter_type, description,
        voltage, current_rating, wires_elements, accuracy_class, meter_constant,
@@ -377,6 +396,8 @@ export async function createMeterModel(req: Request, res: Response) {
       ...result.rows[0],
       created_by_name: '',
       created_by_registration: req.user?.registration ?? '',
+      updated_by_name: null,
+      updated_by_registration: null,
     }),
   }
 
@@ -392,6 +413,145 @@ export async function createMeterModel(req: Request, res: Response) {
   })
 
   res.status(201).json({ model: created })
+}
+
+export async function updateMeterModel(req: Request, res: Response) {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id) || id < 1) {
+    res.status(400).json({ error: 'Identificador do modelo inválido.' })
+    return
+  }
+
+  const {
+    name,
+    manufacturer,
+    meterType,
+    description,
+    voltage,
+    current,
+    wiresElements,
+    accuracyClass,
+    constant,
+  } = req.body as Record<string, string | undefined>
+
+  const validated = validatePassiveModelFields({
+    name: String(name ?? '').trim(),
+    manufacturer: String(manufacturer ?? '').trim(),
+    meterType: String(meterType ?? '').trim(),
+    voltage: String(voltage ?? '').trim(),
+    current: String(current ?? '').trim(),
+    wiresElements: String(wiresElements ?? '').trim(),
+    accuracyClass: String(accuracyClass ?? '').trim(),
+    constant: String(constant ?? '').trim(),
+  })
+
+  if (!validated.ok) {
+    res.status(400).json({ error: validated.error })
+    return
+  }
+
+  const previous = await query<MeterModelRow>(
+    `SELECT m.*,
+            creator.name AS created_by_name,
+            creator.registration AS created_by_registration,
+            updater.name AS updated_by_name,
+            updater.registration AS updated_by_registration
+     FROM meter_models m
+     LEFT JOIN users creator ON creator.id = m.created_by_user_id
+     LEFT JOIN users updater ON updater.id = m.updated_by_user_id
+     WHERE m.id = $1`,
+    [id],
+  )
+  if (!previous.rows[0]) {
+    res.status(404).json({ error: 'Modelo não encontrado.' })
+    return
+  }
+
+  const values = validated.values
+  const key = duplicateKey(values)
+  const existing = await query<{ id: number } & Record<string, string>>(
+    `SELECT id, name, manufacturer, meter_type, voltage, current_rating,
+            wires_elements, accuracy_class, meter_constant
+     FROM meter_models
+     WHERE id <> $1`,
+    [id],
+  )
+  const conflict = existing.rows.some(
+    (row) =>
+      duplicateKey({
+        name: row.name,
+        manufacturer: row.manufacturer,
+        meterType: row.meter_type,
+        voltage: row.voltage ?? '',
+        current: row.current_rating ?? '',
+        wiresElements: row.wires_elements ?? '',
+        accuracyClass: row.accuracy_class ?? '',
+        constant: row.meter_constant ?? '',
+      }) === key,
+  )
+  if (conflict) {
+    res.status(409).json({
+      error: 'Já existe modelo com exatamente as mesmas características.',
+    })
+    return
+  }
+
+  const result = await query<
+    Omit<
+      MeterModelRow,
+      | 'created_by_name'
+      | 'created_by_registration'
+      | 'updated_by_name'
+      | 'updated_by_registration'
+    >
+  >(
+    `UPDATE meter_models
+     SET name = $1,
+         manufacturer = $2,
+         meter_type = $3,
+         description = $4,
+         voltage = $5,
+         current_rating = $6,
+         wires_elements = $7,
+         accuracy_class = $8,
+         meter_constant = $9,
+         updated_at = NOW(),
+         updated_by_user_id = $10
+     WHERE id = $11
+     RETURNING *`,
+    [
+      values.name,
+      values.manufacturer,
+      values.meterType,
+      description?.trim() ?? previous.rows[0].description ?? '',
+      values.voltage,
+      values.current,
+      values.wiresElements,
+      values.accuracyClass,
+      values.constant,
+      req.user?.id ?? null,
+      id,
+    ],
+  )
+
+  const updated = mapMeterModel({
+    ...result.rows[0],
+    created_by_name: previous.rows[0].created_by_name,
+    created_by_registration: previous.rows[0].created_by_registration,
+    updated_by_name: '',
+    updated_by_registration: req.user?.registration ?? '',
+  })
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_model',
+    entityId: String(updated.id),
+    summary: `Modelo de medidor ${updated.name} atualizado`,
+    oldData: mapMeterModel(previous.rows[0]),
+    newData: updated,
+  })
+
+  res.json({ model: updated })
 }
 
 /** Cadastro individual/em massa de modelos passivos — exclusivo do administrador. */
@@ -595,7 +755,13 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
     }
 
     const result = await query<
-      Omit<MeterModelRow, 'created_by_name' | 'created_by_registration'>
+      Omit<
+        MeterModelRow,
+        | 'created_by_name'
+        | 'created_by_registration'
+        | 'updated_by_name'
+        | 'updated_by_registration'
+      >
     >(
       `INSERT INTO meter_models (
          name, manufacturer, meter_type, description,
@@ -622,6 +788,8 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
       ...result.rows[0],
       created_by_name: '',
       created_by_registration: req.user?.registration ?? '',
+      updated_by_name: null,
+      updated_by_registration: null,
     })
 
     existingKeys.add(row.key)
@@ -725,5 +893,6 @@ export const meterModelRoutes = {
   list: [requireAuth, listMeterModels],
   listUnregistered: [requireAuth, listUnregisteredMeterModels],
   create: [requireAuth, createMeterModel],
+  update: [requireAuth, updateMeterModel],
   createPassive: [requireAuth, requireAdmin, createPassiveMeterModels],
 }

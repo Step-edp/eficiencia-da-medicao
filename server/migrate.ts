@@ -546,7 +546,9 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS wires_elements TEXT NOT NULL DEFAULT '',
       ADD COLUMN IF NOT EXISTS accuracy_class TEXT NOT NULL DEFAULT '',
       ADD COLUMN IF NOT EXISTS meter_constant TEXT NOT NULL DEFAULT '',
-      ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'cadastrado'
+      ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'cadastrado',
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS updated_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
   `)
   await query(`
     CREATE TABLE IF NOT EXISTS meter_model_unregistered (

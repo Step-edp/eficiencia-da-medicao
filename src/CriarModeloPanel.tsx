@@ -81,7 +81,7 @@ const MANUFACTURER_OPTIONS = [
   'APREL',
 ]
 
-type FormMode = 'create' | 'passivo' | null
+type FormMode = 'create' | 'edit' | 'passivo' | null
 type PanelView = 'lista' | 'nao-registrados'
 
 type PassiveModelInput = {
@@ -490,6 +490,7 @@ export function CriarModeloPanel({
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [formMode, setFormMode] = useState<FormMode>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [panelView, setPanelView] = useState<PanelView>('lista')
   const [pasteText, setPasteText] = useState('')
   const [editableRows, setEditableRows] = useState<PassiveModelInput[]>([])
@@ -637,12 +638,31 @@ export function CriarModeloPanel({
     setPasteText('')
     setEditableRows([])
     setResults([])
+    setEditingId(null)
   }
 
   const openForm = (mode: FormMode) => {
     setPanelView('lista')
     setFormMode((current) => (current === mode ? null : mode))
     resetForm()
+    setFeedback(null)
+  }
+
+  const openEdit = (model: MeterModelRecord) => {
+    setPanelView('lista')
+    setFormMode('edit')
+    setEditingId(model.id)
+    setName(model.name)
+    setManufacturer(model.manufacturer)
+    setMeterType(model.meterType || METER_TYPE_OPTIONS[0])
+    setVoltage(model.voltage || '')
+    setCurrent(model.current || '')
+    setWiresElements(model.wiresElements || '')
+    setAccuracyClass(model.accuracyClass || '')
+    setConstant(model.constant || '')
+    setPasteText('')
+    setEditableRows([])
+    setResults([])
     setFeedback(null)
   }
 
@@ -717,7 +737,7 @@ export function CriarModeloPanel({
     setCreating(true)
     setFeedback(null)
     try {
-      const { model } = await api.createMeterModel({
+      const payload = {
         name: name.trim(),
         manufacturer: manufacturer.trim(),
         meterType: meterType.trim(),
@@ -726,21 +746,43 @@ export function CriarModeloPanel({
         wiresElements: wiresElements.trim(),
         accuracyClass: accuracyClass.trim(),
         constant: constant.trim(),
-      })
-      setModels((currentRows) => [model, ...currentRows])
-      resetForm()
-      setFormMode(null)
-      setFeedback({
-        type: 'success',
-        message: `Modelo "${model.name}" cadastrado com sucesso.`,
-      })
+      }
+
+      if (formMode === 'edit' && editingId != null) {
+        const { model } = await api.updateMeterModel(editingId, payload)
+        try {
+          const { models: rows } = await api.listMeterModels()
+          setModels(rows)
+        } catch {
+          setModels((currentRows) =>
+            currentRows.map((row) => (row.id === model.id ? model : row)),
+          )
+        }
+        resetForm()
+        setFormMode(null)
+        setFeedback({
+          type: 'success',
+          message: `Modelo "${model.name}" atualizado com sucesso.`,
+        })
+      } else {
+        const { model } = await api.createMeterModel(payload)
+        setModels((currentRows) => [model, ...currentRows])
+        resetForm()
+        setFormMode(null)
+        setFeedback({
+          type: 'success',
+          message: `Modelo "${model.name}" cadastrado com sucesso.`,
+        })
+      }
     } catch (error) {
       setFeedback({
         type: 'error',
         message:
           error instanceof ApiError
             ? error.message
-            : 'Não foi possível cadastrar o modelo.',
+            : formMode === 'edit'
+              ? 'Não foi possível atualizar o modelo.'
+              : 'Não foi possível cadastrar o modelo.',
       })
     } finally {
       setCreating(false)
@@ -992,9 +1034,19 @@ export function CriarModeloPanel({
           <button
             type="button"
             className="primary-button"
-            onClick={() => openForm('create')}
+            onClick={() => {
+              if (formMode === 'create' || formMode === 'edit') {
+                setFormMode(null)
+                resetForm()
+                setFeedback(null)
+                return
+              }
+              openForm('create')
+            }}
           >
-            {formMode === 'create' ? 'Fechar formulário' : 'Criar modelo'}
+            {formMode === 'create' || formMode === 'edit'
+              ? 'Fechar formulário'
+              : 'Criar modelo'}
           </button>
         )}
       </div>
@@ -1009,14 +1061,14 @@ export function CriarModeloPanel({
         />
       ) : null}
 
-      {formOpen && (formMode === 'create' ? !readOnly : isAdmin) ? (
+      {formOpen && (formMode === 'passivo' ? isAdmin : !readOnly) ? (
         <form
           className={`material-form-grid criar-modelo-form${
             formMode === 'passivo' ? ' passivo-panel' : ''
           }`}
           onSubmit={(event) => void handleCreate(event)}
         >
-          {formMode === 'create' ? (
+          {formMode === 'create' || formMode === 'edit' ? (
             modelFields
           ) : (
               <>
@@ -1327,7 +1379,9 @@ export function CriarModeloPanel({
                 ? 'Salvando…'
                 : formMode === 'passivo'
                   ? 'Cadastrar passivo'
-                  : 'Salvar modelo'}
+                  : formMode === 'edit'
+                    ? 'Salvar alteração'
+                    : 'Salvar modelo'}
             </button>
           </div>
 
@@ -1410,6 +1464,9 @@ export function CriarModeloPanel({
                 <th>Constante</th>
                 <th>Criado por</th>
                 <th>Criado em</th>
+                <th>Alterado por</th>
+                <th>Alterado em</th>
+                {readOnly ? null : <th></th>}
               </tr>
             </thead>
             <tbody>
@@ -1442,11 +1499,40 @@ export function CriarModeloPanel({
                         : '—'}
                     </td>
                     <td>{new Date(model.createdAt).toLocaleString('pt-BR')}</td>
+                    <td>
+                      {model.updatedAt &&
+                      (model.updatedByName || model.updatedByRegistration)
+                        ? `${model.updatedByName || '—'}${
+                            model.updatedByRegistration
+                              ? ` (${model.updatedByRegistration})`
+                              : ''
+                          }`
+                        : '—'}
+                    </td>
+                    <td>
+                      {model.updatedAt
+                        ? new Date(model.updatedAt).toLocaleString('pt-BR')
+                        : '—'}
+                    </td>
+                    {readOnly ? null : (
+                      <td>
+                        <button
+                          type="button"
+                          className="secondary-button compact-button"
+                          disabled={creating}
+                          onClick={() => openEdit(model)}
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={10}>Nenhum modelo de medidor cadastrado ainda.</td>
+                  <td colSpan={readOnly ? 12 : 13}>
+                    Nenhum modelo de medidor cadastrado ainda.
+                  </td>
                 </tr>
               )}
             </tbody>
