@@ -153,6 +153,7 @@ async function start() {
     rejectLabMedicaoViewOnlyMutations,
     createMeterModel,
   )
+  app.post('/api/meter-models/passive', ...wrap(meterModelRoutes.createPassive))
 
   app.get('/api/presentations', ...wrap(presentationRoutes.list))
   app.post(

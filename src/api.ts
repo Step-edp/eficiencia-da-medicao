@@ -852,6 +852,35 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  createPassiveMeterModels: (payload: {
+    records: Array<{
+      name: string
+      manufacturer?: string
+      meterType?: string
+      voltage?: string
+      current?: string
+      wiresElements?: string
+      accuracyClass?: string
+      constant?: string
+    }>
+    manufacturer?: string
+    meterType?: string
+  }) =>
+    request<{
+      results: Array<{
+        name: string
+        manufacturer: string
+        status: 'created' | 'duplicate' | 'invalid'
+        error?: string
+      }>
+      models: MeterModelRecord[]
+      createdCount: number
+      duplicateCount: number
+      invalidCount: number
+    }>('/api/meter-models/passive', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   listPresentations: () =>
     request<{ presentations: PresentationRecord[] }>('/api/presentations'),
   createPresentation: (payload: {
