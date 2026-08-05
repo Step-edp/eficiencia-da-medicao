@@ -1793,6 +1793,26 @@ button {
   gap: 8px;
 }
 
+.entrada-demm-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  width: min(720px, 100%);
+  grid-template-columns: none;
+  margin-left: auto;
+}
+
+.entrada-demm-switch > button {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.entrada-demm-switch > button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .entrada-section {
   display: grid;
   gap: 12px;
@@ -6410,6 +6430,15 @@ input[type='file'] {
   }
 
   .panel-switch.users-view-switch > button {
+    padding: 10px 8px;
+    font-size: 0.85rem;
+  }
+
+  .entrada-demm-switch {
+    width: 100%;
+  }
+
+  .entrada-demm-switch > button {
     padding: 10px 8px;
     font-size: 0.85rem;
   }

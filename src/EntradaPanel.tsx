@@ -402,11 +402,15 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     <>
       <div className="entrada-panel">
         <div className="entrada-panel-header">
-          <div className="entrada-panel-actions">
+          <div
+            className="panel-switch entrada-demm-switch"
+            role="toolbar"
+            aria-label="Ações DEMM"
+          >
             {readOnly ? null : (
               <button
                 type="button"
-                className="primary-button"
+                className="active"
                 onClick={() => openDemmModal()}
                 disabled={loading}
               >
@@ -415,7 +419,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             )}
             <button
               type="button"
-              className="secondary-button"
               onClick={() => void openMetersBase()}
               disabled={loading || demmDocuments.length === 0}
             >
@@ -423,7 +426,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             </button>
             <button
               type="button"
-              className="secondary-button"
               onClick={() => void loadData()}
               disabled={loading}
             >
