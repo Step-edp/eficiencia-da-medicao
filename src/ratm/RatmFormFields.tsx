@@ -234,12 +234,17 @@ function YesNoIconQuestion({
       {value === 'nao' ? (
         <label className="ratm-yesno-justification">
           Justificativa
-          <textarea
-            value={justification}
-            onChange={(event) => onJustificationChange(event.target.value)}
-            rows={3}
-            placeholder="Descreva a justificativa"
-          />
+          <span className="ratm-yesno-justification-autosize">
+            <span className="ratm-yesno-justification-mirror" aria-hidden="true">
+              {justification || 'Descreva a justificativa'}
+            </span>
+            <input
+              type="text"
+              value={justification}
+              onChange={(event) => onJustificationChange(event.target.value)}
+              placeholder="Descreva a justificativa"
+            />
+          </span>
         </label>
       ) : null}
     </div>

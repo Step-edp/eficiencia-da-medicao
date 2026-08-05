@@ -6011,12 +6011,45 @@ input[type='file'] {
 .ratm-yesno-justification {
   display: grid;
   gap: 6px;
+  justify-items: start;
+  width: fit-content;
+  max-width: 100%;
 }
 
-.ratm-yesno-justification textarea {
+.ratm-yesno-justification-autosize {
+  display: inline-grid;
+  align-items: stretch;
+  max-width: 100%;
+}
+
+.ratm-yesno-justification-autosize > * {
+  grid-area: 1 / 1;
+}
+
+.ratm-yesno-justification-mirror {
+  visibility: hidden;
+  white-space: pre;
+  min-width: 12ch;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.ratm-yesno-justification-autosize input {
   width: 100%;
-  min-height: 84px;
-  resize: vertical;
+  min-width: 12ch;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(24, 216, 240, 0.28);
+  background: rgba(5, 26, 44, 0.9);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.35;
 }
 
 .ratm-schedule-details {
