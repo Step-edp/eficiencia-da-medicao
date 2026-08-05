@@ -13,6 +13,7 @@ type MeterModelRow = {
   current_rating: string
   wires_elements: string
   accuracy_class: string
+  meter_constant: string
   created_at: Date
   created_by_user_id: string | null
   created_by_name: string | null
@@ -30,6 +31,7 @@ function mapMeterModel(row: MeterModelRow) {
     current: row.current_rating ?? '',
     wiresElements: row.wires_elements ?? '',
     accuracyClass: row.accuracy_class ?? '',
+    constant: row.meter_constant ?? '',
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
     createdByName: row.created_by_name || '',
@@ -59,6 +61,7 @@ export async function createMeterModel(req: Request, res: Response) {
     current,
     wiresElements,
     accuracyClass,
+    constant,
   } = req.body as Record<string, string | undefined>
 
   if (!name?.trim() || !manufacturer?.trim() || !meterType?.trim()) {
@@ -71,10 +74,10 @@ export async function createMeterModel(req: Request, res: Response) {
   const result = await query<Omit<MeterModelRow, 'created_by_name' | 'created_by_registration'>>(
     `INSERT INTO meter_models (
        name, manufacturer, meter_type, description,
-       voltage, current_rating, wires_elements, accuracy_class,
+       voltage, current_rating, wires_elements, accuracy_class, meter_constant,
        created_by_user_id
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
     [
       name.trim(),
@@ -85,6 +88,7 @@ export async function createMeterModel(req: Request, res: Response) {
       current?.trim() ?? '',
       wiresElements?.trim() ?? '',
       accuracyClass?.trim() ?? '',
+      constant?.trim() ?? '',
       req.user?.id ?? null,
     ],
   )

@@ -15,6 +15,19 @@ const CURRENT_OPTIONS = [
 ]
 const WIRES_ELEMENTS_OPTIONS = ['2F', '3F', '2 elementos', '3 elementos']
 const CLASS_OPTIONS = ['A', 'B', 'C', '0,2', '0,5', '1', '2']
+const CONSTANT_OPTIONS = [
+  '500',
+  '1000',
+  '1200',
+  '2000',
+  '2500',
+  '3200',
+  '4000',
+  '5000',
+  '6400',
+  '8000',
+  '10000',
+]
 
 export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [models, setModels] = useState<MeterModelRecord[]>([])
@@ -34,6 +47,7 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [current, setCurrent] = useState('')
   const [wiresElements, setWiresElements] = useState('')
   const [accuracyClass, setAccuracyClass] = useState('')
+  const [constant, setConstant] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -71,6 +85,7 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
     setCurrent('')
     setWiresElements('')
     setAccuracyClass('')
+    setConstant('')
   }
 
   const handleCreate = async (event: FormEvent) => {
@@ -95,6 +110,7 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
         current: current.trim(),
         wiresElements: wiresElements.trim(),
         accuracyClass: accuracyClass.trim(),
+        constant: constant.trim(),
       })
       setModels((currentRows) => [model, ...currentRows])
       resetForm()

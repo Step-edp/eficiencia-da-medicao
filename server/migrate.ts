@@ -544,7 +544,8 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS voltage TEXT NOT NULL DEFAULT '',
       ADD COLUMN IF NOT EXISTS current_rating TEXT NOT NULL DEFAULT '',
       ADD COLUMN IF NOT EXISTS wires_elements TEXT NOT NULL DEFAULT '',
-      ADD COLUMN IF NOT EXISTS accuracy_class TEXT NOT NULL DEFAULT ''
+      ADD COLUMN IF NOT EXISTS accuracy_class TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS meter_constant TEXT NOT NULL DEFAULT ''
   `)
   await query(`
     CREATE TABLE IF NOT EXISTS presentations (
