@@ -19,6 +19,7 @@ const VOLTAGE_OPTIONS = [
 const CURRENT_OPTIONS = [
   'Min. 15A • Máx. 100A',
   'Min. 15A • Máx. 120A',
+  'Min. 15A • Máx. 60A',
   'Min. 2,5A • Máx. 10A',
   'Min. 30A • Máx. 200A',
   'Min. 2,5A • Máx. 20A',
