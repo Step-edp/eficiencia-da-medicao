@@ -590,6 +590,33 @@ export async function migrate() {
       await query(`DELETE FROM meter_models`)
     }
   }
+  {
+    const cleanupKey = 'manufacturers_eletra_energy_2026_08_05'
+    const claimed = await query<{ key: string }>(
+      `INSERT INTO app_data_cleanups (key)
+       VALUES ($1)
+       ON CONFLICT (key) DO NOTHING
+       RETURNING key`,
+      [cleanupKey],
+    )
+    if (claimed.rows.length) {
+      await query(
+        `DELETE FROM manufacturers
+         WHERE LOWER(TRIM(name)) = 'eletra'
+            OR LOWER(TRIM(name)) = 'nansen'`,
+      )
+      await query(
+        `INSERT INTO manufacturers (name)
+         VALUES ('Eletra Energy Solutions')
+         ON CONFLICT (name) DO NOTHING`,
+      )
+      await query(
+        `UPDATE password_records
+         SET manufacturer = 'Eletra Energy Solutions'
+         WHERE LOWER(TRIM(manufacturer)) = 'eletra'`,
+      )
+    }
+  }
   await query(`
     CREATE TABLE IF NOT EXISTS presentations (
       id SERIAL PRIMARY KEY,
