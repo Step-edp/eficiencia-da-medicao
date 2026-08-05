@@ -1253,7 +1253,10 @@ export function CriarModeloPanel({
               <p className="field-hint">
                 Resultado do cadastro · {results.length} registro(s)
               </p>
-              <div className="modelo-passivo-table-scroll">
+              <div
+                className="modelo-passivo-table-scroll"
+                onWheel={handlePreviewTableWheel}
+              >
               <table className="data-table modelo-passivo-edit-table">
                 <thead>
                   <tr>
