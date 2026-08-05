@@ -137,7 +137,7 @@ function matchVoltageOption(value: string): string | null {
   if (matched) return matched
 
   const normalized = normalizeOptionValue(value)
-  const legacyLabels = [
+  const legacy240 = [
     '240V • 120V',
     '240V 120V',
     '240V-120V',
@@ -148,11 +148,28 @@ function matchVoltageOption(value: string): string | null {
     'Min. 120V Bolinha Máx. 240V',
     'Min. 120V (•) Máx. 240V',
   ]
-  if (legacyLabels.some((label) => normalizeOptionValue(label) === normalized)) {
+  if (legacy240.some((label) => normalizeOptionValue(label) === normalized)) {
     return '120V \u2022 240V'
+  }
+  const legacy220 = [
+    '220V • 120V',
+    '220V 120V',
+    '220V-120V',
+    '220V bolinha 120V',
+    '120V 220V',
+    'Min. 120V • Máx. 220V',
+    'Min. 120V (Bolinha) Máx. 220V',
+    'Min. 120V Bolinha Máx. 220V',
+    'Min. 120V (•) Máx. 220V',
+  ]
+  if (legacy220.some((label) => normalizeOptionValue(label) === normalized)) {
+    return '120V \u2022 220V'
   }
   if (normalized.includes('bolinha') && normalized.includes('120') && normalized.includes('240')) {
     return '120V \u2022 240V'
+  }
+  if (normalized.includes('bolinha') && normalized.includes('120') && normalized.includes('220')) {
+    return '120V \u2022 220V'
   }
   if (
     normalized.includes('120') &&
@@ -160,6 +177,13 @@ function matchVoltageOption(value: string): string | null {
     (normalized.includes('min') || normalized.includes('max'))
   ) {
     return '120V \u2022 240V'
+  }
+  if (
+    normalized.includes('120') &&
+    normalized.includes('220') &&
+    (normalized.includes('min') || normalized.includes('max'))
+  ) {
+    return '120V \u2022 220V'
   }
   return null
 }
