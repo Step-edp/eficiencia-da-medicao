@@ -716,7 +716,7 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
   let unregisteredCount = 0
 
   for (const row of prepared) {
-    if (row.status === 'invalid' || row.status === 'duplicate') {
+    if (row.status !== 'ready') {
       await query(
         `INSERT INTO meter_model_unregistered (
            name, manufacturer, meter_type, voltage, current_rating,
