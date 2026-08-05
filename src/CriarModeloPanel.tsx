@@ -596,12 +596,42 @@ export function CriarModeloPanel({
     event.preventDefault()
 
     if (formMode === 'passivo') {
-      const records = editableRows
-      if (!records.length) {
+      if (!editableRows.length) {
         setFeedback({
           type: 'error',
           message:
             'Cole ou edite ao menos uma linha com modelo, tipo e fabricante.',
+        })
+        return
+      }
+
+      if (invalidPreviewCount > 0 || duplicatePreviewCount > 0) {
+        setFeedback({
+          type: 'error',
+          message: `Não é possível cadastrar: ${
+            invalidPreviewCount
+              ? `${invalidPreviewCount} linha(s) com valor fora das opções`
+              : ''
+          }${
+            invalidPreviewCount && duplicatePreviewCount ? ' e ' : ''
+          }${
+            duplicatePreviewCount
+              ? `${duplicatePreviewCount} linha(s) repetida(s)`
+              : ''
+          }. Corrija ou remova as linhas em vermelho/amarelo.`,
+        })
+        return
+      }
+
+      const records = editableRows.filter((_, index) => {
+        const preview = previewRows[index]
+        return preview?.valid && !preview.duplicate
+      })
+
+      if (!records.length) {
+        setFeedback({
+          type: 'error',
+          message: 'Nenhuma linha válida para cadastrar.',
         })
         return
       }
@@ -620,13 +650,18 @@ export function CriarModeloPanel({
           setPasteText('')
           setEditableRows([])
         } else {
-          const remaining = editableRows.filter((_, index) => {
-            const status = response.results[index]?.status
-            return status === 'invalid' || status === 'duplicate'
-          })
-          setEditableRows(remaining)
+          // Mantém só o que o servidor ainda recusou.
+          const remainingByStatus = response.results
+            .map((result, index) => ({ result, record: records[index] }))
+            .filter(
+              ({ result }) =>
+                result.status === 'invalid' || result.status === 'duplicate',
+            )
+            .map(({ record }) => record)
+            .filter(Boolean)
+          setEditableRows(remainingByStatus)
           setPasteText(
-            remaining
+            remainingByStatus
               .map((row) =>
                 [
                   row.name,
@@ -643,14 +678,17 @@ export function CriarModeloPanel({
               )
               .join('\n'),
           )
+          setFeedback({
+            type: 'error',
+            message: `${response.createdCount} cadastrado(s), mas ${
+              response.invalidCount + response.duplicateCount
+            } linha(s) foram recusadas. Corrija as restantes.`,
+          })
+          return
         }
         setFeedback({
-          type: response.createdCount ? 'success' : 'error',
-          message: `${response.createdCount} modelo(s) passivo(s) cadastrado(s)${
-            response.duplicateCount || response.invalidCount
-              ? ` · ${response.duplicateCount} duplicado(s) · ${response.invalidCount} inválido(s)`
-              : ''
-          }.`,
+          type: 'success',
+          message: `${response.createdCount} modelo(s) passivo(s) cadastrado(s).`,
         })
       } catch (error) {
         setFeedback({
@@ -940,7 +978,8 @@ export function CriarModeloPanel({
                     {invalidPreviewCount || duplicatePreviewCount ? (
                       <p className="field-hint modelo-passivo-invalid-hint">
                         Vermelho = valor fora das opções. Amarelo = repetido (todos
-                        os campos iguais). Esses não serão cadastrados.
+                        os campos iguais). Corrija ou remova essas linhas — o
+                        cadastro fica bloqueado enquanto houver erro.
                       </p>
                     ) : null}
                     <div
@@ -1209,7 +1248,9 @@ export function CriarModeloPanel({
               disabled={
                 creating ||
                 (formMode === 'passivo'
-                  ? !editableRows.length
+                  ? !editableRows.length ||
+                    invalidPreviewCount > 0 ||
+                    duplicatePreviewCount > 0
                   : !name.trim() || !manufacturer.trim())
               }
             >

@@ -407,19 +407,34 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
     ),
   )
 
-  const results: Array<{
-    name: string
-    manufacturer: string
-    meterType: string
-    voltage: string
-    current: string
-    wiresElements: string
-    accuracyClass: string
-    constant: string
-    status: 'created' | 'duplicate' | 'invalid'
-    error?: string
-  }> = []
-  const newModels: ReturnType<typeof mapMeterModel>[] = []
+  type PreparedRow =
+    | {
+        status: 'invalid' | 'duplicate'
+        name: string
+        manufacturer: string
+        meterType: string
+        voltage: string
+        current: string
+        wiresElements: string
+        accuracyClass: string
+        constant: string
+        error: string
+      }
+    | {
+        status: 'ready'
+        name: string
+        manufacturer: string
+        meterType: string
+        voltage: string
+        current: string
+        wiresElements: string
+        accuracyClass: string
+        constant: string
+        description: string
+        key: string
+      }
+
+  const prepared: PreparedRow[] = []
   const processed = new Set<string>()
 
   for (const item of items) {
@@ -445,7 +460,8 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
     })
 
     if (!validated.ok) {
-      results.push({
+      prepared.push({
+        status: 'invalid',
         name: name || '—',
         manufacturer: rowManufacturer || '—',
         meterType: rowMeterType || '—',
@@ -454,49 +470,85 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
         wiresElements: wiresElements || '—',
         accuracyClass: accuracyClass || '—',
         constant: constant || '—',
-        status: 'invalid',
         error: validated.error,
       })
       continue
     }
 
-    const {
-      name: validName,
-      manufacturer: validManufacturer,
-      meterType: validMeterType,
-      voltage: validVoltage,
-      current: validCurrent,
-      wiresElements: validWiresElements,
-      accuracyClass: validAccuracyClass,
-      constant: validConstant,
-    } = validated.values
-
-    const key = duplicateKey({
-      name: validName,
-      manufacturer: validManufacturer,
-      meterType: validMeterType,
-      voltage: validVoltage,
-      current: validCurrent,
-      wiresElements: validWiresElements,
-      accuracyClass: validAccuracyClass,
-      constant: validConstant,
-    })
+    const values = validated.values
+    const key = duplicateKey(values)
 
     if (existingKeys.has(key) || processed.has(key)) {
-      results.push({
-        name: validName,
-        manufacturer: validManufacturer,
-        meterType: validMeterType,
-        voltage: validVoltage || '—',
-        current: validCurrent || '—',
-        wiresElements: validWiresElements || '—',
-        accuracyClass: validAccuracyClass || '—',
-        constant: validConstant || '—',
+      prepared.push({
         status: 'duplicate',
+        name: values.name,
+        manufacturer: values.manufacturer,
+        meterType: values.meterType,
+        voltage: values.voltage || '—',
+        current: values.current || '—',
+        wiresElements: values.wiresElements || '—',
+        accuracyClass: values.accuracyClass || '—',
+        constant: values.constant || '—',
         error: 'Repetido: já existe modelo com exatamente as mesmas características.',
       })
       continue
     }
+
+    processed.add(key)
+    prepared.push({
+      status: 'ready',
+      ...values,
+      description: String(item?.description ?? '').trim(),
+      key,
+    })
+  }
+
+  const invalidCount = prepared.filter((row) => row.status === 'invalid').length
+  const duplicateCount = prepared.filter((row) => row.status === 'duplicate').length
+
+  if (invalidCount > 0 || duplicateCount > 0) {
+    res.status(400).json({
+      error:
+        'Nenhum modelo foi cadastrado. Corrija as linhas inválidas ou repetidas e tente novamente.',
+      results: prepared.map((row) => ({
+        name: row.name,
+        manufacturer: row.manufacturer,
+        meterType: row.meterType,
+        voltage: row.voltage,
+        current: row.current,
+        wiresElements: row.wiresElements,
+        accuracyClass: row.accuracyClass,
+        constant: row.constant,
+        status: row.status === 'ready' ? 'invalid' : row.status,
+        error:
+          row.status === 'ready'
+            ? 'Cadastro bloqueado porque há outras linhas inválidas ou repetidas.'
+            : row.error,
+      })),
+      models: [],
+      createdCount: 0,
+      duplicateCount,
+      invalidCount: invalidCount + prepared.filter((row) => row.status === 'ready').length,
+    })
+    return
+  }
+
+  const results: Array<{
+    name: string
+    manufacturer: string
+    meterType: string
+    voltage: string
+    current: string
+    wiresElements: string
+    accuracyClass: string
+    constant: string
+    status: 'created' | 'duplicate' | 'invalid'
+    error?: string
+  }> = []
+  const newModels: ReturnType<typeof mapMeterModel>[] = []
+
+  for (const row of prepared) {
+    if (row.status !== 'ready') continue
 
     const result = await query<
       Omit<MeterModelRow, 'created_by_name' | 'created_by_registration'>
@@ -509,15 +561,15 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'passivo', $10)
        RETURNING *`,
       [
-        validName,
-        validManufacturer,
-        validMeterType,
-        String(item?.description ?? '').trim(),
-        validVoltage,
-        validCurrent,
-        validWiresElements,
-        validAccuracyClass,
-        validConstant,
+        row.name,
+        row.manufacturer,
+        row.meterType,
+        row.description,
+        row.voltage,
+        row.current,
+        row.wiresElements,
+        row.accuracyClass,
+        row.constant,
         req.user?.id ?? null,
       ],
     )
@@ -528,18 +580,17 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
       created_by_registration: req.user?.registration ?? '',
     })
 
-    processed.add(key)
-    existingKeys.add(key)
+    existingKeys.add(row.key)
     newModels.push(created)
     results.push({
-      name: validName,
-      manufacturer: validManufacturer,
-      meterType: validMeterType,
-      voltage: validVoltage || '—',
-      current: validCurrent || '—',
-      wiresElements: validWiresElements || '—',
-      accuracyClass: validAccuracyClass || '—',
-      constant: validConstant || '—',
+      name: row.name,
+      manufacturer: row.manufacturer,
+      meterType: row.meterType,
+      voltage: row.voltage || '—',
+      current: row.current || '—',
+      wiresElements: row.wiresElements || '—',
+      accuracyClass: row.accuracyClass || '—',
+      constant: row.constant || '—',
       status: 'created',
     })
   }
