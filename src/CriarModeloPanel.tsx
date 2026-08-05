@@ -179,10 +179,40 @@ function matchOption(value: string, options: readonly string[]): string | null {
   return null
 }
 
+function modelCharacteristicsKey(fields: {
+  name: string
+  manufacturer: string
+  meterType: string
+  voltage: string
+  current: string
+  wiresElements: string
+  accuracyClass: string
+  constant: string
+}): string {
+  return [
+    fields.name,
+    fields.manufacturer,
+    fields.meterType,
+    fields.voltage,
+    fields.current,
+    fields.wiresElements,
+    fields.accuracyClass,
+    fields.constant,
+  ]
+    .map((value) => normalizeOptionValue(value === '—' ? '' : value))
+    .join('|')
+}
+
 function validatePassiveModelRow(
   row: PassiveModelInput,
   defaults: { manufacturer: string; meterType: string },
-): { valid: boolean; error?: string; display: Required<PassiveModelInput> } {
+): {
+  valid: boolean
+  duplicate: boolean
+  error?: string
+  display: Required<PassiveModelInput>
+  key: string
+} {
   const name = row.name.trim()
   const manufacturerRaw = (row.manufacturer || defaults.manufacturer).trim()
   const meterTypeRaw = parseMeterTypeLabel(row.meterType || defaults.meterType)
@@ -203,18 +233,37 @@ function validatePassiveModelRow(
     constant: constantRaw || '—',
   }
 
+  const emptyKey = modelCharacteristicsKey({
+    name,
+    manufacturer: manufacturerRaw,
+    meterType: meterTypeRaw,
+    voltage: voltageRaw,
+    current: currentRaw,
+    wiresElements: wiresRaw,
+    accuracyClass: classRaw,
+    constant: constantRaw,
+  })
+
   if (!name) {
-    return { valid: false, error: 'Modelo é obrigatório.', display }
+    return {
+      valid: false,
+      duplicate: false,
+      error: 'Modelo é obrigatório.',
+      display,
+      key: emptyKey,
+    }
   }
 
   const manufacturer = matchOption(manufacturerRaw, MANUFACTURER_OPTIONS)
   if (!manufacturer) {
     return {
       valid: false,
+      duplicate: false,
       error: manufacturerRaw
         ? `Fabricante inválido: ${manufacturerRaw}`
         : 'Fabricante é obrigatório.',
       display,
+      key: emptyKey,
     }
   }
 
@@ -222,47 +271,90 @@ function validatePassiveModelRow(
   if (!meterType) {
     return {
       valid: false,
+      duplicate: false,
       error: meterTypeRaw
         ? `Tipo inválido: ${meterTypeRaw}`
         : 'Tipo é obrigatório.',
       display,
+      key: emptyKey,
     }
   }
 
   if (voltageRaw && !matchOption(voltageRaw, VOLTAGE_OPTIONS)) {
-    return { valid: false, error: `Tensão inválida: ${voltageRaw}`, display }
+    return {
+      valid: false,
+      duplicate: false,
+      error: `Tensão inválida: ${voltageRaw}`,
+      display,
+      key: emptyKey,
+    }
   }
   if (currentRaw && !matchOption(currentRaw, CURRENT_OPTIONS)) {
-    return { valid: false, error: `Corrente inválida: ${currentRaw}`, display }
+    return {
+      valid: false,
+      duplicate: false,
+      error: `Corrente inválida: ${currentRaw}`,
+      display,
+      key: emptyKey,
+    }
   }
   if (wiresRaw && !matchOption(wiresRaw, WIRES_ELEMENTS_OPTIONS)) {
     return {
       valid: false,
+      duplicate: false,
       error: `Fios • Elementos inválido: ${wiresRaw}`,
       display,
+      key: emptyKey,
     }
   }
   if (classRaw && !matchOption(classRaw, CLASS_OPTIONS)) {
-    return { valid: false, error: `Classe inválida: ${classRaw}`, display }
+    return {
+      valid: false,
+      duplicate: false,
+      error: `Classe inválida: ${classRaw}`,
+      display,
+      key: emptyKey,
+    }
   }
   if (constantRaw && !matchOption(constantRaw, CONSTANT_OPTIONS)) {
-    return { valid: false, error: `Constante inválida: ${constantRaw}`, display }
+    return {
+      valid: false,
+      duplicate: false,
+      error: `Constante inválida: ${constantRaw}`,
+      display,
+      key: emptyKey,
+    }
+  }
+
+  const resolved = {
+    name,
+    manufacturer,
+    meterType,
+    voltage: voltageRaw ? matchOption(voltageRaw, VOLTAGE_OPTIONS) || voltageRaw : '',
+    current: currentRaw ? matchOption(currentRaw, CURRENT_OPTIONS) || currentRaw : '',
+    wiresElements: wiresRaw
+      ? matchOption(wiresRaw, WIRES_ELEMENTS_OPTIONS) || wiresRaw
+      : '',
+    accuracyClass: classRaw ? matchOption(classRaw, CLASS_OPTIONS) || classRaw : '',
+    constant: constantRaw
+      ? matchOption(constantRaw, CONSTANT_OPTIONS) || constantRaw
+      : '',
   }
 
   return {
     valid: true,
+    duplicate: false,
     display: {
-      name,
-      manufacturer,
-      meterType,
-      voltage: voltageRaw ? matchOption(voltageRaw, VOLTAGE_OPTIONS) || voltageRaw : '—',
-      current: currentRaw ? matchOption(currentRaw, CURRENT_OPTIONS) || currentRaw : '—',
-      wiresElements: wiresRaw
-        ? matchOption(wiresRaw, WIRES_ELEMENTS_OPTIONS) || wiresRaw
-        : '—',
-      accuracyClass: classRaw ? matchOption(classRaw, CLASS_OPTIONS) || classRaw : '—',
-      constant: constantRaw ? matchOption(constantRaw, CONSTANT_OPTIONS) || constantRaw : '—',
+      name: resolved.name,
+      manufacturer: resolved.manufacturer,
+      meterType: resolved.meterType,
+      voltage: resolved.voltage || '—',
+      current: resolved.current || '—',
+      wiresElements: resolved.wiresElements || '—',
+      accuracyClass: resolved.accuracyClass || '—',
+      constant: resolved.constant || '—',
     },
+    key: modelCharacteristicsKey(resolved),
   }
 }
 
@@ -370,16 +462,57 @@ export function CriarModeloPanel({
 
   const previewRows = useMemo(() => {
     const rows = parsePassiveModelPaste(pasteText)
-    return rows.map((row) =>
-      validatePassiveModelRow(row, {
+    const existingKeys = new Set(
+      models.map((model) =>
+        modelCharacteristicsKey({
+          name: model.name,
+          manufacturer: model.manufacturer,
+          meterType: model.meterType,
+          voltage: model.voltage || '',
+          current: model.current || '',
+          wiresElements: model.wiresElements || '',
+          accuracyClass: model.accuracyClass || '',
+          constant: model.constant || '',
+        }),
+      ),
+    )
+    const seenKeys = new Set<string>()
+
+    return rows.map((row) => {
+      const validated = validatePassiveModelRow(row, {
         manufacturer: manufacturer.trim(),
         meterType: meterType.trim(),
-      }),
-    )
-  }, [pasteText, manufacturer, meterType])
+      })
+
+      if (!validated.valid) {
+        return validated
+      }
+
+      const alreadyExists = existingKeys.has(validated.key)
+      const repeatedInPaste = seenKeys.has(validated.key)
+      seenKeys.add(validated.key)
+
+      if (alreadyExists || repeatedInPaste) {
+        return {
+          ...validated,
+          duplicate: true,
+          error: alreadyExists
+            ? 'Repetido: já existe modelo com exatamente as mesmas características.'
+            : 'Repetido: linha duplicada na colagem (mesmas características).',
+        }
+      }
+
+      return validated
+    })
+  }, [pasteText, manufacturer, meterType, models])
 
   const invalidPreviewCount = useMemo(
     () => previewRows.filter((row) => !row.valid).length,
+    [previewRows],
+  )
+
+  const duplicatePreviewCount = useMemo(
+    () => previewRows.filter((row) => row.duplicate).length,
     [previewRows],
   )
 
@@ -859,12 +992,15 @@ export function CriarModeloPanel({
                       {invalidPreviewCount
                         ? ` · ${invalidPreviewCount} inválido(s)`
                         : ''}
+                      {duplicatePreviewCount
+                        ? ` · ${duplicatePreviewCount} repetido(s)`
+                        : ''}
                       .
                     </p>
-                    {invalidPreviewCount ? (
+                    {invalidPreviewCount || duplicatePreviewCount ? (
                       <p className="field-hint modelo-passivo-invalid-hint">
-                        Linhas em vermelho estão fora das opções possíveis e não
-                        serão cadastradas.
+                        Vermelho = valor fora das opções. Amarelo = repetido (todos
+                        os campos iguais). Esses não serão cadastrados.
                       </p>
                     ) : null}
                     <table className="data-table">
@@ -887,7 +1023,11 @@ export function CriarModeloPanel({
                           <tr
                             key={`${row.display.name}-${index}`}
                             className={
-                              row.valid ? undefined : 'modelo-passivo-row-invalid'
+                              !row.valid
+                                ? 'modelo-passivo-row-invalid'
+                                : row.duplicate
+                                  ? 'modelo-passivo-row-duplicate'
+                                  : undefined
                             }
                             title={row.error}
                           >
@@ -900,7 +1040,13 @@ export function CriarModeloPanel({
                             <td>{row.display.wiresElements}</td>
                             <td>{row.display.accuracyClass}</td>
                             <td>{row.display.constant}</td>
-                            <td>{row.valid ? 'OK' : row.error || 'Inválido'}</td>
+                            <td>
+                              {!row.valid
+                                ? row.error || 'Inválido'
+                                : row.duplicate
+                                  ? 'Repetido'
+                                  : 'OK'}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -967,9 +1113,11 @@ export function CriarModeloPanel({
                     <tr
                       key={`${row.name}-${index}`}
                       className={
-                        row.status === 'invalid' || row.status === 'duplicate'
+                        row.status === 'invalid'
                           ? 'modelo-passivo-row-invalid'
-                          : undefined
+                          : row.status === 'duplicate'
+                            ? 'modelo-passivo-row-duplicate'
+                            : undefined
                       }
                     >
                       <td>{index + 1}</td>
@@ -984,8 +1132,9 @@ export function CriarModeloPanel({
                       <td>
                         {row.status === 'created'
                           ? 'Cadastrado'
-                          : row.error ||
-                            (row.status === 'duplicate' ? 'Duplicado' : 'Inválido')}
+                          : row.status === 'duplicate'
+                            ? row.error || 'Repetido'
+                            : row.error || 'Inválido'}
                       </td>
                     </tr>
                   ))}

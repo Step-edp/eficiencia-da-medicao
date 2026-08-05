@@ -268,7 +268,7 @@ function duplicateKey(parts: {
     parts.accuracyClass,
     parts.constant,
   ]
-    .map((value) => value.trim().toLowerCase())
+    .map((value) => normalizeOptionValue(value))
     .join('|')
 }
 
@@ -492,7 +492,7 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
         accuracyClass: validAccuracyClass || '—',
         constant: validConstant || '—',
         status: 'duplicate',
-        error: 'Esse modelo já está cadastrado com os mesmos dados.',
+        error: 'Repetido: já existe modelo com exatamente as mesmas características.',
       })
       continue
     }

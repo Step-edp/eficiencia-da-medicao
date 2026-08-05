@@ -3339,6 +3339,11 @@ button {
   color: #ffb4b4;
 }
 
+.modelo-passivo-row-duplicate td {
+  background: rgba(220, 170, 40, 0.2);
+  color: #ffe7a0;
+}
+
 .modelo-passivo-invalid-hint {
   color: #ff9b9b;
   margin: 0 0 8px;
