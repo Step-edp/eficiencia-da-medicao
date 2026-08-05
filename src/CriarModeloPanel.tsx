@@ -175,8 +175,8 @@ function parsePassiveModelPaste(text: string): PassiveModelInput[] {
     ? mappedHeaders
     : ([
         'name',
-        'manufacturer',
         'meterType',
+        'manufacturer',
         'voltage',
         'current',
         'wiresElements',
@@ -210,8 +210,8 @@ function parsePassiveModelPaste(text: string): PassiveModelInput[] {
 
     if (!hasHeader && cells.length >= 1 && !row.name) {
       row.name = cells[0] ?? ''
-      row.manufacturer = cells[1] ?? ''
-      row.meterType = parseMeterTypeLabel(cells[2] ?? '')
+      row.meterType = parseMeterTypeLabel(cells[1] ?? '')
+      row.manufacturer = cells[2] ?? ''
       row.voltage = cells[3] ?? ''
       row.current = cells[4] ?? ''
       row.wiresElements = cells[5] ?? ''
@@ -443,22 +443,6 @@ export function CriarModeloPanel({
           disabled={creating}
         />
       </label>
-      <label>
-        Fabricante
-        <select
-          value={manufacturer}
-          onChange={(event) => setManufacturer(event.target.value)}
-          required={!isPassivoMass}
-          disabled={creating}
-        >
-          <option value="">Selecione o fabricante</option>
-          {MANUFACTURER_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </label>
       <fieldset className="radio-fieldset criar-modelo-voltage full-width">
         <legend>Tipo</legend>
         <div className="ratm-choice-group" role="radiogroup" aria-label="Tipo">
@@ -480,6 +464,22 @@ export function CriarModeloPanel({
           })}
         </div>
       </fieldset>
+      <label>
+        Fabricante
+        <select
+          value={manufacturer}
+          onChange={(event) => setManufacturer(event.target.value)}
+          required={!isPassivoMass}
+          disabled={creating}
+        >
+          <option value="">Selecione o fabricante</option>
+          {MANUFACTURER_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
 
       {!isPassivoMass ? (
         <>
@@ -622,8 +622,8 @@ export function CriarModeloPanel({
             <>
               <p className="passivo-intro full-width">
                 Cadastro de modelos passivos. Campos:{' '}
-                <strong>modelo</strong>, <strong>fabricante</strong>,{' '}
-                <strong>tipo</strong>, <strong>tensão</strong>,{' '}
+                <strong>modelo</strong>, <strong>tipo</strong>,{' '}
+                <strong>fabricante</strong>, <strong>tensão</strong>,{' '}
                 <strong>corrente</strong>, <strong>fios • elementos</strong>,{' '}
                 <strong>classe</strong> e <strong>constante</strong>.
               </p>
@@ -664,21 +664,6 @@ export function CriarModeloPanel({
                   Opcionais: fabricante e tipo padrão abaixo preenchem linhas sem
                   esses valores.
                 </p>
-                <label>
-                  Fabricante (padrão)
-                  <select
-                    value={manufacturer}
-                    onChange={(event) => setManufacturer(event.target.value)}
-                    disabled={creating}
-                  >
-                    <option value="">Sem padrão</option>
-                    {MANUFACTURER_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 <fieldset className="radio-fieldset criar-modelo-voltage full-width">
                   <legend>Tipo (padrão)</legend>
                   <div
@@ -706,6 +691,21 @@ export function CriarModeloPanel({
                     })}
                   </div>
                 </fieldset>
+                <label>
+                  Fabricante (padrão)
+                  <select
+                    value={manufacturer}
+                    onChange={(event) => setManufacturer(event.target.value)}
+                    disabled={creating}
+                  >
+                    <option value="">Sem padrão</option>
+                    {MANUFACTURER_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label className="passivo-paste-label full-width">
                   Colar registros (em massa)
                   <textarea
@@ -713,7 +713,7 @@ export function CriarModeloPanel({
                     value={pasteText}
                     onChange={(event) => setPasteText(event.target.value)}
                     placeholder={
-                      'Modelo\tFabricante\tTipo\tTensão\tCorrente\tFios • Elementos\tClasse\tConstante\nA1052\tNANSEN\tEletrônico\t240V\tMin. 15A • Máx. 100A\t2 FIOS 1 ELEMENTO\tCLASSE 1\t1,8'
+                      'Modelo\tTipo\tFabricante\tTensão\tCorrente\tFios • Elementos\tClasse\tConstante\nA1052\tEletrônico\tNANSEN\t240V\tMin. 15A • Máx. 100A\t2 FIOS 1 ELEMENTO\tCLASSE 1\t1,8'
                     }
                     spellCheck={false}
                     disabled={creating}
@@ -722,8 +722,8 @@ export function CriarModeloPanel({
                 </label>
                 <p className="field-hint full-width">
                   Uma linha por modelo. Aceita tab, vírgula ou ponto e vírgula.
-                  Cabeçalho opcional. Ordem sem cabeçalho: Modelo, Fabricante,
-                  Tipo, Tensão, Corrente, Fios • Elementos, Classe, Constante.
+                  Cabeçalho opcional. Ordem sem cabeçalho: Modelo, Tipo,
+                  Fabricante, Tensão, Corrente, Fios • Elementos, Classe, Constante.
                 </p>
                 {previewRows.length ? (
                   <div className="entrada-table-wrap full-width">
@@ -731,8 +731,8 @@ export function CriarModeloPanel({
                       <thead>
                         <tr>
                           <th>Prévia · Modelo</th>
-                          <th>Fabricante</th>
                           <th>Tipo</th>
+                          <th>Fabricante</th>
                           <th>Tensão</th>
                           <th>Corrente</th>
                           <th>Fios • Elementos</th>
@@ -744,8 +744,8 @@ export function CriarModeloPanel({
                         {previewRows.map((row, index) => (
                           <tr key={`${row.name}-${index}`}>
                             <td>{row.name || '—'}</td>
-                            <td>{row.manufacturer || manufacturer || '—'}</td>
                             <td>{row.meterType || meterType || '—'}</td>
+                            <td>{row.manufacturer || manufacturer || '—'}</td>
                             <td>{row.voltage || '—'}</td>
                             <td>{row.current || '—'}</td>
                             <td>{row.wiresElements || '—'}</td>
@@ -830,8 +830,8 @@ export function CriarModeloPanel({
             <thead>
               <tr>
                 <th>Modelo</th>
-                <th>Fabricante</th>
                 <th>Tipo</th>
+                <th>Fabricante</th>
                 <th>Tensão</th>
                 <th>Corrente</th>
                 <th>Fios • Elementos</th>
@@ -854,8 +854,8 @@ export function CriarModeloPanel({
                         </>
                       ) : null}
                     </td>
-                    <td>{model.manufacturer}</td>
                     <td>{model.meterType}</td>
+                    <td>{model.manufacturer}</td>
                     <td>{model.voltage || '—'}</td>
                     <td>{model.current || '—'}</td>
                     <td>{model.wiresElements || '—'}</td>
