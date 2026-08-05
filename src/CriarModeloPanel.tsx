@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState, type WheelEvent } from 'react'
 import { api, ApiError, type MeterModelRecord } from './api'
 import { LoginFeedback } from './LoginFeedback'
 
@@ -529,6 +529,19 @@ export function CriarModeloPanel({
     setEditableRows((current) => current.filter((_, rowIndex) => rowIndex !== index))
   }
 
+  const handlePreviewTableWheel = (event: WheelEvent<HTMLDivElement>) => {
+    const container = event.currentTarget
+    if (container.scrollWidth <= container.clientWidth) return
+
+    const mostlyHorizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+    if (event.shiftKey || mostlyHorizontal) {
+      const delta = mostlyHorizontal ? event.deltaX : event.deltaY
+      if (!delta) return
+      event.preventDefault()
+      container.scrollLeft += delta
+    }
+  }
+
   const handlePasteChange = (text: string) => {
     setPasteText(text)
     setEditableRows(parsePassiveModelPaste(text))
@@ -943,7 +956,7 @@ export function CriarModeloPanel({
                   Fabricante, Tensão, Corrente, Fios • Elementos, Classe, Constante.
                 </p>
                 {editableRows.length ? (
-                  <div className="entrada-table-wrap full-width modelo-passivo-table-wrap">
+                  <div className="full-width modelo-passivo-table-wrap">
                     <p className="field-hint">
                       Exibindo {editableRows.length} registro(s) para cadastro
                       {invalidPreviewCount
@@ -960,6 +973,7 @@ export function CriarModeloPanel({
                         os campos iguais). Esses não serão cadastrados.
                       </p>
                     ) : null}
+                    <div className="modelo-passivo-table-scroll">
                     <table className="data-table modelo-passivo-edit-table">
                       <thead>
                         <tr>
@@ -1198,6 +1212,7 @@ export function CriarModeloPanel({
                         })}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 ) : null}
               </>
@@ -1234,11 +1249,12 @@ export function CriarModeloPanel({
           </div>
 
           {formMode === 'passivo' && results.length ? (
-            <div className="entrada-table-wrap full-width modelo-passivo-table-wrap">
+            <div className="full-width modelo-passivo-table-wrap">
               <p className="field-hint">
                 Resultado do cadastro · {results.length} registro(s)
               </p>
-              <table className="data-table">
+              <div className="modelo-passivo-table-scroll">
+              <table className="data-table modelo-passivo-edit-table">
                 <thead>
                   <tr>
                     <th>#</th>
@@ -1285,6 +1301,7 @@ export function CriarModeloPanel({
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           ) : null}
         </form>

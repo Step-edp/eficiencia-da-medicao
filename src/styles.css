@@ -3350,11 +3350,34 @@ button {
 }
 
 .modelo-passivo-table-wrap {
-  max-height: min(70vh, 640px);
-  overflow: auto;
   display: grid;
   gap: 8px;
   align-content: start;
+  min-width: 0;
+  width: 100%;
+}
+
+.modelo-passivo-table-scroll {
+  max-height: min(58vh, 520px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  border-radius: 12px;
+  background: rgba(5, 26, 44, 0.45);
+  /* Mantém a barra horizontal sempre na área visível da tabela */
+  scrollbar-gutter: stable;
+}
+
+.modelo-passivo-table-scroll .data-table {
+  margin: 0;
+}
+
+.modelo-passivo-table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(8, 39, 66, 0.98);
+  box-shadow: 0 1px 0 rgba(24, 216, 240, 0.18);
 }
 
 .modelo-passivo-edit-table input,
