@@ -1513,6 +1513,7 @@ export function CriarModeloPanel({
           <table className="data-table">
             <thead>
               <tr>
+                {readOnly ? null : <th>Ações</th>}
                 <th>Modelo</th>
                 <th>Tipo</th>
                 <th>Fabricante</th>
@@ -1525,13 +1526,24 @@ export function CriarModeloPanel({
                 <th>Criado em</th>
                 <th>Alterado por</th>
                 <th>Alterado em</th>
-                {readOnly ? null : <th></th>}
               </tr>
             </thead>
             <tbody>
               {models.length ? (
                 models.map((model) => (
                   <tr key={model.id}>
+                    {readOnly ? null : (
+                      <td>
+                        <button
+                          type="button"
+                          className="secondary-button compact-button"
+                          disabled={creating}
+                          onClick={() => openEdit(model)}
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    )}
                     <td>
                       {model.name}
                       {model.source === 'passivo' ? (
@@ -1573,18 +1585,6 @@ export function CriarModeloPanel({
                         ? new Date(model.updatedAt).toLocaleString('pt-BR')
                         : '—'}
                     </td>
-                    {readOnly ? null : (
-                      <td>
-                        <button
-                          type="button"
-                          className="secondary-button compact-button"
-                          disabled={creating}
-                          onClick={() => openEdit(model)}
-                        >
-                          Editar
-                        </button>
-                      </td>
-                    )}
                   </tr>
                 ))
               ) : (
