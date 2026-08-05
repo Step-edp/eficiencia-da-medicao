@@ -8,6 +8,7 @@ const VOLTAGE_OPTIONS = [
   '240V',
   '120V',
   '230V',
+  '120V \u2022 220V',
   '120V \u2022 240V',
 ]
 const CURRENT_OPTIONS = [
