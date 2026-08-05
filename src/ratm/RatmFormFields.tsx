@@ -88,7 +88,7 @@ function schedulePartsFromIso(iso: string) {
   }
 }
 
-function optionChoiceTone(option: string): 'positive' | 'negative' | 'neutral' {
+function optionChoiceTone(option: string): 'positive' | 'negative' | 'partial' | 'neutral' {
   const normalized = option.trim().toLowerCase()
   if (
     normalized === 'aprovado' ||
@@ -105,6 +105,9 @@ function optionChoiceTone(option: string): 'positive' | 'negative' | 'neutral' {
     normalized === 'sem lacre'
   ) {
     return 'negative'
+  }
+  if (normalized === 'parcial') {
+    return 'partial'
   }
   return 'neutral'
 }
@@ -157,6 +160,22 @@ function ClearableRadioGroup({
                     stroke="currentColor"
                     strokeWidth="2.2"
                     strokeLinecap="round"
+                  />
+                </svg>
+              ) : null}
+              {tone === 'partial' ? (
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 4a8 8 0 0 1 0 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M12 4a8 8 0 0 0 0 16"
+                    fill="currentColor"
+                    opacity="0.35"
                   />
                 </svg>
               ) : null}
@@ -774,7 +793,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           legend="Laudo de campo está correto?"
           name={`report-${index}`}
           value={data.fieldReportCorrect}
-          options={['Sim', 'Não']}
+          options={['Sim', 'Não', 'Parcial']}
           onChange={(value) => onChange({ fieldReportCorrect: value })}
         />
 

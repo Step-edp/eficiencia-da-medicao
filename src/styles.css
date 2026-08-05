@@ -5724,6 +5724,12 @@ input[type='file'] {
   color: #ffc9cc;
 }
 
+.ratm-choice-btn.tone-partial.is-selected {
+  border-color: rgba(251, 191, 36, 0.75);
+  background: rgba(146, 104, 12, 0.35);
+  color: #fde68a;
+}
+
 .reserve-button {
   margin-top: 6px;
   border: 0;
