@@ -23,6 +23,7 @@ const CURRENT_OPTIONS = [
   'Min. 2,5A • Máx. 10A',
   'Min. 30A • Máx. 200A',
   'Min. 2,5A • Máx. 20A',
+  'Min. 5A',
   'Min. 10A',
   'Min. 15A',
 ]
@@ -268,6 +269,9 @@ function matchCurrentOption(value: string): string | null {
   }
   if (normalized === '10a' || normalized === 'min 10a' || normalized === 'min.10a') {
     return 'Min. 10A'
+  }
+  if (normalized === '5a' || normalized === 'min 5a' || normalized === 'min.5a') {
+    return 'Min. 5A'
   }
   return null
 }
