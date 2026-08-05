@@ -973,7 +973,10 @@ export function CriarModeloPanel({
                         os campos iguais). Esses não serão cadastrados.
                       </p>
                     ) : null}
-                    <div className="modelo-passivo-table-scroll">
+                    <div
+                      className="modelo-passivo-table-scroll"
+                      onWheel={handlePreviewTableWheel}
+                    >
                     <table className="data-table modelo-passivo-edit-table">
                       <thead>
                         <tr>
