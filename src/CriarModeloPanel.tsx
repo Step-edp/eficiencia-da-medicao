@@ -4,7 +4,14 @@ import { LoginFeedback } from './LoginFeedback'
 
 const METER_TYPE_OPTIONS = ['Eletrônico', 'Eletromecânico']
 const VOLTAGE_OPTIONS = ['240V', '120V', '240V • 120V', '230V']
-const CURRENT_OPTIONS = ['15/100A', '15/120A', '2,5/10A', '30/200A', '2,5/20A', '15A']
+const CURRENT_OPTIONS = [
+  'Min. 15A • Máx. 100A',
+  'Min. 15A • Máx. 120A',
+  'Min. 2,5A • Máx. 10A',
+  'Min. 30A • Máx. 200A',
+  'Min. 2,5A • Máx. 20A',
+  '15A',
+]
 const WIRES_ELEMENTS_OPTIONS = [
   '2 FIOS 1 ELEMENTO',
   '3 FIOS 1 ELEMENTO',
