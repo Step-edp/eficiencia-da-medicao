@@ -3,7 +3,7 @@ import { api, ApiError, type MeterModelRecord } from './api'
 import { LoginFeedback } from './LoginFeedback'
 
 const METER_TYPE_OPTIONS = ['Eletrônico', 'Eletromecânico']
-const VOLTAGE_OPTIONS = ['240V', '120V', '240/120V', '230V']
+const VOLTAGE_OPTIONS = ['240V', '120V', '240V • 120V', '230V']
 const CURRENT_OPTIONS = [
   '1,5(6)A',
   '5(100)A',
