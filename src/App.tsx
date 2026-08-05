@@ -4621,6 +4621,7 @@ function HomePanel({
               </div>
             ) : null}
             {LAB_TRAIL_KEYS.has(selectedLabMeasurementSection) &&
+            selectedLabMeasurementSection !== 'Entrada de medidores' &&
             !inventarioMonthTitle &&
             showLabTrail ? (
               <LabMeasurementTrail
