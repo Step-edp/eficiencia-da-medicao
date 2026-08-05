@@ -5781,10 +5781,11 @@ input[type='file'] {
 }
 
 .ratm-nav-bar {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: inline-flex;
   align-items: center;
   gap: 12px;
+  width: fit-content;
+  max-width: 100%;
   padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid rgba(91, 240, 0, 0.24);
@@ -5795,6 +5796,7 @@ input[type='file'] {
   text-align: center;
   color: #5bf000;
   font-size: 1.2rem;
+  white-space: nowrap;
 }
 
 .ratm-nav-trailing {
