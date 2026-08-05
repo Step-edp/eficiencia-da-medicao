@@ -632,33 +632,19 @@ export function CriarModeloPanel({
         return
       }
 
-      if (invalidPreviewCount > 0 || duplicatePreviewCount > 0) {
-        setFeedback({
-          type: 'error',
-          message: `Não é possível cadastrar: ${
-            invalidPreviewCount
-              ? `${invalidPreviewCount} linha(s) com valor fora das opções`
-              : ''
-          }${
-            invalidPreviewCount && duplicatePreviewCount ? ' e ' : ''
-          }${
-            duplicatePreviewCount
-              ? `${duplicatePreviewCount} linha(s) repetida(s)`
-              : ''
-          }. Corrija ou remova as linhas em vermelho/amarelo.`,
-        })
-        return
-      }
-
+      const okIndexes: number[] = []
       const records = editableRows.filter((_, index) => {
         const preview = previewRows[index]
-        return preview?.valid && !preview.duplicate
+        const isOk = Boolean(preview?.valid && !preview.duplicate)
+        if (isOk) okIndexes.push(index)
+        return isOk
       })
 
       if (!records.length) {
         setFeedback({
           type: 'error',
-          message: 'Nenhuma linha válida para cadastrar.',
+          message:
+            'Nenhuma linha OK para cadastrar. Corrija as inválidas/repetidas ou remova-as.',
         })
         return
       }
@@ -673,49 +659,44 @@ export function CriarModeloPanel({
         if (response.models.length) {
           setModels((currentRows) => [...response.models, ...currentRows])
         }
-        if (!response.invalidCount && !response.duplicateCount) {
-          setPasteText('')
-          setEditableRows([])
-        } else {
-          // Mantém só o que o servidor ainda recusou.
-          const remainingByStatus = response.results
-            .map((result, index) => ({ result, record: records[index] }))
-            .filter(
-              ({ result }) =>
-                result.status === 'invalid' || result.status === 'duplicate',
+
+        const remaining = editableRows.filter((_, index) => {
+          const okPosition = okIndexes.indexOf(index)
+          if (okPosition < 0) return true
+          const status = response.results[okPosition]?.status
+          return status === 'invalid' || status === 'duplicate'
+        })
+
+        setEditableRows(remaining)
+        setPasteText(
+          remaining
+            .map((row) =>
+              [
+                row.name,
+                row.meterType,
+                row.manufacturer,
+                row.voltage,
+                row.current,
+                row.wiresElements,
+                row.accuracyClass,
+                row.constant,
+              ]
+                .map((value) => value ?? '')
+                .join('\t'),
             )
-            .map(({ record }) => record)
-            .filter(Boolean)
-          setEditableRows(remainingByStatus)
-          setPasteText(
-            remainingByStatus
-              .map((row) =>
-                [
-                  row.name,
-                  row.meterType,
-                  row.manufacturer,
-                  row.voltage,
-                  row.current,
-                  row.wiresElements,
-                  row.accuracyClass,
-                  row.constant,
-                ]
-                  .map((value) => value ?? '')
-                  .join('\t'),
-              )
-              .join('\n'),
-          )
-          setFeedback({
-            type: 'error',
-            message: `${response.createdCount} cadastrado(s), mas ${
-              response.invalidCount + response.duplicateCount
-            } linha(s) foram recusadas. Corrija as restantes.`,
-          })
-          return
-        }
+            .join('\n'),
+        )
+
+        const ignoredClient =
+          editableRows.length - records.length
+        const ignoredServer = response.duplicateCount + response.invalidCount
         setFeedback({
-          type: 'success',
-          message: `${response.createdCount} modelo(s) passivo(s) cadastrado(s).`,
+          type: response.createdCount ? 'success' : 'error',
+          message: `${response.createdCount} modelo(s) OK cadastrado(s)${
+            ignoredClient + ignoredServer > 0
+              ? ` · ${ignoredClient + ignoredServer} linha(s) ignorada(s) (inválida/repetida)`
+              : ''
+          }.`,
         })
       } catch (error) {
         setFeedback({
@@ -1004,9 +985,9 @@ export function CriarModeloPanel({
                     </p>
                     {invalidPreviewCount || duplicatePreviewCount ? (
                       <p className="field-hint modelo-passivo-invalid-hint">
-                        Vermelho = valor fora das opções. Amarelo = repetido (todos
-                        os campos iguais). Corrija ou remova essas linhas — o
-                        cadastro fica bloqueado enquanto houver erro.
+                        Vermelho = valor fora das opções. Amarelo = repetido (já
+                        cadastrado ou duplicado na colagem). Ao cadastrar, só as
+                        linhas OK entram; repetidas e inválidas são ignoradas.
                       </p>
                     ) : null}
                     <div
@@ -1275,9 +1256,7 @@ export function CriarModeloPanel({
               disabled={
                 creating ||
                 (formMode === 'passivo'
-                  ? !editableRows.length ||
-                    invalidPreviewCount > 0 ||
-                    duplicatePreviewCount > 0
+                  ? !editableRows.length
                   : !name.trim() || !manufacturer.trim())
               }
             >

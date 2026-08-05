@@ -533,33 +533,6 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
   const invalidCount = prepared.filter((row) => row.status === 'invalid').length
   const duplicateCount = prepared.filter((row) => row.status === 'duplicate').length
 
-  if (invalidCount > 0 || duplicateCount > 0) {
-    res.status(400).json({
-      error:
-        'Nenhum modelo foi cadastrado. Corrija as linhas inválidas ou repetidas e tente novamente.',
-      results: prepared.map((row) => ({
-        name: row.name,
-        manufacturer: row.manufacturer,
-        meterType: row.meterType,
-        voltage: row.voltage,
-        current: row.current,
-        wiresElements: row.wiresElements,
-        accuracyClass: row.accuracyClass,
-        constant: row.constant,
-        status: row.status === 'ready' ? 'invalid' : row.status,
-        error:
-          row.status === 'ready'
-            ? 'Cadastro bloqueado porque há outras linhas inválidas ou repetidas.'
-            : row.error,
-      })),
-      models: [],
-      createdCount: 0,
-      duplicateCount,
-      invalidCount: invalidCount + prepared.filter((row) => row.status === 'ready').length,
-    })
-    return
-  }
-
   const results: Array<{
     name: string
     manufacturer: string
@@ -571,7 +544,20 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
     constant: string
     status: 'created' | 'duplicate' | 'invalid'
     error?: string
-  }> = []
+  }> = prepared
+    .filter((row) => row.status !== 'ready')
+    .map((row) => ({
+      name: row.name,
+      manufacturer: row.manufacturer,
+      meterType: row.meterType,
+      voltage: row.voltage,
+      current: row.current,
+      wiresElements: row.wiresElements,
+      accuracyClass: row.accuracyClass,
+      constant: row.constant,
+      status: row.status,
+      error: row.error,
+    }))
   const newModels: ReturnType<typeof mapMeterModel>[] = []
 
   for (const row of prepared) {
