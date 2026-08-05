@@ -3,6 +3,73 @@ import { query } from '../db.js'
 import { requireAuth, requireAdmin } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 
+const METER_TYPE_OPTIONS = ['Eletrônico', 'Eletromecânico']
+const VOLTAGE_OPTIONS = ['240V', '120V', '240V • 120V', '230V']
+const CURRENT_OPTIONS = [
+  'Min. 15A • Máx. 100A',
+  'Min. 15A • Máx. 120A',
+  'Min. 2,5A • Máx. 10A',
+  'Min. 30A • Máx. 200A',
+  'Min. 2,5A • Máx. 20A',
+  '15A',
+]
+const WIRES_ELEMENTS_OPTIONS = [
+  '2 FIOS 1 ELEMENTO',
+  '3 FIOS 1 ELEMENTO',
+  '3 FIOS 2 ELEMENTOS',
+  '4 FIOS 3 ELEMENTOS',
+  '4 FIOS 2 ELEMENTOS',
+  '3 FIOS 3 ELEMENTOS',
+]
+const CLASS_OPTIONS = [
+  'CLASSE 1',
+  'CLASSE 2',
+  'CLASSE A',
+  'CLASSE B',
+  'CLASSE C',
+  'CLASSE D',
+]
+const CONSTANT_OPTIONS = [
+  '1,8',
+  '3,6',
+  '4,0',
+  '4,8',
+  '7,2',
+  '10,8',
+  '14,4',
+  '2,4',
+  '21,6',
+  '0,3',
+  '0,6',
+  '1',
+  '1,25',
+  '0,3125',
+  '6,25',
+  '2',
+  '10',
+  '6',
+]
+const MANUFACTURER_OPTIONS = [
+  'NANSEN',
+  'ELETRA',
+  'ELO',
+  'LANDIS GYR',
+  'SCHLUMBERGER',
+  'CBM',
+  'GE',
+  'ELSTER',
+  'ABB',
+  'ITRON',
+  'DOWERTECH',
+  'SIEMENS',
+  'INEPAR',
+  'WESTINGHOUSE',
+  'ECIL',
+  'FAE',
+  'ACTARIS',
+  'APREL',
+]
+
 type MeterModelRow = {
   id: number
   name: string
@@ -31,6 +98,134 @@ type MeterModelInput = {
   wiresElements?: string
   accuracyClass?: string
   constant?: string
+}
+
+function normalizeOptionValue(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[•·⋅]/g, ' ')
+    .replace(/[–—-]/g, ' ')
+    .replace(/,/g, '.')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+function matchOption(value: string, options: readonly string[]): string | null {
+  const normalized = normalizeOptionValue(value)
+  if (!normalized) return null
+  for (const option of options) {
+    if (normalizeOptionValue(option) === normalized) return option
+  }
+  return null
+}
+
+function parseMeterTypeLabel(value: string): string {
+  const raw = normalizeOptionValue(value)
+  if (!raw) return ''
+  if (raw.includes('eletromecan') || raw === 'mecanico' || raw === 'em') {
+    return 'Eletromecânico'
+  }
+  if (raw.includes('eletron') || raw === 'el') {
+    return 'Eletrônico'
+  }
+  return value.trim()
+}
+
+function validatePassiveModelFields(fields: {
+  name: string
+  manufacturer: string
+  meterType: string
+  voltage: string
+  current: string
+  wiresElements: string
+  accuracyClass: string
+  constant: string
+}): { ok: true; values: typeof fields } | { ok: false; error: string } {
+  if (!fields.name) {
+    return { ok: false, error: 'Modelo é obrigatório.' }
+  }
+
+  const manufacturer = matchOption(fields.manufacturer, MANUFACTURER_OPTIONS)
+  if (!manufacturer) {
+    return {
+      ok: false,
+      error: fields.manufacturer
+        ? `Fabricante inválido: ${fields.manufacturer}`
+        : 'Fabricante é obrigatório.',
+    }
+  }
+
+  const meterTypeRaw = parseMeterTypeLabel(fields.meterType) || fields.meterType
+  const meterType = matchOption(meterTypeRaw, METER_TYPE_OPTIONS)
+  if (!meterType) {
+    return {
+      ok: false,
+      error: fields.meterType
+        ? `Tipo inválido: ${fields.meterType}`
+        : 'Tipo é obrigatório.',
+    }
+  }
+
+  let voltage = ''
+  if (fields.voltage) {
+    const matched = matchOption(fields.voltage, VOLTAGE_OPTIONS)
+    if (!matched) {
+      return { ok: false, error: `Tensão inválida: ${fields.voltage}` }
+    }
+    voltage = matched
+  }
+
+  let current = ''
+  if (fields.current) {
+    const matched = matchOption(fields.current, CURRENT_OPTIONS)
+    if (!matched) {
+      return { ok: false, error: `Corrente inválida: ${fields.current}` }
+    }
+    current = matched
+  }
+
+  let wiresElements = ''
+  if (fields.wiresElements) {
+    const matched = matchOption(fields.wiresElements, WIRES_ELEMENTS_OPTIONS)
+    if (!matched) {
+      return { ok: false, error: `Fios • Elementos inválido: ${fields.wiresElements}` }
+    }
+    wiresElements = matched
+  }
+
+  let accuracyClass = ''
+  if (fields.accuracyClass) {
+    const matched = matchOption(fields.accuracyClass, CLASS_OPTIONS)
+    if (!matched) {
+      return { ok: false, error: `Classe inválida: ${fields.accuracyClass}` }
+    }
+    accuracyClass = matched
+  }
+
+  let constant = ''
+  if (fields.constant) {
+    const matched = matchOption(fields.constant, CONSTANT_OPTIONS)
+    if (!matched) {
+      return { ok: false, error: `Constante inválida: ${fields.constant}` }
+    }
+    constant = matched
+  }
+
+  return {
+    ok: true,
+    values: {
+      name: fields.name,
+      manufacturer,
+      meterType,
+      voltage,
+      current,
+      wiresElements,
+      accuracyClass,
+      constant,
+    },
+  }
 }
 
 function mapMeterModel(row: MeterModelRow) {
@@ -231,17 +426,7 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
     const accuracyClass = String(item?.accuracyClass ?? '').trim()
     const constant = String(item?.constant ?? '').trim()
 
-    if (!name || !rowManufacturer || !rowMeterType) {
-      results.push({
-        name: name || '—',
-        manufacturer: rowManufacturer || '—',
-        status: 'invalid',
-        error: 'Modelo, fabricante e tipo são obrigatórios.',
-      })
-      continue
-    }
-
-    const key = duplicateKey({
+    const validated = validatePassiveModelFields({
       name,
       manufacturer: rowManufacturer,
       meterType: rowMeterType,
@@ -252,10 +437,42 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
       constant,
     })
 
+    if (!validated.ok) {
+      results.push({
+        name: name || '—',
+        manufacturer: rowManufacturer || '—',
+        status: 'invalid',
+        error: validated.error,
+      })
+      continue
+    }
+
+    const {
+      name: validName,
+      manufacturer: validManufacturer,
+      meterType: validMeterType,
+      voltage: validVoltage,
+      current: validCurrent,
+      wiresElements: validWiresElements,
+      accuracyClass: validAccuracyClass,
+      constant: validConstant,
+    } = validated.values
+
+    const key = duplicateKey({
+      name: validName,
+      manufacturer: validManufacturer,
+      meterType: validMeterType,
+      voltage: validVoltage,
+      current: validCurrent,
+      wiresElements: validWiresElements,
+      accuracyClass: validAccuracyClass,
+      constant: validConstant,
+    })
+
     if (existingKeys.has(key) || processed.has(key)) {
       results.push({
-        name,
-        manufacturer: rowManufacturer,
+        name: validName,
+        manufacturer: validManufacturer,
         status: 'duplicate',
         error: 'Esse modelo já está cadastrado com os mesmos dados.',
       })
@@ -273,15 +490,15 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'passivo', $10)
        RETURNING *`,
       [
-        name,
-        rowManufacturer,
-        rowMeterType,
+        validName,
+        validManufacturer,
+        validMeterType,
         String(item?.description ?? '').trim(),
-        voltage,
-        current,
-        wiresElements,
-        accuracyClass,
-        constant,
+        validVoltage,
+        validCurrent,
+        validWiresElements,
+        validAccuracyClass,
+        validConstant,
         req.user?.id ?? null,
       ],
     )
@@ -295,7 +512,11 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
     processed.add(key)
     existingKeys.add(key)
     newModels.push(created)
-    results.push({ name, manufacturer: rowManufacturer, status: 'created' })
+    results.push({
+      name: validName,
+      manufacturer: validManufacturer,
+      status: 'created',
+    })
   }
 
   if (newModels.length) {

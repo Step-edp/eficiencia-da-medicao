@@ -141,7 +141,7 @@ function normalizeHeader(value: string): string {
 }
 
 function parseMeterTypeLabel(value: string): string {
-  const raw = normalizeHeader(value)
+  const raw = normalizeOptionValue(value)
   if (!raw) return ''
   if (raw.includes('eletromecan') || raw === 'mecanico' || raw === 'em') {
     return 'Eletromecânico'
@@ -150,6 +150,114 @@ function parseMeterTypeLabel(value: string): string {
     return 'Eletrônico'
   }
   return value.trim()
+}
+
+function normalizeOptionValue(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[•·⋅]/g, ' ')
+    .replace(/[–—-]/g, ' ')
+    .replace(/,/g, '.')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+function matchOption(value: string, options: readonly string[]): string | null {
+  const normalized = normalizeOptionValue(value)
+  if (!normalized) return null
+  for (const option of options) {
+    if (normalizeOptionValue(option) === normalized) return option
+  }
+  return null
+}
+
+function validatePassiveModelRow(
+  row: PassiveModelInput,
+  defaults: { manufacturer: string; meterType: string },
+): { valid: boolean; error?: string; display: Required<PassiveModelInput> } {
+  const name = row.name.trim()
+  const manufacturerRaw = (row.manufacturer || defaults.manufacturer).trim()
+  const meterTypeRaw = parseMeterTypeLabel(row.meterType || defaults.meterType)
+  const voltageRaw = (row.voltage || '').trim()
+  const currentRaw = (row.current || '').trim()
+  const wiresRaw = (row.wiresElements || '').trim()
+  const classRaw = (row.accuracyClass || '').trim()
+  const constantRaw = (row.constant || '').trim()
+
+  const display: Required<PassiveModelInput> = {
+    name: name || '—',
+    manufacturer: manufacturerRaw || '—',
+    meterType: meterTypeRaw || '—',
+    voltage: voltageRaw || '—',
+    current: currentRaw || '—',
+    wiresElements: wiresRaw || '—',
+    accuracyClass: classRaw || '—',
+    constant: constantRaw || '—',
+  }
+
+  if (!name) {
+    return { valid: false, error: 'Modelo é obrigatório.', display }
+  }
+
+  const manufacturer = matchOption(manufacturerRaw, MANUFACTURER_OPTIONS)
+  if (!manufacturer) {
+    return {
+      valid: false,
+      error: manufacturerRaw
+        ? `Fabricante inválido: ${manufacturerRaw}`
+        : 'Fabricante é obrigatório.',
+      display,
+    }
+  }
+
+  const meterType = matchOption(meterTypeRaw, METER_TYPE_OPTIONS)
+  if (!meterType) {
+    return {
+      valid: false,
+      error: meterTypeRaw
+        ? `Tipo inválido: ${meterTypeRaw}`
+        : 'Tipo é obrigatório.',
+      display,
+    }
+  }
+
+  if (voltageRaw && !matchOption(voltageRaw, VOLTAGE_OPTIONS)) {
+    return { valid: false, error: `Tensão inválida: ${voltageRaw}`, display }
+  }
+  if (currentRaw && !matchOption(currentRaw, CURRENT_OPTIONS)) {
+    return { valid: false, error: `Corrente inválida: ${currentRaw}`, display }
+  }
+  if (wiresRaw && !matchOption(wiresRaw, WIRES_ELEMENTS_OPTIONS)) {
+    return {
+      valid: false,
+      error: `Fios • Elementos inválido: ${wiresRaw}`,
+      display,
+    }
+  }
+  if (classRaw && !matchOption(classRaw, CLASS_OPTIONS)) {
+    return { valid: false, error: `Classe inválida: ${classRaw}`, display }
+  }
+  if (constantRaw && !matchOption(constantRaw, CONSTANT_OPTIONS)) {
+    return { valid: false, error: `Constante inválida: ${constantRaw}`, display }
+  }
+
+  return {
+    valid: true,
+    display: {
+      name,
+      manufacturer,
+      meterType,
+      voltage: voltageRaw ? matchOption(voltageRaw, VOLTAGE_OPTIONS) || voltageRaw : '—',
+      current: currentRaw ? matchOption(currentRaw, CURRENT_OPTIONS) || currentRaw : '—',
+      wiresElements: wiresRaw
+        ? matchOption(wiresRaw, WIRES_ELEMENTS_OPTIONS) || wiresRaw
+        : '—',
+      accuracyClass: classRaw ? matchOption(classRaw, CLASS_OPTIONS) || classRaw : '—',
+      constant: constantRaw ? matchOption(constantRaw, CONSTANT_OPTIONS) || constantRaw : '—',
+    },
+  }
 }
 
 function parsePassiveModelPaste(text: string): PassiveModelInput[] {
@@ -254,9 +362,19 @@ export function CriarModeloPanel({
   const [accuracyClass, setAccuracyClass] = useState('')
   const [constant, setConstant] = useState('')
 
-  const previewRows = useMemo(
-    () => parsePassiveModelPaste(pasteText).slice(0, 8),
-    [pasteText],
+  const previewRows = useMemo(() => {
+    const rows = parsePassiveModelPaste(pasteText)
+    return rows.map((row) =>
+      validatePassiveModelRow(row, {
+        manufacturer: manufacturer.trim(),
+        meterType: meterType.trim(),
+      }),
+    )
+  }, [pasteText, manufacturer, meterType])
+
+  const invalidPreviewCount = useMemo(
+    () => previewRows.filter((row) => !row.valid).length,
+    [previewRows],
   )
 
   const load = useCallback(async () => {
@@ -328,9 +446,11 @@ export function CriarModeloPanel({
         if (response.models.length) {
           setModels((currentRows) => [...response.models, ...currentRows])
         }
-        setPasteText('')
+        if (!response.invalidCount) {
+          setPasteText('')
+        }
         setFeedback({
-          type: 'success',
+          type: response.createdCount ? 'success' : 'error',
           message: `${response.createdCount} modelo(s) passivo(s) cadastrado(s)${
             response.duplicateCount || response.invalidCount
               ? ` · ${response.duplicateCount} duplicado(s) · ${response.invalidCount} inválido(s)`
@@ -724,9 +844,16 @@ export function CriarModeloPanel({
                   Uma linha por modelo. Aceita tab, vírgula ou ponto e vírgula.
                   Cabeçalho opcional. Ordem sem cabeçalho: Modelo, Tipo,
                   Fabricante, Tensão, Corrente, Fios • Elementos, Classe, Constante.
+                  Valores fora das opções ficam em vermelho e não são cadastrados.
                 </p>
                 {previewRows.length ? (
                   <div className="entrada-table-wrap full-width">
+                    {invalidPreviewCount ? (
+                      <p className="field-hint modelo-passivo-invalid-hint">
+                        {invalidPreviewCount} linha(s) com valores fora das opções
+                        possíveis.
+                      </p>
+                    ) : null}
                     <table className="data-table">
                       <thead>
                         <tr>
@@ -738,19 +865,27 @@ export function CriarModeloPanel({
                           <th>Fios • Elementos</th>
                           <th>Classe</th>
                           <th>Constante</th>
+                          <th>Status</th>
                         </tr>
                       </thead>
                       <tbody>
                         {previewRows.map((row, index) => (
-                          <tr key={`${row.name}-${index}`}>
-                            <td>{row.name || '—'}</td>
-                            <td>{row.meterType || meterType || '—'}</td>
-                            <td>{row.manufacturer || manufacturer || '—'}</td>
-                            <td>{row.voltage || '—'}</td>
-                            <td>{row.current || '—'}</td>
-                            <td>{row.wiresElements || '—'}</td>
-                            <td>{row.accuracyClass || '—'}</td>
-                            <td>{row.constant || '—'}</td>
+                          <tr
+                            key={`${row.display.name}-${index}`}
+                            className={
+                              row.valid ? undefined : 'modelo-passivo-row-invalid'
+                            }
+                            title={row.error}
+                          >
+                            <td>{row.display.name}</td>
+                            <td>{row.display.meterType}</td>
+                            <td>{row.display.manufacturer}</td>
+                            <td>{row.display.voltage}</td>
+                            <td>{row.display.current}</td>
+                            <td>{row.display.wiresElements}</td>
+                            <td>{row.display.accuracyClass}</td>
+                            <td>{row.display.constant}</td>
+                            <td>{row.valid ? 'OK' : row.error || 'Inválido'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -804,7 +939,14 @@ export function CriarModeloPanel({
                 </thead>
                 <tbody>
                   {results.map((row, index) => (
-                    <tr key={`${row.name}-${index}`}>
+                    <tr
+                      key={`${row.name}-${index}`}
+                      className={
+                        row.status === 'invalid' || row.status === 'duplicate'
+                          ? 'modelo-passivo-row-invalid'
+                          : undefined
+                      }
+                    >
                       <td>{row.name}</td>
                       <td>{row.manufacturer}</td>
                       <td>

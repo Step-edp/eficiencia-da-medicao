@@ -3334,6 +3334,16 @@ button {
   border: 0;
 }
 
+.modelo-passivo-row-invalid td {
+  background: rgba(220, 60, 60, 0.18);
+  color: #ffb4b4;
+}
+
+.modelo-passivo-invalid-hint {
+  color: #ff9b9b;
+  margin: 0 0 8px;
+}
+
 .criar-modelo-voltage legend {
   margin-bottom: 8px;
   color: var(--text-soft);
