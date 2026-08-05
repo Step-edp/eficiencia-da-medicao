@@ -32,6 +32,7 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
     message: string
   } | null>(null)
   const [scanMessage, setScanMessage] = useState<string | null>(null)
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
 
   useEffect(() => {
     saveRatmDraft({
@@ -80,13 +81,9 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
     setActiveIndex((prev) => Math.min(prev + 1, count - 1))
   }
 
-  const handleCloseRatm = () => {
-    const confirmed = window.confirm(
-      'Fechar o RATM descarta todo o preenchimento e o rascunho. Deseja continuar?',
-    )
-    if (!confirmed) return
-
+  const discardRatmAndExit = () => {
     clearRatmDraft()
+    setConfirmCloseOpen(false)
     onBack()
   }
 
@@ -167,7 +164,7 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
           <button
             className="ratm-nav-close"
             type="button"
-            onClick={handleCloseRatm}
+            onClick={() => setConfirmCloseOpen(true)}
             aria-label="Fechar RATM e descartar preenchimento"
             title="Fechar RATM (descarta tudo)"
           >
@@ -188,10 +185,7 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
         <button
           className="secondary-button"
           type="button"
-          onClick={() => {
-            clearRatmDraft()
-            onBack()
-          }}
+          onClick={() => setConfirmCloseOpen(true)}
         >
           Alterar quantidade
         </button>
@@ -205,6 +199,44 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
           </button>
         )}
       </div>
+
+      {confirmCloseOpen ? (
+        <div
+          className="ensaios-block-modal-overlay"
+          role="presentation"
+          onClick={() => setConfirmCloseOpen(false)}
+        >
+          <div
+            className="ensaios-block-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ratm-close-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="ratm-close-title">Fechar RATM?</h3>
+            <p className="ensaios-unblock-message">
+              Fechar o RATM descarta todo o preenchimento e o rascunho. Deseja
+              continuar?
+            </p>
+            <div className="ensaios-block-modal-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setConfirmCloseOpen(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                onClick={discardRatmAndExit}
+              >
+                Fechar e descartar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
