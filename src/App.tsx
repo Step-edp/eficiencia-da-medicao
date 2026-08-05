@@ -4685,18 +4685,6 @@ function HomePanel({
               <CriarModeloPanel
                 readOnly={labMedicaoReadOnly}
                 isAdmin={isAdmin}
-                manufacturers={manufacturers}
-                materialTypeOptions={materialTypeOptions}
-                onAddManufacturer={() => {
-                  setSelectedArea(
-                    allAreas.find((area) => area.title === 'Medição') ?? null,
-                  )
-                  setSelectedMeasurementSection('Geração de senha')
-                  setSelectedPasswordAction('fabricante')
-                }}
-                onPassivoCreated={(records) => {
-                  setPasswordRecords((current) => [...records, ...current])
-                }}
               />
             ) : selectedLabMeasurementSection === 'Apresentação' ? (
               <ApresentacaoPanel readOnly={labMedicaoReadOnly} />

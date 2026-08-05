@@ -239,6 +239,7 @@ export type MeterModelRecord = {
   wiresElements: string
   accuracyClass: string
   constant: string
+  source?: 'cadastrado' | 'passivo'
   createdAt: string
   createdByUserId?: string | null
   createdByName?: string
@@ -845,6 +846,7 @@ export const api = {
     wiresElements?: string
     accuracyClass?: string
     constant?: string
+    source?: 'cadastrado' | 'passivo'
   }) =>
     request<{ model: MeterModelRecord }>('/api/meter-models', {
       method: 'POST',

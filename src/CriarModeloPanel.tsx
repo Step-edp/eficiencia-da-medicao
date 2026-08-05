@@ -1,7 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react'
-import { api, ApiError, type MeterModelRecord, type PasswordRecord } from './api'
+import { api, ApiError, type MeterModelRecord } from './api'
 import { LoginFeedback } from './LoginFeedback'
-import { PassivoPanel } from './PassivoPanel'
 
 const METER_TYPE_OPTIONS = ['Eletrônico', 'Eletromecânico']
 const VOLTAGE_OPTIONS = ['240V', '120V', '240V • 120V', '230V']
@@ -70,26 +69,19 @@ const MANUFACTURER_OPTIONS = [
   'APREL',
 ]
 
+type FormMode = 'create' | 'passivo' | null
+
 export function CriarModeloPanel({
   readOnly = false,
   isAdmin = false,
-  manufacturers = [],
-  materialTypeOptions = [],
-  onAddManufacturer,
-  onPassivoCreated,
 }: {
   readOnly?: boolean
   isAdmin?: boolean
-  manufacturers?: string[]
-  materialTypeOptions?: string[]
-  onAddManufacturer?: () => void
-  onPassivoCreated?: (records: PasswordRecord[]) => void
 }) {
   const [models, setModels] = useState<MeterModelRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
-  const [showForm, setShowForm] = useState(false)
-  const [showPassivo, setShowPassivo] = useState(false)
+  const [formMode, setFormMode] = useState<FormMode>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
@@ -137,6 +129,12 @@ export function CriarModeloPanel({
     setConstant('')
   }
 
+  const openForm = (mode: FormMode) => {
+    setFormMode((current) => (current === mode ? null : mode))
+    resetForm()
+    setFeedback(null)
+  }
+
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault()
     if (!name.trim() || !manufacturer.trim() || !meterType.trim()) {
@@ -147,6 +145,7 @@ export function CriarModeloPanel({
       return
     }
 
+    const isPassivo = formMode === 'passivo'
     setCreating(true)
     setFeedback(null)
     try {
@@ -159,13 +158,16 @@ export function CriarModeloPanel({
         wiresElements: wiresElements.trim(),
         accuracyClass: accuracyClass.trim(),
         constant: constant.trim(),
+        source: isPassivo ? 'passivo' : 'cadastrado',
       })
       setModels((currentRows) => [model, ...currentRows])
       resetForm()
-      setShowForm(false)
+      setFormMode(null)
       setFeedback({
         type: 'success',
-        message: `Modelo "${model.name}" cadastrado com sucesso.`,
+        message: isPassivo
+          ? `Modelo passivo "${model.name}" cadastrado com sucesso.`
+          : `Modelo "${model.name}" cadastrado com sucesso.`,
       })
     } catch (error) {
       setFeedback({
@@ -180,6 +182,8 @@ export function CriarModeloPanel({
     }
   }
 
+  const formOpen = formMode !== null
+
   return (
     <div className="criar-modelo-panel">
       <p className="entrada-panel-intro">
@@ -192,26 +196,18 @@ export function CriarModeloPanel({
           <button
             type="button"
             className="secondary-button"
-            onClick={() => {
-              setShowPassivo((current) => !current)
-              setShowForm(false)
-              setFeedback(null)
-            }}
+            onClick={() => openForm('passivo')}
           >
-            {showPassivo ? 'Fechar passivo' : 'Adicionar passivo'}
+            {formMode === 'passivo' ? 'Fechar passivo' : 'Adicionar passivo'}
           </button>
         ) : null}
         {readOnly ? null : (
           <button
             type="button"
             className="primary-button"
-            onClick={() => {
-              setShowForm((current) => !current)
-              setShowPassivo(false)
-              setFeedback(null)
-            }}
+            onClick={() => openForm('create')}
           >
-            {showForm ? 'Fechar formulário' : 'Criar modelo'}
+            {formMode === 'create' ? 'Fechar formulário' : 'Criar modelo'}
           </button>
         )}
       </div>
@@ -226,29 +222,18 @@ export function CriarModeloPanel({
         />
       ) : null}
 
-      {isAdmin && showPassivo ? (
-        <PassivoPanel
-          manufacturers={manufacturers}
-          materialTypeOptions={materialTypeOptions}
-          onAddManufacturer={() => onAddManufacturer?.()}
-          onCreated={(records) => {
-            onPassivoCreated?.(records)
-            setFeedback({
-              type: 'success',
-              message:
-                records.length === 1
-                  ? 'Senha passiva cadastrada com sucesso.'
-                  : `${records.length} senhas passivas cadastradas com sucesso.`,
-            })
-          }}
-        />
-      ) : null}
-
-      {!readOnly && showForm ? (
+      {formOpen && (formMode === 'create' ? !readOnly : isAdmin) ? (
         <form
           className="material-form-grid criar-modelo-form"
           onSubmit={(event) => void handleCreate(event)}
         >
+          {formMode === 'passivo' ? (
+            <p className="passivo-intro full-width">
+              Cadastre um modelo passivo com os mesmos dados técnicos do modelo
+              de medidor.
+            </p>
+          ) : null}
+
           <label>
             Modelo
             <input
@@ -391,13 +376,17 @@ export function CriarModeloPanel({
               disabled={creating}
               onClick={() => {
                 resetForm()
-                setShowForm(false)
+                setFormMode(null)
               }}
             >
               Cancelar
             </button>
             <button type="submit" className="primary-button" disabled={creating}>
-              {creating ? 'Salvando…' : 'Salvar modelo'}
+              {creating
+                ? 'Salvando…'
+                : formMode === 'passivo'
+                  ? 'Salvar passivo'
+                  : 'Salvar modelo'}
             </button>
           </div>
         </form>
@@ -426,7 +415,15 @@ export function CriarModeloPanel({
               {models.length ? (
                 models.map((model) => (
                   <tr key={model.id}>
-                    <td>{model.name}</td>
+                    <td>
+                      {model.name}
+                      {model.source === 'passivo' ? (
+                        <>
+                          {' '}
+                          <span className="consult-passivo-badge">Passivo</span>
+                        </>
+                      ) : null}
+                    </td>
                     <td>{model.manufacturer}</td>
                     <td>{model.meterType}</td>
                     <td>{model.voltage || '—'}</td>

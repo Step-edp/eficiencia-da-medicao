@@ -14,6 +14,7 @@ type MeterModelRow = {
   wires_elements: string
   accuracy_class: string
   meter_constant: string
+  source: string
   created_at: Date
   created_by_user_id: string | null
   created_by_name: string | null
@@ -32,6 +33,7 @@ function mapMeterModel(row: MeterModelRow) {
     wiresElements: row.wires_elements ?? '',
     accuracyClass: row.accuracy_class ?? '',
     constant: row.meter_constant ?? '',
+    source: row.source === 'passivo' ? 'passivo' : 'cadastrado',
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
     createdByName: row.created_by_name || '',
@@ -62,6 +64,7 @@ export async function createMeterModel(req: Request, res: Response) {
     wiresElements,
     accuracyClass,
     constant,
+    source,
   } = req.body as Record<string, string | undefined>
 
   if (!name?.trim() || !manufacturer?.trim() || !meterType?.trim()) {
@@ -71,13 +74,19 @@ export async function createMeterModel(req: Request, res: Response) {
     return
   }
 
+  const normalizedSource = source === 'passivo' ? 'passivo' : 'cadastrado'
+  if (normalizedSource === 'passivo' && req.user?.role !== 'admin') {
+    res.status(403).json({ error: 'Apenas o administrador pode adicionar modelo passivo.' })
+    return
+  }
+
   const result = await query<Omit<MeterModelRow, 'created_by_name' | 'created_by_registration'>>(
     `INSERT INTO meter_models (
        name, manufacturer, meter_type, description,
        voltage, current_rating, wires_elements, accuracy_class, meter_constant,
-       created_by_user_id
+       source, created_by_user_id
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
     [
       name.trim(),
@@ -89,6 +98,7 @@ export async function createMeterModel(req: Request, res: Response) {
       wiresElements?.trim() ?? '',
       accuracyClass?.trim() ?? '',
       constant?.trim() ?? '',
+      normalizedSource,
       req.user?.id ?? null,
     ],
   )
@@ -105,7 +115,10 @@ export async function createMeterModel(req: Request, res: Response) {
     action: 'create',
     entityType: 'meter_model',
     entityId: String(created.id),
-    summary: `Modelo de medidor ${created.name}`,
+    summary:
+      normalizedSource === 'passivo'
+        ? `Modelo passivo de medidor ${created.name}`
+        : `Modelo de medidor ${created.name}`,
     newData: created,
   })
 
