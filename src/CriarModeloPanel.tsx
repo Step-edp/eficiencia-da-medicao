@@ -13,7 +13,14 @@ const WIRES_ELEMENTS_OPTIONS = [
   '4 FIOS 2 ELEMENTOS',
   '3 FIOS 3 ELEMENTOS',
 ]
-const CLASS_OPTIONS = ['A', 'B', 'C', '0,2', '0,5', '1', '2']
+const CLASS_OPTIONS = [
+  'CLASSE 1',
+  'CLASSE 2',
+  'CLASSE A',
+  'CLASSE B',
+  'CLASSE C',
+  'CLASSE D',
+]
 const CONSTANT_OPTIONS = [
   '500',
   '1000',
