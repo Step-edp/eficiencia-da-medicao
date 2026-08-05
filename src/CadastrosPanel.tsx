@@ -58,8 +58,9 @@ const FALLBACK_CATALOGS: CatalogGroup[] = [
     options: [
       { id: -11, catalogKey: 'terceira', value: 'BMB', sortOrder: 0, label: 'Empresa terceira' },
       { id: -12, catalogKey: 'terceira', value: 'Cosampa', sortOrder: 1, label: 'Empresa terceira' },
-      { id: -13, catalogKey: 'terceira', value: 'ROTARY', sortOrder: 2, label: 'Empresa terceira' },
-      { id: -14, catalogKey: 'terceira', value: 'TIVIT', sortOrder: 3, label: 'Empresa terceira' },
+      { id: -13, catalogKey: 'terceira', value: 'Engeserv', sortOrder: 2, label: 'Empresa terceira' },
+      { id: -14, catalogKey: 'terceira', value: 'ROTARY', sortOrder: 3, label: 'Empresa terceira' },
+      { id: -15, catalogKey: 'terceira', value: 'TIVIT', sortOrder: 4, label: 'Empresa terceira' },
     ],
   },
   {

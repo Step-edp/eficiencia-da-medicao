@@ -924,7 +924,7 @@ export async function updateUser(req: Request, res: Response) {
   const allowedLocalities = valuesByKey.localidade ?? []
   const allowedTerceiras = valuesByKey.terceira?.length
     ? valuesByKey.terceira
-    : ['BMB', 'Cosampa', 'ROTARY', 'TIVIT']
+    : ['BMB', 'Cosampa', 'Engeserv', 'ROTARY', 'TIVIT']
 
   if (!allowedCargos.includes(normalizedJobTitle)) {
     res.status(400).json({ error: 'Selecione um cargo válido.' })

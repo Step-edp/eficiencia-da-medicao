@@ -98,7 +98,7 @@ import {
 
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
 
-const THIRD_PARTY_COMPANIES = ['BMB', 'Cosampa', 'ROTARY', 'TIVIT'] as const
+const THIRD_PARTY_COMPANIES = ['BMB', 'Cosampa', 'Engeserv', 'ROTARY', 'TIVIT'] as const
 
 const AREA_OPTIONS = [...DEFAULT_AREA_OPTIONS] as const
 
