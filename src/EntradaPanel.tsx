@@ -19,6 +19,59 @@ function readFileAsBase64(file: File): Promise<string> {
   })
 }
 
+type DemmMetersTableProps = {
+  meters: DemmMeterAnalysisRecord[]
+  loading?: boolean
+  showSources?: boolean
+}
+
+function DemmMetersTable({
+  meters,
+  loading = false,
+  showSources = false,
+}: DemmMetersTableProps) {
+  if (loading) {
+    return <p className="entrada-panel-empty">Carregando...</p>
+  }
+
+  if (meters.length === 0) {
+    return <p className="entrada-panel-empty">Nenhum medidor encontrado.</p>
+  }
+
+  return (
+    <div className="entrada-table-wrap">
+      <table className="data-table demm-analysis-table">
+        <thead>
+          <tr>
+            <th>Medidor</th>
+            <th>Status no aplicativo</th>
+            <th>Data agendada</th>
+            {showSources ? <th>DEMM</th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {meters.map((item) => (
+            <tr key={`${item.meter}-${item.sourceFiles?.join(',') ?? ''}`}>
+              <td>{item.meter}</td>
+              <td>
+                <span
+                  className={`demm-status-badge ${item.scheduled ? 'is-scheduled' : 'is-not-scheduled'}`}
+                >
+                  {item.scheduled ? 'Agendado' : 'Não agendado'}
+                </span>
+              </td>
+              <td>{item.scheduledAtLabel ?? '—'}</td>
+              {showSources ? (
+                <td>{item.sourceFiles?.length ? item.sourceFiles.join(', ') : '—'}</td>
+              ) : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 type DemmAnalysisModalProps = {
   title: string
   fileName?: string
@@ -73,42 +126,7 @@ function DemmAnalysisModal({
             : `${meters.length} medidor(es) · ${scheduledCount} agendado(s) no aplicativo`}
         </p>
 
-        {loading ? (
-          <p className="entrada-panel-empty">Carregando...</p>
-        ) : meters.length === 0 ? (
-          <p className="entrada-panel-empty">Nenhum medidor encontrado.</p>
-        ) : (
-          <div className="entrada-table-wrap">
-            <table className="data-table demm-analysis-table">
-              <thead>
-                <tr>
-                  <th>Medidor</th>
-                  <th>Status no aplicativo</th>
-                  <th>Data agendada</th>
-                  {showSources ? <th>DEMM</th> : null}
-                </tr>
-              </thead>
-              <tbody>
-                {meters.map((item) => (
-                  <tr key={item.meter}>
-                    <td>{item.meter}</td>
-                    <td>
-                      <span
-                        className={`demm-status-badge ${item.scheduled ? 'is-scheduled' : 'is-not-scheduled'}`}
-                      >
-                        {item.scheduled ? 'Agendado' : 'Não agendado'}
-                      </span>
-                    </td>
-                    <td>{item.scheduledAtLabel ?? '—'}</td>
-                    {showSources ? (
-                      <td>{item.sourceFiles?.length ? item.sourceFiles.join(', ') : '—'}</td>
-                    ) : null}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DemmMetersTable meters={meters} loading={loading} showSources={showSources} />
       </div>
     </div>,
     document.body,
@@ -183,6 +201,7 @@ type EntradaPanelProps = {
 }
 
 export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaPanelProps) {
+  const [view, setView] = useState<'overview' | 'metersBase'>('overview')
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
   const [schedules, setSchedules] = useState<Awaited<ReturnType<typeof api.listMeterSchedules>>['schedules']>([])
   const [loading, setLoading] = useState(true)
@@ -191,6 +210,10 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   const [demmModalFeedback, setDemmModalFeedback] = useState<DemmModalFeedback | null>(null)
   const [submittingDemm, setSubmittingDemm] = useState(false)
   const [deletingDemmId, setDeletingDemmId] = useState<string | null>(null)
+  const [metersBase, setMetersBase] = useState<{
+    meters: DemmMeterAnalysisRecord[]
+    loading: boolean
+  }>({ meters: [], loading: false })
   const [analysisModal, setAnalysisModal] = useState<{
     title: string
     fileName?: string
@@ -287,23 +310,18 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   }
 
   const openMetersBase = async () => {
-    setAnalysisModal({
-      title: 'Base de medidores',
-      meters: [],
-      loading: true,
-      showSources: true,
-    })
+    setView('metersBase')
+    setMetersBase({ meters: [], loading: true })
+    setFeedback(null)
 
     try {
       const response = await api.getDemmMetersBase()
-      setAnalysisModal({
-        title: 'Base de medidores',
+      setMetersBase({
         meters: response.meters,
         loading: false,
-        showSources: true,
       })
     } catch (error) {
-      setAnalysisModal(null)
+      setMetersBase({ meters: [], loading: false })
       setFeedback({
         type: 'error',
         message:
@@ -312,6 +330,11 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             : 'Não foi possível carregar a base de medidores.',
       })
     }
+  }
+
+  const closeMetersBase = () => {
+    setView('overview')
+    setMetersBase({ meters: [], loading: false })
   }
 
   const handleDemmSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -397,6 +420,57 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     (sum, document) => sum + document.scheduledCount,
     0,
   )
+  const metersBaseScheduledCount = metersBase.meters.filter((item) => item.scheduled).length
+
+  if (view === 'metersBase') {
+    return (
+      <>
+        <div className="entrada-panel">
+          <section className="entrada-dedicated-screen" aria-label="Base de medidores">
+            <div className="entrada-dedicated-header">
+              <div>
+                <h3 className="entrada-section-title">Base de medidores</h3>
+                <p className="demm-analysis-summary">
+                  {metersBase.loading
+                    ? 'Carregando medidores...'
+                    : `${metersBase.meters.length} medidor(es) · ${metersBaseScheduledCount} agendado(s) no aplicativo`}
+                </p>
+              </div>
+              <div
+                className="panel-switch entrada-demm-switch"
+                role="toolbar"
+                aria-label="Ações DEMM"
+              >
+                <button type="button" onClick={closeMetersBase}>
+                  Voltar
+                </button>
+                <button
+                  type="button"
+                  className="active"
+                  onClick={() => void openMetersBase()}
+                  disabled={metersBase.loading}
+                >
+                  Ver base de medidores
+                </button>
+              </div>
+            </div>
+
+            {feedback ? (
+              <div className={`login-feedback ${feedback.type}`} role="status">
+                {feedback.message}
+              </div>
+            ) : null}
+
+            <DemmMetersTable
+              meters={metersBase.meters}
+              loading={metersBase.loading}
+              showSources
+            />
+          </section>
+        </div>
+      </>
+    )
+  }
 
   return (
     <>

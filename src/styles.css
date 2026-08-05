@@ -1813,6 +1813,24 @@ button {
   cursor: not-allowed;
 }
 
+.entrada-dedicated-screen {
+  display: grid;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.entrada-dedicated-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.entrada-dedicated-header .demm-analysis-summary {
+  margin: 6px 0 0;
+}
+
 .entrada-section {
   display: grid;
   gap: 12px;
