@@ -555,7 +555,7 @@ export async function migrate() {
     )
   `)
   {
-    const cleanupKey = 'clear_meter_models_2026_08_05'
+    const cleanupKey = 'clear_meter_models_2026_08_05_b'
     const claimed = await query<{ key: string }>(
       `INSERT INTO app_data_cleanups (key)
        VALUES ($1)
