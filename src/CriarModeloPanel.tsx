@@ -1,7 +1,20 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { api, ApiError, type MeterModelRecord } from './api'
+import { LoginFeedback } from './LoginFeedback'
 
 const METER_TYPE_OPTIONS = ['Monofásico', 'Bifásico', 'Trifásico', 'Outro']
+const VOLTAGE_OPTIONS = ['240V', '120V', '240/120V', '230V']
+const CURRENT_OPTIONS = [
+  '1,5(6)A',
+  '5(100)A',
+  '10(100)A',
+  '15(100)A',
+  '30(100)A',
+  '120A',
+  '200A',
+]
+const WIRES_ELEMENTS_OPTIONS = ['2F', '3F', '2 elementos', '3 elementos']
+const CLASS_OPTIONS = ['A', 'B', 'C', '0,2', '0,5', '1', '2']
 
 export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [models, setModels] = useState<MeterModelRecord[]>([])
@@ -17,6 +30,10 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [manufacturer, setManufacturer] = useState('')
   const [meterType, setMeterType] = useState(METER_TYPE_OPTIONS[0])
   const [description, setDescription] = useState('')
+  const [voltage, setVoltage] = useState('')
+  const [current, setCurrent] = useState('')
+  const [wiresElements, setWiresElements] = useState('')
+  const [accuracyClass, setAccuracyClass] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -50,6 +67,10 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
     setManufacturer('')
     setMeterType(METER_TYPE_OPTIONS[0])
     setDescription('')
+    setVoltage('')
+    setCurrent('')
+    setWiresElements('')
+    setAccuracyClass('')
   }
 
   const handleCreate = async (event: FormEvent) => {
@@ -70,8 +91,12 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
         manufacturer: manufacturer.trim(),
         meterType: meterType.trim(),
         description: description.trim(),
+        voltage: voltage.trim(),
+        current: current.trim(),
+        wiresElements: wiresElements.trim(),
+        accuracyClass: accuracyClass.trim(),
       })
-      setModels((current) => [model, ...current])
+      setModels((currentRows) => [model, ...currentRows])
       resetForm()
       setShowForm(false)
       setFeedback({
@@ -93,6 +118,11 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
 
   return (
     <div className="criar-modelo-panel">
+      <p className="entrada-panel-intro">
+        Cadastre e consulte os modelos de medidores do laboratório, incluindo
+        tensão, corrente, fios/elementos e classe.
+      </p>
+
       {readOnly ? null : (
         <div className="area-actions right-aligned-actions">
           <button
@@ -109,13 +139,20 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
       )}
 
       {feedback ? (
-        <div className={`login-feedback ${feedback.type}`} role="status">
-          {feedback.message}
-        </div>
+        <LoginFeedback
+          type={feedback.type}
+          message={feedback.message}
+          onClose={
+            feedback.type === 'success' ? () => setFeedback(null) : undefined
+          }
+        />
       ) : null}
 
       {!readOnly && showForm ? (
-        <form className="material-form-grid criar-modelo-form" onSubmit={(event) => void handleCreate(event)}>
+        <form
+          className="material-form-grid criar-modelo-form"
+          onSubmit={(event) => void handleCreate(event)}
+        >
           <label>
             Modelo
             <input
@@ -158,6 +195,77 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
               ))}
             </select>
           </label>
+
+          <fieldset className="radio-fieldset criar-modelo-voltage full-width">
+            <legend>Tensão</legend>
+            <div className="ratm-choice-group" role="radiogroup" aria-label="Tensão">
+              {VOLTAGE_OPTIONS.map((option) => {
+                const selected = voltage === option
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    className={`ratm-choice-btn tone-neutral${selected ? ' is-selected' : ''}`}
+                    disabled={creating}
+                    onClick={() => setVoltage(option)}
+                  >
+                    <span>{option}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+
+          <label>
+            Corrente
+            <select
+              value={current}
+              onChange={(event) => setCurrent(event.target.value)}
+              disabled={creating}
+            >
+              <option value="">Localizar itens</option>
+              {CURRENT_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Fios/Elem
+            <select
+              value={wiresElements}
+              onChange={(event) => setWiresElements(event.target.value)}
+              disabled={creating}
+            >
+              <option value="">Localizar itens</option>
+              {WIRES_ELEMENTS_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Classe
+            <select
+              value={accuracyClass}
+              onChange={(event) => setAccuracyClass(event.target.value)}
+              disabled={creating}
+            >
+              <option value="">Localizar itens</option>
+              {CLASS_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="full-width">
             Descrição
             <textarea
@@ -197,6 +305,10 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
                 <th>Modelo</th>
                 <th>Fabricante</th>
                 <th>Tipo</th>
+                <th>Tensão</th>
+                <th>Corrente</th>
+                <th>Fios/Elem</th>
+                <th>Classe</th>
                 <th>Descrição</th>
                 <th>Criado por</th>
                 <th>Criado em</th>
@@ -209,6 +321,10 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
                     <td>{model.name}</td>
                     <td>{model.manufacturer}</td>
                     <td>{model.meterType}</td>
+                    <td>{model.voltage || '—'}</td>
+                    <td>{model.current || '—'}</td>
+                    <td>{model.wiresElements || '—'}</td>
+                    <td>{model.accuracyClass || '—'}</td>
                     <td>{model.description || '—'}</td>
                     <td>
                       {model.createdByName || model.createdByRegistration
@@ -224,7 +340,7 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6}>Nenhum modelo de medidor cadastrado ainda.</td>
+                  <td colSpan={10}>Nenhum modelo de medidor cadastrado ainda.</td>
                 </tr>
               )}
             </tbody>

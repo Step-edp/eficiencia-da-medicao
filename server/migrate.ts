@@ -540,6 +540,13 @@ export async function migrate() {
       ON meter_models (created_at DESC)
   `)
   await query(`
+    ALTER TABLE meter_models
+      ADD COLUMN IF NOT EXISTS voltage TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS current_rating TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS wires_elements TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS accuracy_class TEXT NOT NULL DEFAULT ''
+  `)
+  await query(`
     CREATE TABLE IF NOT EXISTS presentations (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,

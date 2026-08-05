@@ -234,6 +234,10 @@ export type MeterModelRecord = {
   manufacturer: string
   meterType: string
   description: string
+  voltage: string
+  current: string
+  wiresElements: string
+  accuracyClass: string
   createdAt: string
   createdByUserId?: string | null
   createdByName?: string
@@ -835,6 +839,10 @@ export const api = {
     manufacturer: string
     meterType: string
     description?: string
+    voltage?: string
+    current?: string
+    wiresElements?: string
+    accuracyClass?: string
   }) =>
     request<{ model: MeterModelRecord }>('/api/meter-models', {
       method: 'POST',

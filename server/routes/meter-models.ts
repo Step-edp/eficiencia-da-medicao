@@ -9,6 +9,10 @@ type MeterModelRow = {
   manufacturer: string
   meter_type: string
   description: string
+  voltage: string
+  current_rating: string
+  wires_elements: string
+  accuracy_class: string
   created_at: Date
   created_by_user_id: string | null
   created_by_name: string | null
@@ -22,6 +26,10 @@ function mapMeterModel(row: MeterModelRow) {
     manufacturer: row.manufacturer,
     meterType: row.meter_type,
     description: row.description,
+    voltage: row.voltage ?? '',
+    current: row.current_rating ?? '',
+    wiresElements: row.wires_elements ?? '',
+    accuracyClass: row.accuracy_class ?? '',
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
     createdByName: row.created_by_name || '',
@@ -42,10 +50,16 @@ export async function listMeterModels(_req: Request, res: Response) {
 }
 
 export async function createMeterModel(req: Request, res: Response) {
-  const { name, manufacturer, meterType, description } = req.body as Record<
-    string,
-    string | undefined
-  >
+  const {
+    name,
+    manufacturer,
+    meterType,
+    description,
+    voltage,
+    current,
+    wiresElements,
+    accuracyClass,
+  } = req.body as Record<string, string | undefined>
 
   if (!name?.trim() || !manufacturer?.trim() || !meterType?.trim()) {
     res.status(400).json({
@@ -55,14 +69,22 @@ export async function createMeterModel(req: Request, res: Response) {
   }
 
   const result = await query<Omit<MeterModelRow, 'created_by_name' | 'created_by_registration'>>(
-    `INSERT INTO meter_models (name, manufacturer, meter_type, description, created_by_user_id)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO meter_models (
+       name, manufacturer, meter_type, description,
+       voltage, current_rating, wires_elements, accuracy_class,
+       created_by_user_id
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
     [
       name.trim(),
       manufacturer.trim(),
       meterType.trim(),
       description?.trim() ?? '',
+      voltage?.trim() ?? '',
+      current?.trim() ?? '',
+      wiresElements?.trim() ?? '',
+      accuracyClass?.trim() ?? '',
       req.user?.id ?? null,
     ],
   )
