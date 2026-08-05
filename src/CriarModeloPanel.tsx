@@ -1038,11 +1038,6 @@ export function CriarModeloPanel({
                     aria-label="Colar registros em massa"
                   />
                 </label>
-                <p className="field-hint full-width">
-                  Cole os dados e edite direto na tabela de prévia. Aceita tab,
-                  vírgula ou ponto e vírgula. Ordem sem cabeçalho: Modelo, Tipo,
-                  Fabricante, Tensão, Corrente, Fios • Elementos, Classe, Constante.
-                </p>
                 {editableRows.length ? (
                   <div className="full-width modelo-passivo-table-wrap">
                     <p className="field-hint">
