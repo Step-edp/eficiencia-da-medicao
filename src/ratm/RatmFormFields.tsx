@@ -670,15 +670,25 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                 <input
                   type="text"
                   value={data[fieldKey]}
-                  onChange={(event) => onChange({ [fieldKey]: event.target.value })}
+                  onChange={(event) =>
+                    onChange({
+                      [fieldKey]: event.target.value,
+                      [presetKey]: '',
+                    })
+                  }
                 />
               </label>
               <ClearableRadioGroup
                 legend=""
                 name={`${fieldKey}-preset-${index}`}
                 value={String(data[presetKey])}
-                options={fieldKey === 'cnRc' ? ['-100', 'N/A'] : ['-100', 'N/A']}
-                onChange={(value) => onChange({ [presetKey]: value })}
+                options={['-100', 'N/A']}
+                onChange={(value) =>
+                  onChange({
+                    [presetKey]: value,
+                    [fieldKey]: value,
+                  })
+                }
               />
             </div>
           )
