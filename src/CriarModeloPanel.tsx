@@ -42,7 +42,6 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [name, setName] = useState('')
   const [manufacturer, setManufacturer] = useState('')
   const [meterType, setMeterType] = useState(METER_TYPE_OPTIONS[0])
-  const [description, setDescription] = useState('')
   const [voltage, setVoltage] = useState('')
   const [current, setCurrent] = useState('')
   const [wiresElements, setWiresElements] = useState('')
@@ -80,7 +79,6 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
     setName('')
     setManufacturer('')
     setMeterType(METER_TYPE_OPTIONS[0])
-    setDescription('')
     setVoltage('')
     setCurrent('')
     setWiresElements('')
@@ -105,7 +103,6 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
         name: name.trim(),
         manufacturer: manufacturer.trim(),
         meterType: meterType.trim(),
-        description: description.trim(),
         voltage: voltage.trim(),
         current: current.trim(),
         wiresElements: wiresElements.trim(),
@@ -298,16 +295,6 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
             </select>
           </label>
 
-          <label className="full-width">
-            Descrição
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              rows={3}
-              placeholder="Detalhes do modelo (opcional)"
-              disabled={creating}
-            />
-          </label>
           <div className="agenda-form-actions full-width">
             <button
               type="button"
@@ -342,7 +329,6 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
                 <th>Fios/Elem</th>
                 <th>Classe</th>
                 <th>Constante</th>
-                <th>Descrição</th>
                 <th>Criado por</th>
                 <th>Criado em</th>
               </tr>
@@ -359,7 +345,6 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
                     <td>{model.wiresElements || '—'}</td>
                     <td>{model.accuracyClass || '—'}</td>
                     <td>{model.constant || '—'}</td>
-                    <td>{model.description || '—'}</td>
                     <td>
                       {model.createdByName || model.createdByRegistration
                         ? `${model.createdByName || '—'}${
@@ -374,7 +359,7 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={11}>Nenhum modelo de medidor cadastrado ainda.</td>
+                  <td colSpan={10}>Nenhum modelo de medidor cadastrado ainda.</td>
                 </tr>
               )}
             </tbody>
