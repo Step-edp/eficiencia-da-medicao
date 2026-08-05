@@ -970,11 +970,6 @@ export function CriarModeloPanel({
         </section>
       ) : (
         <>
-      <p className="entrada-panel-intro">
-        Cadastre e consulte os modelos de medidores do laboratório, incluindo
-        tensão, corrente, fios/elementos e classe.
-      </p>
-
       <div className="area-actions right-aligned-actions criar-modelo-actions">
         <button
           type="button"
