@@ -70,7 +70,6 @@ const MANUFACTURER_OPTIONS = [
 ]
 
 type FormMode = 'create' | 'passivo' | null
-type PassiveEntryMode = 'individual' | 'massa'
 
 type PassiveModelInput = {
   name: string
@@ -443,8 +442,6 @@ export function CriarModeloPanel({
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [formMode, setFormMode] = useState<FormMode>(null)
-  const [passiveEntryMode, setPassiveEntryMode] =
-    useState<PassiveEntryMode>('individual')
   const [pasteText, setPasteText] = useState('')
   const [editableRows, setEditableRows] = useState<PassiveModelInput[]>([])
   const [results, setResults] = useState<PassiveRowResult[]>([])
@@ -573,7 +570,6 @@ export function CriarModeloPanel({
     setPasteText('')
     setEditableRows([])
     setResults([])
-    setPassiveEntryMode('individual')
   }
 
   const openForm = (mode: FormMode) => {
@@ -585,7 +581,7 @@ export function CriarModeloPanel({
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault()
 
-    if (formMode === 'passivo' && passiveEntryMode === 'massa') {
+    if (formMode === 'passivo') {
       const records = editableRows
       if (!records.length) {
         setFeedback({
@@ -612,7 +608,6 @@ export function CriarModeloPanel({
           setPasteText('')
           setEditableRows([])
         } else {
-          // Mantém na prévia só o que ainda precisa correção.
           const remaining = editableRows.filter((_, index) => {
             const status = response.results[index]?.status
             return status === 'invalid' || status === 'duplicate'
@@ -667,61 +662,26 @@ export function CriarModeloPanel({
       return
     }
 
-    const isPassivo = formMode === 'passivo'
     setCreating(true)
     setFeedback(null)
     try {
-      if (isPassivo) {
-        const response = await api.createPassiveMeterModels({
-          records: [
-            {
-              name: name.trim(),
-              manufacturer: manufacturer.trim(),
-              meterType: meterType.trim(),
-              voltage: voltage.trim(),
-              current: current.trim(),
-              wiresElements: wiresElements.trim(),
-              accuracyClass: accuracyClass.trim(),
-              constant: constant.trim(),
-            },
-          ],
-        })
-        setResults(response.results)
-        if (response.createdCount === 0) {
-          setFeedback({
-            type: 'error',
-            message:
-              response.results.find((row) => row.error)?.error ||
-              'Não foi possível cadastrar o modelo passivo.',
-          })
-        } else {
-          setModels((currentRows) => [...response.models, ...currentRows])
-          resetForm()
-          setFormMode(null)
-          setFeedback({
-            type: 'success',
-            message: `Modelo passivo "${response.models[0]?.name}" cadastrado com sucesso.`,
-          })
-        }
-      } else {
-        const { model } = await api.createMeterModel({
-          name: name.trim(),
-          manufacturer: manufacturer.trim(),
-          meterType: meterType.trim(),
-          voltage: voltage.trim(),
-          current: current.trim(),
-          wiresElements: wiresElements.trim(),
-          accuracyClass: accuracyClass.trim(),
-          constant: constant.trim(),
-        })
-        setModels((currentRows) => [model, ...currentRows])
-        resetForm()
-        setFormMode(null)
-        setFeedback({
-          type: 'success',
-          message: `Modelo "${model.name}" cadastrado com sucesso.`,
-        })
-      }
+      const { model } = await api.createMeterModel({
+        name: name.trim(),
+        manufacturer: manufacturer.trim(),
+        meterType: meterType.trim(),
+        voltage: voltage.trim(),
+        current: current.trim(),
+        wiresElements: wiresElements.trim(),
+        accuracyClass: accuracyClass.trim(),
+        constant: constant.trim(),
+      })
+      setModels((currentRows) => [model, ...currentRows])
+      resetForm()
+      setFormMode(null)
+      setFeedback({
+        type: 'success',
+        message: `Modelo "${model.name}" cadastrado com sucesso.`,
+      })
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -736,7 +696,6 @@ export function CriarModeloPanel({
   }
 
   const formOpen = formMode !== null
-  const isPassivoMass = formMode === 'passivo' && passiveEntryMode === 'massa'
 
   const modelFields = (
     <>
@@ -747,7 +706,7 @@ export function CriarModeloPanel({
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="Nome do modelo"
-          required={!isPassivoMass}
+          required
           disabled={creating}
         />
       </label>
@@ -777,7 +736,7 @@ export function CriarModeloPanel({
         <select
           value={manufacturer}
           onChange={(event) => setManufacturer(event.target.value)}
-          required={!isPassivoMass}
+          required
           disabled={creating}
         >
           <option value="">Selecione o fabricante</option>
@@ -789,95 +748,91 @@ export function CriarModeloPanel({
         </select>
       </label>
 
-      {!isPassivoMass ? (
-        <>
-          <fieldset className="radio-fieldset criar-modelo-voltage full-width">
-            <legend>Tensão</legend>
-            <div className="ratm-choice-group" role="radiogroup" aria-label="Tensão">
-              {VOLTAGE_OPTIONS.map((option) => {
-                const selected = voltage === option
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    className={`ratm-choice-btn tone-neutral${selected ? ' is-selected' : ''}`}
-                    disabled={creating}
-                    onClick={() => setVoltage(option)}
-                  >
-                    <span>{option}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </fieldset>
+      <fieldset className="radio-fieldset criar-modelo-voltage full-width">
+        <legend>Tensão</legend>
+        <div className="ratm-choice-group" role="radiogroup" aria-label="Tensão">
+          {VOLTAGE_OPTIONS.map((option) => {
+            const selected = voltage === option
+            return (
+              <button
+                key={option}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                className={`ratm-choice-btn tone-neutral${selected ? ' is-selected' : ''}`}
+                disabled={creating}
+                onClick={() => setVoltage(option)}
+              >
+                <span>{option}</span>
+              </button>
+            )
+          })}
+        </div>
+      </fieldset>
 
-          <label>
-            Corrente
-            <select
-              value={current}
-              onChange={(event) => setCurrent(event.target.value)}
-              disabled={creating}
-            >
-              <option value="">Localizar itens</option>
-              {CURRENT_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
+      <label>
+        Corrente
+        <select
+          value={current}
+          onChange={(event) => setCurrent(event.target.value)}
+          disabled={creating}
+        >
+          <option value="">Localizar itens</option>
+          {CURRENT_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
 
-          <label>
-            Fios • Elementos
-            <select
-              value={wiresElements}
-              onChange={(event) => setWiresElements(event.target.value)}
-              disabled={creating}
-            >
-              <option value="">Localizar itens</option>
-              {WIRES_ELEMENTS_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
+      <label>
+        Fios • Elementos
+        <select
+          value={wiresElements}
+          onChange={(event) => setWiresElements(event.target.value)}
+          disabled={creating}
+        >
+          <option value="">Localizar itens</option>
+          {WIRES_ELEMENTS_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
 
-          <label>
-            Classe
-            <select
-              value={accuracyClass}
-              onChange={(event) => setAccuracyClass(event.target.value)}
-              disabled={creating}
-            >
-              <option value="">Localizar itens</option>
-              {CLASS_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
+      <label>
+        Classe
+        <select
+          value={accuracyClass}
+          onChange={(event) => setAccuracyClass(event.target.value)}
+          disabled={creating}
+        >
+          <option value="">Localizar itens</option>
+          {CLASS_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
 
-          <label>
-            Constante
-            <select
-              value={constant}
-              onChange={(event) => setConstant(event.target.value)}
-              disabled={creating}
-            >
-              <option value="">Localizar itens</option>
-              {CONSTANT_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-        </>
-      ) : null}
+      <label>
+        Constante
+        <select
+          value={constant}
+          onChange={(event) => setConstant(event.target.value)}
+          disabled={creating}
+        >
+          <option value="">Localizar itens</option>
+          {CONSTANT_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
     </>
   )
 
@@ -927,46 +882,18 @@ export function CriarModeloPanel({
           onSubmit={(event) => void handleCreate(event)}
         >
           {formMode === 'passivo' ? (
-            <>
-              <p className="passivo-intro full-width">
-                Cadastro de modelos passivos. Campos:{' '}
-                <strong>modelo</strong>, <strong>tipo</strong>,{' '}
-                <strong>fabricante</strong>, <strong>tensão</strong>,{' '}
-                <strong>corrente</strong>, <strong>fios • elementos</strong>,{' '}
-                <strong>classe</strong> e <strong>constante</strong>.
-              </p>
-              <div
-                className="passivo-mode-toggle full-width"
-                role="group"
-                aria-label="Modo de cadastro"
-              >
-                <button
-                  type="button"
-                  className={
-                    passiveEntryMode === 'individual' ? 'passivo-mode-active' : undefined
-                  }
-                  onClick={() => setPassiveEntryMode('individual')}
-                  disabled={creating}
-                >
-                  Individual
-                </button>
-                <button
-                  type="button"
-                  className={
-                    passiveEntryMode === 'massa' ? 'passivo-mode-active' : undefined
-                  }
-                  onClick={() => setPassiveEntryMode('massa')}
-                  disabled={creating}
-                >
-                  Em massa
-                </button>
-              </div>
-            </>
+            <p className="passivo-intro full-width">
+              Cadastro de modelos passivos em massa. Campos:{' '}
+              <strong>modelo</strong>, <strong>tipo</strong>,{' '}
+              <strong>fabricante</strong>, <strong>tensão</strong>,{' '}
+              <strong>corrente</strong>, <strong>fios • elementos</strong>,{' '}
+              <strong>classe</strong> e <strong>constante</strong>.
+            </p>
           ) : null}
 
-          {formMode === 'create' || passiveEntryMode === 'individual'
-            ? modelFields
-            : (
+          {formMode === 'create' ? (
+            modelFields
+          ) : (
               <>
                 <p className="field-hint full-width">
                   Opcionais: fabricante e tipo padrão abaixo preenchem linhas sem
@@ -1310,7 +1237,7 @@ export function CriarModeloPanel({
               className="primary-button"
               disabled={
                 creating ||
-                (isPassivoMass
+                (formMode === 'passivo'
                   ? !editableRows.length
                   : !name.trim() || !manufacturer.trim())
               }
@@ -1318,9 +1245,7 @@ export function CriarModeloPanel({
               {creating
                 ? 'Salvando…'
                 : formMode === 'passivo'
-                  ? isPassivoMass
-                    ? 'Cadastrar em massa'
-                    : 'Salvar passivo'
+                  ? 'Cadastrar passivo'
                   : 'Salvar modelo'}
             </button>
           </div>
