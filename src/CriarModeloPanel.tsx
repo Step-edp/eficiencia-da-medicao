@@ -477,7 +477,7 @@ export function CriarModeloPanel({
 
     return editableRows.map((row) => {
       const validated = validatePassiveModelRow(row, {
-        manufacturer: manufacturer.trim(),
+        manufacturer: '',
         meterType: meterType.trim(),
       })
 
@@ -896,8 +896,7 @@ export function CriarModeloPanel({
           ) : (
               <>
                 <p className="field-hint full-width">
-                  Opcionais: fabricante e tipo padrão abaixo preenchem linhas sem
-                  esses valores.
+                  Opcional: o tipo padrão abaixo preenche linhas sem esse valor.
                 </p>
                 <fieldset className="radio-fieldset criar-modelo-voltage full-width">
                   <legend>Tipo (padrão)</legend>
@@ -926,21 +925,6 @@ export function CriarModeloPanel({
                     })}
                   </div>
                 </fieldset>
-                <label>
-                  Fabricante (padrão)
-                  <select
-                    value={manufacturer}
-                    onChange={(event) => setManufacturer(event.target.value)}
-                    disabled={creating}
-                  >
-                    <option value="">Sem padrão</option>
-                    {MANUFACTURER_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 <label className="passivo-paste-label full-width">
                   Colar registros (em massa)
                   <textarea
