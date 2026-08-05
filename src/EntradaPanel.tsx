@@ -424,13 +424,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             >
               Ver base de medidores
             </button>
-            <button
-              type="button"
-              onClick={() => void loadData()}
-              disabled={loading}
-            >
-              {loading ? 'Atualizando...' : 'Atualizar'}
-            </button>
           </div>
         </div>
 
