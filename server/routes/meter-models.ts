@@ -409,6 +409,12 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
   const results: Array<{
     name: string
     manufacturer: string
+    meterType: string
+    voltage: string
+    current: string
+    wiresElements: string
+    accuracyClass: string
+    constant: string
     status: 'created' | 'duplicate' | 'invalid'
     error?: string
   }> = []
@@ -441,6 +447,12 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
       results.push({
         name: name || '—',
         manufacturer: rowManufacturer || '—',
+        meterType: rowMeterType || '—',
+        voltage: voltage || '—',
+        current: current || '—',
+        wiresElements: wiresElements || '—',
+        accuracyClass: accuracyClass || '—',
+        constant: constant || '—',
         status: 'invalid',
         error: validated.error,
       })
@@ -473,6 +485,12 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
       results.push({
         name: validName,
         manufacturer: validManufacturer,
+        meterType: validMeterType,
+        voltage: validVoltage || '—',
+        current: validCurrent || '—',
+        wiresElements: validWiresElements || '—',
+        accuracyClass: validAccuracyClass || '—',
+        constant: validConstant || '—',
         status: 'duplicate',
         error: 'Esse modelo já está cadastrado com os mesmos dados.',
       })
@@ -515,6 +533,12 @@ export async function createPassiveMeterModels(req: Request, res: Response) {
     results.push({
       name: validName,
       manufacturer: validManufacturer,
+      meterType: validMeterType,
+      voltage: validVoltage || '—',
+      current: validCurrent || '—',
+      wiresElements: validWiresElements || '—',
+      accuracyClass: validAccuracyClass || '—',
+      constant: validConstant || '—',
       status: 'created',
     })
   }

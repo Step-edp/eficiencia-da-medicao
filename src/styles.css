@@ -3344,6 +3344,14 @@ button {
   margin: 0 0 8px;
 }
 
+.modelo-passivo-table-wrap {
+  max-height: min(70vh, 640px);
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
 .criar-modelo-voltage legend {
   margin-bottom: 8px;
   color: var(--text-soft);

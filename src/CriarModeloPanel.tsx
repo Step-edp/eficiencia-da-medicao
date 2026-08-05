@@ -86,6 +86,12 @@ type PassiveModelInput = {
 type PassiveRowResult = {
   name: string
   manufacturer: string
+  meterType: string
+  voltage: string
+  current: string
+  wiresElements: string
+  accuracyClass: string
+  constant: string
   status: 'created' | 'duplicate' | 'invalid'
   error?: string
 }
@@ -847,16 +853,24 @@ export function CriarModeloPanel({
                   Valores fora das opções ficam em vermelho e não são cadastrados.
                 </p>
                 {previewRows.length ? (
-                  <div className="entrada-table-wrap full-width">
+                  <div className="entrada-table-wrap full-width modelo-passivo-table-wrap">
+                    <p className="field-hint">
+                      Exibindo {previewRows.length} registro(s) para cadastro
+                      {invalidPreviewCount
+                        ? ` · ${invalidPreviewCount} inválido(s)`
+                        : ''}
+                      .
+                    </p>
                     {invalidPreviewCount ? (
                       <p className="field-hint modelo-passivo-invalid-hint">
-                        {invalidPreviewCount} linha(s) com valores fora das opções
-                        possíveis.
+                        Linhas em vermelho estão fora das opções possíveis e não
+                        serão cadastradas.
                       </p>
                     ) : null}
                     <table className="data-table">
                       <thead>
                         <tr>
+                          <th>#</th>
                           <th>Prévia · Modelo</th>
                           <th>Tipo</th>
                           <th>Fabricante</th>
@@ -877,6 +891,7 @@ export function CriarModeloPanel({
                             }
                             title={row.error}
                           >
+                            <td>{index + 1}</td>
                             <td>{row.display.name}</td>
                             <td>{row.display.meterType}</td>
                             <td>{row.display.manufacturer}</td>
@@ -928,12 +943,22 @@ export function CriarModeloPanel({
           </div>
 
           {formMode === 'passivo' && results.length ? (
-            <div className="entrada-table-wrap full-width">
+            <div className="entrada-table-wrap full-width modelo-passivo-table-wrap">
+              <p className="field-hint">
+                Resultado do cadastro · {results.length} registro(s)
+              </p>
               <table className="data-table">
                 <thead>
                   <tr>
+                    <th>#</th>
                     <th>Modelo</th>
+                    <th>Tipo</th>
                     <th>Fabricante</th>
+                    <th>Tensão</th>
+                    <th>Corrente</th>
+                    <th>Fios • Elementos</th>
+                    <th>Classe</th>
+                    <th>Constante</th>
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -947,8 +972,15 @@ export function CriarModeloPanel({
                           : undefined
                       }
                     >
+                      <td>{index + 1}</td>
                       <td>{row.name}</td>
+                      <td>{row.meterType || '—'}</td>
                       <td>{row.manufacturer}</td>
+                      <td>{row.voltage || '—'}</td>
+                      <td>{row.current || '—'}</td>
+                      <td>{row.wiresElements || '—'}</td>
+                      <td>{row.accuracyClass || '—'}</td>
+                      <td>{row.constant || '—'}</td>
                       <td>
                         {row.status === 'created'
                           ? 'Cadastrado'

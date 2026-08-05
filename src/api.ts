@@ -870,6 +870,12 @@ export const api = {
       results: Array<{
         name: string
         manufacturer: string
+        meterType: string
+        voltage: string
+        current: string
+        wiresElements: string
+        accuracyClass: string
+        constant: string
         status: 'created' | 'duplicate' | 'invalid'
         error?: string
       }>
