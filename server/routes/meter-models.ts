@@ -73,6 +73,7 @@ const MANUFACTURER_OPTIONS = [
   'GE',
   'ELSTER',
   'ELSTER \u2022 ABB',
+  'ESB',
   'ABB',
   'ABB \u2022 WESTINGHOUSE',
   'ITRON',
