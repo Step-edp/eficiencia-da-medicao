@@ -282,6 +282,22 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
             </select>
           </label>
 
+          <label>
+            Constante
+            <select
+              value={constant}
+              onChange={(event) => setConstant(event.target.value)}
+              disabled={creating}
+            >
+              <option value="">Localizar itens</option>
+              {CONSTANT_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="full-width">
             Descrição
             <textarea
@@ -325,6 +341,7 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
                 <th>Corrente</th>
                 <th>Fios/Elem</th>
                 <th>Classe</th>
+                <th>Constante</th>
                 <th>Descrição</th>
                 <th>Criado por</th>
                 <th>Criado em</th>
@@ -341,6 +358,7 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
                     <td>{model.current || '—'}</td>
                     <td>{model.wiresElements || '—'}</td>
                     <td>{model.accuracyClass || '—'}</td>
+                    <td>{model.constant || '—'}</td>
                     <td>{model.description || '—'}</td>
                     <td>
                       {model.createdByName || model.createdByRegistration
@@ -356,7 +374,7 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={10}>Nenhum modelo de medidor cadastrado ainda.</td>
+                  <td colSpan={11}>Nenhum modelo de medidor cadastrado ainda.</td>
                 </tr>
               )}
             </tbody>
