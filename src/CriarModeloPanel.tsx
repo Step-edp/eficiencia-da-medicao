@@ -446,6 +446,7 @@ export function CriarModeloPanel({
   const [passiveEntryMode, setPassiveEntryMode] =
     useState<PassiveEntryMode>('individual')
   const [pasteText, setPasteText] = useState('')
+  const [editableRows, setEditableRows] = useState<PassiveModelInput[]>([])
   const [results, setResults] = useState<PassiveRowResult[]>([])
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
@@ -461,7 +462,6 @@ export function CriarModeloPanel({
   const [constant, setConstant] = useState('')
 
   const previewRows = useMemo(() => {
-    const rows = parsePassiveModelPaste(pasteText)
     const existingKeys = new Set(
       models.map((model) =>
         modelCharacteristicsKey({
@@ -478,7 +478,7 @@ export function CriarModeloPanel({
     )
     const seenKeys = new Set<string>()
 
-    return rows.map((row) => {
+    return editableRows.map((row) => {
       const validated = validatePassiveModelRow(row, {
         manufacturer: manufacturer.trim(),
         meterType: meterType.trim(),
@@ -504,7 +504,7 @@ export function CriarModeloPanel({
 
       return validated
     })
-  }, [pasteText, manufacturer, meterType, models])
+  }, [editableRows, manufacturer, meterType, models])
 
   const invalidPreviewCount = useMemo(
     () => previewRows.filter((row) => !row.valid).length,
@@ -515,6 +515,28 @@ export function CriarModeloPanel({
     () => previewRows.filter((row) => row.duplicate).length,
     [previewRows],
   )
+
+  const updateEditableRow = (
+    index: number,
+    field: keyof PassiveModelInput,
+    value: string,
+  ) => {
+    setEditableRows((current) =>
+      current.map((row, rowIndex) =>
+        rowIndex === index ? { ...row, [field]: value } : row,
+      ),
+    )
+  }
+
+  const removeEditableRow = (index: number) => {
+    setEditableRows((current) => current.filter((_, rowIndex) => rowIndex !== index))
+  }
+
+  const handlePasteChange = (text: string) => {
+    setPasteText(text)
+    setEditableRows(parsePassiveModelPaste(text))
+    setResults([])
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -549,6 +571,7 @@ export function CriarModeloPanel({
     setAccuracyClass('')
     setConstant('')
     setPasteText('')
+    setEditableRows([])
     setResults([])
     setPassiveEntryMode('individual')
   }
@@ -563,12 +586,12 @@ export function CriarModeloPanel({
     event.preventDefault()
 
     if (formMode === 'passivo' && passiveEntryMode === 'massa') {
-      const records = parsePassiveModelPaste(pasteText)
+      const records = editableRows
       if (!records.length) {
         setFeedback({
           type: 'error',
           message:
-            'Cole ao menos uma linha com modelo, fabricante e tipo (demais campos opcionais).',
+            'Cole ou edite ao menos uma linha com modelo, tipo e fabricante.',
         })
         return
       }
@@ -585,8 +608,34 @@ export function CriarModeloPanel({
         if (response.models.length) {
           setModels((currentRows) => [...response.models, ...currentRows])
         }
-        if (!response.invalidCount) {
+        if (!response.invalidCount && !response.duplicateCount) {
           setPasteText('')
+          setEditableRows([])
+        } else {
+          // Mantém na prévia só o que ainda precisa correção.
+          const remaining = editableRows.filter((_, index) => {
+            const status = response.results[index]?.status
+            return status === 'invalid' || status === 'duplicate'
+          })
+          setEditableRows(remaining)
+          setPasteText(
+            remaining
+              .map((row) =>
+                [
+                  row.name,
+                  row.meterType,
+                  row.manufacturer,
+                  row.voltage,
+                  row.current,
+                  row.wiresElements,
+                  row.accuracyClass,
+                  row.constant,
+                ]
+                  .map((value) => value ?? '')
+                  .join('\t'),
+              )
+              .join('\n'),
+          )
         }
         setFeedback({
           type: response.createdCount ? 'success' : 'error',
@@ -968,34 +1017,32 @@ export function CriarModeloPanel({
                 <label className="passivo-paste-label full-width">
                   Colar registros (em massa)
                   <textarea
-                    rows={10}
+                    rows={8}
                     value={pasteText}
-                    onChange={(event) => setPasteText(event.target.value)}
+                    onChange={(event) => handlePasteChange(event.target.value)}
                     placeholder={
                       'Modelo\tTipo\tFabricante\tTensão\tCorrente\tFios • Elementos\tClasse\tConstante\nA1052\tEletrônico\tNANSEN\t240V\tMin. 15A • Máx. 100A\t2 FIOS 1 ELEMENTO\tCLASSE 1\t1,8'
                     }
                     spellCheck={false}
                     disabled={creating}
-                    required
                   />
                 </label>
                 <p className="field-hint full-width">
-                  Uma linha por modelo. Aceita tab, vírgula ou ponto e vírgula.
-                  Cabeçalho opcional. Ordem sem cabeçalho: Modelo, Tipo,
+                  Cole os dados e edite direto na tabela de prévia. Aceita tab,
+                  vírgula ou ponto e vírgula. Ordem sem cabeçalho: Modelo, Tipo,
                   Fabricante, Tensão, Corrente, Fios • Elementos, Classe, Constante.
-                  Valores fora das opções ficam em vermelho e não são cadastrados.
                 </p>
-                {previewRows.length ? (
+                {editableRows.length ? (
                   <div className="entrada-table-wrap full-width modelo-passivo-table-wrap">
                     <p className="field-hint">
-                      Exibindo {previewRows.length} registro(s) para cadastro
+                      Exibindo {editableRows.length} registro(s) para cadastro
                       {invalidPreviewCount
                         ? ` · ${invalidPreviewCount} inválido(s)`
                         : ''}
                       {duplicatePreviewCount
                         ? ` · ${duplicatePreviewCount} repetido(s)`
                         : ''}
-                      .
+                      . Clique nas células para editar.
                     </p>
                     {invalidPreviewCount || duplicatePreviewCount ? (
                       <p className="field-hint modelo-passivo-invalid-hint">
@@ -1003,11 +1050,11 @@ export function CriarModeloPanel({
                         os campos iguais). Esses não serão cadastrados.
                       </p>
                     ) : null}
-                    <table className="data-table">
+                    <table className="data-table modelo-passivo-edit-table">
                       <thead>
                         <tr>
                           <th>#</th>
-                          <th>Prévia · Modelo</th>
+                          <th>Modelo</th>
                           <th>Tipo</th>
                           <th>Fabricante</th>
                           <th>Tensão</th>
@@ -1016,39 +1063,229 @@ export function CriarModeloPanel({
                           <th>Classe</th>
                           <th>Constante</th>
                           <th>Status</th>
+                          <th></th>
                         </tr>
                       </thead>
                       <tbody>
-                        {previewRows.map((row, index) => (
-                          <tr
-                            key={`${row.display.name}-${index}`}
-                            className={
-                              !row.valid
-                                ? 'modelo-passivo-row-invalid'
-                                : row.duplicate
-                                  ? 'modelo-passivo-row-duplicate'
-                                  : undefined
-                            }
-                            title={row.error}
-                          >
-                            <td>{index + 1}</td>
-                            <td>{row.display.name}</td>
-                            <td>{row.display.meterType}</td>
-                            <td>{row.display.manufacturer}</td>
-                            <td>{row.display.voltage}</td>
-                            <td>{row.display.current}</td>
-                            <td>{row.display.wiresElements}</td>
-                            <td>{row.display.accuracyClass}</td>
-                            <td>{row.display.constant}</td>
-                            <td>
-                              {!row.valid
-                                ? row.error || 'Inválido'
-                                : row.duplicate
-                                  ? 'Repetido'
-                                  : 'OK'}
-                            </td>
-                          </tr>
-                        ))}
+                        {editableRows.map((row, index) => {
+                          const preview = previewRows[index]
+                          const rowClass = !preview?.valid
+                            ? 'modelo-passivo-row-invalid'
+                            : preview?.duplicate
+                              ? 'modelo-passivo-row-duplicate'
+                              : undefined
+                          return (
+                            <tr
+                              key={`editable-${index}`}
+                              className={rowClass}
+                              title={preview?.error}
+                            >
+                              <td>{index + 1}</td>
+                              <td>
+                                <input
+                                  type="text"
+                                  value={row.name}
+                                  disabled={creating}
+                                  onChange={(event) =>
+                                    updateEditableRow(index, 'name', event.target.value)
+                                  }
+                                  aria-label={`Modelo linha ${index + 1}`}
+                                />
+                              </td>
+                              <td>
+                                <select
+                                  value={row.meterType || ''}
+                                  disabled={creating}
+                                  onChange={(event) =>
+                                    updateEditableRow(
+                                      index,
+                                      'meterType',
+                                      event.target.value,
+                                    )
+                                  }
+                                  aria-label={`Tipo linha ${index + 1}`}
+                                >
+                                  <option value="">Selecione</option>
+                                  {row.meterType &&
+                                  !METER_TYPE_OPTIONS.includes(row.meterType) ? (
+                                    <option value={row.meterType}>{row.meterType}</option>
+                                  ) : null}
+                                  {METER_TYPE_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                <select
+                                  value={row.manufacturer || ''}
+                                  disabled={creating}
+                                  onChange={(event) =>
+                                    updateEditableRow(
+                                      index,
+                                      'manufacturer',
+                                      event.target.value,
+                                    )
+                                  }
+                                  aria-label={`Fabricante linha ${index + 1}`}
+                                >
+                                  <option value="">Selecione</option>
+                                  {row.manufacturer &&
+                                  !MANUFACTURER_OPTIONS.includes(row.manufacturer) ? (
+                                    <option value={row.manufacturer}>
+                                      {row.manufacturer}
+                                    </option>
+                                  ) : null}
+                                  {MANUFACTURER_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                <select
+                                  value={row.voltage || ''}
+                                  disabled={creating}
+                                  onChange={(event) =>
+                                    updateEditableRow(index, 'voltage', event.target.value)
+                                  }
+                                  aria-label={`Tensão linha ${index + 1}`}
+                                >
+                                  <option value="">—</option>
+                                  {row.voltage &&
+                                  !VOLTAGE_OPTIONS.includes(row.voltage) ? (
+                                    <option value={row.voltage}>{row.voltage}</option>
+                                  ) : null}
+                                  {VOLTAGE_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                <select
+                                  value={row.current || ''}
+                                  disabled={creating}
+                                  onChange={(event) =>
+                                    updateEditableRow(index, 'current', event.target.value)
+                                  }
+                                  aria-label={`Corrente linha ${index + 1}`}
+                                >
+                                  <option value="">—</option>
+                                  {row.current &&
+                                  !CURRENT_OPTIONS.includes(row.current) ? (
+                                    <option value={row.current}>{row.current}</option>
+                                  ) : null}
+                                  {CURRENT_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                <select
+                                  value={row.wiresElements || ''}
+                                  disabled={creating}
+                                  onChange={(event) =>
+                                    updateEditableRow(
+                                      index,
+                                      'wiresElements',
+                                      event.target.value,
+                                    )
+                                  }
+                                  aria-label={`Fios elementos linha ${index + 1}`}
+                                >
+                                  <option value="">—</option>
+                                  {row.wiresElements &&
+                                  !WIRES_ELEMENTS_OPTIONS.includes(row.wiresElements) ? (
+                                    <option value={row.wiresElements}>
+                                      {row.wiresElements}
+                                    </option>
+                                  ) : null}
+                                  {WIRES_ELEMENTS_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                <select
+                                  value={row.accuracyClass || ''}
+                                  disabled={creating}
+                                  onChange={(event) =>
+                                    updateEditableRow(
+                                      index,
+                                      'accuracyClass',
+                                      event.target.value,
+                                    )
+                                  }
+                                  aria-label={`Classe linha ${index + 1}`}
+                                >
+                                  <option value="">—</option>
+                                  {row.accuracyClass &&
+                                  !CLASS_OPTIONS.includes(row.accuracyClass) ? (
+                                    <option value={row.accuracyClass}>
+                                      {row.accuracyClass}
+                                    </option>
+                                  ) : null}
+                                  {CLASS_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                <select
+                                  value={row.constant || ''}
+                                  disabled={creating}
+                                  onChange={(event) =>
+                                    updateEditableRow(
+                                      index,
+                                      'constant',
+                                      event.target.value,
+                                    )
+                                  }
+                                  aria-label={`Constante linha ${index + 1}`}
+                                >
+                                  <option value="">—</option>
+                                  {row.constant &&
+                                  !CONSTANT_OPTIONS.includes(row.constant) ? (
+                                    <option value={row.constant}>{row.constant}</option>
+                                  ) : null}
+                                  {CONSTANT_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                {!preview?.valid
+                                  ? preview?.error || 'Inválido'
+                                  : preview?.duplicate
+                                    ? 'Repetido'
+                                    : 'OK'}
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="secondary-button modelo-passivo-remove"
+                                  disabled={creating}
+                                  onClick={() => removeEditableRow(index)}
+                                  aria-label={`Remover linha ${index + 1}`}
+                                >
+                                  Remover
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -1074,7 +1311,7 @@ export function CriarModeloPanel({
               disabled={
                 creating ||
                 (isPassivoMass
-                  ? !pasteText.trim()
+                  ? !editableRows.length
                   : !name.trim() || !manufacturer.trim())
               }
             >

@@ -3357,6 +3357,38 @@ button {
   align-content: start;
 }
 
+.modelo-passivo-edit-table input,
+.modelo-passivo-edit-table select {
+  width: 100%;
+  min-width: 7.5rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid rgba(24, 216, 240, 0.28);
+  background: rgba(4, 20, 34, 0.9);
+  color: inherit;
+}
+
+.modelo-passivo-edit-table td:nth-child(2) input {
+  min-width: 9rem;
+}
+
+.modelo-passivo-row-invalid input,
+.modelo-passivo-row-invalid select {
+  border-color: rgba(255, 120, 120, 0.55);
+}
+
+.modelo-passivo-row-duplicate input,
+.modelo-passivo-row-duplicate select {
+  border-color: rgba(230, 180, 60, 0.55);
+}
+
+.modelo-passivo-remove {
+  margin: 0;
+  min-width: auto;
+  padding: 0.4rem 0.65rem;
+  white-space: nowrap;
+}
+
 .criar-modelo-voltage legend {
   margin-bottom: 8px;
   color: var(--text-soft);
