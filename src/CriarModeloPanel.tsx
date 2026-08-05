@@ -221,20 +221,27 @@ export function CriarModeloPanel({ readOnly = false }: { readOnly?: boolean }) {
               ))}
             </select>
           </label>
-          <label>
-            Tipo
-            <select
-              value={meterType}
-              onChange={(event) => setMeterType(event.target.value)}
-              disabled={creating}
-            >
-              {METER_TYPE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
+          <fieldset className="radio-fieldset criar-modelo-voltage full-width">
+            <legend>Tipo</legend>
+            <div className="ratm-choice-group" role="radiogroup" aria-label="Tipo">
+              {METER_TYPE_OPTIONS.map((option) => {
+                const selected = meterType === option
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    className={`ratm-choice-btn tone-neutral${selected ? ' is-selected' : ''}`}
+                    disabled={creating}
+                    onClick={() => setMeterType(option)}
+                  >
+                    <span>{option}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
 
           <fieldset className="radio-fieldset criar-modelo-voltage full-width">
             <legend>Tensão</legend>
