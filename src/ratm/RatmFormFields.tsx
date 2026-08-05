@@ -603,7 +603,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               legend="Status lacre 2"
               name={`seal2-status-${index}`}
               value={data.seal2Status}
-              options={['Violado', 'Sem lacre', 'Em ordem', 'N/A']}
+              options={['Violado', 'Sem lacre', 'Em ordem', 'Não aplicável']}
               onChange={(value) => onChange({ seal2Status: value })}
             />
           </div>
@@ -627,7 +627,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           legend=""
           name={`reading-preset-${index}`}
           value={data.meterReadingPreset}
-          options={['N/A']}
+          options={['Não aplicável']}
           onChange={(value) =>
             onChange({
               meterReadingPreset: value,
@@ -682,7 +682,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                 legend=""
                 name={`${fieldKey}-preset-${index}`}
                 value={String(data[presetKey])}
-                options={['-100', 'N/A']}
+                options={['-100', 'Não aplicável']}
                 onChange={(value) =>
                   onChange({
                     [presetKey]: value,
@@ -698,7 +698,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           legend="Marcha"
           name={`march-${index}`}
           value={data.march}
-          options={['Aprovado', 'Reprovado', 'NA']}
+          options={['Aprovado', 'Reprovado', 'Não aplicável']}
           onChange={(value) => onChange({ march: value })}
         />
 
@@ -723,7 +723,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           legend=""
           name={`phase-option-${index}`}
           value={data.interruptedPhaseOption}
-          options={['N/A', 'A', 'B', 'C']}
+          options={['Não aplicável', 'A', 'B', 'C']}
           onChange={(value) => onChange({ interruptedPhaseOption: value })}
         />
 
