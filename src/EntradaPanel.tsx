@@ -398,37 +398,28 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     (sum, document) => sum + document.scheduledCount,
     0,
   )
-  const metersBaseScheduledCount = metersBase.meters.filter((item) => item.scheduled).length
 
   if (view === 'metersBase') {
     return (
       <>
         <div className="entrada-panel">
-          <section className="entrada-dedicated-screen" aria-label="Base de medidores">
+          <section className="entrada-dedicated-screen" aria-label="Medidores agendados">
             <div className="entrada-dedicated-header">
               <div>
-                <h3 className="entrada-section-title">Base de medidores</h3>
+                <h3 className="entrada-section-title">Medidores agendados</h3>
                 <p className="demm-analysis-summary">
-                  {metersBase.loading
+                  {loading && schedules.length === 0
                     ? 'Carregando medidores...'
-                    : `${metersBase.meters.length} medidor(es) · ${metersBaseScheduledCount} agendado(s) no aplicativo`}
+                    : `${schedules.length} medidor(es) aguardando entrada`}
                 </p>
               </div>
               <div
                 className="panel-switch entrada-demm-switch"
                 role="toolbar"
-                aria-label="Ações DEMM"
+                aria-label="Navegação"
               >
-                <button type="button" onClick={closeMetersBase}>
+                <button type="button" className="active" onClick={closeMetersBase}>
                   Voltar
-                </button>
-                <button
-                  type="button"
-                  className="active"
-                  onClick={() => void openMetersBase()}
-                  disabled={metersBase.loading}
-                >
-                  Ver base de medidores
                 </button>
               </div>
             </div>
@@ -439,11 +430,59 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               </div>
             ) : null}
 
-            <DemmMetersTable
-              meters={metersBase.meters}
-              loading={metersBase.loading}
-              showSources
-            />
+            {loading && schedules.length === 0 ? (
+              <p className="entrada-panel-empty">Carregando medidores...</p>
+            ) : schedules.length === 0 ? (
+              <p className="entrada-panel-empty">
+                Nenhum medidor agendado aguardando entrada.
+              </p>
+            ) : (
+              <div className="entrada-table-wrap">
+                <table className="data-table entrada-table">
+                  <thead>
+                    <tr>
+                      <th>Medidor</th>
+                      <th>Instalação</th>
+                      <th>TOI</th>
+                      <th>Nota</th>
+                      <th>CSD</th>
+                      <th>Cliente presente</th>
+                      <th>Data agendada</th>
+                      <th>Prazo entrega</th>
+                      <th>Status entrega</th>
+                      <th>Agendado por</th>
+                      <th>Registrado em</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {schedules.map((schedule) => (
+                      <tr
+                        key={schedule.id}
+                        className={schedule.isLate ? 'schedule-row-late' : undefined}
+                      >
+                        <td>{schedule.meter}</td>
+                        <td>{schedule.installation}</td>
+                        <td>{schedule.toi}</td>
+                        <td>{schedule.note}</td>
+                        <td>{schedule.csd}</td>
+                        <td>{schedule.clientPresent === 'sim' ? 'Sim' : 'Não'}</td>
+                        <td>{schedule.scheduledAtLabel}</td>
+                        <td>{schedule.deliveryDeadlineLabel || '—'}</td>
+                        <td>
+                          {schedule.isLate ? (
+                            <span className="schedule-late-badge">Atrasado</span>
+                          ) : (
+                            <span className="schedule-ok-badge">No prazo</span>
+                          )}
+                        </td>
+                        <td>{schedule.createdByRegistration ?? '—'}</td>
+                        <td>{formatDateTime(schedule.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         </div>
       </>
@@ -579,61 +618,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     <td colSpan={3} />
                   </tr>
                 </tfoot>
-              </table>
-            </div>
-          )}
-        </section>
-
-        <section className="entrada-section">
-          <h3 className="entrada-section-title">Medidores agendados</h3>
-          {loading && schedules.length === 0 ? (
-            <p className="entrada-panel-empty">Carregando medidores...</p>
-          ) : schedules.length === 0 ? (
-            <p className="entrada-panel-empty">Nenhum medidor agendado aguardando entrada.</p>
-          ) : (
-            <div className="entrada-table-wrap">
-              <table className="data-table entrada-table">
-                <thead>
-                  <tr>
-                    <th>Medidor</th>
-                    <th>Instalação</th>
-                    <th>TOI</th>
-                    <th>Nota</th>
-                    <th>CSD</th>
-                    <th>Cliente presente</th>
-                    <th>Data agendada</th>
-                    <th>Prazo entrega</th>
-                    <th>Status entrega</th>
-                    <th>Agendado por</th>
-                    <th>Registrado em</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {schedules.map((schedule) => (
-                    <tr
-                      key={schedule.id}
-                      className={schedule.isLate ? 'schedule-row-late' : undefined}
-                    >
-                      <td>{schedule.meter}</td>
-                      <td>{schedule.installation}</td>
-                      <td>{schedule.toi}</td>
-                      <td>{schedule.note}</td>
-                      <td>{schedule.csd}</td>
-                      <td>{schedule.clientPresent === 'sim' ? 'Sim' : 'Não'}</td>
-                      <td>{schedule.scheduledAtLabel}</td>
-                      <td>{schedule.deliveryDeadlineLabel || '—'}</td>
-                      <td>
-                        {schedule.isLate ? (
-                          <span className="schedule-late-badge">Atrasado</span>
-                        ) : (
-                          <span className="schedule-ok-badge">No prazo</span>
-                        )}
-                      </td>
-                      <td>{schedule.createdByRegistration ?? '—'}</td>
-                      <td>{formatDateTime(schedule.createdAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
               </table>
             </div>
           )}
