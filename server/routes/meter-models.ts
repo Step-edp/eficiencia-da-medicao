@@ -8,7 +8,7 @@ const VOLTAGE_OPTIONS = [
   '240V',
   '120V',
   '230V',
-  'Min. 120V (•) Máx. 240V',
+  'Min. 120V • Máx. 240V',
 ]
 const CURRENT_OPTIONS = [
   'Min. 15A • Máx. 100A',
