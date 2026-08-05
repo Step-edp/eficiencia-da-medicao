@@ -17,7 +17,8 @@ const CURRENT_OPTIONS = [
   'Min. 2,5A • Máx. 10A',
   'Min. 30A • Máx. 200A',
   'Min. 2,5A • Máx. 20A',
-  '15A',
+  'Min. 10A',
+  'Min. 15A',
 ]
 const WIRES_ELEMENTS_OPTIONS = [
   '2 FIOS 1 ELEMENTO',
@@ -188,6 +189,24 @@ function matchVoltageOption(value: string): string | null {
   return null
 }
 
+function matchCurrentOption(value: string): string | null {
+  const matched = matchOption(value, CURRENT_OPTIONS)
+  if (matched) return matched
+
+  const normalized = normalizeOptionValue(value)
+  if (
+    normalized === '15a' ||
+    normalized === 'min 15a' ||
+    normalized === 'min.15a'
+  ) {
+    return 'Min. 15A'
+  }
+  if (normalized === '10a' || normalized === 'min 10a' || normalized === 'min.10a') {
+    return 'Min. 10A'
+  }
+  return null
+}
+
 function parseMeterTypeLabel(value: string): string {
   const raw = normalizeOptionValue(value)
   if (!raw) return ''
@@ -246,7 +265,7 @@ function validatePassiveModelFields(fields: {
 
   let current = ''
   if (fields.current) {
-    const matched = matchOption(fields.current, CURRENT_OPTIONS)
+    const matched = matchCurrentOption(fields.current)
     if (!matched) {
       return { ok: false, error: `Corrente inválida: ${fields.current}` }
     }
