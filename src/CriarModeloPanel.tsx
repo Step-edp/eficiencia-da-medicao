@@ -99,6 +99,21 @@ const MANUFACTURER_OPTIONS = [
 type FormMode = 'create' | 'edit' | 'passivo' | null
 type PanelView = 'lista' | 'nao-registrados'
 
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20zM14.5 5l4.5 4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 type PassiveModelInput = {
   name: string
   manufacturer?: string
