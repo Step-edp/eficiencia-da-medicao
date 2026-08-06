@@ -1525,6 +1525,12 @@ export function CriarModeloPanel({
       {loading ? (
         <p className="entrada-panel-empty">Carregando modelos...</p>
       ) : (
+        <>
+          <p className="field-hint criar-modelo-count">
+            {models.length === 1
+              ? '1 modelo cadastrado'
+              : `${models.length} modelos cadastrados`}
+          </p>
         <div className="entrada-table-wrap">
           <table className="data-table">
             <thead>
@@ -1615,6 +1621,7 @@ export function CriarModeloPanel({
             </tbody>
           </table>
         </div>
+        </>
       )}
         </>
       )}
