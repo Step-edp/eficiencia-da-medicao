@@ -1568,15 +1568,7 @@ export function CriarModeloPanel({
                         </button>
                       </td>
                     )}
-                    <td>
-                      {model.name}
-                      {model.source === 'passivo' ? (
-                        <>
-                          {' '}
-                          <span className="consult-passivo-badge">Passivo</span>
-                        </>
-                      ) : null}
-                    </td>
+                    <td>{model.name}</td>
                     <td>{model.meterType}</td>
                     <td>{model.manufacturer}</td>
                     <td>{model.voltage || '—'}</td>
