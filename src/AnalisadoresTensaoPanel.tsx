@@ -13,6 +13,14 @@ function formatCalibrationDate(value: string) {
   return `${day}/${month}/${year}`
 }
 
+function isCalibrationExpired(dataUltimaCalibracao: string) {
+  const [year, month, day] = dataUltimaCalibracao.split('-').map(Number)
+  const dueDate = new Date(year, month - 1 + 24, day)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return today >= dueDate
+}
+
 export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [analisadores, setAnalisadores] = useState<AnalisadorTensaoRecord[]>([])
   const [modelos, setModelos] = useState<AnalisadorModeloCatalogEntry[]>([])
@@ -326,6 +334,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                 <th>Instrumento</th>
                 <th>Última calibração</th>
                 <th>Resultado</th>
+                <th>Situação</th>
                 <th>Cadastrado por</th>
                 <th>Em</th>
               </tr>
@@ -349,6 +358,17 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                         : '—'}
                   </td>
                   <td>{item.resultadoUltimaCalibracao || '—'}</td>
+                  <td>
+                    {item.dataUltimaCalibracao ? (
+                      isCalibrationExpired(item.dataUltimaCalibracao) ? (
+                        <span className="schedule-late-badge">Aferição vencida</span>
+                      ) : (
+                        <span className="schedule-ok-badge">Válida</span>
+                      )
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td>{item.createdByName || item.createdByRegistration || '—'}</td>
                   <td>{formatAuditDate(item.createdAt)}</td>
                 </tr>
