@@ -1284,12 +1284,21 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  ensaiarAnalisadorTensao: (
-    id: string,
-    payload: { dataUltimaCalibracao: string; resultadoUltimaCalibracao: 'Aprovado' | 'Reprovado' },
-  ) =>
-    request<{ analisador: AnalisadorTensaoRecord }>(`/api/analisadores-tensao/${id}/ensaiar`, {
-      method: 'PATCH',
+  registrarEnsaioAnalisadores: (payload: {
+    rows: Array<{
+      analisadorId: string
+      voltage: '127V' | '220V'
+      testeNumero: number
+      padraoFaseA: number
+      padraoFaseB: number
+      padraoFaseC: number
+      equipamentoFaseA: number
+      equipamentoFaseB: number
+      equipamentoFaseC: number
+    }>
+  }) =>
+    request<{ analisadores: AnalisadorTensaoRecord[] }>('/api/analisadores-tensao/ensaio', {
+      method: 'POST',
       body: JSON.stringify(payload),
     }),
 }

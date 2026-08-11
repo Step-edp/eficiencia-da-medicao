@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { query } from '../db.js'
+import { query, pool } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 
 export type AnalisadorModeloCatalogEntry = {
@@ -227,82 +227,156 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
   res.status(201).json({ analisador })
 }
 
-export async function ensaiarAnalisadorTensao(req: Request, res: Response) {
+type EnsaioMedicaoRow = {
+  analisadorId: string
+  voltage: '127V' | '220V'
+  testeNumero: number
+  padraoFaseA: number
+  padraoFaseB: number
+  padraoFaseC: number
+  equipamentoFaseA: number
+  equipamentoFaseB: number
+  equipamentoFaseC: number
+}
+
+function parseEnsaioRows(body: unknown): EnsaioMedicaoRow[] | null {
+  if (!body || typeof body !== 'object' || !Array.isArray((body as { rows?: unknown }).rows)) {
+    return null
+  }
+  const rawRows = (body as { rows: unknown[] }).rows
+  const rows: EnsaioMedicaoRow[] = []
+
+  for (const raw of rawRows) {
+    if (!raw || typeof raw !== 'object') return null
+    const r = raw as Record<string, unknown>
+
+    const numericFields = [
+      'padraoFaseA',
+      'padraoFaseB',
+      'padraoFaseC',
+      'equipamentoFaseA',
+      'equipamentoFaseB',
+      'equipamentoFaseC',
+    ] as const
+
+    const parsedNumbers: Record<(typeof numericFields)[number], number> = {} as never
+    for (const field of numericFields) {
+      const value = typeof r[field] === 'number' ? r[field] : Number(r[field])
+      if (typeof value !== 'number' || !Number.isFinite(value)) return null
+      parsedNumbers[field] = value as number
+    }
+
+    if (typeof r.analisadorId !== 'string' || !r.analisadorId.trim()) return null
+    if (r.voltage !== '127V' && r.voltage !== '220V') return null
+    const testeNumero = Number(r.testeNumero)
+    if (!Number.isInteger(testeNumero) || testeNumero < 1 || testeNumero > 5) return null
+
+    rows.push({
+      analisadorId: r.analisadorId,
+      voltage: r.voltage,
+      testeNumero,
+      ...parsedNumbers,
+    })
+  }
+
+  return rows
+}
+
+export async function registrarEnsaioAnalisadores(req: Request, res: Response) {
   const user = req.user
   if (!user) {
     res.status(401).json({ error: 'Não autenticado.' })
     return
   }
 
-  const id = typeof req.params.id === 'string' ? req.params.id : ''
-  const dataUltimaCalibracao =
-    typeof req.body?.dataUltimaCalibracao === 'string'
-      ? req.body.dataUltimaCalibracao.trim()
-      : ''
-  const resultadoUltimaCalibracao =
-    typeof req.body?.resultadoUltimaCalibracao === 'string'
-      ? req.body.resultadoUltimaCalibracao.trim()
-      : ''
-
-  if (!dataUltimaCalibracao) {
-    res.status(400).json({ error: 'Informe a data da calibração.' })
+  const rows = parseEnsaioRows(req.body)
+  if (!rows || !rows.length) {
+    res.status(400).json({ error: 'Dados de ensaio inválidos.' })
     return
   }
 
-  if (resultadoUltimaCalibracao !== 'Aprovado' && resultadoUltimaCalibracao !== 'Reprovado') {
-    res.status(400).json({ error: 'Informe o resultado da calibração (Aprovado ou Reprovado).' })
+  const analisadorIds = [...new Set(rows.map((row) => row.analisadorId))]
+
+  const existing = await query<{ id: string }>(
+    `SELECT id FROM analisadores_tensao WHERE id = ANY($1::text[])`,
+    [analisadorIds],
+  )
+  const existingIds = new Set(existing.rows.map((row) => row.id))
+  const missing = analisadorIds.filter((id) => !existingIds.has(id))
+  if (missing.length) {
+    res.status(404).json({ error: 'Um ou mais analisadores não foram encontrados.' })
     return
   }
 
-  const before = await query<
-    Omit<AnalisadorTensaoRow, 'created_by_name' | 'created_by_registration'>
-  >(
-    `SELECT id, equipment_number, numero_serie, identificacao_laudo, modelo, fabricante, classe,
-       vn, vmax, instrumento, primeira_calibracao,
-       data_ultima_calibracao::text AS data_ultima_calibracao, resultado_ultima_calibracao,
-       created_by_user_id, created_at
-     FROM analisadores_tensao WHERE id = $1`,
-    [id],
-  )
-  if (!before.rows[0]) {
-    res.status(404).json({ error: 'Analisador não encontrado.' })
-    return
+  const ensaioId = `ens-${Date.now()}`
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    for (const row of rows) {
+      await client.query(
+        `INSERT INTO analisador_tensao_ensaio_medicoes (
+           ensaio_id, analisador_id, voltage, teste_numero,
+           padrao_fase_a, padrao_fase_b, padrao_fase_c,
+           equipamento_fase_a, equipamento_fase_b, equipamento_fase_c,
+           created_by_user_id
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          ensaioId,
+          row.analisadorId,
+          row.voltage,
+          row.testeNumero,
+          row.padraoFaseA,
+          row.padraoFaseB,
+          row.padraoFaseC,
+          row.equipamentoFaseA,
+          row.equipamentoFaseB,
+          row.equipamentoFaseC,
+          user.id,
+        ],
+      )
+    }
+
+    await client.query(
+      `UPDATE analisadores_tensao
+       SET primeira_calibracao = FALSE,
+           data_ultima_calibracao = CURRENT_DATE
+       WHERE id = ANY($1::text[])`,
+      [analisadorIds],
+    )
+
+    await client.query('COMMIT')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
   }
 
-  const update = await query<
-    Omit<AnalisadorTensaoRow, 'created_by_name' | 'created_by_registration'>
-  >(
-    `UPDATE analisadores_tensao
-     SET primeira_calibracao = FALSE,
-         data_ultima_calibracao = $2,
-         resultado_ultima_calibracao = $3
-     WHERE id = $1
-     RETURNING id, equipment_number, numero_serie, identificacao_laudo, modelo, fabricante,
-       classe, vn, vmax, instrumento, primeira_calibracao,
-       data_ultima_calibracao::text AS data_ultima_calibracao, resultado_ultima_calibracao,
-       created_by_user_id, created_at`,
-    [id, dataUltimaCalibracao, resultadoUltimaCalibracao],
+  const updated = await query<AnalisadorTensaoRow>(
+    `SELECT a.id, a.equipment_number, a.numero_serie, a.identificacao_laudo, a.modelo,
+            a.fabricante, a.classe, a.vn, a.vmax, a.instrumento, a.primeira_calibracao,
+            a.data_ultima_calibracao::text AS data_ultima_calibracao,
+            a.resultado_ultima_calibracao,
+            a.created_by_user_id, a.created_at,
+            u.name AS created_by_name,
+            u.registration AS created_by_registration
+     FROM analisadores_tensao a
+     LEFT JOIN users u ON u.id = a.created_by_user_id
+     WHERE a.id = ANY($1::text[])`,
+    [analisadorIds],
   )
 
-  const creator = await query<{ name: string; registration: string }>(
-    `SELECT name, registration FROM users WHERE id = $1`,
-    [update.rows[0].created_by_user_id],
-  )
-
-  const analisador = mapAnalisador({
-    ...update.rows[0],
-    created_by_name: creator.rows[0]?.name ?? null,
-    created_by_registration: creator.rows[0]?.registration ?? null,
-  })
+  const analisadores = updated.rows.map(mapAnalisador)
 
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'analisador_tensao',
-    entityId: analisador.id,
-    summary: `Nova calibração registrada para o analisador ${analisador.equipmentNumber} (${analisador.numeroSerie})`,
-    oldData: mapAnalisador({ ...before.rows[0], created_by_name: null, created_by_registration: null }),
-    newData: analisador,
+    entityId: ensaioId,
+    summary: `Ensaio registrado para ${analisadorIds.length} analisador(es) de tensão (127V e 220V, 5 testes cada)`,
+    newData: { ensaioId, analisadorIds, rowCount: rows.length },
   })
 
-  res.json({ analisador })
+  res.json({ analisadores })
 }

@@ -29,6 +29,27 @@ function getSituacao(item: AnalisadorTensaoRecord): Exclude<SituacaoFilter, 'Tod
   return isCalibrationExpired(item.dataUltimaCalibracao) ? 'Aferição vencida' : 'Válida'
 }
 
+type Voltage = '127V' | '220V'
+
+const TESTE_STEPS: { voltage: Voltage; testeNumero: number }[] = [
+  ...Array.from({ length: 5 }, (_, i) => ({ voltage: '127V' as const, testeNumero: i + 1 })),
+  ...Array.from({ length: 5 }, (_, i) => ({ voltage: '220V' as const, testeNumero: i + 1 })),
+]
+
+type FaseInput = { a: string; b: string; c: string }
+type StepMedicao = { padrao: FaseInput; leituras: Record<string, FaseInput> }
+
+function emptyFase(): FaseInput {
+  return { a: '', b: '', c: '' }
+}
+
+function buildInitialMedicoes(queue: AnalisadorTensaoRecord[]): StepMedicao[] {
+  return TESTE_STEPS.map(() => ({
+    padrao: emptyFase(),
+    leituras: Object.fromEntries(queue.map((item) => [item.id, emptyFase()])),
+  }))
+}
+
 export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [analisadores, setAnalisadores] = useState<AnalisadorTensaoRecord[]>([])
   const [modelos, setModelos] = useState<AnalisadorModeloCatalogEntry[]>([])
@@ -52,8 +73,9 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [showEnsaiarForm, setShowEnsaiarForm] = useState(false)
   const [ensaiarSerieInput, setEnsaiarSerieInput] = useState('')
   const [ensaiarQueue, setEnsaiarQueue] = useState<AnalisadorTensaoRecord[]>([])
-  const [ensaiarData, setEnsaiarData] = useState('')
-  const [ensaiarResultado, setEnsaiarResultado] = useState<'Aprovado' | 'Reprovado' | ''>('')
+  const [ensaioPhase, setEnsaioPhase] = useState<'selecao' | 'medicoes'>('selecao')
+  const [ensaioStepIndex, setEnsaioStepIndex] = useState(0)
+  const [medicoes, setMedicoes] = useState<StepMedicao[]>([])
   const [ensaiando, setEnsaiando] = useState(false)
 
   const load = useCallback(async () => {
@@ -94,8 +116,9 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const resetEnsaiarForm = () => {
     setEnsaiarSerieInput('')
     setEnsaiarQueue([])
-    setEnsaiarData('')
-    setEnsaiarResultado('')
+    setEnsaioPhase('selecao')
+    setEnsaioStepIndex(0)
+    setMedicoes([])
   }
 
   const addEnsaiarSerie = () => {
@@ -202,61 +225,120 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
     }
   }
 
-  const handleEnsaiar = async (event: FormEvent) => {
-    event.preventDefault()
-
-    if (!ensaiarQueue.length || !ensaiarData || !ensaiarResultado) {
-      setFeedback({
-        type: 'error',
-        message:
-          'Adicione ao menos um número de série e informe a data e o resultado da calibração.',
-      })
+  const startEnsaioWizard = () => {
+    if (!ensaiarQueue.length) {
+      setFeedback({ type: 'error', message: 'Adicione ao menos um número de série para ensaiar.' })
       return
     }
+    setMedicoes(buildInitialMedicoes(ensaiarQueue))
+    setEnsaioStepIndex(0)
+    setEnsaioPhase('medicoes')
+    setFeedback(null)
+  }
 
+  const updatePadraoFase = (field: keyof FaseInput, value: string) => {
+    setMedicoes((current) =>
+      current.map((step, idx) =>
+        idx === ensaioStepIndex ? { ...step, padrao: { ...step.padrao, [field]: value } } : step,
+      ),
+    )
+  }
+
+  const updateLeituraFase = (analisadorId: string, field: keyof FaseInput, value: string) => {
+    setMedicoes((current) =>
+      current.map((step, idx) =>
+        idx === ensaioStepIndex
+          ? {
+              ...step,
+              leituras: {
+                ...step.leituras,
+                [analisadorId]: { ...step.leituras[analisadorId], [field]: value },
+              },
+            }
+          : step,
+      ),
+    )
+  }
+
+  const isCurrentStepComplete = () => {
+    const step = medicoes[ensaioStepIndex]
+    if (!step) return false
+    if (!step.padrao.a.trim() || !step.padrao.b.trim() || !step.padrao.c.trim()) return false
+    return ensaiarQueue.every((item) => {
+      const leitura = step.leituras[item.id]
+      return leitura && leitura.a.trim() && leitura.b.trim() && leitura.c.trim()
+    })
+  }
+
+  const handleVoltarStep = () => {
+    if (ensaioStepIndex === 0) {
+      setEnsaioPhase('selecao')
+      return
+    }
+    setEnsaioStepIndex((current) => current - 1)
+  }
+
+  const handleFinishEnsaio = async () => {
     setEnsaiando(true)
     setFeedback(null)
-
-    const updated: AnalisadorTensaoRecord[] = []
-    const failed: string[] = []
-
-    for (const item of ensaiarQueue) {
-      try {
-        const { analisador } = await api.ensaiarAnalisadorTensao(item.id, {
-          dataUltimaCalibracao: ensaiarData,
-          resultadoUltimaCalibracao: ensaiarResultado,
+    try {
+      const rows = medicoes.flatMap((step, idx) => {
+        const { voltage, testeNumero } = TESTE_STEPS[idx]
+        return ensaiarQueue.map((item) => {
+          const leitura = step.leituras[item.id]
+          return {
+            analisadorId: item.id,
+            voltage,
+            testeNumero,
+            padraoFaseA: Number(step.padrao.a),
+            padraoFaseB: Number(step.padrao.b),
+            padraoFaseC: Number(step.padrao.c),
+            equipamentoFaseA: Number(leitura.a),
+            equipamentoFaseB: Number(leitura.b),
+            equipamentoFaseC: Number(leitura.c),
+          }
         })
-        updated.push(analisador)
-      } catch {
-        failed.push(item.numeroSerie)
-      }
-    }
+      })
 
-    if (updated.length) {
+      const { analisadores: updated } = await api.registrarEnsaioAnalisadores({ rows })
       setAnalisadores((current) =>
         current.map((row) => updated.find((item) => item.id === row.id) ?? row),
       )
-    }
 
-    setEnsaiando(false)
-
-    if (!failed.length) {
+      const serieList = ensaiarQueue.map((item) => item.numeroSerie).join(', ')
       resetEnsaiarForm()
       setShowEnsaiarForm(false)
       setFeedback({
         type: 'success',
         message:
           updated.length === 1
-            ? `Nova calibração registrada para o analisador ${updated[0].numeroSerie}.`
-            : `Nova calibração registrada para ${updated.length} analisadores.`,
+            ? `Ensaio registrado para o analisador ${serieList}.`
+            : `Ensaio registrado para ${updated.length} analisadores: ${serieList}.`,
       })
-    } else {
-      setEnsaiarQueue((current) => current.filter((item) => failed.includes(item.numeroSerie)))
+    } catch (error) {
       setFeedback({
         type: 'error',
-        message: `Falha ao registrar ${failed.length} analisador(es): ${failed.join(', ')}.`,
+        message: error instanceof ApiError ? error.message : 'Não foi possível registrar o ensaio.',
       })
+    } finally {
+      setEnsaiando(false)
     }
+  }
+
+  const handleAvancarStep = async () => {
+    if (!isCurrentStepComplete()) {
+      setFeedback({
+        type: 'error',
+        message: 'Preencha o Padrão de Energia e as fases de todos os equipamentos deste teste.',
+      })
+      return
+    }
+    setFeedback(null)
+    if (ensaioStepIndex < TESTE_STEPS.length - 1) {
+      setEnsaioStepIndex((current) => current + 1)
+      return
+    }
+    await handleFinishEnsaio()
   }
 
   return (
@@ -450,8 +532,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         </form>
       ) : null}
 
-      {showEnsaiarForm && !readOnly ? (
-        <form className="material-form-grid" onSubmit={(event) => void handleEnsaiar(event)}>
+      {showEnsaiarForm && !readOnly && ensaioPhase === 'selecao' ? (
+        <div className="material-form-grid">
           <div className="full-width">
             <label>
               Números de série para ensaiar
@@ -468,14 +550,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                     }
                   }}
                   placeholder="Digite o número de série e pressione Enter"
-                  disabled={ensaiando}
                 />
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={addEnsaiarSerie}
-                  disabled={ensaiando}
-                >
+                <button type="button" className="secondary-button" onClick={addEnsaiarSerie}>
                   Adicionar
                 </button>
               </div>
@@ -495,7 +571,6 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                       type="button"
                       aria-label={`Remover ${item.numeroSerie}`}
                       onClick={() => removeEnsaiarSerie(item.id)}
-                      disabled={ensaiando}
                     >
                       ×
                     </button>
@@ -505,45 +580,10 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
             ) : null}
           </div>
 
-          <label>
-            Data da calibração
-            <input
-              type="date"
-              value={ensaiarData}
-              onChange={(event) => setEnsaiarData(event.target.value)}
-              required
-              disabled={ensaiando}
-            />
-          </label>
-
-          <fieldset className="radio-fieldset full-width">
-            <legend>Resultado da calibração</legend>
-            <div className="ratm-choice-group" role="radiogroup" aria-label="Resultado da calibração">
-              {(['Aprovado', 'Reprovado'] as const).map((option) => {
-                const selected = ensaiarResultado === option
-                const tone = option === 'Aprovado' ? 'positive' : 'negative'
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    className={`ratm-choice-btn tone-${tone}${selected ? ' is-selected' : ''}`}
-                    disabled={ensaiando}
-                    onClick={() => setEnsaiarResultado(option)}
-                  >
-                    <span>{option}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </fieldset>
-
           <div className="agenda-form-actions full-width">
             <button
               type="button"
               className="secondary-button"
-              disabled={ensaiando}
               onClick={() => {
                 resetEnsaiarForm()
                 setShowEnsaiarForm(false)
@@ -552,14 +592,99 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               Cancelar
             </button>
             <button
-              type="submit"
+              type="button"
               className="primary-button"
-              disabled={ensaiando || !ensaiarQueue.length || !ensaiarData || !ensaiarResultado}
+              onClick={startEnsaioWizard}
+              disabled={!ensaiarQueue.length}
             >
-              {ensaiando ? 'Salvando…' : 'Registrar ensaio'}
+              Iniciar ensaio
             </button>
           </div>
-        </form>
+        </div>
+      ) : null}
+
+      {showEnsaiarForm && !readOnly && ensaioPhase === 'medicoes' ? (
+        <div className="material-form-grid">
+          <p className="full-width ensaio-step-title">
+            Etapa {ensaioStepIndex + 1} de {TESTE_STEPS.length} · {TESTE_STEPS[ensaioStepIndex].voltage}{' '}
+            · Teste {TESTE_STEPS[ensaioStepIndex].testeNumero} de 5
+          </p>
+
+          <fieldset className="radio-fieldset full-width">
+            <legend>Padrão de Energia</legend>
+            <div className="material-form-grid">
+              {(['a', 'b', 'c'] as const).map((field) => (
+                <label key={field}>
+                  {`Fase ${field.toUpperCase()}`}
+                  <input
+                    type="number"
+                    step="any"
+                    value={medicoes[ensaioStepIndex]?.padrao[field] ?? ''}
+                    onChange={(event) => updatePadraoFase(field, event.target.value)}
+                    disabled={ensaiando}
+                  />
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="full-width entrada-table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Número de série</th>
+                  <th>Fase A</th>
+                  <th>Fase B</th>
+                  <th>Fase C</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ensaiarQueue.map((item) => {
+                  const leitura = medicoes[ensaioStepIndex]?.leituras[item.id] ?? emptyFase()
+                  return (
+                    <tr key={item.id}>
+                      <td>{item.numeroSerie}</td>
+                      {(['a', 'b', 'c'] as const).map((field) => (
+                        <td key={field}>
+                          <input
+                            type="number"
+                            step="any"
+                            value={leitura[field]}
+                            onChange={(event) => updateLeituraFase(item.id, field, event.target.value)}
+                            disabled={ensaiando}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="agenda-form-actions full-width">
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={ensaiando}
+              onClick={handleVoltarStep}
+            >
+              Voltar
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              disabled={ensaiando}
+              onClick={() => void handleAvancarStep()}
+            >
+              {ensaiando
+                ? 'Salvando…'
+                : ensaioStepIndex === TESTE_STEPS.length - 1
+                  ? 'Concluir ensaio'
+                  : 'Próximo'}
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {showEnsaiarForm ? null : loading ? (

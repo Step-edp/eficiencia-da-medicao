@@ -582,6 +582,31 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS resultado_ultima_calibracao TEXT
   `)
   await query(`
+    CREATE TABLE IF NOT EXISTS analisador_tensao_ensaio_medicoes (
+      id SERIAL PRIMARY KEY,
+      ensaio_id TEXT NOT NULL,
+      analisador_id TEXT NOT NULL REFERENCES analisadores_tensao(id) ON DELETE CASCADE,
+      voltage TEXT NOT NULL CHECK (voltage IN ('127V', '220V')),
+      teste_numero INTEGER NOT NULL CHECK (teste_numero BETWEEN 1 AND 5),
+      padrao_fase_a NUMERIC NOT NULL,
+      padrao_fase_b NUMERIC NOT NULL,
+      padrao_fase_c NUMERIC NOT NULL,
+      equipamento_fase_a NUMERIC NOT NULL,
+      equipamento_fase_b NUMERIC NOT NULL,
+      equipamento_fase_c NUMERIC NOT NULL,
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_analisador_ensaio_medicoes_analisador
+      ON analisador_tensao_ensaio_medicoes (analisador_id)
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_analisador_ensaio_medicoes_ensaio
+      ON analisador_tensao_ensaio_medicoes (ensaio_id)
+  `)
+  await query(`
     CREATE TABLE IF NOT EXISTS meter_model_unregistered (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL DEFAULT '',

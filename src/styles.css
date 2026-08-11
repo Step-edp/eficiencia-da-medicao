@@ -4294,6 +4294,12 @@ button {
   color: var(--text-soft);
 }
 
+.ensaio-step-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
 .ensaiar-serie-input-row {
   display: flex;
   gap: 10px;

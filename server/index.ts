@@ -75,7 +75,7 @@ import {
   createAnalisadorTensao,
   listAnalisadoresTensao,
   listAnalisadorModelos,
-  ensaiarAnalisadorTensao,
+  registrarEnsaioAnalisadores,
 } from './routes/analisadores-tensao.js'
 import { requireAuth } from './auth.js'
 
@@ -329,11 +329,11 @@ async function start() {
     rejectLabMedicaoViewOnlyMutations,
     createAnalisadorTensao,
   )
-  app.patch(
-    '/api/analisadores-tensao/:id/ensaiar',
+  app.post(
+    '/api/analisadores-tensao/ensaio',
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
-    ensaiarAnalisadorTensao,
+    registrarEnsaioAnalisadores,
   )
 
   const distPath = path.resolve(__dirname, '../../dist')
