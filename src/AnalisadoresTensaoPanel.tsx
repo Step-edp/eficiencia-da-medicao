@@ -310,7 +310,6 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
           <table className="data-table">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Número de série</th>
                 <th>Identificação do laudo</th>
                 <th>Modelo</th>
@@ -328,7 +327,6 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
             <tbody>
               {analisadores.map((item) => (
                 <tr key={item.id}>
-                  <td>{item.equipmentNumber}</td>
                   <td>{item.numeroSerie}</td>
                   <td>{item.identificacaoLaudo}</td>
                   <td>{item.modelo}</td>
