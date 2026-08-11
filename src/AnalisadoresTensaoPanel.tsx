@@ -721,7 +721,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
           </fieldset>
 
           <div className="full-width entrada-table-wrap">
-            <table className="data-table">
+            <table className="data-table ensaio-medicao-table">
               <thead>
                 <tr>
                   <th>Número de série</th>
