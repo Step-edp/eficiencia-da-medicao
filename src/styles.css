@@ -4320,6 +4320,12 @@ button {
   flex: 0 0 auto;
 }
 
+.ensaios-realizados-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .ensaio-step-title {
   margin: 0 0 4px;
   font-weight: 800;

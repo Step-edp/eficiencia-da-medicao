@@ -18,6 +18,7 @@ import { formatAuditDate } from './auditLabels'
 import { LoginFeedback } from './LoginFeedback'
 import { AnalisadorLaudoModal } from './AnalisadorLaudoModal'
 import { EnsaioSessaoModal } from './EnsaioSessaoModal'
+import { AnalisadorAnaliseModal } from './AnalisadorAnaliseModal'
 
 function formatCalibrationDate(value: string) {
   const [year, month, day] = value.split('-')
@@ -151,6 +152,10 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [ensaiosSessoes, setEnsaiosSessoes] = useState<EnsaioSessaoRecord[]>([])
   const [loadingEnsaiosSessoes, setLoadingEnsaiosSessoes] = useState(false)
   const [selectedEnsaio, setSelectedEnsaio] = useState<{
+    ensaioId: string
+    numeroSerie: string
+  } | null>(null)
+  const [selectedAnalise, setSelectedAnalise] = useState<{
     ensaioId: string
     numeroSerie: string
   } | null>(null)
@@ -866,7 +871,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                     <td>{formatAuditDate(sessao.createdAt)}</td>
                     <td>{sessao.numeroSerie}</td>
                     <td>{sessao.createdByName || sessao.createdByRegistration || '—'}</td>
-                    <td>
+                    <td className="ensaios-realizados-actions">
                       <button
                         type="button"
                         className="secondary-button"
@@ -878,6 +883,18 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                         }
                       >
                         Ver medições
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() =>
+                          setSelectedAnalise({
+                            ensaioId: sessao.ensaioId,
+                            numeroSerie: sessao.numeroSerie,
+                          })
+                        }
+                      >
+                        Ver análises
                       </button>
                     </td>
                   </tr>
@@ -1039,6 +1056,11 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         ensaioId={selectedEnsaio?.ensaioId ?? null}
         numeroSerie={selectedEnsaio?.numeroSerie ?? null}
         onClose={() => setSelectedEnsaio(null)}
+      />
+      <AnalisadorAnaliseModal
+        ensaioId={selectedAnalise?.ensaioId ?? null}
+        numeroSerie={selectedAnalise?.numeroSerie ?? null}
+        onClose={() => setSelectedAnalise(null)}
       />
     </div>
   )
