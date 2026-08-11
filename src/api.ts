@@ -485,6 +485,17 @@ export type SupportTicketRecord = {
   updatedAt: string
 }
 
+export type AnalisadorTensaoRecord = {
+  id: string
+  equipmentNumber: string
+  numeroSerie: string
+  modelo: string
+  createdByUserId: string | null
+  createdByName: string | null
+  createdByRegistration: string | null
+  createdAt: string
+}
+
 export type DemmDocumentRecord = {
   id: string
   meterScheduleId: string | null
@@ -1237,6 +1248,13 @@ export const api = {
   replySupportTicket: (id: string, payload: { response: string }) =>
     request<{ ticket: SupportTicketRecord }>(`/api/support-tickets/${id}/reply`, {
       method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  listAnalisadoresTensao: () =>
+    request<{ analisadores: AnalisadorTensaoRecord[] }>('/api/analisadores-tensao'),
+  createAnalisadorTensao: (payload: { numeroSerie: string; modelo: string }) =>
+    request<{ analisador: AnalisadorTensaoRecord }>('/api/analisadores-tensao', {
+      method: 'POST',
       body: JSON.stringify(payload),
     }),
 }

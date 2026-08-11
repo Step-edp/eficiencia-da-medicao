@@ -550,6 +550,21 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS updated_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
   `)
+  await query(`CREATE SEQUENCE IF NOT EXISTS analisador_tensao_seq START 1`)
+  await query(`
+    CREATE TABLE IF NOT EXISTS analisadores_tensao (
+      id TEXT PRIMARY KEY,
+      equipment_number TEXT NOT NULL UNIQUE,
+      numero_serie TEXT NOT NULL,
+      modelo TEXT NOT NULL,
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_analisadores_tensao_created_at
+      ON analisadores_tensao (created_at DESC)
+  `)
   await query(`
     CREATE TABLE IF NOT EXISTS meter_model_unregistered (
       id SERIAL PRIMARY KEY,

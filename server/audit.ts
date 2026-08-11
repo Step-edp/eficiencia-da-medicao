@@ -29,6 +29,7 @@ export type AuditEntityType =
   | 'org_area'
   | 'support_ticket'
   | 'meter_model'
+  | 'analisador_tensao'
   | 'presentation'
   | 'software'
   | 'iq09_run'

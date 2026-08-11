@@ -1,7 +1,78 @@
-import { useState } from 'react'
+import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { api, ApiError, type AnalisadorTensaoRecord } from './api'
+import { formatAuditDate } from './auditLabels'
+import { LoginFeedback } from './LoginFeedback'
 
 export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boolean }) {
+  const [analisadores, setAnalisadores] = useState<AnalisadorTensaoRecord[]>([])
+  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [numeroSerie, setNumeroSerie] = useState('')
+  const [modelo, setModelo] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
+    null,
+  )
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { analisadores: rows } = await api.listAnalisadoresTensao()
+      setAnalisadores(rows)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar os analisadores de tensão.',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const resetForm = () => {
+    setNumeroSerie('')
+    setModelo('')
+  }
+
+  const handleCreate = async (event: FormEvent) => {
+    event.preventDefault()
+
+    if (!numeroSerie.trim() || !modelo.trim()) {
+      setFeedback({ type: 'error', message: 'Informe número de série e modelo.' })
+      return
+    }
+
+    setCreating(true)
+    setFeedback(null)
+    try {
+      const { analisador } = await api.createAnalisadorTensao({
+        numeroSerie: numeroSerie.trim(),
+        modelo: modelo.trim(),
+      })
+      setAnalisadores((current) => [analisador, ...current])
+      resetForm()
+      setShowForm(false)
+      setFeedback({
+        type: 'success',
+        message: `Analisador ${analisador.equipmentNumber} cadastrado com sucesso.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError ? error.message : 'Não foi possível cadastrar o analisador.',
+      })
+    } finally {
+      setCreating(false)
+    }
+  }
 
   return (
     <div className="analisadores-tensao-panel">
@@ -10,11 +81,101 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
           <button
             type="button"
             className="primary-button"
-            onClick={() => setShowForm((current) => !current)}
+            onClick={() => {
+              setShowForm((current) => !current)
+              setFeedback(null)
+              resetForm()
+            }}
           >
             {showForm ? 'Fechar formulário' : 'Cadastrar analisador'}
           </button>
         </div>
+      )}
+
+      {feedback ? (
+        <LoginFeedback
+          type={feedback.type}
+          message={feedback.message}
+          onClose={feedback.type === 'success' ? () => setFeedback(null) : undefined}
+        />
+      ) : null}
+
+      {showForm && !readOnly ? (
+        <form className="material-form-grid" onSubmit={(event) => void handleCreate(event)}>
+          <label>
+            Número de série
+            <input
+              type="text"
+              value={numeroSerie}
+              onChange={(event) => setNumeroSerie(event.target.value)}
+              placeholder="Número de série do equipamento"
+              required
+              disabled={creating}
+            />
+          </label>
+          <label>
+            Modelo
+            <input
+              type="text"
+              value={modelo}
+              onChange={(event) => setModelo(event.target.value)}
+              placeholder="Modelo do analisador"
+              required
+              disabled={creating}
+            />
+          </label>
+          <div className="agenda-form-actions full-width">
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={creating}
+              onClick={() => {
+                resetForm()
+                setShowForm(false)
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={creating || !numeroSerie.trim() || !modelo.trim()}
+            >
+              {creating ? 'Salvando…' : 'Salvar analisador'}
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      {loading ? (
+        <p className="entrada-panel-empty">Carregando analisadores...</p>
+      ) : analisadores.length ? (
+        <div className="entrada-table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Número de série</th>
+                <th>Modelo</th>
+                <th>Cadastrado por</th>
+                <th>Em</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analisadores.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.equipmentNumber}</td>
+                  <td>{item.numeroSerie}</td>
+                  <td>{item.modelo}</td>
+                  <td>{item.createdByName || item.createdByRegistration || '—'}</td>
+                  <td>{formatAuditDate(item.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="entrada-panel-empty">Nenhum analisador cadastrado.</p>
       )}
     </div>
   )

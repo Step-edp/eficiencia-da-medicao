@@ -71,6 +71,10 @@ import {
   listSupportTickets,
   replySupportTicket,
 } from './routes/support.js'
+import {
+  createAnalisadorTensao,
+  listAnalisadoresTensao,
+} from './routes/analisadores-tensao.js'
 import { requireAuth } from './auth.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -313,6 +317,14 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     replySupportTicket,
+  )
+
+  app.get('/api/analisadores-tensao', requireAuth, listAnalisadoresTensao)
+  app.post(
+    '/api/analisadores-tensao',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    createAnalisadorTensao,
   )
 
   const distPath = path.resolve(__dirname, '../../dist')
