@@ -689,7 +689,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
 
           <fieldset className="radio-fieldset full-width">
             <legend>Padrão de Energia</legend>
-            <div className="material-form-grid">
+            <div className="fase-input-row">
               {(['a', 'b', 'c'] as const).map((field) => {
                 const currentDigits = medicoes[ensaioStepIndex]?.padrao[field] ?? ''
                 return (
