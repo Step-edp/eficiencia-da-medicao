@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   api,
   ApiError,
@@ -21,6 +21,14 @@ function isCalibrationExpired(dataUltimaCalibracao: string) {
   return today >= dueDate
 }
 
+const SITUACAO_OPTIONS = ['Todos', 'Válida', 'Aferição vencida', 'Sem calibração'] as const
+type SituacaoFilter = (typeof SITUACAO_OPTIONS)[number]
+
+function getSituacao(item: AnalisadorTensaoRecord): Exclude<SituacaoFilter, 'Todos'> {
+  if (!item.dataUltimaCalibracao) return 'Sem calibração'
+  return isCalibrationExpired(item.dataUltimaCalibracao) ? 'Aferição vencida' : 'Válida'
+}
+
 export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [analisadores, setAnalisadores] = useState<AnalisadorTensaoRecord[]>([])
   const [modelos, setModelos] = useState<AnalisadorModeloCatalogEntry[]>([])
@@ -38,6 +46,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
+  const [searchNumeroSerie, setSearchNumeroSerie] = useState('')
+  const [situacaoFilter, setSituacaoFilter] = useState<SituacaoFilter>('Todos')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -75,6 +85,15 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   }
 
   const selectedModelo = modelos.find((entry) => entry.modelo === modelo) ?? null
+
+  const filteredAnalisadores = useMemo(() => {
+    const query = searchNumeroSerie.trim().toLowerCase()
+    return analisadores.filter((item) => {
+      if (query && !item.numeroSerie.toLowerCase().includes(query)) return false
+      if (situacaoFilter !== 'Todos' && getSituacao(item) !== situacaoFilter) return false
+      return true
+    })
+  }, [analisadores, searchNumeroSerie, situacaoFilter])
 
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault()
@@ -315,67 +334,110 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         <p className="entrada-panel-empty">Carregando analisadores...</p>
       ) : analisadores.length ? (
         <>
-          <p className="field-hint analisadores-count">
-            {analisadores.length === 1
-              ? '1 analisador cadastrado'
-              : `${analisadores.length} analisadores cadastrados`}
-          </p>
-        <div className="entrada-table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Número de série</th>
-                <th>Identificação do laudo</th>
-                <th>Modelo</th>
-                <th>Fabricante</th>
-                <th>Classe</th>
-                <th>VN</th>
-                <th>Vmáx</th>
-                <th>Instrumento</th>
-                <th>Última calibração</th>
-                <th>Resultado</th>
-                <th>Situação</th>
-                <th>Cadastrado por</th>
-                <th>Em</th>
-              </tr>
-            </thead>
-            <tbody>
-              {analisadores.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.numeroSerie}</td>
-                  <td>{item.identificacaoLaudo}</td>
-                  <td>{item.modelo}</td>
-                  <td>{item.fabricante}</td>
-                  <td>{item.classe}</td>
-                  <td>{item.vn}</td>
-                  <td>{item.vmax}</td>
-                  <td>{item.instrumento}</td>
-                  <td>
-                    {item.primeiraCalibracao
-                      ? 'Primeira calibração'
-                      : item.dataUltimaCalibracao
-                        ? formatCalibrationDate(item.dataUltimaCalibracao)
-                        : '—'}
-                  </td>
-                  <td>{item.resultadoUltimaCalibracao || '—'}</td>
-                  <td>
-                    {item.dataUltimaCalibracao ? (
-                      isCalibrationExpired(item.dataUltimaCalibracao) ? (
-                        <span className="schedule-late-badge">Aferição vencida</span>
-                      ) : (
-                        <span className="schedule-ok-badge">Válida</span>
-                      )
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td>{item.createdByName || item.createdByRegistration || '—'}</td>
-                  <td>{formatAuditDate(item.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          <div className="consultar-toolbar">
+            <label className="consultar-search">
+              <span className="sr-only">Pesquisar por número de série</span>
+              <span className="consultar-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+                  <path
+                    d="M20 20l-3.5-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <input
+                type="search"
+                value={searchNumeroSerie}
+                onChange={(event) => setSearchNumeroSerie(event.target.value)}
+                placeholder="Pesquisar por número de série"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+
+            <label>
+              Situação
+              <select
+                value={situacaoFilter}
+                onChange={(event) => setSituacaoFilter(event.target.value as SituacaoFilter)}
+              >
+                {SITUACAO_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <p className="consultar-count" aria-live="polite">
+              {filteredAnalisadores.length === analisadores.length
+                ? `${analisadores.length} analisador(es) cadastrado(s)`
+                : `${filteredAnalisadores.length} de ${analisadores.length} analisador(es)`}
+            </p>
+          </div>
+
+          {filteredAnalisadores.length ? (
+            <div className="entrada-table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Número de série</th>
+                    <th>Identificação do laudo</th>
+                    <th>Modelo</th>
+                    <th>Fabricante</th>
+                    <th>Classe</th>
+                    <th>VN</th>
+                    <th>Vmáx</th>
+                    <th>Instrumento</th>
+                    <th>Última calibração</th>
+                    <th>Resultado</th>
+                    <th>Situação</th>
+                    <th>Cadastrado por</th>
+                    <th>Em</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAnalisadores.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.numeroSerie}</td>
+                      <td>{item.identificacaoLaudo}</td>
+                      <td>{item.modelo}</td>
+                      <td>{item.fabricante}</td>
+                      <td>{item.classe}</td>
+                      <td>{item.vn}</td>
+                      <td>{item.vmax}</td>
+                      <td>{item.instrumento}</td>
+                      <td>
+                        {item.primeiraCalibracao
+                          ? 'Primeira calibração'
+                          : item.dataUltimaCalibracao
+                            ? formatCalibrationDate(item.dataUltimaCalibracao)
+                            : '—'}
+                      </td>
+                      <td>{item.resultadoUltimaCalibracao || '—'}</td>
+                      <td>
+                        {getSituacao(item) === 'Sem calibração' ? (
+                          '—'
+                        ) : getSituacao(item) === 'Aferição vencida' ? (
+                          <span className="schedule-late-badge">Aferição vencida</span>
+                        ) : (
+                          <span className="schedule-ok-badge">Válida</span>
+                        )}
+                      </td>
+                      <td>{item.createdByName || item.createdByRegistration || '—'}</td>
+                      <td>{formatAuditDate(item.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="entrada-panel-empty">Nenhum analisador encontrado com esses filtros.</p>
+          )}
         </>
       ) : (
         <p className="entrada-panel-empty">Nenhum analisador cadastrado.</p>
