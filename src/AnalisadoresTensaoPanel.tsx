@@ -683,8 +683,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
       {showEnsaiarForm && !readOnly && ensaioPhase === 'medicoes' ? (
         <div className="material-form-grid">
           <p className="full-width ensaio-step-title">
-            Etapa {ensaioStepIndex + 1} de {TESTE_STEPS.length} · {TESTE_STEPS[ensaioStepIndex].voltage}{' '}
-            · Teste {TESTE_STEPS[ensaioStepIndex].testeNumero} de 5
+            {TESTE_STEPS[ensaioStepIndex].voltage} · Teste{' '}
+            {TESTE_STEPS[ensaioStepIndex].testeNumero} de 5
           </p>
 
           <fieldset className="radio-fieldset full-width">
