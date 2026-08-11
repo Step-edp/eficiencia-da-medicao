@@ -4308,7 +4308,7 @@ button {
   padding: 10px 12px;
 }
 
-.ensaio-analise-merged {
+.data-table td.ensaio-analise-merged {
   background: rgba(24, 216, 240, 0.08);
   text-align: center;
   vertical-align: middle;
