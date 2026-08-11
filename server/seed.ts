@@ -3,6 +3,7 @@ import { query } from './db.js'
 import { syncMeterRegistryTrailSteps } from './routes/meter-registry.js'
 import { ensureCatalogOptionsSeeded } from './routes/catalog-options.js'
 import { ensureOrgCellsSeeded } from './routes/org-cells.js'
+import { seedAnalisadoresTensaoBulkImport } from './seed-analisadores-bulk.js'
 
 const adminUser = {
   id: 'admin-demo-user',
@@ -106,5 +107,11 @@ export async function seed() {
     }
   } catch (error) {
     console.error('Falha ao sincronizar trilha da base de medidores:', error)
+  }
+
+  try {
+    await seedAnalisadoresTensaoBulkImport()
+  } catch (error) {
+    console.error('Falha na importação em massa de analisadores de tensão:', error)
   }
 }
