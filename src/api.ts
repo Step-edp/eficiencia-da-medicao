@@ -527,10 +527,10 @@ export type EnsaioMedicaoRecord = {
 
 export type EnsaioSessaoRecord = {
   ensaioId: string
+  numeroSerie: string
   createdAt: string
   createdByName: string | null
   createdByRegistration: string | null
-  numerosSerie: string[]
 }
 
 export type EnsaioSessaoMedicaoRecord = EnsaioMedicaoRecord & { numeroSerie: string }

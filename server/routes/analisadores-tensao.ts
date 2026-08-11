@@ -445,33 +445,33 @@ export async function getAnalisadorEnsaioMedicoes(req: Request, res: Response) {
 
 type EnsaioSessaoDbRow = {
   ensaio_id: string
+  numero_serie: string
   created_at: Date
   created_by_name: string | null
   created_by_registration: string | null
-  numeros_serie: string[]
 }
 
 export async function listEnsaiosRealizados(_req: Request, res: Response) {
   const result = await query<EnsaioSessaoDbRow>(
     `SELECT m.ensaio_id,
+            a.numero_serie,
             MIN(m.created_at) AS created_at,
             u.name AS created_by_name,
-            u.registration AS created_by_registration,
-            ARRAY_AGG(DISTINCT a.numero_serie ORDER BY a.numero_serie) AS numeros_serie
+            u.registration AS created_by_registration
      FROM analisador_tensao_ensaio_medicoes m
      JOIN analisadores_tensao a ON a.id = m.analisador_id
      LEFT JOIN users u ON u.id = m.created_by_user_id
-     GROUP BY m.ensaio_id, u.name, u.registration
-     ORDER BY MIN(m.created_at) DESC`,
+     GROUP BY m.ensaio_id, a.numero_serie, u.name, u.registration
+     ORDER BY MIN(m.created_at) DESC, a.numero_serie ASC`,
   )
 
   res.json({
     ensaios: result.rows.map((row) => ({
       ensaioId: row.ensaio_id,
+      numeroSerie: row.numero_serie,
       createdAt: row.created_at.toISOString(),
       createdByName: row.created_by_name,
       createdByRegistration: row.created_by_registration,
-      numerosSerie: row.numeros_serie,
     })),
   })
 }
