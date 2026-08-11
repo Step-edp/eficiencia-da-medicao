@@ -42,6 +42,7 @@ import { CsdsPanel } from './CsdsPanel'
 import { CriarModeloPanel } from './CriarModeloPanel'
 import { ApresentacaoPanel } from './ApresentacaoPanel'
 import { SoftwaresPanel } from './SoftwaresPanel'
+import { AnalisadoresTensaoPanel } from './AnalisadoresTensaoPanel'
 import { ReagendarPanel } from './ReagendarPanel'
 import { MinhaProdutividadePanel } from './MinhaProdutividadePanel'
 import { InventarioPanel } from './InventarioPanel'
@@ -4742,6 +4743,8 @@ function HomePanel({
                   })
                 }}
               />
+            ) : selectedLabMeasurementSection === 'Analisadores de Tensão' ? (
+              <AnalisadoresTensaoPanel readOnly={labMedicaoReadOnly} />
             ) : (
               <p>
                 Página dedicada da área {selectedLabMeasurementSection}. Aqui você
