@@ -566,6 +566,10 @@ export async function migrate() {
       ON analisadores_tensao (created_at DESC)
   `)
   await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_analisadores_tensao_numero_serie_unique
+      ON analisadores_tensao (numero_serie)
+  `)
+  await query(`
     ALTER TABLE analisadores_tensao
       ADD COLUMN IF NOT EXISTS fabricante TEXT NOT NULL DEFAULT '',
       ADD COLUMN IF NOT EXISTS classe TEXT NOT NULL DEFAULT '',

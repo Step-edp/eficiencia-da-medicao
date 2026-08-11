@@ -122,6 +122,15 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
     return
   }
 
+  const existing = await query<{ id: string }>(
+    `SELECT id FROM analisadores_tensao WHERE numero_serie = $1 LIMIT 1`,
+    [numeroSerie],
+  )
+  if (existing.rows.length) {
+    res.status(409).json({ error: 'Já existe um analisador cadastrado com esse número de série.' })
+    return
+  }
+
   const primeiraCalibracao = req.body?.primeiraCalibracao === true
   const dataUltimaCalibracaoRaw =
     typeof req.body?.dataUltimaCalibracao === 'string'
@@ -159,36 +168,47 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
   const id = `at-${Date.now()}`
   const equipmentNumber = await nextEquipmentNumber()
 
-  const insert = await query<
-    Omit<AnalisadorTensaoRow, 'created_by_name' | 'created_by_registration'>
-  >(
-    `INSERT INTO analisadores_tensao (
-       id, equipment_number, numero_serie, identificacao_laudo, modelo, fabricante, classe,
-       vn, vmax, instrumento, primeira_calibracao, data_ultima_calibracao,
-       resultado_ultima_calibracao, created_by_user_id
-     )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-     RETURNING id, equipment_number, numero_serie, identificacao_laudo, modelo, fabricante,
-       classe, vn, vmax, instrumento, primeira_calibracao,
-       data_ultima_calibracao::text AS data_ultima_calibracao, resultado_ultima_calibracao,
-       created_by_user_id, created_at`,
-    [
-      id,
-      equipmentNumber,
-      numeroSerie,
-      identificacaoLaudo,
-      catalogEntry.modelo,
-      catalogEntry.fabricante,
-      catalogEntry.classe,
-      catalogEntry.vn,
-      catalogEntry.vmax,
-      catalogEntry.instrumento,
-      primeiraCalibracao,
-      dataUltimaCalibracao,
-      resultadoUltimaCalibracao,
-      user.id,
-    ],
-  )
+  let insert
+  try {
+    insert = await query<
+      Omit<AnalisadorTensaoRow, 'created_by_name' | 'created_by_registration'>
+    >(
+      `INSERT INTO analisadores_tensao (
+         id, equipment_number, numero_serie, identificacao_laudo, modelo, fabricante, classe,
+         vn, vmax, instrumento, primeira_calibracao, data_ultima_calibracao,
+         resultado_ultima_calibracao, created_by_user_id
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       RETURNING id, equipment_number, numero_serie, identificacao_laudo, modelo, fabricante,
+         classe, vn, vmax, instrumento, primeira_calibracao,
+         data_ultima_calibracao::text AS data_ultima_calibracao, resultado_ultima_calibracao,
+         created_by_user_id, created_at`,
+      [
+        id,
+        equipmentNumber,
+        numeroSerie,
+        identificacaoLaudo,
+        catalogEntry.modelo,
+        catalogEntry.fabricante,
+        catalogEntry.classe,
+        catalogEntry.vn,
+        catalogEntry.vmax,
+        catalogEntry.instrumento,
+        primeiraCalibracao,
+        dataUltimaCalibracao,
+        resultadoUltimaCalibracao,
+        user.id,
+      ],
+    )
+  } catch (error) {
+    if ((error as { code?: string }).code === '23505') {
+      res
+        .status(409)
+        .json({ error: 'Já existe um analisador cadastrado com esse número de série.' })
+      return
+    }
+    throw error
+  }
 
   const analisador = mapAnalisador({
     ...insert.rows[0],
