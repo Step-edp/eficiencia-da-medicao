@@ -984,10 +984,33 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                       <td>
                         <button
                           type="button"
-                          className="secondary-button"
+                          className="icon-button"
                           onClick={() => setLaudoAnalisador(item)}
+                          aria-label="Visualizar laudo"
+                          title="Visualizar laudo"
                         >
-                          Visualizar laudo
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                              d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinejoin="round"
+                            />
+                            <path
+                              d="M14 3v5h5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinejoin="round"
+                            />
+                            <path
+                              d="M9 13h6M9 17h6"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                            />
+                          </svg>
                         </button>
                       </td>
                     </tr>
