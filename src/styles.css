@@ -4321,6 +4321,11 @@ button {
   color: var(--text-soft);
 }
 
+.analisadores-tensao-panel {
+  display: grid;
+  gap: 20px;
+}
+
 .analisador-form-close-button {
   padding: 10px 18px;
   font-size: 1.4rem;
