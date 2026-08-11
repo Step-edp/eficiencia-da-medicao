@@ -2,11 +2,41 @@ import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 
+export type AnalisadorModeloCatalogEntry = {
+  modelo: string
+  fabricante: string
+  classe: string
+  vn: string
+  vmax: string
+  instrumento: string
+}
+
+export const ANALISADOR_MODELO_CATALOG: AnalisadorModeloCatalogEntry[] = [
+  { modelo: 'P300', fabricante: 'IMS', classe: '0,50%', vn: '70V', vmax: '300V', instrumento: 'MEDIDOR REGISTRADOR DE TENSÃO - MERT' },
+  { modelo: 'P600', fabricante: 'IMS', classe: '0,50%', vn: '70V', vmax: '300V', instrumento: 'MEDIDOR REGISTRADOR DE TENSÃO - MERT' },
+  { modelo: 'RE7000', fabricante: 'EMBRASUL', classe: '0,20%', vn: '70V', vmax: '500V', instrumento: 'MEDIDOR REGISTRADOR DE TENSÃO - MERT' },
+  { modelo: 'RV4080', fabricante: 'EMBRASUL', classe: '0,20%', vn: '85V', vmax: '300V', instrumento: 'MEDIDOR REGISTRADOR DE TENSÃO - MERT' },
+  { modelo: 'RV5', fabricante: 'EMBRASUL', classe: '0,50%', vn: '80V', vmax: '300V', instrumento: 'MEDIDOR REGISTRADOR DE TENSÃO - MERT' },
+  { modelo: 'RE7080', fabricante: 'EMBRASUL', classe: '0,20%', vn: '70V', vmax: '300V', instrumento: 'MEDIDOR REGISTRADOR DE TENSÃO - MERT' },
+  { modelo: 'P700', fabricante: 'IMS', classe: '0,20%', vn: '70V', vmax: '300V', instrumento: 'MEDIDOR REGISTRADOR DE TENSÃO - MERT' },
+]
+
+function findModeloCatalogEntry(modelo: string) {
+  return ANALISADOR_MODELO_CATALOG.find(
+    (entry) => entry.modelo.toLowerCase() === modelo.toLowerCase(),
+  )
+}
+
 type AnalisadorTensaoRow = {
   id: string
   equipment_number: string
   numero_serie: string
   modelo: string
+  fabricante: string
+  classe: string
+  vn: string
+  vmax: string
+  instrumento: string
   created_by_user_id: string | null
   created_by_name: string | null
   created_by_registration: string | null
@@ -19,6 +49,11 @@ function mapAnalisador(row: AnalisadorTensaoRow) {
     equipmentNumber: row.equipment_number,
     numeroSerie: row.numero_serie,
     modelo: row.modelo,
+    fabricante: row.fabricante,
+    classe: row.classe,
+    vn: row.vn,
+    vmax: row.vmax,
+    instrumento: row.instrumento,
     createdByUserId: row.created_by_user_id,
     createdByName: row.created_by_name,
     createdByRegistration: row.created_by_registration,
@@ -31,6 +66,10 @@ async function nextEquipmentNumber() {
     `SELECT nextval('analisador_tensao_seq')::text AS n`,
   )
   return `AT-${String(result.rows[0].n).padStart(5, '0')}`
+}
+
+export async function listAnalisadorModelos(_req: Request, res: Response) {
+  res.json({ modelos: ANALISADOR_MODELO_CATALOG })
 }
 
 export async function listAnalisadoresTensao(_req: Request, res: Response) {
@@ -61,16 +100,36 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
     return
   }
 
+  const catalogEntry = findModeloCatalogEntry(modelo)
+  if (!catalogEntry) {
+    res.status(400).json({ error: 'Modelo não reconhecido.' })
+    return
+  }
+
   const id = `at-${Date.now()}`
   const equipmentNumber = await nextEquipmentNumber()
 
   const insert = await query<
     Omit<AnalisadorTensaoRow, 'created_by_name' | 'created_by_registration'>
   >(
-    `INSERT INTO analisadores_tensao (id, equipment_number, numero_serie, modelo, created_by_user_id)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO analisadores_tensao (
+       id, equipment_number, numero_serie, modelo, fabricante, classe, vn, vmax, instrumento,
+       created_by_user_id
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
-    [id, equipmentNumber, numeroSerie, modelo, user.id],
+    [
+      id,
+      equipmentNumber,
+      numeroSerie,
+      catalogEntry.modelo,
+      catalogEntry.fabricante,
+      catalogEntry.classe,
+      catalogEntry.vn,
+      catalogEntry.vmax,
+      catalogEntry.instrumento,
+      user.id,
+    ],
   )
 
   const analisador = mapAnalisador({

@@ -1,10 +1,16 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react'
-import { api, ApiError, type AnalisadorTensaoRecord } from './api'
+import {
+  api,
+  ApiError,
+  type AnalisadorModeloCatalogEntry,
+  type AnalisadorTensaoRecord,
+} from './api'
 import { formatAuditDate } from './auditLabels'
 import { LoginFeedback } from './LoginFeedback'
 
 export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [analisadores, setAnalisadores] = useState<AnalisadorTensaoRecord[]>([])
+  const [modelos, setModelos] = useState<AnalisadorModeloCatalogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [numeroSerie, setNumeroSerie] = useState('')
@@ -17,8 +23,12 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const { analisadores: rows } = await api.listAnalisadoresTensao()
+      const [{ analisadores: rows }, { modelos: catalog }] = await Promise.all([
+        api.listAnalisadoresTensao(),
+        api.listAnalisadorModelos(),
+      ])
       setAnalisadores(rows)
+      setModelos(catalog)
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -40,6 +50,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
     setNumeroSerie('')
     setModelo('')
   }
+
+  const selectedModelo = modelos.find((entry) => entry.modelo === modelo) ?? null
 
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault()
@@ -115,15 +127,46 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
           </label>
           <label>
             Modelo
-            <input
-              type="text"
+            <select
               value={modelo}
               onChange={(event) => setModelo(event.target.value)}
-              placeholder="Modelo do analisador"
               required
               disabled={creating}
-            />
+            >
+              <option value="">Selecione o modelo</option>
+              {modelos.map((entry) => (
+                <option key={entry.modelo} value={entry.modelo}>
+                  {entry.modelo}
+                </option>
+              ))}
+            </select>
           </label>
+
+          {selectedModelo ? (
+            <>
+              <label>
+                Fabricante
+                <input type="text" value={selectedModelo.fabricante} disabled readOnly />
+              </label>
+              <label>
+                Classe
+                <input type="text" value={selectedModelo.classe} disabled readOnly />
+              </label>
+              <label>
+                VN
+                <input type="text" value={selectedModelo.vn} disabled readOnly />
+              </label>
+              <label>
+                Vmáx
+                <input type="text" value={selectedModelo.vmax} disabled readOnly />
+              </label>
+              <label className="full-width">
+                Instrumento
+                <input type="text" value={selectedModelo.instrumento} disabled readOnly />
+              </label>
+            </>
+          ) : null}
+
           <div className="agenda-form-actions full-width">
             <button
               type="button"
@@ -157,6 +200,11 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                 <th>ID</th>
                 <th>Número de série</th>
                 <th>Modelo</th>
+                <th>Fabricante</th>
+                <th>Classe</th>
+                <th>VN</th>
+                <th>Vmáx</th>
+                <th>Instrumento</th>
                 <th>Cadastrado por</th>
                 <th>Em</th>
               </tr>
@@ -167,6 +215,11 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                   <td>{item.equipmentNumber}</td>
                   <td>{item.numeroSerie}</td>
                   <td>{item.modelo}</td>
+                  <td>{item.fabricante}</td>
+                  <td>{item.classe}</td>
+                  <td>{item.vn}</td>
+                  <td>{item.vmax}</td>
+                  <td>{item.instrumento}</td>
                   <td>{item.createdByName || item.createdByRegistration || '—'}</td>
                   <td>{formatAuditDate(item.createdAt)}</td>
                 </tr>

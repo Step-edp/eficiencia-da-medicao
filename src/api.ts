@@ -485,11 +485,25 @@ export type SupportTicketRecord = {
   updatedAt: string
 }
 
+export type AnalisadorModeloCatalogEntry = {
+  modelo: string
+  fabricante: string
+  classe: string
+  vn: string
+  vmax: string
+  instrumento: string
+}
+
 export type AnalisadorTensaoRecord = {
   id: string
   equipmentNumber: string
   numeroSerie: string
   modelo: string
+  fabricante: string
+  classe: string
+  vn: string
+  vmax: string
+  instrumento: string
   createdByUserId: string | null
   createdByName: string | null
   createdByRegistration: string | null
@@ -1250,6 +1264,8 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+  listAnalisadorModelos: () =>
+    request<{ modelos: AnalisadorModeloCatalogEntry[] }>('/api/analisadores-tensao/modelos'),
   listAnalisadoresTensao: () =>
     request<{ analisadores: AnalisadorTensaoRecord[] }>('/api/analisadores-tensao'),
   createAnalisadorTensao: (payload: { numeroSerie: string; modelo: string }) =>

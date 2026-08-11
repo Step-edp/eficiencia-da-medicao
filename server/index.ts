@@ -74,6 +74,7 @@ import {
 import {
   createAnalisadorTensao,
   listAnalisadoresTensao,
+  listAnalisadorModelos,
 } from './routes/analisadores-tensao.js'
 import { requireAuth } from './auth.js'
 
@@ -319,6 +320,7 @@ async function start() {
     replySupportTicket,
   )
 
+  app.get('/api/analisadores-tensao/modelos', requireAuth, listAnalisadorModelos)
   app.get('/api/analisadores-tensao', requireAuth, listAnalisadoresTensao)
   app.post(
     '/api/analisadores-tensao',

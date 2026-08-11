@@ -566,6 +566,14 @@ export async function migrate() {
       ON analisadores_tensao (created_at DESC)
   `)
   await query(`
+    ALTER TABLE analisadores_tensao
+      ADD COLUMN IF NOT EXISTS fabricante TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS classe TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS vn TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS vmax TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS instrumento TEXT NOT NULL DEFAULT ''
+  `)
+  await query(`
     CREATE TABLE IF NOT EXISTS meter_model_unregistered (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL DEFAULT '',
