@@ -187,28 +187,28 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
           </label>
 
           {selectedModelo ? (
-            <>
-              <label>
-                Fabricante
-                <input type="text" value={selectedModelo.fabricante} disabled readOnly />
-              </label>
-              <label>
-                Classe
-                <input type="text" value={selectedModelo.classe} disabled readOnly />
-              </label>
-              <label>
-                VN
-                <input type="text" value={selectedModelo.vn} disabled readOnly />
-              </label>
-              <label>
-                Vmáx
-                <input type="text" value={selectedModelo.vmax} disabled readOnly />
-              </label>
-              <label className="full-width">
-                Instrumento
-                <input type="text" value={selectedModelo.instrumento} disabled readOnly />
-              </label>
-            </>
+            <dl className="user-detail-grid full-width">
+              <div>
+                <dt>Fabricante</dt>
+                <dd>{selectedModelo.fabricante}</dd>
+              </div>
+              <div>
+                <dt>Classe</dt>
+                <dd>{selectedModelo.classe}</dd>
+              </div>
+              <div>
+                <dt>VN</dt>
+                <dd>{selectedModelo.vn}</dd>
+              </div>
+              <div>
+                <dt>Vmáx</dt>
+                <dd>{selectedModelo.vmax}</dd>
+              </div>
+              <div className="user-detail-full">
+                <dt>Instrumento</dt>
+                <dd>{selectedModelo.instrumento}</dd>
+              </div>
+            </dl>
           ) : null}
 
           <div className="agenda-form-actions full-width">
