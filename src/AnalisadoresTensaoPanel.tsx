@@ -59,7 +59,7 @@ function buildInitialMedicoes(queue: AnalisadorTensaoRecord[]): StepMedicao[] {
 }
 
 function sanitizeFaseDigits(value: string): string {
-  return value.replace(/\D/g, '').slice(-6)
+  return value.replace(/\D/g, '').slice(-5)
 }
 
 const FASE_NAVIGATION_KEYS = new Set([
