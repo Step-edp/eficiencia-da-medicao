@@ -2302,6 +2302,7 @@ button {
 }
 
 .ensaios-block-modal {
+  position: relative;
   width: min(480px, 100%);
   display: grid;
   gap: 14px;
@@ -2314,6 +2315,8 @@ button {
 
 .analisador-laudo-modal {
   width: min(1000px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .ensaios-block-modal h3 {
