@@ -2312,6 +2312,10 @@ button {
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
 }
 
+.analisador-laudo-modal {
+  width: min(1000px, 100%);
+}
+
 .ensaios-block-modal h3 {
   margin: 0;
   font-size: 1.15rem;

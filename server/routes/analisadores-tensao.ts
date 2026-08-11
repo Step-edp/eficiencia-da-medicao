@@ -380,3 +380,65 @@ export async function registrarEnsaioAnalisadores(req: Request, res: Response) {
 
   res.json({ analisadores })
 }
+
+type EnsaioMedicaoDbRow = {
+  voltage: '127V' | '220V'
+  teste_numero: number
+  padrao_fase_a: string
+  padrao_fase_b: string
+  padrao_fase_c: string
+  equipamento_fase_a: string
+  equipamento_fase_b: string
+  equipamento_fase_c: string
+}
+
+export async function getAnalisadorEnsaioMedicoes(req: Request, res: Response) {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+
+  const analisador = await query<{ id: string }>(
+    `SELECT id FROM analisadores_tensao WHERE id = $1`,
+    [id],
+  )
+  if (!analisador.rows[0]) {
+    res.status(404).json({ error: 'Analisador não encontrado.' })
+    return
+  }
+
+  const latest = await query<{ ensaio_id: string }>(
+    `SELECT ensaio_id FROM analisador_tensao_ensaio_medicoes
+     WHERE analisador_id = $1
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [id],
+  )
+
+  if (!latest.rows[0]) {
+    res.json({ ensaioId: null, medicoes: [] })
+    return
+  }
+
+  const ensaioId = latest.rows[0].ensaio_id
+
+  const result = await query<EnsaioMedicaoDbRow>(
+    `SELECT voltage, teste_numero, padrao_fase_a, padrao_fase_b, padrao_fase_c,
+            equipamento_fase_a, equipamento_fase_b, equipamento_fase_c
+     FROM analisador_tensao_ensaio_medicoes
+     WHERE analisador_id = $1 AND ensaio_id = $2
+     ORDER BY voltage ASC, teste_numero ASC`,
+    [id, ensaioId],
+  )
+
+  res.json({
+    ensaioId,
+    medicoes: result.rows.map((row) => ({
+      voltage: row.voltage,
+      testeNumero: row.teste_numero,
+      padraoFaseA: row.padrao_fase_a,
+      padraoFaseB: row.padrao_fase_b,
+      padraoFaseC: row.padrao_fase_c,
+      equipamentoFaseA: row.equipamento_fase_a,
+      equipamentoFaseB: row.equipamento_fase_b,
+      equipamentoFaseC: row.equipamento_fase_c,
+    })),
+  })
+}

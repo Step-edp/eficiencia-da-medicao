@@ -15,6 +15,7 @@ import {
 } from './api'
 import { formatAuditDate } from './auditLabels'
 import { LoginFeedback } from './LoginFeedback'
+import { AnalisadorLaudoModal } from './AnalisadorLaudoModal'
 
 function formatCalibrationDate(value: string) {
   const [year, month, day] = value.split('-')
@@ -142,6 +143,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   )
   const [searchNumeroSerie, setSearchNumeroSerie] = useState('')
   const [situacaoFilter, setSituacaoFilter] = useState<SituacaoFilter>('Todos')
+  const [laudoAnalisador, setLaudoAnalisador] = useState<AnalisadorTensaoRecord | null>(null)
 
   const [showEnsaiarForm, setShowEnsaiarForm] = useState(false)
   const [ensaiarSerieInput, setEnsaiarSerieInput] = useState('')
@@ -862,6 +864,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                     <th>Situação</th>
                     <th>Cadastrado por</th>
                     <th>Em</th>
+                    <th aria-label="Ações" />
                   </tr>
                 </thead>
                 <tbody>
@@ -894,6 +897,15 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                       </td>
                       <td>{item.createdByName || item.createdByRegistration || '—'}</td>
                       <td>{formatAuditDate(item.createdAt)}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => setLaudoAnalisador(item)}
+                        >
+                          Visualizar laudo
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -906,6 +918,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
       ) : (
         <p className="entrada-panel-empty">Nenhum analisador cadastrado.</p>
       )}
+
+      <AnalisadorLaudoModal analisador={laudoAnalisador} onClose={() => setLaudoAnalisador(null)} />
     </div>
   )
 }

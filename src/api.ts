@@ -514,6 +514,17 @@ export type AnalisadorTensaoRecord = {
   createdAt: string
 }
 
+export type EnsaioMedicaoRecord = {
+  voltage: '127V' | '220V'
+  testeNumero: number
+  padraoFaseA: string
+  padraoFaseB: string
+  padraoFaseC: string
+  equipamentoFaseA: string
+  equipamentoFaseB: string
+  equipamentoFaseC: string
+}
+
 export type DemmDocumentRecord = {
   id: string
   meterScheduleId: string | null
@@ -1301,6 +1312,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  getAnalisadorEnsaioMedicoes: (id: string) =>
+    request<{ ensaioId: string | null; medicoes: EnsaioMedicaoRecord[] }>(
+      `/api/analisadores-tensao/${id}/medicoes`,
+    ),
 }
 
 export { ApiError }
