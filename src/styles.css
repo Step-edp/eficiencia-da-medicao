@@ -4317,6 +4317,23 @@ button {
   grid-column: 1 / -1;
 }
 
+.analisador-modelo-info dd {
+  color: var(--text-soft);
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkbox-field input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
 .user-detail-actions {
   display: flex;
   flex-wrap: wrap;

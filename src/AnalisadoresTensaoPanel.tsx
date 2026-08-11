@@ -173,7 +173,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               />
             </label>
           )}
-          <label className="full-width">
+          <label className="full-width checkbox-field">
             <input
               type="checkbox"
               checked={primeiraCalibracao}
@@ -182,12 +182,12 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                 setPrimeiraCalibracao(event.target.checked)
                 if (event.target.checked) setDataUltimaCalibracao('')
               }}
-            />{' '}
-            Primeira calibração
+            />
+            <span>Primeira calibração</span>
           </label>
 
           {selectedModelo ? (
-            <dl className="user-detail-grid full-width">
+            <dl className="user-detail-grid analisador-modelo-info full-width">
               <div>
                 <dt>Fabricante</dt>
                 <dd>{selectedModelo.fabricante}</dd>
