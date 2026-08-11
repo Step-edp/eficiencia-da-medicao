@@ -31,6 +31,7 @@ type AnalisadorTensaoRow = {
   id: string
   equipment_number: string
   numero_serie: string
+  identificacao_laudo: string
   modelo: string
   fabricante: string
   classe: string
@@ -50,6 +51,7 @@ function mapAnalisador(row: AnalisadorTensaoRow) {
     id: row.id,
     equipmentNumber: row.equipment_number,
     numeroSerie: row.numero_serie,
+    identificacaoLaudo: row.identificacao_laudo,
     modelo: row.modelo,
     fabricante: row.fabricante,
     classe: row.classe,
@@ -78,8 +80,8 @@ export async function listAnalisadorModelos(_req: Request, res: Response) {
 
 export async function listAnalisadoresTensao(_req: Request, res: Response) {
   const result = await query<AnalisadorTensaoRow>(
-    `SELECT a.id, a.equipment_number, a.numero_serie, a.modelo, a.fabricante, a.classe,
-            a.vn, a.vmax, a.instrumento, a.primeira_calibracao,
+    `SELECT a.id, a.equipment_number, a.numero_serie, a.identificacao_laudo, a.modelo,
+            a.fabricante, a.classe, a.vn, a.vmax, a.instrumento, a.primeira_calibracao,
             a.data_ultima_calibracao::text AS data_ultima_calibracao,
             a.created_by_user_id, a.created_at,
             u.name AS created_by_name,
@@ -100,10 +102,14 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
 
   const numeroSerie =
     typeof req.body?.numeroSerie === 'string' ? req.body.numeroSerie.trim() : ''
+  const identificacaoLaudo =
+    typeof req.body?.identificacaoLaudo === 'string'
+      ? req.body.identificacaoLaudo.trim()
+      : ''
   const modelo = typeof req.body?.modelo === 'string' ? req.body.modelo.trim() : ''
 
-  if (!numeroSerie || !modelo) {
-    res.status(400).json({ error: 'Informe número de série e modelo.' })
+  if (!numeroSerie || !identificacaoLaudo || !modelo) {
+    res.status(400).json({ error: 'Informe número de série, identificação do laudo e modelo.' })
     return
   }
 
@@ -135,17 +141,18 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
     Omit<AnalisadorTensaoRow, 'created_by_name' | 'created_by_registration'>
   >(
     `INSERT INTO analisadores_tensao (
-       id, equipment_number, numero_serie, modelo, fabricante, classe, vn, vmax, instrumento,
-       primeira_calibracao, data_ultima_calibracao, created_by_user_id
+       id, equipment_number, numero_serie, identificacao_laudo, modelo, fabricante, classe,
+       vn, vmax, instrumento, primeira_calibracao, data_ultima_calibracao, created_by_user_id
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-     RETURNING id, equipment_number, numero_serie, modelo, fabricante, classe, vn, vmax,
-       instrumento, primeira_calibracao, data_ultima_calibracao::text AS data_ultima_calibracao,
-       created_by_user_id, created_at`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+     RETURNING id, equipment_number, numero_serie, identificacao_laudo, modelo, fabricante,
+       classe, vn, vmax, instrumento, primeira_calibracao,
+       data_ultima_calibracao::text AS data_ultima_calibracao, created_by_user_id, created_at`,
     [
       id,
       equipmentNumber,
       numeroSerie,
+      identificacaoLaudo,
       catalogEntry.modelo,
       catalogEntry.fabricante,
       catalogEntry.classe,

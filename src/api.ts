@@ -498,6 +498,7 @@ export type AnalisadorTensaoRecord = {
   id: string
   equipmentNumber: string
   numeroSerie: string
+  identificacaoLaudo: string
   modelo: string
   fabricante: string
   classe: string
@@ -1272,6 +1273,7 @@ export const api = {
     request<{ analisadores: AnalisadorTensaoRecord[] }>('/api/analisadores-tensao'),
   createAnalisadorTensao: (payload: {
     numeroSerie: string
+    identificacaoLaudo: string
     modelo: string
     primeiraCalibracao: boolean
     dataUltimaCalibracao?: string

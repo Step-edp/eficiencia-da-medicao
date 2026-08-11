@@ -19,6 +19,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [numeroSerie, setNumeroSerie] = useState('')
+  const [identificacaoLaudo, setIdentificacaoLaudo] = useState('')
   const [modelo, setModelo] = useState('')
   const [dataUltimaCalibracao, setDataUltimaCalibracao] = useState('')
   const [primeiraCalibracao, setPrimeiraCalibracao] = useState(false)
@@ -55,6 +56,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
 
   const resetForm = () => {
     setNumeroSerie('')
+    setIdentificacaoLaudo('')
     setModelo('')
     setDataUltimaCalibracao('')
     setPrimeiraCalibracao(false)
@@ -65,8 +67,11 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault()
 
-    if (!numeroSerie.trim() || !modelo.trim()) {
-      setFeedback({ type: 'error', message: 'Informe número de série e modelo.' })
+    if (!numeroSerie.trim() || !identificacaoLaudo.trim() || !modelo.trim()) {
+      setFeedback({
+        type: 'error',
+        message: 'Informe número de série, identificação do laudo e modelo.',
+      })
       return
     }
 
@@ -83,6 +88,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
     try {
       const { analisador } = await api.createAnalisadorTensao({
         numeroSerie: numeroSerie.trim(),
+        identificacaoLaudo: identificacaoLaudo.trim(),
         modelo: modelo.trim(),
         primeiraCalibracao,
         dataUltimaCalibracao: primeiraCalibracao ? undefined : dataUltimaCalibracao,
@@ -140,6 +146,17 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               value={numeroSerie}
               onChange={(event) => setNumeroSerie(event.target.value)}
               placeholder="Número de série do equipamento"
+              required
+              disabled={creating}
+            />
+          </label>
+          <label>
+            Identificação do laudo
+            <input
+              type="text"
+              value={identificacaoLaudo}
+              onChange={(event) => setIdentificacaoLaudo(event.target.value)}
+              placeholder="Identificação do laudo"
               required
               disabled={creating}
             />
@@ -229,6 +246,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               disabled={
                 creating ||
                 !numeroSerie.trim() ||
+                !identificacaoLaudo.trim() ||
                 !modelo.trim() ||
                 (!primeiraCalibracao && !dataUltimaCalibracao)
               }
@@ -248,6 +266,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               <tr>
                 <th>ID</th>
                 <th>Número de série</th>
+                <th>Identificação do laudo</th>
                 <th>Modelo</th>
                 <th>Fabricante</th>
                 <th>Classe</th>
@@ -264,6 +283,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                 <tr key={item.id}>
                   <td>{item.equipmentNumber}</td>
                   <td>{item.numeroSerie}</td>
+                  <td>{item.identificacaoLaudo}</td>
                   <td>{item.modelo}</td>
                   <td>{item.fabricante}</td>
                   <td>{item.classe}</td>
