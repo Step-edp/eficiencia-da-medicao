@@ -477,7 +477,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         </form>
       ) : null}
 
-      {loading ? (
+      {showEnsaiarForm ? null : loading ? (
         <p className="entrada-panel-empty">Carregando analisadores...</p>
       ) : analisadores.length ? (
         <>
