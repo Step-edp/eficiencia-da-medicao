@@ -4294,6 +4294,11 @@ button {
   color: var(--text-soft);
 }
 
+.fase-input {
+  width: 9ch;
+  min-width: 0;
+}
+
 .ensaio-step-title {
   margin: 0;
   font-weight: 700;

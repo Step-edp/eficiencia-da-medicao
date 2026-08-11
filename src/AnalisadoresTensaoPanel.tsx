@@ -642,6 +642,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                   <input
                     type="text"
                     inputMode="decimal"
+                    className="fase-input"
                     placeholder="000,00"
                     value={faseDigitsToDisplay(medicoes[ensaioStepIndex]?.padrao[field] ?? '')}
                     onChange={(event) => updatePadraoFase(field, event.target.value)}
@@ -673,6 +674,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                           <input
                             type="text"
                             inputMode="decimal"
+                            className="fase-input"
                             placeholder="000,00"
                             value={faseDigitsToDisplay(leitura[field])}
                             onChange={(event) => updateLeituraFase(item.id, field, event.target.value)}
