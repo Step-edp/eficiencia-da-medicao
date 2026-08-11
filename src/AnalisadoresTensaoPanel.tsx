@@ -8,6 +8,11 @@ import {
 import { formatAuditDate } from './auditLabels'
 import { LoginFeedback } from './LoginFeedback'
 
+function formatCalibrationDate(value: string) {
+  const [year, month, day] = value.split('-')
+  return `${day}/${month}/${year}`
+}
+
 export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [analisadores, setAnalisadores] = useState<AnalisadorTensaoRecord[]>([])
   const [modelos, setModelos] = useState<AnalisadorModeloCatalogEntry[]>([])
@@ -15,6 +20,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [showForm, setShowForm] = useState(false)
   const [numeroSerie, setNumeroSerie] = useState('')
   const [modelo, setModelo] = useState('')
+  const [dataUltimaCalibracao, setDataUltimaCalibracao] = useState('')
+  const [primeiraCalibracao, setPrimeiraCalibracao] = useState(false)
   const [creating, setCreating] = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
@@ -49,6 +56,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const resetForm = () => {
     setNumeroSerie('')
     setModelo('')
+    setDataUltimaCalibracao('')
+    setPrimeiraCalibracao(false)
   }
 
   const selectedModelo = modelos.find((entry) => entry.modelo === modelo) ?? null
@@ -61,12 +70,22 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
       return
     }
 
+    if (!primeiraCalibracao && !dataUltimaCalibracao) {
+      setFeedback({
+        type: 'error',
+        message: 'Informe a data da última calibração ou marque primeira calibração.',
+      })
+      return
+    }
+
     setCreating(true)
     setFeedback(null)
     try {
       const { analisador } = await api.createAnalisadorTensao({
         numeroSerie: numeroSerie.trim(),
         modelo: modelo.trim(),
+        primeiraCalibracao,
+        dataUltimaCalibracao: primeiraCalibracao ? undefined : dataUltimaCalibracao,
       })
       setAnalisadores((current) => [analisador, ...current])
       resetForm()
@@ -142,6 +161,31 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
             </select>
           </label>
 
+          {primeiraCalibracao ? null : (
+            <label>
+              Data da última calibração
+              <input
+                type="date"
+                value={dataUltimaCalibracao}
+                onChange={(event) => setDataUltimaCalibracao(event.target.value)}
+                required={!primeiraCalibracao}
+                disabled={creating}
+              />
+            </label>
+          )}
+          <label className="full-width">
+            <input
+              type="checkbox"
+              checked={primeiraCalibracao}
+              disabled={creating}
+              onChange={(event) => {
+                setPrimeiraCalibracao(event.target.checked)
+                if (event.target.checked) setDataUltimaCalibracao('')
+              }}
+            />{' '}
+            Primeira calibração
+          </label>
+
           {selectedModelo ? (
             <>
               <label>
@@ -182,7 +226,12 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
             <button
               type="submit"
               className="primary-button"
-              disabled={creating || !numeroSerie.trim() || !modelo.trim()}
+              disabled={
+                creating ||
+                !numeroSerie.trim() ||
+                !modelo.trim() ||
+                (!primeiraCalibracao && !dataUltimaCalibracao)
+              }
             >
               {creating ? 'Salvando…' : 'Salvar analisador'}
             </button>
@@ -205,6 +254,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                 <th>VN</th>
                 <th>Vmáx</th>
                 <th>Instrumento</th>
+                <th>Última calibração</th>
                 <th>Cadastrado por</th>
                 <th>Em</th>
               </tr>
@@ -220,6 +270,13 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                   <td>{item.vn}</td>
                   <td>{item.vmax}</td>
                   <td>{item.instrumento}</td>
+                  <td>
+                    {item.primeiraCalibracao
+                      ? 'Primeira calibração'
+                      : item.dataUltimaCalibracao
+                        ? formatCalibrationDate(item.dataUltimaCalibracao)
+                        : '—'}
+                  </td>
                   <td>{item.createdByName || item.createdByRegistration || '—'}</td>
                   <td>{formatAuditDate(item.createdAt)}</td>
                 </tr>

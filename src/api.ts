@@ -504,6 +504,8 @@ export type AnalisadorTensaoRecord = {
   vn: string
   vmax: string
   instrumento: string
+  primeiraCalibracao: boolean
+  dataUltimaCalibracao: string | null
   createdByUserId: string | null
   createdByName: string | null
   createdByRegistration: string | null
@@ -1268,7 +1270,12 @@ export const api = {
     request<{ modelos: AnalisadorModeloCatalogEntry[] }>('/api/analisadores-tensao/modelos'),
   listAnalisadoresTensao: () =>
     request<{ analisadores: AnalisadorTensaoRecord[] }>('/api/analisadores-tensao'),
-  createAnalisadorTensao: (payload: { numeroSerie: string; modelo: string }) =>
+  createAnalisadorTensao: (payload: {
+    numeroSerie: string
+    modelo: string
+    primeiraCalibracao: boolean
+    dataUltimaCalibracao?: string
+  }) =>
     request<{ analisador: AnalisadorTensaoRecord }>('/api/analisadores-tensao', {
       method: 'POST',
       body: JSON.stringify(payload),

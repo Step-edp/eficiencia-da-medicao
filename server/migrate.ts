@@ -571,7 +571,9 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS classe TEXT NOT NULL DEFAULT '',
       ADD COLUMN IF NOT EXISTS vn TEXT NOT NULL DEFAULT '',
       ADD COLUMN IF NOT EXISTS vmax TEXT NOT NULL DEFAULT '',
-      ADD COLUMN IF NOT EXISTS instrumento TEXT NOT NULL DEFAULT ''
+      ADD COLUMN IF NOT EXISTS instrumento TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS primeira_calibracao BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS data_ultima_calibracao DATE
   `)
   await query(`
     CREATE TABLE IF NOT EXISTS meter_model_unregistered (

@@ -37,6 +37,8 @@ type AnalisadorTensaoRow = {
   vn: string
   vmax: string
   instrumento: string
+  primeira_calibracao: boolean
+  data_ultima_calibracao: string | null
   created_by_user_id: string | null
   created_by_name: string | null
   created_by_registration: string | null
@@ -54,6 +56,8 @@ function mapAnalisador(row: AnalisadorTensaoRow) {
     vn: row.vn,
     vmax: row.vmax,
     instrumento: row.instrumento,
+    primeiraCalibracao: row.primeira_calibracao,
+    dataUltimaCalibracao: row.data_ultima_calibracao,
     createdByUserId: row.created_by_user_id,
     createdByName: row.created_by_name,
     createdByRegistration: row.created_by_registration,
@@ -74,7 +78,10 @@ export async function listAnalisadorModelos(_req: Request, res: Response) {
 
 export async function listAnalisadoresTensao(_req: Request, res: Response) {
   const result = await query<AnalisadorTensaoRow>(
-    `SELECT a.*,
+    `SELECT a.id, a.equipment_number, a.numero_serie, a.modelo, a.fabricante, a.classe,
+            a.vn, a.vmax, a.instrumento, a.primeira_calibracao,
+            a.data_ultima_calibracao::text AS data_ultima_calibracao,
+            a.created_by_user_id, a.created_at,
             u.name AS created_by_name,
             u.registration AS created_by_registration
      FROM analisadores_tensao a
@@ -106,6 +113,21 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
     return
   }
 
+  const primeiraCalibracao = req.body?.primeiraCalibracao === true
+  const dataUltimaCalibracaoRaw =
+    typeof req.body?.dataUltimaCalibracao === 'string'
+      ? req.body.dataUltimaCalibracao.trim()
+      : ''
+
+  if (!primeiraCalibracao && !dataUltimaCalibracaoRaw) {
+    res.status(400).json({
+      error: 'Informe a data da última calibração ou marque primeira calibração.',
+    })
+    return
+  }
+
+  const dataUltimaCalibracao = primeiraCalibracao ? null : dataUltimaCalibracaoRaw
+
   const id = `at-${Date.now()}`
   const equipmentNumber = await nextEquipmentNumber()
 
@@ -114,10 +136,12 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
   >(
     `INSERT INTO analisadores_tensao (
        id, equipment_number, numero_serie, modelo, fabricante, classe, vn, vmax, instrumento,
-       created_by_user_id
+       primeira_calibracao, data_ultima_calibracao, created_by_user_id
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-     RETURNING *`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     RETURNING id, equipment_number, numero_serie, modelo, fabricante, classe, vn, vmax,
+       instrumento, primeira_calibracao, data_ultima_calibracao::text AS data_ultima_calibracao,
+       created_by_user_id, created_at`,
     [
       id,
       equipmentNumber,
@@ -128,6 +152,8 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
       catalogEntry.vn,
       catalogEntry.vmax,
       catalogEntry.instrumento,
+      primeiraCalibracao,
+      dataUltimaCalibracao,
       user.id,
     ],
   )
