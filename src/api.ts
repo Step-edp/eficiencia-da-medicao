@@ -525,6 +525,16 @@ export type EnsaioMedicaoRecord = {
   equipamentoFaseC: string
 }
 
+export type EnsaioSessaoRecord = {
+  ensaioId: string
+  createdAt: string
+  createdByName: string | null
+  createdByRegistration: string | null
+  numerosSerie: string[]
+}
+
+export type EnsaioSessaoMedicaoRecord = EnsaioMedicaoRecord & { numeroSerie: string }
+
 export type DemmDocumentRecord = {
   id: string
   meterScheduleId: string | null
@@ -1315,6 +1325,12 @@ export const api = {
   getAnalisadorEnsaioMedicoes: (id: string) =>
     request<{ ensaioId: string | null; medicoes: EnsaioMedicaoRecord[] }>(
       `/api/analisadores-tensao/${id}/medicoes`,
+    ),
+  listEnsaiosRealizados: () =>
+    request<{ ensaios: EnsaioSessaoRecord[] }>('/api/analisadores-tensao/ensaios'),
+  getEnsaioSessaoMedicoes: (ensaioId: string) =>
+    request<{ ensaioId: string; medicoes: EnsaioSessaoMedicaoRecord[] }>(
+      `/api/analisadores-tensao/ensaios/${ensaioId}`,
     ),
 }
 

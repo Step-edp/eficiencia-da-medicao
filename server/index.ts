@@ -77,6 +77,8 @@ import {
   listAnalisadorModelos,
   registrarEnsaioAnalisadores,
   getAnalisadorEnsaioMedicoes,
+  listEnsaiosRealizados,
+  getEnsaioSessaoMedicoes,
 } from './routes/analisadores-tensao.js'
 import { requireAuth } from './auth.js'
 
@@ -337,6 +339,8 @@ async function start() {
     registrarEnsaioAnalisadores,
   )
   app.get('/api/analisadores-tensao/:id/medicoes', requireAuth, getAnalisadorEnsaioMedicoes)
+  app.get('/api/analisadores-tensao/ensaios', requireAuth, listEnsaiosRealizados)
+  app.get('/api/analisadores-tensao/ensaios/:ensaioId', requireAuth, getEnsaioSessaoMedicoes)
 
   const distPath = path.resolve(__dirname, '../../dist')
   app.use(

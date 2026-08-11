@@ -442,3 +442,73 @@ export async function getAnalisadorEnsaioMedicoes(req: Request, res: Response) {
     })),
   })
 }
+
+type EnsaioSessaoDbRow = {
+  ensaio_id: string
+  created_at: Date
+  created_by_name: string | null
+  created_by_registration: string | null
+  numeros_serie: string[]
+}
+
+export async function listEnsaiosRealizados(_req: Request, res: Response) {
+  const result = await query<EnsaioSessaoDbRow>(
+    `SELECT m.ensaio_id,
+            MIN(m.created_at) AS created_at,
+            u.name AS created_by_name,
+            u.registration AS created_by_registration,
+            ARRAY_AGG(DISTINCT a.numero_serie ORDER BY a.numero_serie) AS numeros_serie
+     FROM analisador_tensao_ensaio_medicoes m
+     JOIN analisadores_tensao a ON a.id = m.analisador_id
+     LEFT JOIN users u ON u.id = m.created_by_user_id
+     GROUP BY m.ensaio_id, u.name, u.registration
+     ORDER BY MIN(m.created_at) DESC`,
+  )
+
+  res.json({
+    ensaios: result.rows.map((row) => ({
+      ensaioId: row.ensaio_id,
+      createdAt: row.created_at.toISOString(),
+      createdByName: row.created_by_name,
+      createdByRegistration: row.created_by_registration,
+      numerosSerie: row.numeros_serie,
+    })),
+  })
+}
+
+type EnsaioSessaoMedicaoDbRow = EnsaioMedicaoDbRow & { numero_serie: string }
+
+export async function getEnsaioSessaoMedicoes(req: Request, res: Response) {
+  const ensaioId = typeof req.params.ensaioId === 'string' ? req.params.ensaioId : ''
+
+  const result = await query<EnsaioSessaoMedicaoDbRow>(
+    `SELECT a.numero_serie, m.voltage, m.teste_numero,
+            m.padrao_fase_a, m.padrao_fase_b, m.padrao_fase_c,
+            m.equipamento_fase_a, m.equipamento_fase_b, m.equipamento_fase_c
+     FROM analisador_tensao_ensaio_medicoes m
+     JOIN analisadores_tensao a ON a.id = m.analisador_id
+     WHERE m.ensaio_id = $1
+     ORDER BY a.numero_serie ASC, m.voltage ASC, m.teste_numero ASC`,
+    [ensaioId],
+  )
+
+  if (!result.rows.length) {
+    res.status(404).json({ error: 'Ensaio não encontrado.' })
+    return
+  }
+
+  res.json({
+    ensaioId,
+    medicoes: result.rows.map((row) => ({
+      numeroSerie: row.numero_serie,
+      voltage: row.voltage,
+      testeNumero: row.teste_numero,
+      padraoFaseA: row.padrao_fase_a,
+      padraoFaseB: row.padrao_fase_b,
+      padraoFaseC: row.padrao_fase_c,
+      equipamentoFaseA: row.equipamento_fase_a,
+      equipamentoFaseB: row.equipamento_fase_b,
+      equipamentoFaseC: row.equipamento_fase_c,
+    })),
+  })
+}

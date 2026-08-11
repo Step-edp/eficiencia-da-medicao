@@ -12,10 +12,12 @@ import {
   ApiError,
   type AnalisadorModeloCatalogEntry,
   type AnalisadorTensaoRecord,
+  type EnsaioSessaoRecord,
 } from './api'
 import { formatAuditDate } from './auditLabels'
 import { LoginFeedback } from './LoginFeedback'
 import { AnalisadorLaudoModal } from './AnalisadorLaudoModal'
+import { EnsaioSessaoModal } from './EnsaioSessaoModal'
 
 function formatCalibrationDate(value: string) {
   const [year, month, day] = value.split('-')
@@ -144,6 +146,11 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [searchNumeroSerie, setSearchNumeroSerie] = useState('')
   const [situacaoFilter, setSituacaoFilter] = useState<SituacaoFilter>('Todos')
   const [laudoAnalisador, setLaudoAnalisador] = useState<AnalisadorTensaoRecord | null>(null)
+
+  const [showEnsaiosRealizados, setShowEnsaiosRealizados] = useState(false)
+  const [ensaiosSessoes, setEnsaiosSessoes] = useState<EnsaioSessaoRecord[]>([])
+  const [loadingEnsaiosSessoes, setLoadingEnsaiosSessoes] = useState(false)
+  const [selectedEnsaioId, setSelectedEnsaioId] = useState<string | null>(null)
 
   const [showEnsaiarForm, setShowEnsaiarForm] = useState(false)
   const [ensaiarSerieInput, setEnsaiarSerieInput] = useState('')
@@ -418,24 +425,63 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
     await handleFinishEnsaio()
   }
 
+  const toggleEnsaiosRealizados = () => {
+    setShowEnsaiarForm(false)
+    setShowForm(false)
+    setFeedback(null)
+    setShowEnsaiosRealizados((current) => {
+      const next = !current
+      if (next) {
+        setLoadingEnsaiosSessoes(true)
+        api
+          .listEnsaiosRealizados()
+          .then(({ ensaios }) => setEnsaiosSessoes(ensaios))
+          .catch((error) => {
+            setFeedback({
+              type: 'error',
+              message:
+                error instanceof ApiError
+                  ? error.message
+                  : 'Não foi possível carregar os ensaios realizados.',
+            })
+          })
+          .finally(() => setLoadingEnsaiosSessoes(false))
+      }
+      return next
+    })
+  }
+
   return (
     <div className="analisadores-tensao-panel">
       {readOnly ? null : (
         <div className="area-actions right-aligned-actions">
-          <button
-            type="button"
-            className={`secondary-button${showEnsaiarForm ? ' analisador-form-close-button' : ''}`}
-            aria-label={showEnsaiarForm ? 'Fechar formulário' : undefined}
-            onClick={() => {
-              setShowEnsaiarForm((current) => !current)
-              setShowForm(false)
-              setFeedback(null)
-              resetEnsaiarForm()
-            }}
-          >
-            {showEnsaiarForm ? '×' : 'Ensaiar analisador'}
-          </button>
-          {showEnsaiarForm ? null : (
+          {!showForm && !showEnsaiosRealizados ? (
+            <button
+              type="button"
+              className={`secondary-button${showEnsaiarForm ? ' analisador-form-close-button' : ''}`}
+              aria-label={showEnsaiarForm ? 'Fechar formulário' : undefined}
+              onClick={() => {
+                setShowEnsaiarForm((current) => !current)
+                setShowForm(false)
+                setShowEnsaiosRealizados(false)
+                setFeedback(null)
+                resetEnsaiarForm()
+              }}
+            >
+              {showEnsaiarForm ? '×' : 'Ensaiar analisador'}
+            </button>
+          ) : null}
+          {!showForm && !showEnsaiarForm ? (
+            <button
+              type="button"
+              className={`secondary-button${showEnsaiosRealizados ? ' analisador-form-close-button' : ''}`}
+              aria-label={showEnsaiosRealizados ? 'Fechar' : undefined}
+              onClick={toggleEnsaiosRealizados}
+            >
+              {showEnsaiosRealizados ? '×' : 'Ensaios realizados'}
+            </button>
+          ) : null}
+          {!showEnsaiarForm && !showEnsaiosRealizados ? (
             <button
               type="button"
               className={`primary-button${showForm ? ' analisador-form-close-button' : ''}`}
@@ -443,13 +489,14 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               onClick={() => {
                 setShowForm((current) => !current)
                 setShowEnsaiarForm(false)
+                setShowEnsaiosRealizados(false)
                 setFeedback(null)
                 resetForm()
               }}
             >
               {showForm ? '×' : 'Cadastrar analisador'}
             </button>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -796,7 +843,44 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         </div>
       ) : null}
 
-      {showEnsaiarForm ? null : loading ? (
+      {showEnsaiosRealizados ? (
+        loadingEnsaiosSessoes ? (
+          <p className="entrada-panel-empty">Carregando ensaios realizados...</p>
+        ) : ensaiosSessoes.length ? (
+          <div className="entrada-table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Em</th>
+                  <th>Números de série</th>
+                  <th>Registrado por</th>
+                  <th aria-label="Ações" />
+                </tr>
+              </thead>
+              <tbody>
+                {ensaiosSessoes.map((sessao) => (
+                  <tr key={sessao.ensaioId}>
+                    <td>{formatAuditDate(sessao.createdAt)}</td>
+                    <td>{sessao.numerosSerie.join(', ')}</td>
+                    <td>{sessao.createdByName || sessao.createdByRegistration || '—'}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => setSelectedEnsaioId(sessao.ensaioId)}
+                      >
+                        Ver medições
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="entrada-panel-empty">Nenhum ensaio registrado ainda.</p>
+        )
+      ) : showEnsaiarForm ? null : loading ? (
         <p className="entrada-panel-empty">Carregando analisadores...</p>
       ) : analisadores.length ? (
         <>
@@ -920,6 +1004,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
       )}
 
       <AnalisadorLaudoModal analisador={laudoAnalisador} onClose={() => setLaudoAnalisador(null)} />
+      <EnsaioSessaoModal ensaioId={selectedEnsaioId} onClose={() => setSelectedEnsaioId(null)} />
     </div>
   )
 }
