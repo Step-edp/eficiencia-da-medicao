@@ -88,11 +88,18 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
 
   const filteredAnalisadores = useMemo(() => {
     const query = searchNumeroSerie.trim().toLowerCase()
-    return analisadores.filter((item) => {
-      if (query && !item.numeroSerie.toLowerCase().includes(query)) return false
-      if (situacaoFilter !== 'Todos' && getSituacao(item) !== situacaoFilter) return false
-      return true
-    })
+    return analisadores
+      .filter((item) => {
+        if (query && !item.numeroSerie.toLowerCase().includes(query)) return false
+        if (situacaoFilter !== 'Todos' && getSituacao(item) !== situacaoFilter) return false
+        return true
+      })
+      .sort((a, b) => {
+        if (!a.dataUltimaCalibracao && !b.dataUltimaCalibracao) return 0
+        if (!a.dataUltimaCalibracao) return 1
+        if (!b.dataUltimaCalibracao) return -1
+        return a.dataUltimaCalibracao.localeCompare(b.dataUltimaCalibracao)
+      })
   }, [analisadores, searchNumeroSerie, situacaoFilter])
 
   const handleCreate = async (event: FormEvent) => {
