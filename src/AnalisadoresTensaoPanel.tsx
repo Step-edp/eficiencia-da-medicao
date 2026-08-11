@@ -5,11 +5,6 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
 
   return (
     <div className="analisadores-tensao-panel">
-      <p>
-        Página dedicada da área Analisadores de Tensão. Aqui você pode concentrar
-        funcionalidades e informações específicas do laboratório.
-      </p>
-
       {readOnly ? null : (
         <div className="area-actions right-aligned-actions">
           <button
