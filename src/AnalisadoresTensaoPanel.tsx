@@ -22,6 +22,9 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [identificacaoLaudo, setIdentificacaoLaudo] = useState('')
   const [modelo, setModelo] = useState('')
   const [dataUltimaCalibracao, setDataUltimaCalibracao] = useState('')
+  const [resultadoUltimaCalibracao, setResultadoUltimaCalibracao] = useState<
+    'Aprovado' | 'Reprovado' | ''
+  >('')
   const [primeiraCalibracao, setPrimeiraCalibracao] = useState(false)
   const [creating, setCreating] = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
@@ -59,6 +62,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
     setIdentificacaoLaudo('')
     setModelo('')
     setDataUltimaCalibracao('')
+    setResultadoUltimaCalibracao('')
     setPrimeiraCalibracao(false)
   }
 
@@ -83,6 +87,14 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
       return
     }
 
+    if (!primeiraCalibracao && !resultadoUltimaCalibracao) {
+      setFeedback({
+        type: 'error',
+        message: 'Informe o resultado da última calibração.',
+      })
+      return
+    }
+
     setCreating(true)
     setFeedback(null)
     try {
@@ -92,6 +104,9 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         modelo: modelo.trim(),
         primeiraCalibracao,
         dataUltimaCalibracao: primeiraCalibracao ? undefined : dataUltimaCalibracao,
+        resultadoUltimaCalibracao: primeiraCalibracao
+          ? undefined
+          : resultadoUltimaCalibracao || undefined,
       })
       setAnalisadores((current) => [analisador, ...current])
       resetForm()
@@ -190,6 +205,35 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               />
             </label>
           )}
+
+          {primeiraCalibracao ? null : (
+            <fieldset className="radio-fieldset full-width">
+              <legend>Resultado da última calibração</legend>
+              <div
+                className="ratm-choice-group"
+                role="radiogroup"
+                aria-label="Resultado da última calibração"
+              >
+                {(['Aprovado', 'Reprovado'] as const).map((option) => {
+                  const selected = resultadoUltimaCalibracao === option
+                  const tone = option === 'Aprovado' ? 'positive' : 'negative'
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      className={`ratm-choice-btn tone-${tone}${selected ? ' is-selected' : ''}`}
+                      disabled={creating}
+                      onClick={() => setResultadoUltimaCalibracao(option)}
+                    >
+                      <span>{option}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </fieldset>
+          )}
           <label className="full-width checkbox-field">
             <input
               type="checkbox"
@@ -248,7 +292,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                 !numeroSerie.trim() ||
                 !identificacaoLaudo.trim() ||
                 !modelo.trim() ||
-                (!primeiraCalibracao && !dataUltimaCalibracao)
+                (!primeiraCalibracao && !dataUltimaCalibracao) ||
+                (!primeiraCalibracao && !resultadoUltimaCalibracao)
               }
             >
               {creating ? 'Salvando…' : 'Salvar analisador'}
@@ -274,6 +319,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                 <th>Vmáx</th>
                 <th>Instrumento</th>
                 <th>Última calibração</th>
+                <th>Resultado</th>
                 <th>Cadastrado por</th>
                 <th>Em</th>
               </tr>
@@ -297,6 +343,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                         ? formatCalibrationDate(item.dataUltimaCalibracao)
                         : '—'}
                   </td>
+                  <td>{item.resultadoUltimaCalibracao || '—'}</td>
                   <td>{item.createdByName || item.createdByRegistration || '—'}</td>
                   <td>{formatAuditDate(item.createdAt)}</td>
                 </tr>

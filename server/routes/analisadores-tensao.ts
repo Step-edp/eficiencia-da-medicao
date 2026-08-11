@@ -40,6 +40,7 @@ type AnalisadorTensaoRow = {
   instrumento: string
   primeira_calibracao: boolean
   data_ultima_calibracao: string | null
+  resultado_ultima_calibracao: 'Aprovado' | 'Reprovado' | null
   created_by_user_id: string | null
   created_by_name: string | null
   created_by_registration: string | null
@@ -60,6 +61,7 @@ function mapAnalisador(row: AnalisadorTensaoRow) {
     instrumento: row.instrumento,
     primeiraCalibracao: row.primeira_calibracao,
     dataUltimaCalibracao: row.data_ultima_calibracao,
+    resultadoUltimaCalibracao: row.resultado_ultima_calibracao,
     createdByUserId: row.created_by_user_id,
     createdByName: row.created_by_name,
     createdByRegistration: row.created_by_registration,
@@ -83,6 +85,7 @@ export async function listAnalisadoresTensao(_req: Request, res: Response) {
     `SELECT a.id, a.equipment_number, a.numero_serie, a.identificacao_laudo, a.modelo,
             a.fabricante, a.classe, a.vn, a.vmax, a.instrumento, a.primeira_calibracao,
             a.data_ultima_calibracao::text AS data_ultima_calibracao,
+            a.resultado_ultima_calibracao,
             a.created_by_user_id, a.created_at,
             u.name AS created_by_name,
             u.registration AS created_by_registration
@@ -125,6 +128,11 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
       ? req.body.dataUltimaCalibracao.trim()
       : ''
 
+  const resultadoUltimaCalibracaoRaw =
+    typeof req.body?.resultadoUltimaCalibracao === 'string'
+      ? req.body.resultadoUltimaCalibracao.trim()
+      : ''
+
   if (!primeiraCalibracao && !dataUltimaCalibracaoRaw) {
     res.status(400).json({
       error: 'Informe a data da última calibração ou marque primeira calibração.',
@@ -132,7 +140,21 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
     return
   }
 
+  if (
+    !primeiraCalibracao &&
+    resultadoUltimaCalibracaoRaw !== 'Aprovado' &&
+    resultadoUltimaCalibracaoRaw !== 'Reprovado'
+  ) {
+    res.status(400).json({
+      error: 'Informe o resultado da última calibração (Aprovado ou Reprovado).',
+    })
+    return
+  }
+
   const dataUltimaCalibracao = primeiraCalibracao ? null : dataUltimaCalibracaoRaw
+  const resultadoUltimaCalibracao = primeiraCalibracao
+    ? null
+    : (resultadoUltimaCalibracaoRaw as 'Aprovado' | 'Reprovado')
 
   const id = `at-${Date.now()}`
   const equipmentNumber = await nextEquipmentNumber()
@@ -142,12 +164,14 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
   >(
     `INSERT INTO analisadores_tensao (
        id, equipment_number, numero_serie, identificacao_laudo, modelo, fabricante, classe,
-       vn, vmax, instrumento, primeira_calibracao, data_ultima_calibracao, created_by_user_id
+       vn, vmax, instrumento, primeira_calibracao, data_ultima_calibracao,
+       resultado_ultima_calibracao, created_by_user_id
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      RETURNING id, equipment_number, numero_serie, identificacao_laudo, modelo, fabricante,
        classe, vn, vmax, instrumento, primeira_calibracao,
-       data_ultima_calibracao::text AS data_ultima_calibracao, created_by_user_id, created_at`,
+       data_ultima_calibracao::text AS data_ultima_calibracao, resultado_ultima_calibracao,
+       created_by_user_id, created_at`,
     [
       id,
       equipmentNumber,
@@ -161,6 +185,7 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
       catalogEntry.instrumento,
       primeiraCalibracao,
       dataUltimaCalibracao,
+      resultadoUltimaCalibracao,
       user.id,
     ],
   )

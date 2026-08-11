@@ -507,6 +507,7 @@ export type AnalisadorTensaoRecord = {
   instrumento: string
   primeiraCalibracao: boolean
   dataUltimaCalibracao: string | null
+  resultadoUltimaCalibracao: 'Aprovado' | 'Reprovado' | null
   createdByUserId: string | null
   createdByName: string | null
   createdByRegistration: string | null
@@ -1277,6 +1278,7 @@ export const api = {
     modelo: string
     primeiraCalibracao: boolean
     dataUltimaCalibracao?: string
+    resultadoUltimaCalibracao?: 'Aprovado' | 'Reprovado'
   }) =>
     request<{ analisador: AnalisadorTensaoRecord }>('/api/analisadores-tensao', {
       method: 'POST',
