@@ -4294,6 +4294,58 @@ button {
   color: var(--text-soft);
 }
 
+.ensaiar-serie-input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.ensaiar-serie-input-row input {
+  flex: 1 1 auto;
+}
+
+.ensaiar-serie-input-row .secondary-button {
+  margin-top: 0;
+  flex: 0 0 auto;
+}
+
+.ensaiar-serie-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ensaiar-serie-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  background: rgba(24, 216, 240, 0.12);
+  border: 1px solid rgba(24, 216, 240, 0.35);
+}
+
+.ensaiar-serie-tag button {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ensaiar-serie-tag button:hover,
+.ensaiar-serie-tag button:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 .user-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

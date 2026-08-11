@@ -50,7 +50,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [situacaoFilter, setSituacaoFilter] = useState<SituacaoFilter>('Todos')
 
   const [showEnsaiarForm, setShowEnsaiarForm] = useState(false)
-  const [ensaiarAnalisadorId, setEnsaiarAnalisadorId] = useState('')
+  const [ensaiarSerieInput, setEnsaiarSerieInput] = useState('')
+  const [ensaiarQueue, setEnsaiarQueue] = useState<AnalisadorTensaoRecord[]>([])
   const [ensaiarData, setEnsaiarData] = useState('')
   const [ensaiarResultado, setEnsaiarResultado] = useState<'Aprovado' | 'Reprovado' | ''>('')
   const [ensaiando, setEnsaiando] = useState(false)
@@ -91,9 +92,38 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   }
 
   const resetEnsaiarForm = () => {
-    setEnsaiarAnalisadorId('')
+    setEnsaiarSerieInput('')
+    setEnsaiarQueue([])
     setEnsaiarData('')
     setEnsaiarResultado('')
+  }
+
+  const addEnsaiarSerie = () => {
+    const query = ensaiarSerieInput.trim()
+    if (!query) return
+
+    const match = analisadores.find(
+      (item) => item.numeroSerie.toLowerCase() === query.toLowerCase(),
+    )
+    if (!match) {
+      setFeedback({
+        type: 'error',
+        message: `Nenhum analisador cadastrado com o número de série "${query}".`,
+      })
+      return
+    }
+    if (ensaiarQueue.some((item) => item.id === match.id)) {
+      setFeedback({ type: 'error', message: 'Esse analisador já foi adicionado.' })
+      return
+    }
+
+    setEnsaiarQueue((current) => [...current, match])
+    setEnsaiarSerieInput('')
+    setFeedback(null)
+  }
+
+  const removeEnsaiarSerie = (id: string) => {
+    setEnsaiarQueue((current) => current.filter((item) => item.id !== id))
   }
 
   const selectedModelo = modelos.find((entry) => entry.modelo === modelo) ?? null
@@ -175,38 +205,57 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const handleEnsaiar = async (event: FormEvent) => {
     event.preventDefault()
 
-    if (!ensaiarAnalisadorId || !ensaiarData || !ensaiarResultado) {
+    if (!ensaiarQueue.length || !ensaiarData || !ensaiarResultado) {
       setFeedback({
         type: 'error',
-        message: 'Selecione o analisador, a data e o resultado da calibração.',
+        message:
+          'Adicione ao menos um número de série e informe a data e o resultado da calibração.',
       })
       return
     }
 
     setEnsaiando(true)
     setFeedback(null)
-    try {
-      const { analisador } = await api.ensaiarAnalisadorTensao(ensaiarAnalisadorId, {
-        dataUltimaCalibracao: ensaiarData,
-        resultadoUltimaCalibracao: ensaiarResultado,
-      })
+
+    const updated: AnalisadorTensaoRecord[] = []
+    const failed: string[] = []
+
+    for (const item of ensaiarQueue) {
+      try {
+        const { analisador } = await api.ensaiarAnalisadorTensao(item.id, {
+          dataUltimaCalibracao: ensaiarData,
+          resultadoUltimaCalibracao: ensaiarResultado,
+        })
+        updated.push(analisador)
+      } catch {
+        failed.push(item.numeroSerie)
+      }
+    }
+
+    if (updated.length) {
       setAnalisadores((current) =>
-        current.map((item) => (item.id === analisador.id ? analisador : item)),
+        current.map((row) => updated.find((item) => item.id === row.id) ?? row),
       )
+    }
+
+    setEnsaiando(false)
+
+    if (!failed.length) {
       resetEnsaiarForm()
       setShowEnsaiarForm(false)
       setFeedback({
         type: 'success',
-        message: `Nova calibração registrada para o analisador ${analisador.numeroSerie}.`,
+        message:
+          updated.length === 1
+            ? `Nova calibração registrada para o analisador ${updated[0].numeroSerie}.`
+            : `Nova calibração registrada para ${updated.length} analisadores.`,
       })
-    } catch (error) {
+    } else {
+      setEnsaiarQueue((current) => current.filter((item) => failed.includes(item.numeroSerie)))
       setFeedback({
         type: 'error',
-        message:
-          error instanceof ApiError ? error.message : 'Não foi possível registrar o ensaio.',
+        message: `Falha ao registrar ${failed.length} analisador(es): ${failed.join(', ')}.`,
       })
-    } finally {
-      setEnsaiando(false)
     }
   }
 
@@ -403,22 +452,58 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
 
       {showEnsaiarForm && !readOnly ? (
         <form className="material-form-grid" onSubmit={(event) => void handleEnsaiar(event)}>
-          <label className="full-width">
-            Analisador
-            <select
-              value={ensaiarAnalisadorId}
-              onChange={(event) => setEnsaiarAnalisadorId(event.target.value)}
-              required
-              disabled={ensaiando}
-            >
-              <option value="">Selecione o analisador</option>
+          <div className="full-width">
+            <label>
+              Números de série para ensaiar
+              <div className="ensaiar-serie-input-row">
+                <input
+                  type="text"
+                  list="analisadores-numero-serie-options"
+                  value={ensaiarSerieInput}
+                  onChange={(event) => setEnsaiarSerieInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      addEnsaiarSerie()
+                    }
+                  }}
+                  placeholder="Digite o número de série e pressione Enter"
+                  disabled={ensaiando}
+                />
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={addEnsaiarSerie}
+                  disabled={ensaiando}
+                >
+                  Adicionar
+                </button>
+              </div>
+            </label>
+            <datalist id="analisadores-numero-serie-options">
               {analisadores.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.numeroSerie} · {item.modelo} · {item.identificacaoLaudo}
-                </option>
+                <option key={item.id} value={item.numeroSerie} />
               ))}
-            </select>
-          </label>
+            </datalist>
+
+            {ensaiarQueue.length ? (
+              <div className="ensaiar-serie-list">
+                {ensaiarQueue.map((item) => (
+                  <span key={item.id} className="ensaiar-serie-tag">
+                    {item.numeroSerie}
+                    <button
+                      type="button"
+                      aria-label={`Remover ${item.numeroSerie}`}
+                      onClick={() => removeEnsaiarSerie(item.id)}
+                      disabled={ensaiando}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
           <label>
             Data da calibração
@@ -469,7 +554,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
             <button
               type="submit"
               className="primary-button"
-              disabled={ensaiando || !ensaiarAnalisadorId || !ensaiarData || !ensaiarResultado}
+              disabled={ensaiando || !ensaiarQueue.length || !ensaiarData || !ensaiarResultado}
             >
               {ensaiando ? 'Salvando…' : 'Registrar ensaio'}
             </button>
