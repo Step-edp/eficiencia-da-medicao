@@ -1284,6 +1284,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  ensaiarAnalisadorTensao: (
+    id: string,
+    payload: { dataUltimaCalibracao: string; resultadoUltimaCalibracao: 'Aprovado' | 'Reprovado' },
+  ) =>
+    request<{ analisador: AnalisadorTensaoRecord }>(`/api/analisadores-tensao/${id}/ensaiar`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
 }
 
 export { ApiError }

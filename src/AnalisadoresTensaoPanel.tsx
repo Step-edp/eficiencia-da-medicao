@@ -49,6 +49,12 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [searchNumeroSerie, setSearchNumeroSerie] = useState('')
   const [situacaoFilter, setSituacaoFilter] = useState<SituacaoFilter>('Todos')
 
+  const [showEnsaiarForm, setShowEnsaiarForm] = useState(false)
+  const [ensaiarAnalisadorId, setEnsaiarAnalisadorId] = useState('')
+  const [ensaiarData, setEnsaiarData] = useState('')
+  const [ensaiarResultado, setEnsaiarResultado] = useState<'Aprovado' | 'Reprovado' | ''>('')
+  const [ensaiando, setEnsaiando] = useState(false)
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -82,6 +88,12 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
     setDataUltimaCalibracao('')
     setResultadoUltimaCalibracao('')
     setPrimeiraCalibracao(false)
+  }
+
+  const resetEnsaiarForm = () => {
+    setEnsaiarAnalisadorId('')
+    setEnsaiarData('')
+    setEnsaiarResultado('')
   }
 
   const selectedModelo = modelos.find((entry) => entry.modelo === modelo) ?? null
@@ -160,16 +172,68 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
     }
   }
 
+  const handleEnsaiar = async (event: FormEvent) => {
+    event.preventDefault()
+
+    if (!ensaiarAnalisadorId || !ensaiarData || !ensaiarResultado) {
+      setFeedback({
+        type: 'error',
+        message: 'Selecione o analisador, a data e o resultado da calibração.',
+      })
+      return
+    }
+
+    setEnsaiando(true)
+    setFeedback(null)
+    try {
+      const { analisador } = await api.ensaiarAnalisadorTensao(ensaiarAnalisadorId, {
+        dataUltimaCalibracao: ensaiarData,
+        resultadoUltimaCalibracao: ensaiarResultado,
+      })
+      setAnalisadores((current) =>
+        current.map((item) => (item.id === analisador.id ? analisador : item)),
+      )
+      resetEnsaiarForm()
+      setShowEnsaiarForm(false)
+      setFeedback({
+        type: 'success',
+        message: `Nova calibração registrada para o analisador ${analisador.numeroSerie}.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError ? error.message : 'Não foi possível registrar o ensaio.',
+      })
+    } finally {
+      setEnsaiando(false)
+    }
+  }
+
   return (
     <div className="analisadores-tensao-panel">
       {readOnly ? null : (
         <div className="area-actions right-aligned-actions">
           <button
             type="button"
+            className={`secondary-button${showEnsaiarForm ? ' analisador-form-close-button' : ''}`}
+            aria-label={showEnsaiarForm ? 'Fechar formulário' : undefined}
+            onClick={() => {
+              setShowEnsaiarForm((current) => !current)
+              setShowForm(false)
+              setFeedback(null)
+              resetEnsaiarForm()
+            }}
+          >
+            {showEnsaiarForm ? '×' : 'Ensaiar analisador'}
+          </button>
+          <button
+            type="button"
             className={`primary-button${showForm ? ' analisador-form-close-button' : ''}`}
             aria-label={showForm ? 'Fechar formulário' : undefined}
             onClick={() => {
               setShowForm((current) => !current)
+              setShowEnsaiarForm(false)
               setFeedback(null)
               resetForm()
             }}
@@ -332,6 +396,82 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               }
             >
               {creating ? 'Salvando…' : 'Salvar analisador'}
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      {showEnsaiarForm && !readOnly ? (
+        <form className="material-form-grid" onSubmit={(event) => void handleEnsaiar(event)}>
+          <label className="full-width">
+            Analisador
+            <select
+              value={ensaiarAnalisadorId}
+              onChange={(event) => setEnsaiarAnalisadorId(event.target.value)}
+              required
+              disabled={ensaiando}
+            >
+              <option value="">Selecione o analisador</option>
+              {analisadores.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.numeroSerie} · {item.modelo} · {item.identificacaoLaudo}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Data da calibração
+            <input
+              type="date"
+              value={ensaiarData}
+              onChange={(event) => setEnsaiarData(event.target.value)}
+              required
+              disabled={ensaiando}
+            />
+          </label>
+
+          <fieldset className="radio-fieldset full-width">
+            <legend>Resultado da calibração</legend>
+            <div className="ratm-choice-group" role="radiogroup" aria-label="Resultado da calibração">
+              {(['Aprovado', 'Reprovado'] as const).map((option) => {
+                const selected = ensaiarResultado === option
+                const tone = option === 'Aprovado' ? 'positive' : 'negative'
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    className={`ratm-choice-btn tone-${tone}${selected ? ' is-selected' : ''}`}
+                    disabled={ensaiando}
+                    onClick={() => setEnsaiarResultado(option)}
+                  >
+                    <span>{option}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+
+          <div className="agenda-form-actions full-width">
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={ensaiando}
+              onClick={() => {
+                resetEnsaiarForm()
+                setShowEnsaiarForm(false)
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={ensaiando || !ensaiarAnalisadorId || !ensaiarData || !ensaiarResultado}
+            >
+              {ensaiando ? 'Salvando…' : 'Registrar ensaio'}
             </button>
           </div>
         </form>
