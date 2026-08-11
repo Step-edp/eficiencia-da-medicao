@@ -14,9 +14,13 @@ type Voltage = '127V' | '220V'
 type AnaliseGrupo = {
   voltage: Voltage
   fase: FaseKey
+  testeNumeros: number[]
+  padraoValues: number[]
+  equipamentoValues: number[]
   mediaPadrao: number
   mediaEquipamento: number
   errosPercentuais: number[]
+  erroMaximo: number
   desvioPadrao: number
 }
 
@@ -47,6 +51,11 @@ function sampleStdDev(values: number[]): number {
   return Math.sqrt(variance)
 }
 
+function maxAbsError(values: number[]): number {
+  if (!values.length) return 0
+  return values.reduce((max, value) => (Math.abs(value) > Math.abs(max) ? value : max), values[0])
+}
+
 function computeAnalise(medicoes: EnsaioSessaoMedicaoRecord[]): AnaliseGrupo[] {
   const grupos: AnaliseGrupo[] = []
 
@@ -67,9 +76,13 @@ function computeAnalise(medicoes: EnsaioSessaoMedicaoRecord[]): AnaliseGrupo[] {
       grupos.push({
         voltage,
         fase,
+        testeNumeros: rows.map((row) => row.testeNumero),
+        padraoValues,
+        equipamentoValues,
         mediaPadrao: padraoValues.length ? average(padraoValues) : 0,
         mediaEquipamento: equipamentoValues.length ? average(equipamentoValues) : 0,
         errosPercentuais,
+        erroMaximo: maxAbsError(errosPercentuais),
         desvioPadrao: sampleStdDev(errosPercentuais),
       })
     }
@@ -161,34 +174,60 @@ export function AnalisadorAnaliseModal({
           </div>
         ) : analise.length ? (
           <div className="entrada-table-wrap">
-            <table className="data-table ensaio-medicao-table">
+            <table className="data-table ensaio-medicao-table ensaio-analise-table">
               <thead>
                 <tr>
                   <th>Tensão</th>
                   <th>Fase</th>
-                  <th>Média Padrão</th>
-                  <th>Média Equip.</th>
-                  <th>Erro % T1</th>
-                  <th>Erro % T2</th>
-                  <th>Erro % T3</th>
-                  <th>Erro % T4</th>
-                  <th>Erro % T5</th>
+                  <th>UMP</th>
+                  <th>UMP média</th>
+                  <th>UST</th>
+                  <th>UST média</th>
+                  <th>Erro %</th>
+                  <th>Erro máximo</th>
                   <th>Desvio padrão</th>
                 </tr>
               </thead>
               <tbody>
-                {analise.map((grupo) => (
-                  <tr key={`${grupo.voltage}-${grupo.fase}`}>
-                    <td>{grupo.voltage}</td>
-                    <td>{grupo.fase.toUpperCase()}</td>
-                    <td>{formatNumber(grupo.mediaPadrao)}</td>
-                    <td>{formatNumber(grupo.mediaEquipamento)}</td>
-                    {grupo.errosPercentuais.map((erro, index) => (
-                      <td key={index}>{formatNumber(erro)}%</td>
-                    ))}
-                    <td>{formatNumber(grupo.desvioPadrao)}</td>
-                  </tr>
-                ))}
+                {analise.map((grupo) =>
+                  grupo.testeNumeros.map((testeNumero, index) => (
+                    <tr key={`${grupo.voltage}-${grupo.fase}-${testeNumero}`}>
+                      {index === 0 ? (
+                        <td rowSpan={grupo.testeNumeros.length} className="ensaio-analise-merged">
+                          {grupo.voltage}
+                        </td>
+                      ) : null}
+                      {index === 0 ? (
+                        <td rowSpan={grupo.testeNumeros.length} className="ensaio-analise-merged">
+                          {grupo.fase.toUpperCase()}
+                        </td>
+                      ) : null}
+                      <td>{formatNumber(grupo.padraoValues[index])}</td>
+                      {index === 0 ? (
+                        <td rowSpan={grupo.testeNumeros.length} className="ensaio-analise-merged">
+                          {formatNumber(grupo.mediaPadrao)}
+                        </td>
+                      ) : null}
+                      <td>{formatNumber(grupo.equipamentoValues[index])}</td>
+                      {index === 0 ? (
+                        <td rowSpan={grupo.testeNumeros.length} className="ensaio-analise-merged">
+                          {formatNumber(grupo.mediaEquipamento)}
+                        </td>
+                      ) : null}
+                      <td>{formatNumber(grupo.errosPercentuais[index])}%</td>
+                      {index === 0 ? (
+                        <td rowSpan={grupo.testeNumeros.length} className="ensaio-analise-merged">
+                          {formatNumber(grupo.erroMaximo)}%
+                        </td>
+                      ) : null}
+                      {index === 0 ? (
+                        <td rowSpan={grupo.testeNumeros.length} className="ensaio-analise-merged">
+                          {formatNumber(grupo.desvioPadrao)}%
+                        </td>
+                      ) : null}
+                    </tr>
+                  )),
+                )}
               </tbody>
             </table>
           </div>
