@@ -132,14 +132,15 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         <div className="area-actions right-aligned-actions">
           <button
             type="button"
-            className="primary-button"
+            className={`primary-button${showForm ? ' analisador-form-close-button' : ''}`}
+            aria-label={showForm ? 'Fechar formulário' : undefined}
             onClick={() => {
               setShowForm((current) => !current)
               setFeedback(null)
               resetForm()
             }}
           >
-            {showForm ? 'Fechar formulário' : 'Cadastrar analisador'}
+            {showForm ? '×' : 'Cadastrar analisador'}
           </button>
         </div>
       )}

@@ -4321,6 +4321,12 @@ button {
   color: var(--text-soft);
 }
 
+.analisador-form-close-button {
+  padding: 10px 18px;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
 .checkbox-field {
   display: flex;
   align-items: center;
