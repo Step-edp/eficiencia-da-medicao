@@ -150,7 +150,10 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [showEnsaiosRealizados, setShowEnsaiosRealizados] = useState(false)
   const [ensaiosSessoes, setEnsaiosSessoes] = useState<EnsaioSessaoRecord[]>([])
   const [loadingEnsaiosSessoes, setLoadingEnsaiosSessoes] = useState(false)
-  const [selectedEnsaioId, setSelectedEnsaioId] = useState<string | null>(null)
+  const [selectedEnsaio, setSelectedEnsaio] = useState<{
+    ensaioId: string
+    numeroSerie: string
+  } | null>(null)
 
   const [showEnsaiarForm, setShowEnsaiarForm] = useState(false)
   const [ensaiarSerieInput, setEnsaiarSerieInput] = useState('')
@@ -867,7 +870,12 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                       <button
                         type="button"
                         className="secondary-button"
-                        onClick={() => setSelectedEnsaioId(sessao.ensaioId)}
+                        onClick={() =>
+                          setSelectedEnsaio({
+                            ensaioId: sessao.ensaioId,
+                            numeroSerie: sessao.numeroSerie,
+                          })
+                        }
                       >
                         Ver medições
                       </button>
@@ -1027,7 +1035,11 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
       )}
 
       <AnalisadorLaudoModal analisador={laudoAnalisador} onClose={() => setLaudoAnalisador(null)} />
-      <EnsaioSessaoModal ensaioId={selectedEnsaioId} onClose={() => setSelectedEnsaioId(null)} />
+      <EnsaioSessaoModal
+        ensaioId={selectedEnsaio?.ensaioId ?? null}
+        numeroSerie={selectedEnsaio?.numeroSerie ?? null}
+        onClose={() => setSelectedEnsaio(null)}
+      />
     </div>
   )
 }

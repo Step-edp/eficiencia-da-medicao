@@ -4,6 +4,7 @@ import { api, ApiError, type EnsaioSessaoMedicaoRecord } from './api'
 
 type EnsaioSessaoModalProps = {
   ensaioId: string | null
+  numeroSerie: string | null
   onClose: () => void
 }
 
@@ -13,7 +14,7 @@ function formatFase(value: string) {
   return number.toFixed(2).replace('.', ',')
 }
 
-export function EnsaioSessaoModal({ ensaioId, onClose }: EnsaioSessaoModalProps) {
+export function EnsaioSessaoModal({ ensaioId, numeroSerie, onClose }: EnsaioSessaoModalProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [medicoes, setMedicoes] = useState<EnsaioSessaoMedicaoRecord[]>([])
@@ -26,12 +27,16 @@ export function EnsaioSessaoModal({ ensaioId, onClose }: EnsaioSessaoModalProps)
 
     api
       .getEnsaioSessaoMedicoes(ensaioId)
-      .then(({ medicoes: rows }) => setMedicoes(rows))
+      .then(({ medicoes: rows }) =>
+        setMedicoes(
+          numeroSerie ? rows.filter((row) => row.numeroSerie === numeroSerie) : rows,
+        ),
+      )
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : 'Não foi possível carregar o ensaio.')
       })
       .finally(() => setLoading(false))
-  }, [ensaioId])
+  }, [ensaioId, numeroSerie])
 
   useEffect(() => {
     if (!ensaioId) return
@@ -71,7 +76,9 @@ export function EnsaioSessaoModal({ ensaioId, onClose }: EnsaioSessaoModalProps)
           </svg>
         </button>
 
-        <h3 id="ensaio-sessao-modal-title">Medições do ensaio</h3>
+        <h3 id="ensaio-sessao-modal-title">
+          Medições do ensaio{numeroSerie ? ` · ${numeroSerie}` : ''}
+        </h3>
 
         {loading ? (
           <p className="entrada-panel-empty">Carregando medições...</p>
@@ -84,7 +91,7 @@ export function EnsaioSessaoModal({ ensaioId, onClose }: EnsaioSessaoModalProps)
             <table className="data-table ensaio-medicao-table">
               <thead>
                 <tr>
-                  <th>Número de série</th>
+                  {numeroSerie ? null : <th>Número de série</th>}
                   <th>Tensão</th>
                   <th>Teste</th>
                   <th>Padrão A</th>
@@ -98,7 +105,7 @@ export function EnsaioSessaoModal({ ensaioId, onClose }: EnsaioSessaoModalProps)
               <tbody>
                 {medicoes.map((row) => (
                   <tr key={`${row.numeroSerie}-${row.voltage}-${row.testeNumero}`}>
-                    <td>{row.numeroSerie}</td>
+                    {numeroSerie ? null : <td>{row.numeroSerie}</td>}
                     <td>{row.voltage}</td>
                     <td>{row.testeNumero}</td>
                     <td>{formatFase(row.padraoFaseA)}</td>
