@@ -379,19 +379,21 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
           >
             {showEnsaiarForm ? '×' : 'Ensaiar analisador'}
           </button>
-          <button
-            type="button"
-            className={`primary-button${showForm ? ' analisador-form-close-button' : ''}`}
-            aria-label={showForm ? 'Fechar formulário' : undefined}
-            onClick={() => {
-              setShowForm((current) => !current)
-              setShowEnsaiarForm(false)
-              setFeedback(null)
-              resetForm()
-            }}
-          >
-            {showForm ? '×' : 'Cadastrar analisador'}
-          </button>
+          {showEnsaiarForm ? null : (
+            <button
+              type="button"
+              className={`primary-button${showForm ? ' analisador-form-close-button' : ''}`}
+              aria-label={showForm ? 'Fechar formulário' : undefined}
+              onClick={() => {
+                setShowForm((current) => !current)
+                setShowEnsaiarForm(false)
+                setFeedback(null)
+                resetForm()
+              }}
+            >
+              {showForm ? '×' : 'Cadastrar analisador'}
+            </button>
+          )}
         </div>
       )}
 
