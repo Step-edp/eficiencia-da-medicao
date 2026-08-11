@@ -1,4 +1,12 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  ClipboardEvent,
+  FormEvent,
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import {
   api,
   ApiError,
@@ -51,7 +59,53 @@ function buildInitialMedicoes(queue: AnalisadorTensaoRecord[]): StepMedicao[] {
 }
 
 function sanitizeFaseDigits(value: string): string {
-  return value.replace(/\D/g, '').slice(0, 6)
+  return value.replace(/\D/g, '').slice(-6)
+}
+
+const FASE_NAVIGATION_KEYS = new Set([
+  'Tab',
+  'Shift',
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+  'Home',
+  'End',
+  'Escape',
+  'Enter',
+])
+
+function handleFaseKeyDown(
+  event: KeyboardEvent<HTMLInputElement>,
+  currentDigits: string,
+  onChange: (digits: string) => void,
+) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return
+  if (FASE_NAVIGATION_KEYS.has(event.key)) return
+
+  if (/^[0-9]$/.test(event.key)) {
+    event.preventDefault()
+    onChange(sanitizeFaseDigits(currentDigits + event.key))
+    return
+  }
+
+  if (event.key === 'Backspace' || event.key === 'Delete') {
+    event.preventDefault()
+    onChange(currentDigits.slice(0, -1))
+    return
+  }
+
+  event.preventDefault()
+}
+
+function handleFasePaste(
+  event: ClipboardEvent<HTMLInputElement>,
+  currentDigits: string,
+  onChange: (digits: string) => void,
+) {
+  event.preventDefault()
+  const pasted = event.clipboardData.getData('text')
+  onChange(sanitizeFaseDigits(currentDigits + pasted))
 }
 
 function faseDigitsToDisplay(digits: string): string {
@@ -636,20 +690,33 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
           <fieldset className="radio-fieldset full-width">
             <legend>Padrão de Energia</legend>
             <div className="material-form-grid">
-              {(['a', 'b', 'c'] as const).map((field) => (
-                <label key={field}>
-                  {`Fase ${field.toUpperCase()}`}
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    className="fase-input"
-                    placeholder="000,00"
-                    value={faseDigitsToDisplay(medicoes[ensaioStepIndex]?.padrao[field] ?? '')}
-                    onChange={(event) => updatePadraoFase(field, event.target.value)}
-                    disabled={ensaiando}
-                  />
-                </label>
-              ))}
+              {(['a', 'b', 'c'] as const).map((field) => {
+                const currentDigits = medicoes[ensaioStepIndex]?.padrao[field] ?? ''
+                return (
+                  <label key={field}>
+                    {`Fase ${field.toUpperCase()}`}
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="fase-input"
+                      placeholder="000,00"
+                      value={faseDigitsToDisplay(currentDigits)}
+                      onChange={() => {}}
+                      onKeyDown={(event) =>
+                        handleFaseKeyDown(event, currentDigits, (digits) =>
+                          updatePadraoFase(field, digits),
+                        )
+                      }
+                      onPaste={(event) =>
+                        handleFasePaste(event, currentDigits, (digits) =>
+                          updatePadraoFase(field, digits),
+                        )
+                      }
+                      disabled={ensaiando}
+                    />
+                  </label>
+                )
+              })}
             </div>
           </fieldset>
 
@@ -669,19 +736,32 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                   return (
                     <tr key={item.id}>
                       <td>{item.numeroSerie}</td>
-                      {(['a', 'b', 'c'] as const).map((field) => (
-                        <td key={field}>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            className="fase-input"
-                            placeholder="000,00"
-                            value={faseDigitsToDisplay(leitura[field])}
-                            onChange={(event) => updateLeituraFase(item.id, field, event.target.value)}
-                            disabled={ensaiando}
-                          />
-                        </td>
-                      ))}
+                      {(['a', 'b', 'c'] as const).map((field) => {
+                        const currentDigits = leitura[field]
+                        return (
+                          <td key={field}>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              className="fase-input"
+                              placeholder="000,00"
+                              value={faseDigitsToDisplay(currentDigits)}
+                              onChange={() => {}}
+                              onKeyDown={(event) =>
+                                handleFaseKeyDown(event, currentDigits, (digits) =>
+                                  updateLeituraFase(item.id, field, digits),
+                                )
+                              }
+                              onPaste={(event) =>
+                                handleFasePaste(event, currentDigits, (digits) =>
+                                  updateLeituraFase(item.id, field, digits),
+                                )
+                              }
+                              disabled={ensaiando}
+                            />
+                          </td>
+                        )
+                      })}
                     </tr>
                   )
                 })}
