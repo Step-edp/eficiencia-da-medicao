@@ -306,6 +306,12 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
       {loading ? (
         <p className="entrada-panel-empty">Carregando analisadores...</p>
       ) : analisadores.length ? (
+        <>
+          <p className="field-hint analisadores-count">
+            {analisadores.length === 1
+              ? '1 analisador cadastrado'
+              : `${analisadores.length} analisadores cadastrados`}
+          </p>
         <div className="entrada-table-wrap">
           <table className="data-table">
             <thead>
@@ -350,6 +356,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
             </tbody>
           </table>
         </div>
+        </>
       ) : (
         <p className="entrada-panel-empty">Nenhum analisador cadastrado.</p>
       )}
