@@ -50,6 +50,25 @@ function buildInitialMedicoes(queue: AnalisadorTensaoRecord[]): StepMedicao[] {
   }))
 }
 
+function sanitizeFaseDigits(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 6)
+}
+
+function faseDigitsToDisplay(digits: string): string {
+  if (!digits) return ''
+  const normalized = digits.padStart(3, '0')
+  const integerPart = normalized.slice(0, -2).padStart(3, '0')
+  const decimalPart = normalized.slice(-2)
+  return `${integerPart},${decimalPart}`
+}
+
+function faseDigitsToNumber(digits: string): number {
+  const normalized = digits.padStart(3, '0')
+  const integerPart = normalized.slice(0, -2) || '0'
+  const decimalPart = normalized.slice(-2)
+  return Number(`${integerPart}.${decimalPart}`)
+}
+
 export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [analisadores, setAnalisadores] = useState<AnalisadorTensaoRecord[]>([])
   const [modelos, setModelos] = useState<AnalisadorModeloCatalogEntry[]>([])
@@ -237,14 +256,16 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   }
 
   const updatePadraoFase = (field: keyof FaseInput, value: string) => {
+    const digits = sanitizeFaseDigits(value)
     setMedicoes((current) =>
       current.map((step, idx) =>
-        idx === ensaioStepIndex ? { ...step, padrao: { ...step.padrao, [field]: value } } : step,
+        idx === ensaioStepIndex ? { ...step, padrao: { ...step.padrao, [field]: digits } } : step,
       ),
     )
   }
 
   const updateLeituraFase = (analisadorId: string, field: keyof FaseInput, value: string) => {
+    const digits = sanitizeFaseDigits(value)
     setMedicoes((current) =>
       current.map((step, idx) =>
         idx === ensaioStepIndex
@@ -252,7 +273,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               ...step,
               leituras: {
                 ...step.leituras,
-                [analisadorId]: { ...step.leituras[analisadorId], [field]: value },
+                [analisadorId]: { ...step.leituras[analisadorId], [field]: digits },
               },
             }
           : step,
@@ -290,12 +311,12 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
             analisadorId: item.id,
             voltage,
             testeNumero,
-            padraoFaseA: Number(step.padrao.a),
-            padraoFaseB: Number(step.padrao.b),
-            padraoFaseC: Number(step.padrao.c),
-            equipamentoFaseA: Number(leitura.a),
-            equipamentoFaseB: Number(leitura.b),
-            equipamentoFaseC: Number(leitura.c),
+            padraoFaseA: faseDigitsToNumber(step.padrao.a),
+            padraoFaseB: faseDigitsToNumber(step.padrao.b),
+            padraoFaseC: faseDigitsToNumber(step.padrao.c),
+            equipamentoFaseA: faseDigitsToNumber(leitura.a),
+            equipamentoFaseB: faseDigitsToNumber(leitura.b),
+            equipamentoFaseC: faseDigitsToNumber(leitura.c),
           }
         })
       })
@@ -617,9 +638,10 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                 <label key={field}>
                   {`Fase ${field.toUpperCase()}`}
                   <input
-                    type="number"
-                    step="any"
-                    value={medicoes[ensaioStepIndex]?.padrao[field] ?? ''}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="000,00"
+                    value={faseDigitsToDisplay(medicoes[ensaioStepIndex]?.padrao[field] ?? '')}
                     onChange={(event) => updatePadraoFase(field, event.target.value)}
                     disabled={ensaiando}
                   />
@@ -647,9 +669,10 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                       {(['a', 'b', 'c'] as const).map((field) => (
                         <td key={field}>
                           <input
-                            type="number"
-                            step="any"
-                            value={leitura[field]}
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="000,00"
+                            value={faseDigitsToDisplay(leitura[field])}
                             onChange={(event) => updateLeituraFase(item.id, field, event.target.value)}
                             disabled={ensaiando}
                           />
