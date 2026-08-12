@@ -8,7 +8,7 @@ import { seedAnalisadoresTensaoBulkImport } from './seed-analisadores-bulk.js'
 const adminUser = {
   id: 'admin-demo-user',
   registration: 'adm@edp',
-  password: 'edpsp2026',
+  password: 'Mel@8025',
   name: 'Administrador',
   email: 'adm@edp.com',
   role: 'admin',
