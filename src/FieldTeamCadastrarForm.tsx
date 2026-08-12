@@ -45,7 +45,7 @@ type FieldTeamCadastrarFormProps = {
 
 export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCadastrarFormProps) {
   const envelopePhotoInputId = useId()
-  const { options: csdOptions, loading: csdLoading } = useCsdsOptions()
+  const { options: csdOptions, loading: csdLoading, error: csdError } = useCsdsOptions()
   const [partners, setPartners] = useState<FieldPartnerOption[]>([])
   const [toiCollaborators, setToiCollaborators] = useState<FieldPartnerOption[]>([])
   const [partnersLoading, setPartnersLoading] = useState(true)
@@ -544,7 +544,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
               </option>
             ))}
           </select>
-          <FormFieldError id="field-team-csd-error" message={fieldErrors.csd} />
+          <FormFieldError id="field-team-csd-error" message={fieldErrors.csd ?? csdError ?? undefined} />
         </label>
 
         {!requireToiTeam ? (

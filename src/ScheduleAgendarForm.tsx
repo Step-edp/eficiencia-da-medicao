@@ -19,7 +19,7 @@ const minuteOptions = Array.from({ length: 60 }, (_, index) =>
 type ScheduleFieldErrors = Partial<Record<NumericFieldKey | 'csmDate', string>>
 
 export function ScheduleAgendarForm() {
-  const { options: csdOptions, loading: csdLoading } = useCsdsOptions()
+  const { options: csdOptions, loading: csdLoading, error: csdError } = useCsdsOptions()
   const [csmDate, setCsmDate] = useState('')
   const [csmHour, setCsmHour] = useState('00')
   const [csmMinute, setCsmMinute] = useState('00')
@@ -219,6 +219,7 @@ export function ScheduleAgendarForm() {
               </option>
             ))}
           </select>
+          <FormFieldError message={csdError ?? undefined} />
         </label>
 
         <label className="full-width">
