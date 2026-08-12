@@ -23,6 +23,8 @@ export function ScheduleAgendarForm() {
   const [csmDate, setCsmDate] = useState('')
   const [csmHour, setCsmHour] = useState('00')
   const [csmMinute, setCsmMinute] = useState('00')
+  const [scheduledBy, setScheduledBy] = useState('')
+  const [scheduledAt, setScheduledAt] = useState('')
   const [meter, setMeter] = useState('')
   const [installation, setInstallation] = useState('')
   const [toi, setToi] = useState('')
@@ -125,6 +127,25 @@ export function ScheduleAgendarForm() {
             </select>
           </div>
           <FormFieldError id="schedule-csm-date-error" message={fieldErrors.csmDate} />
+        </label>
+
+        <label>
+          Agendamento feito por
+          <input
+            type="text"
+            autoComplete="off"
+            value={scheduledBy}
+            onChange={(event) => setScheduledBy(event.target.value)}
+          />
+        </label>
+
+        <label>
+          Data do agendamento
+          <input
+            type="date"
+            value={scheduledAt}
+            onChange={(event) => setScheduledAt(event.target.value)}
+          />
         </label>
 
         <label className={fieldErrors.medidor ? 'has-field-error' : undefined}>
