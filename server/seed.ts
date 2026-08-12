@@ -114,4 +114,16 @@ export async function seed() {
   } catch (error) {
     console.error('Falha na importação em massa de analisadores de tensão:', error)
   }
+
+  try {
+    const removed = await query(
+      `DELETE FROM meter_schedules WHERE meter = ANY($1::text[])`,
+      [['13121212', '16450932', '4678', '62849450']],
+    )
+    if (removed.rowCount) {
+      console.log(`Registros de teste removidos de meter_schedules: ${removed.rowCount}.`)
+    }
+  } catch (error) {
+    console.error('Falha ao remover registros de teste de meter_schedules:', error)
+  }
 }
