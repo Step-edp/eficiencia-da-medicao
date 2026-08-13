@@ -37,6 +37,8 @@ type MeterScheduleRow = {
   partner_name: string
   partner_registration: string
   envelope_photo: string
+  scheduled_by_name: string
+  scheduling_date: string | null
   scheduled_at: Date
   trail_step: string
   source: string
@@ -74,6 +76,8 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     partnerName: row.partner_name || '',
     partnerRegistration: row.partner_registration || '',
     envelopePhoto: row.envelope_photo || '',
+    scheduledByName: row.scheduled_by_name || '',
+    schedulingDate: row.scheduling_date,
     scheduledAt: row.scheduled_at.toISOString(),
     scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
     deliveryDeadlineAt: deliveryDeadlineAt.toISOString(),
@@ -192,7 +196,7 @@ export async function listMeterSchedules(req: Request, res: Response) {
     : `ORDER BY ms.scheduled_at ASC, ms.created_at DESC`
 
   const result = await query<MeterScheduleRow>(
-    `SELECT ms.*, u.registration AS created_by_registration,
+    `SELECT ms.*, ms.scheduling_date::text AS scheduling_date, u.registration AS created_by_registration,
             d.id AS demm_document_id, d.file_name AS demm_file_name,
             COALESCE(jsonb_array_length(d.extracted_meters), 0) AS demm_meter_count
      FROM meter_schedules ms
@@ -582,6 +586,113 @@ export async function createMeterSchedule(req: Request, res: Response) {
   res.status(201).json({ schedule })
 }
 
+export async function createPassiveMeterSchedule(req: Request, res: Response) {
+  const {
+    meter,
+    installation,
+    toi,
+    note,
+    csd,
+    schedulingNotes,
+    scheduledByName,
+    schedulingDate,
+    scheduledAt,
+  } = req.body as {
+    meter?: string
+    installation?: string
+    toi?: string
+    note?: string
+    csd?: string
+    schedulingNotes?: string
+    scheduledByName?: string
+    schedulingDate?: string
+    scheduledAt?: string
+  }
+
+  const normalized = {
+    meter: meter?.trim() ?? '',
+    installation: installation?.trim() ?? '',
+    toi: toi?.trim() ?? '',
+    note: note?.trim() ?? '',
+    csd: csd?.trim() ?? '',
+    schedulingNotes: schedulingNotes?.trim() ?? '',
+    scheduledByName: scheduledByName?.trim() ?? '',
+    schedulingDate: schedulingDate?.trim() ?? '',
+    scheduledAt: scheduledAt?.trim() ?? '',
+  }
+
+  const meterError = validateScheduleNumericField(normalized.meter, 'medidor')
+  if (meterError) {
+    res.status(400).json({ error: meterError })
+    return
+  }
+
+  for (const [value, field] of [
+    [normalized.installation, 'instalacao'],
+    [normalized.toi, 'toi'],
+    [normalized.note, 'nota'],
+  ] as const) {
+    if (!value) continue
+    const error = validateScheduleNumericField(value, field)
+    if (error) {
+      res.status(400).json({ error })
+      return
+    }
+  }
+
+  if (!normalized.csd) {
+    res.status(400).json({ error: 'Selecione um CSD.' })
+    return
+  }
+
+  const scheduledAtDate = normalized.scheduledAt ? new Date(normalized.scheduledAt) : null
+  if (!scheduledAtDate || Number.isNaN(scheduledAtDate.getTime())) {
+    res.status(400).json({ error: 'Informe a data escrita no CSM.' })
+    return
+  }
+
+  const id = `schedule-${Date.now()}-${normalized.meter}`
+
+  const insert = await query<Omit<MeterScheduleRow, 'created_by_registration'>>(
+    `INSERT INTO meter_schedules (
+      id, meter, installation, toi, note, csd, client_present,
+      scheduling_notes, scheduled_by_name, scheduling_date,
+      scheduled_at, trail_step, source, created_by_user_id
+    ) VALUES ($1,$2,$3,$4,$5,$6,'nao',$7,$8,$9,$10,$11,'passivo',$12)
+    RETURNING *, scheduling_date::text AS scheduling_date`,
+    [
+      id,
+      normalized.meter,
+      normalized.installation,
+      normalized.toi,
+      normalized.note,
+      normalized.csd,
+      normalized.schedulingNotes,
+      normalized.scheduledByName,
+      normalized.schedulingDate || null,
+      scheduledAtDate.toISOString(),
+      ENTRADA_TRAIL_STEP,
+      req.user?.id ?? null,
+    ],
+  )
+
+  const schedule = mapMeterSchedule({
+    ...insert.rows[0],
+    created_by_registration: req.user?.registration ?? null,
+  })
+
+  await writeAuditLog(req, {
+    action: 'create',
+    entityType: 'meter_schedule',
+    entityId: schedule.id,
+    summary: `Medidor ${schedule.meter} agendado (passivo) para ${schedule.scheduledAtLabel}`,
+    newData: schedule,
+    metadata: { meter: schedule.meter },
+  })
+
+  res.status(201).json({ schedule })
+}
+
 const MIN_JUSTIFICATION_LENGTH = 5
 
 export async function rescheduleMeterSchedule(req: Request, res: Response) {
@@ -617,7 +728,7 @@ export async function rescheduleMeterSchedule(req: Request, res: Response) {
   }
 
   const existing = await query<Omit<MeterScheduleRow, 'created_by_registration'>>(
-    `SELECT * FROM meter_schedules WHERE id = $1 LIMIT 1`,
+    `SELECT *, scheduling_date::text AS scheduling_date FROM meter_schedules WHERE id = $1 LIMIT 1`,
     [id],
   )
   const current = existing.rows[0]
@@ -647,7 +758,7 @@ export async function rescheduleMeterSchedule(req: Request, res: Response) {
     `UPDATE meter_schedules
      SET scheduled_at = $1
      WHERE id = $2
-     RETURNING *`,
+     RETURNING *, scheduling_date::text AS scheduling_date`,
     [nextDate.toISOString(), id],
   )
 

@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react'
 import { FormFieldError } from './FormFieldError'
+import { api, ApiError } from './api'
 import {
   NUMERIC_FIELD_LIMITS,
   NumericFieldKey,
@@ -23,8 +24,8 @@ export function ScheduleAgendarForm() {
   const [csmDate, setCsmDate] = useState('')
   const [csmHour, setCsmHour] = useState('00')
   const [csmMinute, setCsmMinute] = useState('00')
-  const [scheduledBy, setScheduledBy] = useState('')
-  const [scheduledAt, setScheduledAt] = useState('')
+  const [scheduledByName, setScheduledByName] = useState('')
+  const [schedulingDate, setSchedulingDate] = useState('')
   const [meter, setMeter] = useState('')
   const [installation, setInstallation] = useState('')
   const [toi, setToi] = useState('')
@@ -32,6 +33,7 @@ export function ScheduleAgendarForm() {
   const [csd, setCsd] = useState('')
   const [schedulingNotes, setSchedulingNotes] = useState('Medidor não agendado em Campo')
   const [fieldErrors, setFieldErrors] = useState<ScheduleFieldErrors>({})
+  const [submitting, setSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -46,7 +48,21 @@ export function ScheduleAgendarForm() {
     })
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const resetForm = () => {
+    setCsmDate('')
+    setCsmHour('00')
+    setCsmMinute('00')
+    setScheduledByName('')
+    setSchedulingDate('')
+    setMeter('')
+    setInstallation('')
+    setToi('')
+    setNote('')
+    setCsd('')
+    setSchedulingNotes('Medidor não agendado em Campo')
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFeedback(null)
 
@@ -73,23 +89,56 @@ export function ScheduleAgendarForm() {
       return
     }
 
-    setFieldErrors({})
+    if (!csd) {
+      setFeedback({ type: 'error', message: 'Selecione um CSD.' })
+      return
+    }
 
-    setFeedback({
-      type: 'success',
-      message: `Data reservada para o medidor ${meter} em ${csmDate} às ${csmHour}:${csmMinute}.`,
-    })
+    setFieldErrors({})
+    setSubmitting(true)
+
+    try {
+      const scheduledAt = new Date(`${csmDate}T${csmHour}:${csmMinute}:00`).toISOString()
+
+      const { schedule } = await api.createPassiveMeterSchedule({
+        meter,
+        installation,
+        toi,
+        note,
+        csd,
+        schedulingNotes,
+        scheduledByName,
+        schedulingDate: schedulingDate || undefined,
+        scheduledAt,
+      })
+
+      resetForm()
+      setFeedback({
+        type: 'success',
+        message: `Data reservada para o medidor ${schedule.meter} em ${schedule.scheduledAtLabel}.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: error instanceof ApiError ? error.message : 'Não foi possível reservar a data.',
+      })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
     <>
-      {feedback?.type === 'success' ? (
-        <div className={`login-feedback ${feedback.type}`} role="status">
+      {feedback ? (
+        <div
+          className={`login-feedback ${feedback.type}`}
+          role={feedback.type === 'error' ? 'alert' : 'status'}
+        >
           {feedback.message}
         </div>
       ) : null}
 
-      <form className="form-grid schedule-form-grid" onSubmit={handleSubmit}>
+      <form className="form-grid schedule-form-grid" onSubmit={(event) => void handleSubmit(event)}>
         <label className={`full-width${fieldErrors.csmDate ? ' has-field-error' : ''}`}>
           Data escrita no CSM
           <div className="datetime-row">
@@ -102,11 +151,13 @@ export function ScheduleAgendarForm() {
               }}
               aria-invalid={Boolean(fieldErrors.csmDate)}
               aria-describedby={fieldErrors.csmDate ? 'schedule-csm-date-error' : undefined}
+              disabled={submitting}
             />
             <select
               value={csmHour}
               onChange={(event) => setCsmHour(event.target.value)}
               aria-label="Hora"
+              disabled={submitting}
             >
               {hourOptions.map((hour) => (
                 <option key={hour} value={hour}>
@@ -118,6 +169,7 @@ export function ScheduleAgendarForm() {
               value={csmMinute}
               onChange={(event) => setCsmMinute(event.target.value)}
               aria-label="Minuto"
+              disabled={submitting}
             >
               {minuteOptions.map((minute) => (
                 <option key={minute} value={minute}>
@@ -134,8 +186,9 @@ export function ScheduleAgendarForm() {
           <input
             type="text"
             autoComplete="off"
-            value={scheduledBy}
-            onChange={(event) => setScheduledBy(event.target.value)}
+            value={scheduledByName}
+            onChange={(event) => setScheduledByName(event.target.value)}
+            disabled={submitting}
           />
         </label>
 
@@ -143,8 +196,9 @@ export function ScheduleAgendarForm() {
           Data do agendamento
           <input
             type="date"
-            value={scheduledAt}
-            onChange={(event) => setScheduledAt(event.target.value)}
+            value={schedulingDate}
+            onChange={(event) => setSchedulingDate(event.target.value)}
+            disabled={submitting}
           />
         </label>
 
@@ -168,6 +222,7 @@ export function ScheduleAgendarForm() {
             aria-invalid={Boolean(fieldErrors.medidor)}
             aria-describedby={fieldErrors.medidor ? 'schedule-medidor-error' : undefined}
             required
+            disabled={submitting}
           />
           <FormFieldError id="schedule-medidor-error" message={fieldErrors.medidor} />
         </label>
@@ -190,6 +245,7 @@ export function ScheduleAgendarForm() {
             aria-describedby={
               fieldErrors.instalacao ? 'schedule-instalacao-error' : undefined
             }
+            disabled={submitting}
           />
           <FormFieldError id="schedule-instalacao-error" message={fieldErrors.instalacao} />
         </label>
@@ -208,6 +264,7 @@ export function ScheduleAgendarForm() {
             maxLength={NUMERIC_FIELD_LIMITS.toi}
             aria-invalid={Boolean(fieldErrors.toi)}
             aria-describedby={fieldErrors.toi ? 'schedule-toi-error' : undefined}
+            disabled={submitting}
           />
           <FormFieldError id="schedule-toi-error" message={fieldErrors.toi} />
         </label>
@@ -226,13 +283,14 @@ export function ScheduleAgendarForm() {
             maxLength={NUMERIC_FIELD_LIMITS.nota}
             aria-invalid={Boolean(fieldErrors.nota)}
             aria-describedby={fieldErrors.nota ? 'schedule-nota-error' : undefined}
+            disabled={submitting}
           />
           <FormFieldError id="schedule-nota-error" message={fieldErrors.nota} />
         </label>
 
         <label className="full-width">
           CSD
-          <select value={csd} onChange={(event) => setCsd(event.target.value)}>
+          <select value={csd} onChange={(event) => setCsd(event.target.value)} disabled={submitting}>
             <option value="">{csdLoading ? 'Carregando CSDs...' : 'Localizar itens'}</option>
             {csdOptions.map((option) => (
               <option key={option.id} value={option.label}>
@@ -249,6 +307,7 @@ export function ScheduleAgendarForm() {
             type="text"
             value={schedulingNotes}
             onChange={(event) => setSchedulingNotes(event.target.value)}
+            disabled={submitting}
           />
         </label>
 
@@ -257,8 +316,8 @@ export function ScheduleAgendarForm() {
           campo (agendamento passivo no laboratório).
         </p>
 
-        <button className="reserve-button full-width" type="submit">
-          Reservar Data
+        <button className="reserve-button full-width" type="submit" disabled={submitting}>
+          {submitting ? 'Reservando…' : 'Reservar Data'}
         </button>
       </form>
     </>

@@ -446,6 +446,8 @@ export type MeterScheduleRecord = {
   partnerName?: string
   partnerRegistration?: string
   envelopePhoto?: string
+  scheduledByName?: string
+  schedulingDate?: string | null
   scheduledAt: string
   scheduledAtLabel: string
   deliveryDeadlineAt?: string
@@ -1240,6 +1242,21 @@ export const api = {
     toiTeamReason?: string
   }) =>
     request<{ schedule: MeterScheduleRecord }>('/api/meter-schedules', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  createPassiveMeterSchedule: (payload: {
+    meter: string
+    installation?: string
+    toi?: string
+    note?: string
+    csd: string
+    schedulingNotes?: string
+    scheduledByName?: string
+    schedulingDate?: string
+    scheduledAt: string
+  }) =>
+    request<{ schedule: MeterScheduleRecord }>('/api/meter-schedules/passivo', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

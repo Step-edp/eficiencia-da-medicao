@@ -400,6 +400,13 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS envelope_photo TEXT NOT NULL DEFAULT '';
   `)
 
+  // Agendamento passivo (laboratório): quem agendou e a data do agendamento.
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS scheduled_by_name TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS scheduling_date DATE;
+  `)
+
   // Rafael Nunes: Engenheiro Responsável por célula Medição.
   await query(`
     UPDATE users
