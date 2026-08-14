@@ -1836,6 +1836,13 @@ button {
   margin: 6px 0 0;
 }
 
+.entrada-dedicated-close {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
 .entrada-section {
   display: grid;
   gap: 12px;

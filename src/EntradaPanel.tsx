@@ -650,15 +650,23 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     : `${schedules.length} medidor(es) aguardando entrada`}
                 </p>
               </div>
-              <div
-                className="panel-switch entrada-demm-switch"
-                role="toolbar"
-                aria-label="Navegação"
+              <button
+                type="button"
+                className="icon-button entrada-dedicated-close"
+                onClick={closeMetersBase}
+                aria-label="Fechar"
+                title="Fechar"
               >
-                <button type="button" className="active" onClick={closeMetersBase}>
-                  Voltar
-                </button>
-              </div>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
             </div>
 
             {feedback ? (
@@ -742,15 +750,23 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     : `${pendingCsds.length} de ${csdPendencias.length} CSD(s) sem DEMM entregue nesta semana`}
                 </p>
               </div>
-              <div
-                className="panel-switch entrada-demm-switch"
-                role="toolbar"
-                aria-label="Navegação"
+              <button
+                type="button"
+                className="icon-button entrada-dedicated-close"
+                onClick={closeCsdPendencias}
+                aria-label="Fechar"
+                title="Fechar"
               >
-                <button type="button" className="active" onClick={closeCsdPendencias}>
-                  Voltar
-                </button>
-              </div>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
             </div>
 
             {feedback ? (
@@ -826,15 +842,23 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     : `${inspectionPendencias.length} medidor(es) sem documento anexado`}
                 </p>
               </div>
-              <div
-                className="panel-switch entrada-demm-switch"
-                role="toolbar"
-                aria-label="Navegação"
+              <button
+                type="button"
+                className="icon-button entrada-dedicated-close"
+                onClick={closeInspectionPendencias}
+                aria-label="Fechar"
+                title="Fechar"
               >
-                <button type="button" className="active" onClick={closeInspectionPendencias}>
-                  Voltar
-                </button>
-              </div>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
             </div>
 
             {feedback ? (
@@ -926,15 +950,23 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     : `${unscheduledDemmMeters.length} medidor(es) na DEMM sem agendamento`}
                 </p>
               </div>
-              <div
-                className="panel-switch entrada-demm-switch"
-                role="toolbar"
-                aria-label="Navegação"
+              <button
+                type="button"
+                className="icon-button entrada-dedicated-close"
+                onClick={closeSchedulingPendencias}
+                aria-label="Fechar"
+                title="Fechar"
               >
-                <button type="button" className="active" onClick={closeSchedulingPendencias}>
-                  Voltar
-                </button>
-              </div>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
             </div>
 
             {feedback ? (
@@ -968,15 +1000,23 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     : `Últimas ${demmHistoricoWeeks.length} semanas · segunda a sexta`}
                 </p>
               </div>
-              <div
-                className="panel-switch entrada-demm-switch"
-                role="toolbar"
-                aria-label="Navegação"
+              <button
+                type="button"
+                className="icon-button entrada-dedicated-close"
+                onClick={closeDemmHistorico}
+                aria-label="Fechar"
+                title="Fechar"
               >
-                <button type="button" className="active" onClick={closeDemmHistorico}>
-                  Voltar
-                </button>
-              </div>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
             </div>
 
             {feedback ? (
