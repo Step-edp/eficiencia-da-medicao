@@ -355,8 +355,9 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     setDemmModalFeedback(null)
   }
 
-  const openDemmModal = () => {
+  const openDemmModal = (csdId?: string) => {
     setDemmModalFeedback(null)
+    setDemmCsdId(csdId ?? '')
     setShowDemmModal(true)
   }
 
@@ -589,6 +590,9 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
         showSources: false,
       })
       await reloadEntradaData()
+      if (view === 'csdPendencias') {
+        void loadCsdPendencias()
+      }
     } catch (error) {
       if (error instanceof ApiError) {
         setDemmModalFeedback({
@@ -635,6 +639,103 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     (sum, document) => sum + document.scheduledCount,
     0,
   )
+
+  const demmModal = showDemmModal
+    ? createPortal(
+        <div className="ensaios-block-modal-overlay" role="presentation" onClick={closeDemmModal}>
+          <div
+            className={`ensaios-block-modal demm-modal ${demmModalFeedback?.conflicts?.length ? 'demm-modal-with-conflicts' : ''}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="demm-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="icon-button schedule-slot-modal-close"
+              onClick={closeDemmModal}
+              aria-label="Fechar"
+              title="Fechar"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+
+            <h3 id="demm-modal-title">Nova DEMM</h3>
+
+            {demmModalFeedback ? (
+              <div className="demm-modal-feedback error" role="alert">
+                <p>{demmModalFeedback.message}</p>
+                {demmModalFeedback.conflicts?.length ? (
+                  <DemmUploadConflicts conflicts={demmModalFeedback.conflicts} />
+                ) : null}
+              </div>
+            ) : null}
+
+            <form className="form-grid demm-form-grid" onSubmit={(event) => void handleDemmSubmit(event)}>
+              <label className="full-width">
+                CSD
+                <select
+                  value={demmCsdId}
+                  onChange={(event) => setDemmCsdId(event.target.value)}
+                  disabled={submittingDemm}
+                  required
+                >
+                  <option value="">
+                    {csdOptionsLoading ? 'Carregando CSDs...' : 'Selecione o CSD'}
+                  </option>
+                  {csdOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {csdOptionsError ? (
+                  <span className="field-error" role="alert">
+                    {csdOptionsError}
+                  </span>
+                ) : null}
+              </label>
+
+              <label className="full-width photo-upload-field">
+                PDF da DEMM
+                <div className="photo-upload-area demm-upload-area">
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={(event) => {
+                      setDemmFile(event.target.files?.[0] ?? null)
+                      setDemmModalFeedback(null)
+                    }}
+                    required
+                  />
+                  <span className="photo-upload-hint">
+                    {demmFile ? demmFile.name : 'Clique para selecionar o PDF da DEMM'}
+                  </span>
+                </div>
+              </label>
+
+              <div className="ensaios-block-modal-actions full-width">
+                <button type="button" className="secondary-button" onClick={closeDemmModal}>
+                  Cancelar
+                </button>
+                <button type="submit" className="primary-button" disabled={submittingDemm}>
+                  {submittingDemm ? 'Lendo PDF...' : 'Enviar DEMM'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body,
+      )
+    : null
 
   if (view === 'metersBase') {
     return (
@@ -796,6 +897,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                       <th>Responsável</th>
                       <th>Escopo</th>
                       <th>Situação</th>
+                      <th>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -811,6 +913,17 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                             <span className="schedule-pending-badge">Pendente</span>
                           )}
                         </td>
+                        <td>
+                          {readOnly ? null : (
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() => openDemmModal(csd.id)}
+                            >
+                              Nova DEMM
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -819,6 +932,19 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             )}
           </section>
         </div>
+
+        {demmModal}
+
+        {analysisModal ? (
+          <DemmAnalysisModal
+            title={analysisModal.title}
+            fileName={analysisModal.fileName}
+            meters={analysisModal.meters}
+            loading={analysisModal.loading}
+            showSources={analysisModal.showSources}
+            onClose={() => setAnalysisModal(null)}
+          />
+        ) : null}
       </>
     )
   }
@@ -1074,18 +1200,9 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             role="toolbar"
             aria-label="Ações DEMM"
           >
-            {readOnly ? null : (
-              <button
-                type="button"
-                className="active"
-                onClick={() => openDemmModal()}
-                disabled={loading}
-              >
-                Nova DEMM
-              </button>
-            )}
             <button
               type="button"
+              className="active"
               onClick={() => openMetersBase()}
               disabled={loading}
             >
@@ -1230,106 +1347,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
         </section>
       </div>
 
-      {showDemmModal
-        ? createPortal(
-            <div
-              className="ensaios-block-modal-overlay"
-              role="presentation"
-              onClick={closeDemmModal}
-            >
-              <div
-                className={`ensaios-block-modal demm-modal ${demmModalFeedback?.conflicts?.length ? 'demm-modal-with-conflicts' : ''}`}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="demm-modal-title"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <button
-                  type="button"
-                  className="icon-button schedule-slot-modal-close"
-                  onClick={closeDemmModal}
-                  aria-label="Fechar"
-                  title="Fechar"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M6 6l12 12M18 6L6 18"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-
-                <h3 id="demm-modal-title">Nova DEMM</h3>
-
-                {demmModalFeedback ? (
-                  <div className="demm-modal-feedback error" role="alert">
-                    <p>{demmModalFeedback.message}</p>
-                    {demmModalFeedback.conflicts?.length ? (
-                      <DemmUploadConflicts conflicts={demmModalFeedback.conflicts} />
-                    ) : null}
-                  </div>
-                ) : null}
-
-                <form className="form-grid demm-form-grid" onSubmit={(event) => void handleDemmSubmit(event)}>
-                  <label className="full-width">
-                    CSD
-                    <select
-                      value={demmCsdId}
-                      onChange={(event) => setDemmCsdId(event.target.value)}
-                      disabled={submittingDemm}
-                      required
-                    >
-                      <option value="">
-                        {csdOptionsLoading ? 'Carregando CSDs...' : 'Selecione o CSD'}
-                      </option>
-                      {csdOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    {csdOptionsError ? (
-                      <span className="field-error" role="alert">
-                        {csdOptionsError}
-                      </span>
-                    ) : null}
-                  </label>
-
-                  <label className="full-width photo-upload-field">
-                    PDF da DEMM
-                    <div className="photo-upload-area demm-upload-area">
-                      <input
-                        type="file"
-                        accept="application/pdf,.pdf"
-                        onChange={(event) => {
-                          setDemmFile(event.target.files?.[0] ?? null)
-                          setDemmModalFeedback(null)
-                        }}
-                        required
-                      />
-                      <span className="photo-upload-hint">
-                        {demmFile ? demmFile.name : 'Clique para selecionar o PDF da DEMM'}
-                      </span>
-                    </div>
-                  </label>
-
-                  <div className="ensaios-block-modal-actions full-width">
-                    <button type="button" className="secondary-button" onClick={closeDemmModal}>
-                      Cancelar
-                    </button>
-                    <button type="submit" className="primary-button" disabled={submittingDemm}>
-                      {submittingDemm ? 'Lendo PDF...' : 'Enviar DEMM'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+      {demmModal}
 
       {analysisModal ? (
         <DemmAnalysisModal
