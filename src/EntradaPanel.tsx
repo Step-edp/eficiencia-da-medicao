@@ -14,6 +14,7 @@ import {
 } from './api'
 import { ENTRADA_TRAIL_STEP } from './labTrailSteps'
 import { useCsdsOptions } from './useCsdsOptions'
+import { readFileAsBase64 } from './fileUtils'
 
 function formatWorkSubtypeLabel(workSubtype: string | null) {
   if (!workSubtype) return '—'
@@ -87,15 +88,6 @@ function weekMeterStatusLabel(status: WeekMeterStatus) {
     default:
       return status
   }
-}
-
-function readFileAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(new Error('Não foi possível ler o arquivo.'))
-    reader.readAsDataURL(file)
-  })
 }
 
 type DemmMetersTableProps = {
@@ -217,7 +209,7 @@ type DemmModalFeedback = {
   conflicts?: DemmUploadConflictRecord[]
 }
 
-function DemmUploadConflicts({ conflicts }: { conflicts: DemmUploadConflictRecord[] }) {
+export function DemmUploadConflicts({ conflicts }: { conflicts: DemmUploadConflictRecord[] }) {
   const inDemm = conflicts.filter((item) => item.reason === 'demm_registered')
   const withEntrada = conflicts.filter((item) => item.reason === 'entrada_given')
 

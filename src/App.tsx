@@ -5,6 +5,7 @@ import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
 import { FieldTeamConsultarPanel } from './FieldTeamConsultarPanel'
 import { PontoFocalDashboard } from './PontoFocalDashboard'
+import { EnviarDocumentosPanel } from './EnviarDocumentosPanel'
 import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
@@ -750,6 +751,7 @@ function ItemIcon({ title }: { title: string }) {
     Agenda: 'calendar',
     Consultar: 'search',
     'Meus TOIs': 'inbox',
+    'Enviar documentos': 'archive',
   }
 
   const icon = iconByTitle[title] ?? 'star'
@@ -1811,9 +1813,14 @@ function HomePanel({
       return ['Agendar', 'Meus TOIs']
     }
 
-    // Ponto Focal: Agendar, Consultar e Dashboard de atrasos.
+    // Ponto Focal: Agendar, Consultar, Dashboard de atrasos e envio de DEMM/documento de inspeção.
     if (isLavraturaPontoFocalScope(activeFieldTeamSubtype)) {
-      return ['Agendar', 'Consultar', 'Dashboard']
+      return ['Agendar', 'Consultar', 'Dashboard', 'Enviar documentos']
+    }
+
+    // Backoffice: também envia DEMM/documento de inspeção.
+    if (isLavraturaBackofficeScope(activeFieldTeamSubtype)) {
+      return ['Agendar', 'Consultar', 'Meus TOIs', 'Enviar documentos']
     }
 
     return ['Agendar', 'Consultar', 'Meus TOIs']
@@ -4571,6 +4578,8 @@ function HomePanel({
                     : undefined
                 }
               />
+            ) : selectedFieldTeamSection === 'Enviar documentos' ? (
+              <EnviarDocumentosPanel />
             ) : (
               <FieldTeamConsultarPanel
                 scopeUserId={
@@ -6011,7 +6020,12 @@ function getAreaCardClassName(title: string) {
     return 'area-card-equipe-campo'
   }
 
-  if (title === 'Consultar' || title === 'Meus TOIs' || title === 'Dashboard') {
+  if (
+    title === 'Consultar' ||
+    title === 'Meus TOIs' ||
+    title === 'Dashboard' ||
+    title === 'Enviar documentos'
+  ) {
     return 'area-card-equipe-campo'
   }
 
