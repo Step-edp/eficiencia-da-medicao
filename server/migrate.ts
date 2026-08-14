@@ -164,6 +164,11 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_meter_inspection_documents_schedule
       ON meter_inspection_documents (meter_schedule_id);
 
+    ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS extracted_meter TEXT;
+    ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS extracted_lacre TEXT;
+    ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS blocked BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS block_reason TEXT;
+
     CREATE TABLE IF NOT EXISTS meter_registry (
       id TEXT PRIMARY KEY,
       legacy_id INTEGER NOT NULL,

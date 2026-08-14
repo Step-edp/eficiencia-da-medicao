@@ -2013,8 +2013,9 @@ button {
 }
 
 .week-meter-status-badge.is-bloqueado {
-  background: rgba(148, 163, 184, 0.2);
-  color: #dbe3ee;
+  background: rgba(216, 112, 255, 0.2);
+  color: #f1d9ff;
+  cursor: help;
 }
 
 .week-meter-status-badge.is-liberado {

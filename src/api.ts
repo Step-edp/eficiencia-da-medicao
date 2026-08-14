@@ -558,6 +558,10 @@ export type InspectionDocumentRecord = {
   id: string
   meterScheduleId: string
   fileName: string
+  extractedMeter: string | null
+  extractedLacre: string | null
+  blocked: boolean
+  blockReason: string | null
   createdAt: string
   createdByUserId: string | null
   createdByRegistration: string | null
@@ -609,6 +613,7 @@ export type WeekMeterRecord = {
   scheduledAtLabel: string | null
   sourceFiles: string[]
   status: WeekMeterStatus
+  blockReason: string | null
 }
 
 export type DemmMeterAnalysisRecord = {

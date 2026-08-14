@@ -568,22 +568,29 @@ export async function listWeekMeters(_req: Request, res: Response) {
     .map((item) => item.scheduleId)
 
   const inspectionRows = scheduleIds.length
-    ? await query<{ meter_schedule_id: string }>(
-        `SELECT meter_schedule_id FROM meter_inspection_documents WHERE meter_schedule_id = ANY($1::text[])`,
+    ? await query<{ meter_schedule_id: string; blocked: boolean; block_reason: string | null }>(
+        `SELECT meter_schedule_id, blocked, block_reason
+         FROM meter_inspection_documents
+         WHERE meter_schedule_id = ANY($1::text[])`,
         [scheduleIds],
       )
-    : { rows: [] as Array<{ meter_schedule_id: string }> }
-  const hasInspectionSet = new Set(inspectionRows.rows.map((row) => row.meter_schedule_id))
+    : { rows: [] as Array<{ meter_schedule_id: string; blocked: boolean; block_reason: string | null }> }
+  const inspectionByScheduleId = new Map(
+    inspectionRows.rows.map((row) => [row.meter_schedule_id, row]),
+  )
 
   const meters = analyzed.map((item) => {
     const info = meterInfo.get(item.meter)
+    const inspection = item.scheduleId ? inspectionByScheduleId.get(item.scheduleId) : undefined
     let status: WeekMeterStatus
     if (!item.scheduled) {
       status = 'nao_agendado'
-    } else if (item.scheduleId && hasInspectionSet.has(item.scheduleId)) {
-      status = 'liberado'
-    } else {
+    } else if (!inspection) {
       status = 'sem_documento_inspecao'
+    } else if (inspection.blocked) {
+      status = 'bloqueado'
+    } else {
+      status = 'liberado'
     }
     return {
       meter: item.meter,
@@ -593,6 +600,7 @@ export async function listWeekMeters(_req: Request, res: Response) {
       scheduledAtLabel: item.scheduledAtLabel,
       sourceFiles: info?.sourceFiles ?? [],
       status,
+      blockReason: inspection?.block_reason ?? null,
     }
   })
 

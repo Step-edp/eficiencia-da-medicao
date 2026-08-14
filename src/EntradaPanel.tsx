@@ -681,20 +681,33 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
 
     try {
       const fileBase64 = await readFileAsBase64(file)
-      await api.uploadInspectionDocument(target.id, {
+      const { document } = await api.uploadInspectionDocument(target.id, {
         fileName: file.name,
         fileBase64,
       })
       setInspectionPendencias((prev) => prev.filter((item) => item.id !== target.id))
       setWeekMeters((prev) =>
         prev.map((item) =>
-          item.scheduleId === target.id ? { ...item, status: 'liberado' } : item,
+          item.scheduleId === target.id
+            ? {
+                ...item,
+                status: document.blocked ? 'bloqueado' : 'liberado',
+                blockReason: document.blockReason,
+              }
+            : item,
         ),
       )
-      setFeedback({
-        type: 'success',
-        message: `Documento de inspeção anexado ao medidor ${target.meter}.`,
-      })
+      setFeedback(
+        document.blocked
+          ? {
+              type: 'error',
+              message: `Documento anexado, mas o medidor ${target.meter} ficou bloqueado: ${document.blockReason}`,
+            }
+          : {
+              type: 'success',
+              message: `Documento de inspeção anexado ao medidor ${target.meter}.`,
+            },
+      )
       refreshTrailCounts()
     } catch (error) {
       setFeedback({
@@ -1387,7 +1400,10 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                         <td>{item.meter}</td>
                         <td>{item.csdName ?? '—'}</td>
                         <td>
-                          <span className={`week-meter-status-badge is-${item.status}`}>
+                          <span
+                            className={`week-meter-status-badge is-${item.status}`}
+                            title={item.status === 'bloqueado' ? item.blockReason ?? undefined : undefined}
+                          >
                             {weekMeterStatusLabel(item.status)}
                           </span>
                         </td>
@@ -1402,7 +1418,9 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                               Agendar
                             </button>
                           ) : null}
-                          {item.status === 'sem_documento_inspecao' && item.scheduleId ? (
+                          {(item.status === 'sem_documento_inspecao' ||
+                            item.status === 'bloqueado') &&
+                          item.scheduleId ? (
                             <>
                               <input
                                 id={`week-meter-inspection-${item.scheduleId}`}
@@ -1426,7 +1444,9 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                               >
                                 {uploadingInspectionId === item.scheduleId
                                   ? 'Enviando...'
-                                  : 'Importar documento'}
+                                  : item.status === 'bloqueado'
+                                    ? 'Reenviar documento'
+                                    : 'Importar documento'}
                               </label>
                             </>
                           ) : null}
