@@ -568,13 +568,32 @@ export async function listWeekMeters(_req: Request, res: Response) {
     .map((item) => item.scheduleId)
 
   const inspectionRows = scheduleIds.length
-    ? await query<{ meter_schedule_id: string; blocked: boolean; block_reason: string | null }>(
-        `SELECT meter_schedule_id, blocked, block_reason
+    ? await query<{
+        meter_schedule_id: string
+        has_toi: boolean
+        has_comunicado: boolean
+        any_blocked: boolean
+        block_reasons: string | null
+      }>(
+        `SELECT meter_schedule_id,
+                bool_or(doc_type IN ('toi', 'ambos')) AS has_toi,
+                bool_or(doc_type IN ('comunicado', 'ambos')) AS has_comunicado,
+                bool_or(blocked) AS any_blocked,
+                string_agg(DISTINCT block_reason, ' | ') FILTER (WHERE block_reason IS NOT NULL) AS block_reasons
          FROM meter_inspection_documents
-         WHERE meter_schedule_id = ANY($1::text[])`,
+         WHERE meter_schedule_id = ANY($1::text[])
+         GROUP BY meter_schedule_id`,
         [scheduleIds],
       )
-    : { rows: [] as Array<{ meter_schedule_id: string; blocked: boolean; block_reason: string | null }> }
+    : {
+        rows: [] as Array<{
+          meter_schedule_id: string
+          has_toi: boolean
+          has_comunicado: boolean
+          any_blocked: boolean
+          block_reasons: string | null
+        }>,
+      }
   const inspectionByScheduleId = new Map(
     inspectionRows.rows.map((row) => [row.meter_schedule_id, row]),
   )
@@ -582,12 +601,13 @@ export async function listWeekMeters(_req: Request, res: Response) {
   const meters = analyzed.map((item) => {
     const info = meterInfo.get(item.meter)
     const inspection = item.scheduleId ? inspectionByScheduleId.get(item.scheduleId) : undefined
+    const complete = Boolean(inspection?.has_toi && inspection?.has_comunicado)
     let status: WeekMeterStatus
     if (!item.scheduled) {
       status = 'nao_agendado'
-    } else if (!inspection) {
+    } else if (!complete) {
       status = 'sem_documento_inspecao'
-    } else if (inspection.blocked) {
+    } else if (inspection?.any_blocked) {
       status = 'bloqueado'
     } else {
       status = 'liberado'
@@ -600,7 +620,7 @@ export async function listWeekMeters(_req: Request, res: Response) {
       scheduledAtLabel: item.scheduledAtLabel,
       sourceFiles: info?.sourceFiles ?? [],
       status,
-      blockReason: inspection?.block_reason ?? null,
+      blockReason: inspection?.block_reasons ?? null,
     }
   })
 

@@ -685,29 +685,34 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
         fileName: file.name,
         fileBase64,
       })
-      setInspectionPendencias((prev) => prev.filter((item) => item.id !== target.id))
-      setWeekMeters((prev) =>
-        prev.map((item) =>
-          item.scheduleId === target.id
-            ? {
-                ...item,
-                status: document.blocked ? 'bloqueado' : 'liberado',
-                blockReason: document.blockReason,
-              }
-            : item,
-        ),
-      )
-      setFeedback(
-        document.blocked
-          ? {
-              type: 'error',
-              message: `Documento anexado, mas o medidor ${target.meter} ficou bloqueado: ${document.blockReason}`,
-            }
-          : {
-              type: 'success',
-              message: `Documento de inspeção anexado ao medidor ${target.meter}.`,
-            },
-      )
+
+      const docTypeLabel =
+        document.docType === 'toi'
+          ? 'TOI'
+          : document.docType === 'comunicado'
+            ? 'Comunicado de Substituição'
+            : 'TOI + Comunicado de Substituição'
+
+      if (!document.complete) {
+        const missing = !document.hasToi ? 'TOI' : 'Comunicado de Substituição de Medidor'
+        setFeedback({
+          type: 'success',
+          message: `${docTypeLabel} anexado ao medidor ${target.meter}. Ainda falta anexar o ${missing}.`,
+        })
+      } else if (document.blocked) {
+        setFeedback({
+          type: 'error',
+          message: `Documento anexado, mas o medidor ${target.meter} ficou bloqueado: ${document.blockReason}`,
+        })
+      } else {
+        setFeedback({
+          type: 'success',
+          message: `Documento de inspeção anexado ao medidor ${target.meter}.`,
+        })
+      }
+
+      void loadInspectionPendencias()
+      void loadWeekMeters()
       refreshTrailCounts()
     } catch (error) {
       setFeedback({
@@ -1252,7 +1257,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               </div>
             ) : null}
 
-            {inspectionPendenciasLoading ? (
+            {inspectionPendenciasLoading && inspectionPendencias.length === 0 ? (
               <p className="entrada-panel-empty">Carregando pendências...</p>
             ) : inspectionPendencias.length === 0 ? (
               <p className="entrada-panel-empty">
@@ -1270,6 +1275,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                       <th>Data agendada</th>
                       <th>Responsável</th>
                       <th>Escopo</th>
+                      <th>Pendente</th>
                       <th>Ações</th>
                     </tr>
                   </thead>
@@ -1285,6 +1291,14 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                           {pendencia.responsibleName ?? pendencia.responsibleRegistration ?? '—'}
                         </td>
                         <td>{formatWorkSubtypeLabel(pendencia.responsibleWorkSubtype)}</td>
+                        <td>
+                          {[
+                            pendencia.missingToi ? 'TOI' : null,
+                            pendencia.missingComunicado ? 'Comunicado' : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' + ')}
+                        </td>
                         <td>
                           <input
                             id={`inspection-upload-${pendencia.id}`}
@@ -1378,7 +1392,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               </select>
             </label>
 
-            {weekMetersLoading ? (
+            {weekMetersLoading && weekMeters.length === 0 ? (
               <p className="entrada-panel-empty">Carregando medidores...</p>
             ) : filteredWeekMeters.length === 0 ? (
               <p className="entrada-panel-empty">Nenhum medidor encontrado para esse filtro.</p>

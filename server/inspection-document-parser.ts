@@ -13,6 +13,9 @@ const METER_NUMBER_PATTERN = /\b\d{7,9}\b/
 const LACRE_LABEL_PATTERN = /n[uú]mero\s+do\(s\)\s+lacre\(s\)\s*:?/i
 const LACRE_VALUE_PATTERN = /\b[0-9A-Za-z-]{4,}\b/
 
+const TOI_MARKER = /termo\s+de\s+ocorr[eê]ncia\s+e\s+inspe[cç][aã]o/i
+const COMUNICADO_MARKER = /comunicado\s+de\s+substitui[cç][aã]o\s+de\s+medidor/i
+
 type TextItem = {
   str?: string
 }
@@ -20,6 +23,23 @@ type TextItem = {
 export type InspectionDocumentParseResult = {
   meterEncontrado: string | null
   lacre: string | null
+}
+
+export type InspectionDocumentType = 'toi' | 'comunicado' | 'ambos' | 'desconhecido'
+
+/**
+ * O documento de inspeção exigido é composto por dois modelos fixos da EDP: o TOI
+ * (Termo de Ocorrência e Inspeção) e o Comunicado de Substituição de Medidor. Podem ser
+ * anexados juntos (um PDF com as duas páginas) ou separados (um PDF por vez) — por isso
+ * classificamos pelo conteúdo em vez de exigir um único arquivo.
+ */
+export function classifyInspectionDocument(text: string): InspectionDocumentType {
+  const hasToi = TOI_MARKER.test(text)
+  const hasComunicado = COMUNICADO_MARKER.test(text)
+  if (hasToi && hasComunicado) return 'ambos'
+  if (hasToi) return 'toi'
+  if (hasComunicado) return 'comunicado'
+  return 'desconhecido'
 }
 
 function extractAfterLabel(
@@ -62,7 +82,7 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
   }
 }
 
-async function extractTextFromPdf(buffer: Buffer): Promise<string> {
+export async function extractInspectionPdfText(buffer: Buffer): Promise<string> {
   const pdf = await getDocument({
     data: new Uint8Array(buffer),
     useSystemFonts: true,
@@ -81,7 +101,3 @@ async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   return parts.join('\n')
 }
 
-export async function parseInspectionPdf(buffer: Buffer): Promise<InspectionDocumentParseResult> {
-  const text = await extractTextFromPdf(buffer)
-  return parseInspectionText(text)
-}

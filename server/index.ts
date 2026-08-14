@@ -326,9 +326,13 @@ async function start() {
     rejectLabMedicaoViewOnlyMutations,
     uploadInspectionDocument,
   )
-  app.get('/api/meter-schedules/:id/inspection-document', requireAuth, downloadInspectionDocument)
+  app.get(
+    '/api/meter-schedules/:id/inspection-document/:docType',
+    requireAuth,
+    downloadInspectionDocument,
+  )
   app.delete(
-    '/api/meter-schedules/:id/inspection-document',
+    '/api/meter-schedules/:id/inspection-document/:docType',
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     deleteInspectionDocument,

@@ -554,9 +554,12 @@ export type DemmDocumentRecord = {
   createdByRegistration: string | null
 }
 
+export type InspectionDocumentType = 'toi' | 'comunicado' | 'ambos'
+
 export type InspectionDocumentRecord = {
   id: string
   meterScheduleId: string
+  docType: InspectionDocumentType
   fileName: string
   extractedMeter: string | null
   extractedLacre: string | null
@@ -565,6 +568,9 @@ export type InspectionDocumentRecord = {
   createdAt: string
   createdByUserId: string | null
   createdByRegistration: string | null
+  complete: boolean
+  hasToi: boolean
+  hasComunicado: boolean
 }
 
 export type MeterInspectionPendenciaRecord = {
@@ -578,6 +584,8 @@ export type MeterInspectionPendenciaRecord = {
   responsibleName: string | null
   responsibleRegistration: string | null
   responsibleWorkSubtype: string | null
+  missingToi: boolean
+  missingComunicado: boolean
 }
 
 export type DemmWeekStatus = 'entregue' | 'pendente' | 'nao_entregue'
@@ -1366,13 +1374,13 @@ export const api = {
         body: JSON.stringify(payload),
       },
     ),
-  deleteInspectionDocument: (meterScheduleId: string) =>
+  deleteInspectionDocument: (meterScheduleId: string, docType: InspectionDocumentType) =>
     request<{ ok: true; meterScheduleId: string }>(
-      `/api/meter-schedules/${meterScheduleId}/inspection-document`,
+      `/api/meter-schedules/${meterScheduleId}/inspection-document/${docType}`,
       { method: 'DELETE' },
     ),
-  getInspectionDocumentFileUrl: (meterScheduleId: string) =>
-    `/api/meter-schedules/${meterScheduleId}/inspection-document`,
+  getInspectionDocumentFileUrl: (meterScheduleId: string, docType: InspectionDocumentType) =>
+    `/api/meter-schedules/${meterScheduleId}/inspection-document/${docType}`,
   listInspectionPendencias: () =>
     request<{ pendencias: MeterInspectionPendenciaRecord[]; pendingCount: number }>(
       '/api/meter-schedules/inspection-pendencias',

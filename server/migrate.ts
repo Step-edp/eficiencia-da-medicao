@@ -169,6 +169,15 @@ export async function migrate() {
     ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS blocked BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS block_reason TEXT;
 
+    -- O documento de inspeção passou a exigir dois modelos (TOI + Comunicado de Substituição),
+    -- que podem ser anexados juntos ou separados: um registro por tipo em vez de um único
+    -- documento por agendamento.
+    ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS doc_type TEXT NOT NULL DEFAULT 'ambos';
+    ALTER TABLE meter_inspection_documents
+      DROP CONSTRAINT IF EXISTS meter_inspection_documents_meter_schedule_id_key;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_meter_inspection_documents_schedule_doctype
+      ON meter_inspection_documents (meter_schedule_id, doc_type);
+
     CREATE TABLE IF NOT EXISTS meter_registry (
       id TEXT PRIMARY KEY,
       legacy_id INTEGER NOT NULL,
