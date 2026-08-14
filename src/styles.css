@@ -1795,16 +1795,16 @@ button {
 
 .entrada-demm-switch {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: stretch;
-  width: min(720px, 100%);
+  width: 100%;
+  overflow-x: auto;
   grid-template-columns: none;
   margin-left: auto;
 }
 
 .entrada-demm-switch > button {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 
