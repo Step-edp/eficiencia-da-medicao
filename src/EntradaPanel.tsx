@@ -7,6 +7,7 @@ import {
   type DemmDocumentRecord,
   type DemmMeterAnalysisRecord,
   type DemmUploadConflictRecord,
+  type MeterInspectionPendenciaRecord,
 } from './api'
 import { ENTRADA_TRAIL_STEP } from './labTrailSteps'
 import { useCsdsOptions } from './useCsdsOptions'
@@ -216,11 +217,18 @@ type EntradaPanelProps = {
 }
 
 export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaPanelProps) {
-  const [view, setView] = useState<'overview' | 'metersBase' | 'csdPendencias'>('overview')
+  const [view, setView] = useState<
+    'overview' | 'metersBase' | 'csdPendencias' | 'inspectionPendencias'
+  >('overview')
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
   const [schedules, setSchedules] = useState<Awaited<ReturnType<typeof api.listMeterSchedules>>['schedules']>([])
   const [csdPendencias, setCsdPendencias] = useState<CsdDemmPendenciaRecord[]>([])
   const [csdPendenciasLoading, setCsdPendenciasLoading] = useState(false)
+  const [inspectionPendencias, setInspectionPendencias] = useState<
+    MeterInspectionPendenciaRecord[]
+  >([])
+  const [inspectionPendenciasLoading, setInspectionPendenciasLoading] = useState(false)
+  const [uploadingInspectionId, setUploadingInspectionId] = useState<string | null>(null)
   const { options: csdOptions, loading: csdOptionsLoading, error: csdOptionsError } = useCsdsOptions()
   const [loading, setLoading] = useState(true)
   const [showDemmModal, setShowDemmModal] = useState(false)
@@ -361,6 +369,66 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
 
   const closeCsdPendencias = () => {
     setView('overview')
+  }
+
+  const loadInspectionPendencias = useCallback(async () => {
+    setInspectionPendenciasLoading(true)
+    try {
+      const response = await api.listInspectionPendencias()
+      setInspectionPendencias(response.pendencias)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar os medidores pendentes de documento de inspeção.',
+      })
+    } finally {
+      setInspectionPendenciasLoading(false)
+    }
+  }, [])
+
+  const openInspectionPendencias = () => {
+    setView('inspectionPendencias')
+    setFeedback(null)
+    void loadInspectionPendencias()
+  }
+
+  const closeInspectionPendencias = () => {
+    setView('overview')
+  }
+
+  const handleUploadInspectionDocument = async (
+    pendencia: MeterInspectionPendenciaRecord,
+    file: File,
+  ) => {
+    setUploadingInspectionId(pendencia.id)
+    setFeedback(null)
+
+    try {
+      const fileBase64 = await readFileAsBase64(file)
+      await api.uploadInspectionDocument(pendencia.id, {
+        fileName: file.name,
+        fileBase64,
+      })
+      setInspectionPendencias((prev) => prev.filter((item) => item.id !== pendencia.id))
+      setFeedback({
+        type: 'success',
+        message: `Documento de inspeção anexado ao medidor ${pendencia.meter}.`,
+      })
+      refreshTrailCounts()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível anexar o documento de inspeção.',
+      })
+    } finally {
+      setUploadingInspectionId(null)
+    }
   }
 
   const handleDemmSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -614,6 +682,108 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     )
   }
 
+  if (view === 'inspectionPendencias') {
+    return (
+      <>
+        <div className="entrada-panel">
+          <section
+            className="entrada-dedicated-screen"
+            aria-label="Medidores pendentes de documento de inspeção"
+          >
+            <div className="entrada-dedicated-header">
+              <div>
+                <h3 className="entrada-section-title">
+                  Medidores pendentes de documento de inspeção
+                </h3>
+                <p className="demm-analysis-summary">
+                  {inspectionPendenciasLoading
+                    ? 'Carregando pendências...'
+                    : `${inspectionPendencias.length} medidor(es) sem documento anexado`}
+                </p>
+              </div>
+              <div
+                className="panel-switch entrada-demm-switch"
+                role="toolbar"
+                aria-label="Navegação"
+              >
+                <button type="button" className="active" onClick={closeInspectionPendencias}>
+                  Voltar
+                </button>
+              </div>
+            </div>
+
+            {feedback ? (
+              <div className={`login-feedback ${feedback.type}`} role="status">
+                {feedback.message}
+              </div>
+            ) : null}
+
+            {inspectionPendenciasLoading ? (
+              <p className="entrada-panel-empty">Carregando pendências...</p>
+            ) : inspectionPendencias.length === 0 ? (
+              <p className="entrada-panel-empty">
+                Todos os medidores agendados têm documento de inspeção anexado.
+              </p>
+            ) : (
+              <div className="entrada-table-wrap">
+                <table className="data-table entrada-table">
+                  <thead>
+                    <tr>
+                      <th>Medidor</th>
+                      <th>Instalação</th>
+                      <th>CSD</th>
+                      <th>Etapa</th>
+                      <th>Data agendada</th>
+                      <th>Responsável</th>
+                      <th>Escopo</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inspectionPendencias.map((pendencia) => (
+                      <tr key={pendencia.id}>
+                        <td>{pendencia.meter}</td>
+                        <td>{pendencia.installation}</td>
+                        <td>{pendencia.csd}</td>
+                        <td>{pendencia.trailStep}</td>
+                        <td>{formatDateTime(pendencia.scheduledAt)}</td>
+                        <td>
+                          {pendencia.responsibleName ?? pendencia.responsibleRegistration ?? '—'}
+                        </td>
+                        <td>{formatWorkSubtypeLabel(pendencia.responsibleWorkSubtype)}</td>
+                        <td>
+                          <input
+                            id={`inspection-upload-${pendencia.id}`}
+                            type="file"
+                            className="file-picker-input"
+                            disabled={uploadingInspectionId === pendencia.id}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0]
+                              event.target.value = ''
+                              if (file) void handleUploadInspectionDocument(pendencia, file)
+                            }}
+                          />
+                          <label
+                            htmlFor={`inspection-upload-${pendencia.id}`}
+                            className="file-picker-button"
+                          >
+                            {uploadingInspectionId === pendencia.id
+                              ? 'Enviando...'
+                              : 'Anexar documento'}
+                          </label>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <div className="entrada-panel">
@@ -646,6 +816,13 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               disabled={loading}
             >
               CSDs pendentes
+            </button>
+            <button
+              type="button"
+              onClick={() => openInspectionPendencias()}
+              disabled={loading}
+            >
+              Documentos de inspeção pendentes
             </button>
           </div>
         </div>

@@ -69,6 +69,12 @@ import {
   getMeterRegistryTrailCounts,
 } from './routes/meter-registry.js'
 import {
+  uploadInspectionDocument,
+  downloadInspectionDocument,
+  deleteInspectionDocument,
+  listInspectionPendencias,
+} from './routes/meter-inspection-documents.js'
+import {
   createSupportTicket,
   listSupportTickets,
   replySupportTicket,
@@ -310,6 +316,21 @@ async function start() {
     rescheduleMeterSchedule,
   )
   app.get('/api/meter-registry/trail-counts', requireAuth, getMeterRegistryTrailCounts)
+
+  app.get('/api/meter-schedules/inspection-pendencias', requireAuth, listInspectionPendencias)
+  app.post(
+    '/api/meter-schedules/:id/inspection-document',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    uploadInspectionDocument,
+  )
+  app.get('/api/meter-schedules/:id/inspection-document', requireAuth, downloadInspectionDocument)
+  app.delete(
+    '/api/meter-schedules/:id/inspection-document',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    deleteInspectionDocument,
+  )
 
   app.post('/api/demm-documents', requireAuth, rejectLabMedicaoViewOnlyMutations, createDemmDocument)
   app.get('/api/demm-documents', requireAuth, listDemmDocuments)

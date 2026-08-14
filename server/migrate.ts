@@ -152,6 +152,18 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_demm_documents_meter ON demm_documents (meter);
     CREATE INDEX IF NOT EXISTS idx_demm_documents_schedule ON demm_documents (meter_schedule_id);
 
+    CREATE TABLE IF NOT EXISTS meter_inspection_documents (
+      id TEXT PRIMARY KEY,
+      meter_schedule_id TEXT NOT NULL UNIQUE REFERENCES meter_schedules(id) ON DELETE CASCADE,
+      file_name TEXT NOT NULL,
+      file_data BYTEA NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_by_user_id TEXT REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_meter_inspection_documents_schedule
+      ON meter_inspection_documents (meter_schedule_id);
+
     CREATE TABLE IF NOT EXISTS meter_registry (
       id TEXT PRIMARY KEY,
       legacy_id INTEGER NOT NULL,

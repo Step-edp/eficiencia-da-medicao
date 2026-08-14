@@ -23,6 +23,7 @@ export type AuditEntityType =
   | 'satisfaction_survey'
   | 'meter_schedule'
   | 'demm_document'
+  | 'meter_inspection_document'
   | 'catalog_option'
   | 'process_assignment'
   | 'org_cell'
