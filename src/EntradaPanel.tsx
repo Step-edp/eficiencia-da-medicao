@@ -888,10 +888,8 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
 
             {csdPendenciasLoading ? (
               <p className="entrada-panel-empty">Carregando pendências...</p>
-            ) : pendingCsds.length === 0 ? (
-              <p className="entrada-panel-empty">
-                Todos os CSDs já entregaram a DEMM desta semana.
-              </p>
+            ) : csdPendencias.length === 0 ? (
+              <p className="entrada-panel-empty">Nenhum CSD cadastrado.</p>
             ) : (
               <div className="entrada-table-wrap">
                 <table className="data-table entrada-table">
@@ -905,7 +903,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     </tr>
                   </thead>
                   <tbody>
-                    {pendingCsds.map((csd) => (
+                    {csdPendencias.map((csd) => (
                       <tr key={csd.id}>
                         <td>{csd.name}</td>
                         <td>{csd.responsibleName ?? csd.responsibleRegistration ?? '—'}</td>
@@ -913,6 +911,8 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                         <td>
                           {csd.status === 'nao_entregue' ? (
                             <span className="schedule-late-badge">Não entregue</span>
+                          ) : csd.status === 'entregue' ? (
+                            <span className="schedule-ok-badge">Entregue</span>
                           ) : (
                             <span className="schedule-pending-badge">Pendente</span>
                           )}
