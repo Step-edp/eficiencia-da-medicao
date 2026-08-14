@@ -33,7 +33,7 @@ const DEFAULT_OPTIONS: Record<CatalogKey, string[]> = {
     'Qualidade',
   ],
   tipo: ['Própria', 'Terceira'],
-  terceira: ['BMB', 'Cosampa', 'Engeserv', 'ROTARY', 'TIVIT'],
+  terceira: ['BMB', 'Cosampa', 'Engelmig', 'Engeserv', 'ROTARY', 'TIVIT'],
   localidade: [
     'Aparecida',
     'Biritiba-Mirim',
