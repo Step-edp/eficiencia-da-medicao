@@ -597,6 +597,8 @@ export type CsdDemmHistoricoRecord = {
   weeks: Array<{ weekStart: string; status: DemmWeekStatus }>
 }
 
+export type CsdDemmHistoricoWeek = { weekStart: string; weekDeadline: string }
+
 export type DemmMeterAnalysisRecord = {
   meter: string
   scheduled: boolean
@@ -1331,7 +1333,9 @@ export const api = {
       pendingCount: number
     }>('/api/csds/demm-pendencias'),
   getCsdDemmHistorico: () =>
-    request<{ weeks: string[]; csds: CsdDemmHistoricoRecord[] }>('/api/csds/demm-historico'),
+    request<{ weeks: CsdDemmHistoricoWeek[]; csds: CsdDemmHistoricoRecord[] }>(
+      '/api/csds/demm-historico',
+    ),
   uploadInspectionDocument: (
     meterScheduleId: string,
     payload: { fileName: string; fileBase64: string },

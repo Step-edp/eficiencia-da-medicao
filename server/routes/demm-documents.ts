@@ -378,6 +378,18 @@ function fridayDeadline(weekStart: Date): Date {
   return result
 }
 
+/**
+ * Data "YYYY-MM-DD" a partir dos componentes locais do servidor (não usar toISOString aqui:
+ * o front-end reinterpreta ISO com "Z" no fuso do navegador, o que pode voltar a data um dia
+ * (ex.: segunda 00:00 UTC vira domingo à noite em horário de Brasília).
+ */
+function dateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 type DemmWeekStatus = 'entregue' | 'pendente' | 'nao_entregue'
 
 /** Uma semana só fica "não entregue" depois que o prazo (sexta) já passou; não dá para entregar retroativo. */
@@ -428,8 +440,8 @@ export async function listCsdDemmPendencias(_req: Request, res: Response) {
   }))
 
   res.json({
-    weekStart: weekStart.toISOString(),
-    weekDeadline: weekEnd.toISOString(),
+    weekStart: dateKey(weekStart),
+    weekDeadline: dateKey(weekEnd),
     csds,
     pendingCount: csds.filter((csd) => csd.status !== 'entregue').length,
   })
@@ -496,16 +508,16 @@ export async function getCsdDemmHistorico(_req: Request, res: Response) {
       })
     }
     csdMap.get(row.id)!.weeks.push({
-      weekStart: row.week_start.toISOString(),
+      weekStart: dateKey(row.week_start),
       status: computeWeekStatus(row.week_start, row.delivered, now),
     })
   }
 
-  const weeks: string[] = []
+  const weeks: Array<{ weekStart: string; weekDeadline: string }> = []
   for (let i = 0; i < DEMM_HISTORY_WEEKS; i += 1) {
     const week = new Date(firstWeekStart)
     week.setDate(week.getDate() + 7 * i)
-    weeks.push(week.toISOString())
+    weeks.push({ weekStart: dateKey(week), weekDeadline: dateKey(fridayDeadline(week)) })
   }
 
   res.json({ weeks, csds: [...csdMap.values()] })

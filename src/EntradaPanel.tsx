@@ -67,10 +67,9 @@ function formatDateTime(isoDate: string) {
   }).format(new Date(isoDate))
 }
 
-function formatWeekLabel(isoDate: string) {
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(
-    new Date(isoDate),
-  )
+function formatWeekLabel(dateKey: string) {
+  const [, month, day] = dateKey.split('-')
+  return `${day}/${month}`
 }
 
 function readFileAsBase64(file: File): Promise<string> {
@@ -276,7 +275,9 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   const [schedules, setSchedules] = useState<Awaited<ReturnType<typeof api.listMeterSchedules>>['schedules']>([])
   const [csdPendencias, setCsdPendencias] = useState<CsdDemmPendenciaRecord[]>([])
   const [csdPendenciasLoading, setCsdPendenciasLoading] = useState(false)
-  const [demmHistoricoWeeks, setDemmHistoricoWeeks] = useState<string[]>([])
+  const [demmHistoricoWeeks, setDemmHistoricoWeeks] = useState<
+    Awaited<ReturnType<typeof api.getCsdDemmHistorico>>['weeks']
+  >([])
   const [demmHistoricoCsds, setDemmHistoricoCsds] = useState<CsdDemmHistoricoRecord[]>([])
   const [demmHistoricoLoading, setDemmHistoricoLoading] = useState(false)
   const [inspectionPendencias, setInspectionPendencias] = useState<
@@ -996,7 +997,9 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                       <th>CSD</th>
                       <th>Responsável</th>
                       {demmHistoricoWeeks.map((week) => (
-                        <th key={week}>{formatWeekLabel(week)}</th>
+                        <th key={week.weekStart} title={`Semana de ${formatWeekLabel(week.weekStart)} a ${formatWeekLabel(week.weekDeadline)}`}>
+                          {formatWeekLabel(week.weekDeadline)}
+                        </th>
                       ))}
                     </tr>
                   </thead>
