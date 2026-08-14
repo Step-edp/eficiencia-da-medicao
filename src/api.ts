@@ -617,6 +617,7 @@ export type WeekMeterRecord = {
   meter: string
   csdId: string | null
   csdName: string | null
+  demmDocumentNumber: string | null
   scheduleId: string | null
   scheduledAtLabel: string | null
   sourceFiles: string[]

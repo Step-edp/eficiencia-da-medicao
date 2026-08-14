@@ -528,11 +528,12 @@ export type WeekMeterStatus = 'nao_agendado' | 'sem_documento_inspecao' | 'bloqu
 export async function listWeekMeters(_req: Request, res: Response) {
   const documents = await query<{
     file_name: string
+    document_number: string | null
     extracted_meters: Array<{ meter: string }> | null
     csd_id: string | null
     csd_name: string | null
   }>(
-    `SELECT d.file_name, d.extracted_meters, d.csd_id, c.name AS csd_name
+    `SELECT d.file_name, d.document_number, d.extracted_meters, d.csd_id, c.name AS csd_name
      FROM demm_documents d
      LEFT JOIN csds c ON c.id = d.csd_id
      ORDER BY d.created_at ASC`,
@@ -540,7 +541,12 @@ export async function listWeekMeters(_req: Request, res: Response) {
 
   const meterInfo = new Map<
     string,
-    { csdId: string | null; csdName: string | null; sourceFiles: string[] }
+    {
+      csdId: string | null
+      csdName: string | null
+      demmDocumentNumber: string | null
+      sourceFiles: string[]
+    }
   >()
 
   for (const doc of documents.rows) {
@@ -554,6 +560,7 @@ export async function listWeekMeters(_req: Request, res: Response) {
         meterInfo.set(item.meter, {
           csdId: doc.csd_id,
           csdName: doc.csd_name,
+          demmDocumentNumber: doc.document_number,
           sourceFiles: [doc.file_name],
         })
       }
@@ -616,6 +623,7 @@ export async function listWeekMeters(_req: Request, res: Response) {
       meter: item.meter,
       csdId: info?.csdId ?? null,
       csdName: info?.csdName ?? null,
+      demmDocumentNumber: info?.demmDocumentNumber ?? null,
       scheduleId: item.scheduleId,
       scheduledAtLabel: item.scheduledAtLabel,
       sourceFiles: info?.sourceFiles ?? [],

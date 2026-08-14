@@ -1403,6 +1403,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     <tr>
                       <th>Medidor</th>
                       <th>CSD</th>
+                      <th>Nº DEMM</th>
                       <th>Status</th>
                       <th>Data agendada</th>
                       <th>Ações</th>
@@ -1413,6 +1414,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                       <tr key={item.meter}>
                         <td>{item.meter}</td>
                         <td>{item.csdName ?? '—'}</td>
+                        <td>{item.demmDocumentNumber ?? '—'}</td>
                         <td>
                           <span
                             className={`week-meter-status-badge is-${item.status}`}
