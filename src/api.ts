@@ -576,6 +576,8 @@ export type MeterInspectionPendenciaRecord = {
   responsibleWorkSubtype: string | null
 }
 
+export type DemmWeekStatus = 'entregue' | 'pendente' | 'nao_entregue'
+
 export type CsdDemmPendenciaRecord = {
   id: string
   name: string
@@ -583,7 +585,16 @@ export type CsdDemmPendenciaRecord = {
   responsibleName: string | null
   responsibleRegistration: string | null
   responsibleWorkSubtype: string | null
-  submittedThisWeek: boolean
+  status: DemmWeekStatus
+}
+
+export type CsdDemmHistoricoRecord = {
+  id: string
+  name: string
+  responsibleName: string | null
+  responsibleRegistration: string | null
+  responsibleWorkSubtype: string | null
+  weeks: Array<{ weekStart: string; status: DemmWeekStatus }>
 }
 
 export type DemmMeterAnalysisRecord = {
@@ -1313,9 +1324,14 @@ export const api = {
     }),
   listDemmDocuments: () => request<{ documents: DemmDocumentRecord[] }>('/api/demm-documents'),
   listCsdDemmPendencias: () =>
-    request<{ weekStart: string; csds: CsdDemmPendenciaRecord[]; pendingCount: number }>(
-      '/api/csds/demm-pendencias',
-    ),
+    request<{
+      weekStart: string
+      weekDeadline: string
+      csds: CsdDemmPendenciaRecord[]
+      pendingCount: number
+    }>('/api/csds/demm-pendencias'),
+  getCsdDemmHistorico: () =>
+    request<{ weeks: string[]; csds: CsdDemmHistoricoRecord[] }>('/api/csds/demm-historico'),
   uploadInspectionDocument: (
     meterScheduleId: string,
     payload: { fileName: string; fileBase64: string },

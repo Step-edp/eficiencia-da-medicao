@@ -370,6 +370,22 @@ function startOfWeek(date: Date): Date {
   return result
 }
 
+/** Prazo de entrega da DEMM: sexta-feira (fim do dia) da semana informada. */
+function fridayDeadline(weekStart: Date): Date {
+  const result = new Date(weekStart)
+  result.setDate(result.getDate() + 4)
+  result.setHours(23, 59, 59, 999)
+  return result
+}
+
+type DemmWeekStatus = 'entregue' | 'pendente' | 'nao_entregue'
+
+/** Uma semana só fica "não entregue" depois que o prazo (sexta) já passou; não dá para entregar retroativo. */
+function computeWeekStatus(weekStart: Date, delivered: boolean, now: Date): DemmWeekStatus {
+  if (delivered) return 'entregue'
+  return now > fridayDeadline(weekStart) ? 'nao_entregue' : 'pendente'
+}
+
 type CsdDemmPendenciaRow = {
   id: string
   name: string
@@ -377,11 +393,13 @@ type CsdDemmPendenciaRow = {
   responsible_name: string | null
   responsible_registration: string | null
   responsible_work_subtype: string | null
-  submitted_this_week: boolean
+  delivered_this_week: boolean
 }
 
 export async function listCsdDemmPendencias(_req: Request, res: Response) {
-  const weekStart = startOfWeek(new Date())
+  const now = new Date()
+  const weekStart = startOfWeek(now)
+  const weekEnd = fridayDeadline(weekStart)
 
   const result = await query<CsdDemmPendenciaRow>(
     `SELECT c.id, c.name,
@@ -391,12 +409,12 @@ export async function listCsdDemmPendencias(_req: Request, res: Response) {
             u.work_subtype AS responsible_work_subtype,
             EXISTS (
               SELECT 1 FROM demm_documents d
-              WHERE d.csd_id = c.id AND d.created_at >= $1
-            ) AS submitted_this_week
+              WHERE d.csd_id = c.id AND d.created_at >= $1 AND d.created_at <= $2
+            ) AS delivered_this_week
      FROM csds c
      LEFT JOIN users u ON u.id = c.responsible_user_id
      ORDER BY c.name ASC`,
-    [weekStart.toISOString()],
+    [weekStart.toISOString(), weekEnd.toISOString()],
   )
 
   const csds = result.rows.map((row) => ({
@@ -406,12 +424,89 @@ export async function listCsdDemmPendencias(_req: Request, res: Response) {
     responsibleName: row.responsible_name,
     responsibleRegistration: row.responsible_registration,
     responsibleWorkSubtype: row.responsible_work_subtype,
-    submittedThisWeek: row.submitted_this_week,
+    status: computeWeekStatus(weekStart, row.delivered_this_week, now),
   }))
 
   res.json({
     weekStart: weekStart.toISOString(),
+    weekDeadline: weekEnd.toISOString(),
     csds,
-    pendingCount: csds.filter((csd) => !csd.submittedThisWeek).length,
+    pendingCount: csds.filter((csd) => csd.status !== 'entregue').length,
   })
+}
+
+const DEMM_HISTORY_WEEKS = 8
+
+type CsdDemmHistoricoRow = {
+  id: string
+  name: string
+  responsible_name: string | null
+  responsible_registration: string | null
+  responsible_work_subtype: string | null
+  week_start: Date
+  delivered: boolean
+}
+
+export async function getCsdDemmHistorico(_req: Request, res: Response) {
+  const now = new Date()
+  const currentWeekStart = startOfWeek(now)
+  const firstWeekStart = new Date(currentWeekStart)
+  firstWeekStart.setDate(firstWeekStart.getDate() - 7 * (DEMM_HISTORY_WEEKS - 1))
+
+  const result = await query<CsdDemmHistoricoRow>(
+    `SELECT c.id, c.name,
+            u.name AS responsible_name,
+            u.registration AS responsible_registration,
+            u.work_subtype AS responsible_work_subtype,
+            gs.week_start,
+            EXISTS (
+              SELECT 1 FROM demm_documents d
+              WHERE d.csd_id = c.id
+                AND d.created_at >= gs.week_start
+                AND d.created_at < gs.week_start + interval '5 days'
+            ) AS delivered
+     FROM csds c
+     LEFT JOIN users u ON u.id = c.responsible_user_id
+     CROSS JOIN generate_series($1::timestamptz, $2::timestamptz, interval '1 week') AS gs(week_start)
+     ORDER BY c.name ASC, gs.week_start ASC`,
+    [firstWeekStart.toISOString(), currentWeekStart.toISOString()],
+  )
+
+  const csdMap = new Map<
+    string,
+    {
+      id: string
+      name: string
+      responsibleName: string | null
+      responsibleRegistration: string | null
+      responsibleWorkSubtype: string | null
+      weeks: Array<{ weekStart: string; status: DemmWeekStatus }>
+    }
+  >()
+
+  for (const row of result.rows) {
+    if (!csdMap.has(row.id)) {
+      csdMap.set(row.id, {
+        id: row.id,
+        name: row.name,
+        responsibleName: row.responsible_name,
+        responsibleRegistration: row.responsible_registration,
+        responsibleWorkSubtype: row.responsible_work_subtype,
+        weeks: [],
+      })
+    }
+    csdMap.get(row.id)!.weeks.push({
+      weekStart: row.week_start.toISOString(),
+      status: computeWeekStatus(row.week_start, row.delivered, now),
+    })
+  }
+
+  const weeks: string[] = []
+  for (let i = 0; i < DEMM_HISTORY_WEEKS; i += 1) {
+    const week = new Date(firstWeekStart)
+    week.setDate(week.getDate() + 7 * i)
+    weeks.push(week.toISOString())
+  }
+
+  res.json({ weeks, csds: [...csdMap.values()] })
 }

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import {
   api,
   ApiError,
+  type CsdDemmHistoricoRecord,
   type CsdDemmPendenciaRecord,
   type DemmDocumentRecord,
   type DemmMeterAnalysisRecord,
@@ -24,6 +25,12 @@ function formatDateTime(isoDate: string) {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(new Date(isoDate))
+}
+
+function formatWeekLabel(isoDate: string) {
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(
+    new Date(isoDate),
+  )
 }
 
 function readFileAsBase64(file: File): Promise<string> {
@@ -218,12 +225,20 @@ type EntradaPanelProps = {
 
 export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaPanelProps) {
   const [view, setView] = useState<
-    'overview' | 'metersBase' | 'csdPendencias' | 'inspectionPendencias' | 'schedulingPendencias'
+    | 'overview'
+    | 'metersBase'
+    | 'csdPendencias'
+    | 'inspectionPendencias'
+    | 'schedulingPendencias'
+    | 'demmHistorico'
   >('overview')
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
   const [schedules, setSchedules] = useState<Awaited<ReturnType<typeof api.listMeterSchedules>>['schedules']>([])
   const [csdPendencias, setCsdPendencias] = useState<CsdDemmPendenciaRecord[]>([])
   const [csdPendenciasLoading, setCsdPendenciasLoading] = useState(false)
+  const [demmHistoricoWeeks, setDemmHistoricoWeeks] = useState<string[]>([])
+  const [demmHistoricoCsds, setDemmHistoricoCsds] = useState<CsdDemmHistoricoRecord[]>([])
+  const [demmHistoricoLoading, setDemmHistoricoLoading] = useState(false)
   const [inspectionPendencias, setInspectionPendencias] = useState<
     MeterInspectionPendenciaRecord[]
   >([])
@@ -370,6 +385,35 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   }
 
   const closeCsdPendencias = () => {
+    setView('overview')
+  }
+
+  const loadDemmHistorico = useCallback(async () => {
+    setDemmHistoricoLoading(true)
+    try {
+      const response = await api.getCsdDemmHistorico()
+      setDemmHistoricoWeeks(response.weeks)
+      setDemmHistoricoCsds(response.csds)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar o histórico de DEMM.',
+      })
+    } finally {
+      setDemmHistoricoLoading(false)
+    }
+  }, [])
+
+  const openDemmHistorico = () => {
+    setView('demmHistorico')
+    setFeedback(null)
+    void loadDemmHistorico()
+  }
+
+  const closeDemmHistorico = () => {
     setView('overview')
   }
 
@@ -642,7 +686,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   }
 
   if (view === 'csdPendencias') {
-    const pendingCsds = csdPendencias.filter((csd) => !csd.submittedThisWeek)
+    const pendingCsds = csdPendencias.filter((csd) => csd.status !== 'entregue')
 
     return (
       <>
@@ -654,7 +698,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                 <p className="demm-analysis-summary">
                   {csdPendenciasLoading
                     ? 'Carregando pendências...'
-                    : `${pendingCsds.length} de ${csdPendencias.length} CSD(s) sem DEMM enviada nesta semana`}
+                    : `${pendingCsds.length} de ${csdPendencias.length} CSD(s) sem DEMM entregue nesta semana`}
                 </p>
               </div>
               <div
@@ -674,11 +718,17 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               </div>
             ) : null}
 
+            <p className="field-hint">
+              Prazo de entrega: sexta-feira da semana. Depois do prazo a semana fica marcada
+              como "Não entregue" e não pode mais ser regularizada — a pendência da próxima
+              semana já é uma nova cobrança.
+            </p>
+
             {csdPendenciasLoading ? (
               <p className="entrada-panel-empty">Carregando pendências...</p>
             ) : pendingCsds.length === 0 ? (
               <p className="entrada-panel-empty">
-                Todos os CSDs já enviaram a DEMM desta semana.
+                Todos os CSDs já entregaram a DEMM desta semana.
               </p>
             ) : (
               <div className="entrada-table-wrap">
@@ -698,7 +748,11 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                         <td>{csd.responsibleName ?? csd.responsibleRegistration ?? '—'}</td>
                         <td>{formatWorkSubtypeLabel(csd.responsibleWorkSubtype)}</td>
                         <td>
-                          <span className="schedule-late-badge">Pendente</span>
+                          {csd.status === 'nao_entregue' ? (
+                            <span className="schedule-late-badge">Não entregue</span>
+                          ) : (
+                            <span className="schedule-pending-badge">Pendente</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -859,6 +913,81 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     )
   }
 
+  if (view === 'demmHistorico') {
+    return (
+      <>
+        <div className="entrada-panel">
+          <section className="entrada-dedicated-screen" aria-label="Histórico de DEMM por CSD">
+            <div className="entrada-dedicated-header">
+              <div>
+                <h3 className="entrada-section-title">Histórico de DEMM por CSD</h3>
+                <p className="demm-analysis-summary">
+                  {demmHistoricoLoading
+                    ? 'Carregando histórico...'
+                    : `Últimas ${demmHistoricoWeeks.length} semanas · segunda a sexta`}
+                </p>
+              </div>
+              <div
+                className="panel-switch entrada-demm-switch"
+                role="toolbar"
+                aria-label="Navegação"
+              >
+                <button type="button" className="active" onClick={closeDemmHistorico}>
+                  Voltar
+                </button>
+              </div>
+            </div>
+
+            {feedback ? (
+              <div className={`login-feedback ${feedback.type}`} role="status">
+                {feedback.message}
+              </div>
+            ) : null}
+
+            {demmHistoricoLoading ? (
+              <p className="entrada-panel-empty">Carregando histórico...</p>
+            ) : demmHistoricoCsds.length === 0 ? (
+              <p className="entrada-panel-empty">Nenhum CSD cadastrado.</p>
+            ) : (
+              <div className="entrada-table-wrap">
+                <table className="data-table entrada-table">
+                  <thead>
+                    <tr>
+                      <th>CSD</th>
+                      <th>Responsável</th>
+                      {demmHistoricoWeeks.map((week) => (
+                        <th key={week}>{formatWeekLabel(week)}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {demmHistoricoCsds.map((csd) => (
+                      <tr key={csd.id}>
+                        <td>{csd.name}</td>
+                        <td>{csd.responsibleName ?? csd.responsibleRegistration ?? '—'}</td>
+                        {csd.weeks.map((week) => (
+                          <td key={week.weekStart}>
+                            {week.status === 'entregue' ? (
+                              <span className="schedule-ok-badge">Entregue</span>
+                            ) : week.status === 'nao_entregue' ? (
+                              <span className="schedule-late-badge">Não entregue</span>
+                            ) : (
+                              <span className="schedule-pending-badge">Pendente</span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <div className="entrada-panel">
@@ -905,6 +1034,13 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               disabled={loading}
             >
               Medidores pendentes de agendamento
+            </button>
+            <button
+              type="button"
+              onClick={() => openDemmHistorico()}
+              disabled={loading}
+            >
+              Histórico de DEMM
             </button>
           </div>
         </div>

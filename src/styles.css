@@ -2111,6 +2111,18 @@ button {
   border: 1px solid rgba(80, 210, 150, 0.45);
 }
 
+.schedule-pending-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff2cc;
+  background: rgba(200, 150, 30, 0.28);
+  border: 1px solid rgba(230, 180, 60, 0.5);
+}
+
 .lab-trail-connector {
   flex: 0 0 18px;
   align-self: center;
