@@ -1,7 +1,22 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, ApiError, type DemmDocumentRecord, type DemmMeterAnalysisRecord, type DemmUploadConflictRecord } from './api'
+import {
+  api,
+  ApiError,
+  type CsdDemmPendenciaRecord,
+  type DemmDocumentRecord,
+  type DemmMeterAnalysisRecord,
+  type DemmUploadConflictRecord,
+} from './api'
 import { ENTRADA_TRAIL_STEP } from './labTrailSteps'
+import { useCsdsOptions } from './useCsdsOptions'
+
+function formatWorkSubtypeLabel(workSubtype: string | null) {
+  if (!workSubtype) return '—'
+  if (workSubtype.includes('Ponto Focal')) return 'Ponto Focal'
+  if (workSubtype.includes('Backoffice')) return 'Backoffice'
+  return workSubtype
+}
 
 function formatDateTime(isoDate: string) {
   return new Intl.DateTimeFormat('pt-BR', {
@@ -201,12 +216,16 @@ type EntradaPanelProps = {
 }
 
 export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaPanelProps) {
-  const [view, setView] = useState<'overview' | 'metersBase'>('overview')
+  const [view, setView] = useState<'overview' | 'metersBase' | 'csdPendencias'>('overview')
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
   const [schedules, setSchedules] = useState<Awaited<ReturnType<typeof api.listMeterSchedules>>['schedules']>([])
+  const [csdPendencias, setCsdPendencias] = useState<CsdDemmPendenciaRecord[]>([])
+  const [csdPendenciasLoading, setCsdPendenciasLoading] = useState(false)
+  const { options: csdOptions, loading: csdOptionsLoading, error: csdOptionsError } = useCsdsOptions()
   const [loading, setLoading] = useState(true)
   const [showDemmModal, setShowDemmModal] = useState(false)
   const [demmFile, setDemmFile] = useState<File | null>(null)
+  const [demmCsdId, setDemmCsdId] = useState('')
   const [demmModalFeedback, setDemmModalFeedback] = useState<DemmModalFeedback | null>(null)
   const [submittingDemm, setSubmittingDemm] = useState(false)
   const [deletingDemmId, setDeletingDemmId] = useState<string | null>(null)
@@ -266,6 +285,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   const closeDemmModal = () => {
     setShowDemmModal(false)
     setDemmFile(null)
+    setDemmCsdId('')
     setDemmModalFeedback(null)
   }
 
@@ -315,8 +335,41 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     setView('overview')
   }
 
+  const loadCsdPendencias = useCallback(async () => {
+    setCsdPendenciasLoading(true)
+    try {
+      const response = await api.listCsdDemmPendencias()
+      setCsdPendencias(response.csds)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar as pendências de DEMM por CSD.',
+      })
+    } finally {
+      setCsdPendenciasLoading(false)
+    }
+  }, [])
+
+  const openCsdPendencias = () => {
+    setView('csdPendencias')
+    setFeedback(null)
+    void loadCsdPendencias()
+  }
+
+  const closeCsdPendencias = () => {
+    setView('overview')
+  }
+
   const handleDemmSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+
+    if (!demmCsdId) {
+      setDemmModalFeedback({ message: 'Selecione o CSD dessa DEMM.' })
+      return
+    }
 
     if (!demmFile) {
       setDemmModalFeedback({ message: 'Envie o arquivo PDF da DEMM.' })
@@ -337,6 +390,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
       const response = await api.createDemmDocument({
         fileName: demmFile.name,
         fileBase64,
+        csdId: demmCsdId,
       })
 
       closeDemmModal()
@@ -489,6 +543,77 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     )
   }
 
+  if (view === 'csdPendencias') {
+    const pendingCsds = csdPendencias.filter((csd) => !csd.submittedThisWeek)
+
+    return (
+      <>
+        <div className="entrada-panel">
+          <section className="entrada-dedicated-screen" aria-label="CSDs pendentes de DEMM">
+            <div className="entrada-dedicated-header">
+              <div>
+                <h3 className="entrada-section-title">CSDs pendentes de DEMM (semana atual)</h3>
+                <p className="demm-analysis-summary">
+                  {csdPendenciasLoading
+                    ? 'Carregando pendências...'
+                    : `${pendingCsds.length} de ${csdPendencias.length} CSD(s) sem DEMM enviada nesta semana`}
+                </p>
+              </div>
+              <div
+                className="panel-switch entrada-demm-switch"
+                role="toolbar"
+                aria-label="Navegação"
+              >
+                <button type="button" className="active" onClick={closeCsdPendencias}>
+                  Voltar
+                </button>
+              </div>
+            </div>
+
+            {feedback ? (
+              <div className={`login-feedback ${feedback.type}`} role="status">
+                {feedback.message}
+              </div>
+            ) : null}
+
+            {csdPendenciasLoading ? (
+              <p className="entrada-panel-empty">Carregando pendências...</p>
+            ) : pendingCsds.length === 0 ? (
+              <p className="entrada-panel-empty">
+                Todos os CSDs já enviaram a DEMM desta semana.
+              </p>
+            ) : (
+              <div className="entrada-table-wrap">
+                <table className="data-table entrada-table">
+                  <thead>
+                    <tr>
+                      <th>CSD</th>
+                      <th>Responsável</th>
+                      <th>Escopo</th>
+                      <th>Situação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingCsds.map((csd) => (
+                      <tr key={csd.id}>
+                        <td>{csd.name}</td>
+                        <td>{csd.responsibleName ?? csd.responsibleRegistration ?? '—'}</td>
+                        <td>{formatWorkSubtypeLabel(csd.responsibleWorkSubtype)}</td>
+                        <td>
+                          <span className="schedule-late-badge">Pendente</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <div className="entrada-panel">
@@ -514,6 +639,13 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               disabled={loading}
             >
               Ver base de medidores
+            </button>
+            <button
+              type="button"
+              onClick={() => openCsdPendencias()}
+              disabled={loading}
+            >
+              CSDs pendentes
             </button>
           </div>
         </div>
@@ -544,6 +676,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                 <thead>
                   <tr>
                     <th>Nº documento</th>
+                    <th>CSD</th>
                     <th>Data emissão</th>
                     <th>Arquivo</th>
                     <th>Medidores</th>
@@ -557,6 +690,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                   {demmDocuments.map((document) => (
                     <tr key={document.id}>
                       <td>{document.documentNumber ?? '—'}</td>
+                      <td>{document.csdName ?? '—'}</td>
                       <td>{document.emissionDate ?? '—'}</td>
                       <td>{document.fileName}</td>
                       <td>{document.meterCount}</td>
@@ -612,7 +746,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                 </tbody>
                 <tfoot>
                   <tr className="entrada-table-total-row">
-                    <td colSpan={3}>Total</td>
+                    <td colSpan={4}>Total</td>
                     <td>{totalDemmMeters}</td>
                     <td>{totalDemmScheduled}</td>
                     <td colSpan={3} />
@@ -668,6 +802,30 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                 ) : null}
 
                 <form className="form-grid demm-form-grid" onSubmit={(event) => void handleDemmSubmit(event)}>
+                  <label className="full-width">
+                    CSD
+                    <select
+                      value={demmCsdId}
+                      onChange={(event) => setDemmCsdId(event.target.value)}
+                      disabled={submittingDemm}
+                      required
+                    >
+                      <option value="">
+                        {csdOptionsLoading ? 'Carregando CSDs...' : 'Selecione o CSD'}
+                      </option>
+                      {csdOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    {csdOptionsError ? (
+                      <span className="field-error" role="alert">
+                        {csdOptionsError}
+                      </span>
+                    ) : null}
+                  </label>
+
                   <label className="full-width photo-upload-field">
                     PDF da DEMM
                     <div className="photo-upload-area demm-upload-area">

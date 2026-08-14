@@ -63,6 +63,7 @@ import {
   getDemmDocumentAnalysis,
   getDemmMetersBase,
   listDemmDocuments,
+  listCsdDemmPendencias,
 } from './routes/demm-documents.js'
 import {
   getMeterRegistryTrailCounts,
@@ -321,6 +322,7 @@ async function start() {
   )
   app.get('/api/demm-documents/:id/analysis', requireAuth, getDemmDocumentAnalysis)
   app.get('/api/demm-documents/:id/file', requireAuth, downloadDemmDocument)
+  app.get('/api/csds/demm-pendencias', requireAuth, listCsdDemmPendencias)
 
   app.get('/api/support-tickets', requireAuth, listSupportTickets)
   app.post('/api/support-tickets', requireAuth, createSupportTicket)

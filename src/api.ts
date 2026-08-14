@@ -544,12 +544,24 @@ export type DemmDocumentRecord = {
   fileName: string
   documentNumber: string | null
   emissionDate: string | null
+  csdId: string | null
+  csdName: string | null
   extractedMeters: DemmMeterAnalysisRecord[]
   meterCount: number
   scheduledCount: number
   createdAt: string
   createdByUserId: string | null
   createdByRegistration: string | null
+}
+
+export type CsdDemmPendenciaRecord = {
+  id: string
+  name: string
+  responsibleUserId: string | null
+  responsibleName: string | null
+  responsibleRegistration: string | null
+  responsibleWorkSubtype: string | null
+  submittedThisWeek: boolean
 }
 
 export type DemmMeterAnalysisRecord = {
@@ -1268,6 +1280,7 @@ export const api = {
     meterScheduleId?: string
     fileName: string
     fileBase64: string
+    csdId: string
   }) =>
     request<{
       document: DemmDocumentRecord
@@ -1277,6 +1290,10 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   listDemmDocuments: () => request<{ documents: DemmDocumentRecord[] }>('/api/demm-documents'),
+  listCsdDemmPendencias: () =>
+    request<{ weekStart: string; csds: CsdDemmPendenciaRecord[]; pendingCount: number }>(
+      '/api/csds/demm-pendencias',
+    ),
   getDemmMetersBase: () =>
     request<{ meters: DemmMeterAnalysisRecord[]; total: number; scheduledCount: number }>(
       '/api/demm-documents/meters-base',

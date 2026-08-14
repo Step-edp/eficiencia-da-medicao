@@ -20,6 +20,8 @@ type DemmDocumentRow = {
   extracted_meters: DemmMeterAnalysis[] | null
   document_number: string | null
   emission_date: string | null
+  csd_id: string | null
+  csd_name: string | null
   created_at: Date
   created_by_user_id: string | null
   created_by_registration: string | null
@@ -34,6 +36,8 @@ function mapDemmDocument(row: DemmDocumentRow) {
     fileName: row.file_name,
     documentNumber: row.document_number,
     emissionDate: row.emission_date,
+    csdId: row.csd_id,
+    csdName: row.csd_name,
     extractedMeters,
     meterCount: extractedMeters.length,
     scheduledCount: extractedMeters.filter((item) => item.scheduled).length,
@@ -70,10 +74,11 @@ async function parseAndAnalyzeDemm(fileBuffer: Buffer) {
 export async function listDemmDocuments(_req: Request, res: Response) {
   const result = await query<Omit<DemmDocumentRow, 'file_data'> & { created_by_registration: string | null }>(
     `SELECT d.id, d.meter_schedule_id, d.meter, d.file_name, d.extracted_meters,
-            d.document_number, d.emission_date, d.created_at,
+            d.document_number, d.emission_date, d.csd_id, c.name AS csd_name, d.created_at,
             d.created_by_user_id, u.registration AS created_by_registration
      FROM demm_documents d
      LEFT JOIN users u ON u.id = d.created_by_user_id
+     LEFT JOIN csds c ON c.id = d.csd_id
      ORDER BY d.created_at DESC`,
   )
 
@@ -117,14 +122,30 @@ export async function getDemmMetersBase(_req: Request, res: Response) {
 }
 
 export async function createDemmDocument(req: Request, res: Response) {
-  const { meterScheduleId, fileName, fileBase64 } = req.body as {
+  const { meterScheduleId, fileName, fileBase64, csdId } = req.body as {
     meterScheduleId?: string
     fileName?: string
     fileBase64?: string
+    csdId?: string
   }
 
   if (!fileName?.trim() || !fileBase64?.trim()) {
     res.status(400).json({ error: 'Envie o arquivo PDF da DEMM.' })
+    return
+  }
+
+  const normalizedCsdId = csdId?.trim() ?? ''
+  if (!normalizedCsdId) {
+    res.status(400).json({ error: 'Selecione o CSD dessa DEMM.' })
+    return
+  }
+
+  const csd = await query<{ id: string; name: string }>(
+    `SELECT id, name FROM csds WHERE id = $1`,
+    [normalizedCsdId],
+  )
+  if (!csd.rows[0]) {
+    res.status(404).json({ error: 'CSD não encontrado.' })
     return
   }
 
@@ -183,13 +204,13 @@ export async function createDemmDocument(req: Request, res: Response) {
 
   const id = `demm-${Date.now()}-${linkedMeter}`
 
-  const insert = await query<Omit<DemmDocumentRow, 'created_by_registration'>>(
+  const insert = await query<Omit<DemmDocumentRow, 'created_by_registration' | 'csd_name'>>(
     `INSERT INTO demm_documents (
       id, meter_schedule_id, meter, file_name, file_data, extracted_meters,
-      document_number, emission_date, created_by_user_id
-    ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9)
+      document_number, emission_date, csd_id, created_by_user_id
+    ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10)
     RETURNING id, meter_schedule_id, meter, file_name, file_data, extracted_meters,
-              document_number, emission_date, created_at, created_by_user_id`,
+              document_number, emission_date, csd_id, created_at, created_by_user_id`,
     [
       id,
       linkedScheduleId,
@@ -199,12 +220,14 @@ export async function createDemmDocument(req: Request, res: Response) {
       JSON.stringify(extractedMeters),
       documentNumber,
       emissionDate,
+      csd.rows[0].id,
       req.user?.id ?? null,
     ],
   )
 
   const document = mapDemmDocument({
     ...insert.rows[0],
+    csd_name: csd.rows[0].name,
     created_by_registration: req.user?.registration ?? null,
   })
 
@@ -309,10 +332,11 @@ export async function deleteDemmDocument(req: Request, res: Response) {
 
   const existing = await query<Omit<DemmDocumentRow, 'file_data'> & { created_by_registration: string | null }>(
     `SELECT d.id, d.meter_schedule_id, d.meter, d.file_name, d.extracted_meters,
-            d.document_number, d.emission_date, d.created_at,
+            d.document_number, d.emission_date, d.csd_id, c.name AS csd_name, d.created_at,
             d.created_by_user_id, u.registration AS created_by_registration
      FROM demm_documents d
      LEFT JOIN users u ON u.id = d.created_by_user_id
+     LEFT JOIN csds c ON c.id = d.csd_id
      WHERE d.id = $1`,
     [id],
   )
@@ -335,4 +359,59 @@ export async function deleteDemmDocument(req: Request, res: Response) {
   })
 
   res.json({ ok: true, id: removed.id, fileName: removed.fileName })
+}
+
+function startOfWeek(date: Date): Date {
+  const result = new Date(date)
+  const day = result.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  result.setDate(result.getDate() + diff)
+  result.setHours(0, 0, 0, 0)
+  return result
+}
+
+type CsdDemmPendenciaRow = {
+  id: string
+  name: string
+  responsible_user_id: string | null
+  responsible_name: string | null
+  responsible_registration: string | null
+  responsible_work_subtype: string | null
+  submitted_this_week: boolean
+}
+
+export async function listCsdDemmPendencias(_req: Request, res: Response) {
+  const weekStart = startOfWeek(new Date())
+
+  const result = await query<CsdDemmPendenciaRow>(
+    `SELECT c.id, c.name,
+            c.responsible_user_id,
+            u.name AS responsible_name,
+            u.registration AS responsible_registration,
+            u.work_subtype AS responsible_work_subtype,
+            EXISTS (
+              SELECT 1 FROM demm_documents d
+              WHERE d.csd_id = c.id AND d.created_at >= $1
+            ) AS submitted_this_week
+     FROM csds c
+     LEFT JOIN users u ON u.id = c.responsible_user_id
+     ORDER BY c.name ASC`,
+    [weekStart.toISOString()],
+  )
+
+  const csds = result.rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    responsibleUserId: row.responsible_user_id,
+    responsibleName: row.responsible_name,
+    responsibleRegistration: row.responsible_registration,
+    responsibleWorkSubtype: row.responsible_work_subtype,
+    submittedThisWeek: row.submitted_this_week,
+  }))
+
+  res.json({
+    weekStart: weekStart.toISOString(),
+    csds,
+    pendingCount: csds.filter((csd) => !csd.submittedThisWeek).length,
+  })
 }
