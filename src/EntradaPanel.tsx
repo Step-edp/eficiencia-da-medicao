@@ -218,7 +218,7 @@ type EntradaPanelProps = {
 
 export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaPanelProps) {
   const [view, setView] = useState<
-    'overview' | 'metersBase' | 'csdPendencias' | 'inspectionPendencias'
+    'overview' | 'metersBase' | 'csdPendencias' | 'inspectionPendencias' | 'schedulingPendencias'
   >('overview')
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
   const [schedules, setSchedules] = useState<Awaited<ReturnType<typeof api.listMeterSchedules>>['schedules']>([])
@@ -229,6 +229,8 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   >([])
   const [inspectionPendenciasLoading, setInspectionPendenciasLoading] = useState(false)
   const [uploadingInspectionId, setUploadingInspectionId] = useState<string | null>(null)
+  const [unscheduledDemmMeters, setUnscheduledDemmMeters] = useState<DemmMeterAnalysisRecord[]>([])
+  const [unscheduledDemmMetersLoading, setUnscheduledDemmMetersLoading] = useState(false)
   const { options: csdOptions, loading: csdOptionsLoading, error: csdOptionsError } = useCsdsOptions()
   const [loading, setLoading] = useState(true)
   const [showDemmModal, setShowDemmModal] = useState(false)
@@ -429,6 +431,34 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     } finally {
       setUploadingInspectionId(null)
     }
+  }
+
+  const loadUnscheduledDemmMeters = useCallback(async () => {
+    setUnscheduledDemmMetersLoading(true)
+    try {
+      const response = await api.getDemmMetersBase()
+      setUnscheduledDemmMeters(response.meters.filter((meter) => !meter.scheduled))
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar os medidores pendentes de agendamento.',
+      })
+    } finally {
+      setUnscheduledDemmMetersLoading(false)
+    }
+  }, [])
+
+  const openSchedulingPendencias = () => {
+    setView('schedulingPendencias')
+    setFeedback(null)
+    void loadUnscheduledDemmMeters()
+  }
+
+  const closeSchedulingPendencias = () => {
+    setView('overview')
   }
 
   const handleDemmSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -784,6 +814,51 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     )
   }
 
+  if (view === 'schedulingPendencias') {
+    return (
+      <>
+        <div className="entrada-panel">
+          <section
+            className="entrada-dedicated-screen"
+            aria-label="Medidores pendentes de agendamento"
+          >
+            <div className="entrada-dedicated-header">
+              <div>
+                <h3 className="entrada-section-title">Medidores pendentes de agendamento</h3>
+                <p className="demm-analysis-summary">
+                  {unscheduledDemmMetersLoading
+                    ? 'Carregando pendências...'
+                    : `${unscheduledDemmMeters.length} medidor(es) na DEMM sem agendamento`}
+                </p>
+              </div>
+              <div
+                className="panel-switch entrada-demm-switch"
+                role="toolbar"
+                aria-label="Navegação"
+              >
+                <button type="button" className="active" onClick={closeSchedulingPendencias}>
+                  Voltar
+                </button>
+              </div>
+            </div>
+
+            {feedback ? (
+              <div className={`login-feedback ${feedback.type}`} role="status">
+                {feedback.message}
+              </div>
+            ) : null}
+
+            <DemmMetersTable
+              meters={unscheduledDemmMeters}
+              loading={unscheduledDemmMetersLoading}
+              showSources
+            />
+          </section>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <div className="entrada-panel">
@@ -823,6 +898,13 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               disabled={loading}
             >
               Documentos de inspeção pendentes
+            </button>
+            <button
+              type="button"
+              onClick={() => openSchedulingPendencias()}
+              disabled={loading}
+            >
+              Medidores pendentes de agendamento
             </button>
           </div>
         </div>
