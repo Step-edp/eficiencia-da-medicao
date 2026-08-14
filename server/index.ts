@@ -65,7 +65,7 @@ import {
   listDemmDocuments,
   listCsdDemmPendencias,
   getCsdDemmHistorico,
-  getMeterSchedulingPendenciaHistorico,
+  listWeekMeters,
 } from './routes/demm-documents.js'
 import {
   getMeterRegistryTrailCounts,
@@ -347,11 +347,7 @@ async function start() {
   app.get('/api/demm-documents/:id/file', requireAuth, downloadDemmDocument)
   app.get('/api/csds/demm-pendencias', requireAuth, listCsdDemmPendencias)
   app.get('/api/csds/demm-historico', requireAuth, getCsdDemmHistorico)
-  app.get(
-    '/api/meter-scheduling-pendencia-historico',
-    requireAuth,
-    getMeterSchedulingPendenciaHistorico,
-  )
+  app.get('/api/demm-week-meters', requireAuth, listWeekMeters)
 
   app.get('/api/support-tickets', requireAuth, listSupportTickets)
   app.post('/api/support-tickets', requireAuth, createSupportTicket)

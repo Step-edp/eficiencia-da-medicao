@@ -1980,6 +1980,48 @@ button {
   color: #ffd7d7;
 }
 
+.week-meters-filter {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+}
+
+.week-meters-filter select {
+  min-width: 220px;
+}
+
+.week-meter-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.week-meter-status-badge.is-nao_agendado {
+  background: rgba(255, 124, 124, 0.16);
+  color: #ffd7d7;
+}
+
+.week-meter-status-badge.is-sem_documento_inspecao {
+  background: rgba(255, 191, 105, 0.18);
+  color: #ffe3b8;
+}
+
+.week-meter-status-badge.is-bloqueado {
+  background: rgba(148, 163, 184, 0.2);
+  color: #dbe3ee;
+}
+
+.week-meter-status-badge.is-liberado {
+  background: rgba(85, 219, 136, 0.16);
+  color: #d6ffe7;
+}
+
 .entrada-demm-actions {
   display: flex;
   flex-wrap: wrap;

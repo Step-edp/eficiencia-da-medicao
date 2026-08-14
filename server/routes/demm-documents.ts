@@ -252,19 +252,6 @@ export async function createDemmDocument(req: Request, res: Response) {
     )
   }
 
-  const pendingMeters = [
-    ...new Set(extractedMeters.filter((item) => !item.scheduled).map((item) => item.meter)),
-  ]
-  if (pendingMeters.length) {
-    await query(
-      `INSERT INTO meter_phase_history (id, meter, csd_id, csd_name, phase, demm_document_id)
-       SELECT 'phase-' || $4 || '-' || m, m, $2, $3, 'pendente_agendamento', $4
-       FROM unnest($1::text[]) AS m
-       ON CONFLICT (meter, phase) WHERE resolved_at IS NULL DO NOTHING`,
-      [pendingMeters, csd.rows[0].id, csd.rows[0].name, document.id],
-    )
-  }
-
   res.status(201).json({
     document,
     analysis: {
@@ -536,35 +523,78 @@ export async function getCsdDemmHistorico(_req: Request, res: Response) {
   res.json({ weeks, csds: [...csdMap.values()] })
 }
 
-type MeterPhaseHistoryRow = {
-  id: string
-  meter: string
-  csd_id: string | null
-  csd_name: string | null
-  detected_at: Date
-  resolved_at: Date | null
-}
+export type WeekMeterStatus = 'nao_agendado' | 'sem_documento_inspecao' | 'bloqueado' | 'liberado'
 
-export async function getMeterSchedulingPendenciaHistorico(_req: Request, res: Response) {
-  const result = await query<MeterPhaseHistoryRow>(
-    `SELECT id, meter, csd_id, csd_name, detected_at, resolved_at
-     FROM meter_phase_history
-     WHERE phase = 'pendente_agendamento'
-     ORDER BY detected_at DESC`,
+export async function listWeekMeters(_req: Request, res: Response) {
+  const documents = await query<{
+    file_name: string
+    extracted_meters: Array<{ meter: string }> | null
+    csd_id: string | null
+    csd_name: string | null
+  }>(
+    `SELECT d.file_name, d.extracted_meters, d.csd_id, c.name AS csd_name
+     FROM demm_documents d
+     LEFT JOIN csds c ON c.id = d.csd_id
+     ORDER BY d.created_at ASC`,
   )
 
-  const records = result.rows.map((row) => ({
-    id: row.id,
-    meter: row.meter,
-    csdId: row.csd_id,
-    csdName: row.csd_name,
-    detectedAt: row.detected_at.toISOString(),
-    resolvedAt: row.resolved_at ? row.resolved_at.toISOString() : null,
-    status: (row.resolved_at ? 'agendado' : 'pendente') as 'agendado' | 'pendente',
-  }))
+  const meterInfo = new Map<
+    string,
+    { csdId: string | null; csdName: string | null; sourceFiles: string[] }
+  >()
 
-  res.json({
-    records,
-    pendingCount: records.filter((record) => record.status === 'pendente').length,
+  for (const doc of documents.rows) {
+    for (const item of doc.extracted_meters ?? []) {
+      const existing = meterInfo.get(item.meter)
+      if (existing) {
+        if (!existing.sourceFiles.includes(doc.file_name)) {
+          existing.sourceFiles.push(doc.file_name)
+        }
+      } else {
+        meterInfo.set(item.meter, {
+          csdId: doc.csd_id,
+          csdName: doc.csd_name,
+          sourceFiles: [doc.file_name],
+        })
+      }
+    }
+  }
+
+  const uniqueMeters = [...meterInfo.keys()]
+  const analyzed = await analyzeDemmMeters(uniqueMeters)
+
+  const scheduleIds = analyzed
+    .filter((item): item is typeof item & { scheduleId: string } => Boolean(item.scheduleId))
+    .map((item) => item.scheduleId)
+
+  const inspectionRows = scheduleIds.length
+    ? await query<{ meter_schedule_id: string }>(
+        `SELECT meter_schedule_id FROM meter_inspection_documents WHERE meter_schedule_id = ANY($1::text[])`,
+        [scheduleIds],
+      )
+    : { rows: [] as Array<{ meter_schedule_id: string }> }
+  const hasInspectionSet = new Set(inspectionRows.rows.map((row) => row.meter_schedule_id))
+
+  const meters = analyzed.map((item) => {
+    const info = meterInfo.get(item.meter)
+    let status: WeekMeterStatus
+    if (!item.scheduled) {
+      status = 'nao_agendado'
+    } else if (item.scheduleId && hasInspectionSet.has(item.scheduleId)) {
+      status = 'liberado'
+    } else {
+      status = 'sem_documento_inspecao'
+    }
+    return {
+      meter: item.meter,
+      csdId: info?.csdId ?? null,
+      csdName: info?.csdName ?? null,
+      scheduleId: item.scheduleId,
+      scheduledAtLabel: item.scheduledAtLabel,
+      sourceFiles: info?.sourceFiles ?? [],
+      status,
+    }
   })
+
+  res.json({ meters, total: meters.length })
 }

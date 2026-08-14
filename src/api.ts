@@ -599,14 +599,16 @@ export type CsdDemmHistoricoRecord = {
 
 export type CsdDemmHistoricoWeek = { weekStart: string; weekDeadline: string }
 
-export type MeterSchedulingPendenciaRecord = {
-  id: string
+export type WeekMeterStatus = 'nao_agendado' | 'sem_documento_inspecao' | 'bloqueado' | 'liberado'
+
+export type WeekMeterRecord = {
   meter: string
   csdId: string | null
   csdName: string | null
-  detectedAt: string
-  resolvedAt: string | null
-  status: 'pendente' | 'agendado'
+  scheduleId: string | null
+  scheduledAtLabel: string | null
+  sourceFiles: string[]
+  status: WeekMeterStatus
 }
 
 export type DemmMeterAnalysisRecord = {
@@ -1346,10 +1348,8 @@ export const api = {
     request<{ weeks: CsdDemmHistoricoWeek[]; csds: CsdDemmHistoricoRecord[] }>(
       '/api/csds/demm-historico',
     ),
-  getMeterSchedulingPendenciaHistorico: () =>
-    request<{ records: MeterSchedulingPendenciaRecord[]; pendingCount: number }>(
-      '/api/meter-scheduling-pendencia-historico',
-    ),
+  listWeekMeters: () =>
+    request<{ meters: WeekMeterRecord[]; total: number }>('/api/demm-week-meters'),
   uploadInspectionDocument: (
     meterScheduleId: string,
     payload: { fileName: string; fileBase64: string },

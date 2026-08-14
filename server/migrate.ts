@@ -1,5 +1,4 @@
 import { query } from './db.js'
-import { analyzeDemmMeters } from './demm-meter-analysis.js'
 
 export async function migrate() {
   await query(`
@@ -825,85 +824,6 @@ export async function migrate() {
     )
   }
 
-  // Histórico permanente de medidores que passaram pela fase "pendente de agendamento"
-  // (vindos de uma DEMM), mantendo o registro mesmo depois que o medidor é agendado.
-  await query(`
-    CREATE TABLE IF NOT EXISTS meter_phase_history (
-      id TEXT PRIMARY KEY,
-      meter TEXT NOT NULL,
-      csd_id TEXT REFERENCES csds(id) ON DELETE SET NULL,
-      csd_name TEXT,
-      phase TEXT NOT NULL,
-      demm_document_id TEXT REFERENCES demm_documents(id) ON DELETE SET NULL,
-      meter_schedule_id TEXT REFERENCES meter_schedules(id) ON DELETE SET NULL,
-      detected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      resolved_at TIMESTAMPTZ
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_meter_phase_history_meter ON meter_phase_history (meter);
-
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_meter_phase_history_open
-      ON meter_phase_history (meter, phase)
-      WHERE resolved_at IS NULL;
-  `)
-
-  const phaseHistoryBackfillFlag = await query<{ key: string }>(
-    `SELECT key FROM app_runtime_flags WHERE key = 'meter_phase_history_backfill_v1'`,
-  )
-  if (!phaseHistoryBackfillFlag.rows.length) {
-    const documents = await query<{
-      id: string
-      extracted_meters: Array<{ meter: string }> | null
-      csd_id: string | null
-      csd_name: string | null
-      created_at: Date
-    }>(
-      `SELECT d.id, d.extracted_meters, d.csd_id, c.name AS csd_name, d.created_at
-       FROM demm_documents d
-       LEFT JOIN csds c ON c.id = d.csd_id
-       ORDER BY d.created_at ASC`,
-    )
-
-    const firstSeen = new Map<
-      string,
-      { docId: string; csdId: string | null; csdName: string | null; detectedAt: Date }
-    >()
-    for (const doc of documents.rows) {
-      for (const item of doc.extracted_meters ?? []) {
-        if (!firstSeen.has(item.meter)) {
-          firstSeen.set(item.meter, {
-            docId: doc.id,
-            csdId: doc.csd_id,
-            csdName: doc.csd_name,
-            detectedAt: doc.created_at,
-          })
-        }
-      }
-    }
-
-    const allMeters = [...firstSeen.keys()]
-    const analyzed = await analyzeDemmMeters(allMeters)
-    const scheduledSet = new Set(
-      analyzed.filter((item) => item.scheduled).map((item) => item.meter),
-    )
-
-    for (const [meter, info] of firstSeen) {
-      if (scheduledSet.has(meter)) continue
-      await query(
-        `INSERT INTO meter_phase_history (id, meter, csd_id, csd_name, phase, demm_document_id, detected_at)
-         VALUES ($1,$2,$3,$4,'pendente_agendamento',$5,$6)
-         ON CONFLICT (meter, phase) WHERE resolved_at IS NULL DO NOTHING`,
-        [
-          `phase-backfill-${info.docId}-${meter}`,
-          meter,
-          info.csdId,
-          info.csdName,
-          info.docId,
-          info.detectedAt.toISOString(),
-        ],
-      )
-    }
-
-    await query(`INSERT INTO app_runtime_flags (key) VALUES ('meter_phase_history_backfill_v1')`)
-  }
+  // Substituída pela tela "Medidores da semana" (calculada em tempo real a partir das DEMMs).
+  await query(`DROP TABLE IF EXISTS meter_phase_history`)
 }
