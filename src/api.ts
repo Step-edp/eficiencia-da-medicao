@@ -599,6 +599,16 @@ export type CsdDemmHistoricoRecord = {
 
 export type CsdDemmHistoricoWeek = { weekStart: string; weekDeadline: string }
 
+export type MeterSchedulingPendenciaRecord = {
+  id: string
+  meter: string
+  csdId: string | null
+  csdName: string | null
+  detectedAt: string
+  resolvedAt: string | null
+  status: 'pendente' | 'agendado'
+}
+
 export type DemmMeterAnalysisRecord = {
   meter: string
   scheduled: boolean
@@ -1335,6 +1345,10 @@ export const api = {
   getCsdDemmHistorico: () =>
     request<{ weeks: CsdDemmHistoricoWeek[]; csds: CsdDemmHistoricoRecord[] }>(
       '/api/csds/demm-historico',
+    ),
+  getMeterSchedulingPendenciaHistorico: () =>
+    request<{ records: MeterSchedulingPendenciaRecord[]; pendingCount: number }>(
+      '/api/meter-scheduling-pendencia-historico',
     ),
   uploadInspectionDocument: (
     meterScheduleId: string,

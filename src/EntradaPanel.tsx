@@ -9,6 +9,7 @@ import {
   type DemmMeterAnalysisRecord,
   type DemmUploadConflictRecord,
   type MeterInspectionPendenciaRecord,
+  type MeterSchedulingPendenciaRecord,
 } from './api'
 import { ENTRADA_TRAIL_STEP } from './labTrailSteps'
 import { useCsdsOptions } from './useCsdsOptions'
@@ -285,8 +286,11 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   >([])
   const [inspectionPendenciasLoading, setInspectionPendenciasLoading] = useState(false)
   const [uploadingInspectionId, setUploadingInspectionId] = useState<string | null>(null)
-  const [unscheduledDemmMeters, setUnscheduledDemmMeters] = useState<DemmMeterAnalysisRecord[]>([])
-  const [unscheduledDemmMetersLoading, setUnscheduledDemmMetersLoading] = useState(false)
+  const [schedulingPendenciaHistorico, setSchedulingPendenciaHistorico] = useState<
+    MeterSchedulingPendenciaRecord[]
+  >([])
+  const [schedulingPendenciaHistoricoLoading, setSchedulingPendenciaHistoricoLoading] =
+    useState(false)
   const { options: csdOptions, loading: csdOptionsLoading, error: csdOptionsError } = useCsdsOptions()
   const [loading, setLoading] = useState(true)
   const [showDemmModal, setShowDemmModal] = useState(false)
@@ -519,11 +523,11 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     }
   }
 
-  const loadUnscheduledDemmMeters = useCallback(async () => {
-    setUnscheduledDemmMetersLoading(true)
+  const loadSchedulingPendenciaHistorico = useCallback(async () => {
+    setSchedulingPendenciaHistoricoLoading(true)
     try {
-      const response = await api.getDemmMetersBase()
-      setUnscheduledDemmMeters(response.meters.filter((meter) => !meter.scheduled))
+      const response = await api.getMeterSchedulingPendenciaHistorico()
+      setSchedulingPendenciaHistorico(response.records)
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -533,14 +537,14 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             : 'Não foi possível carregar os medidores pendentes de agendamento.',
       })
     } finally {
-      setUnscheduledDemmMetersLoading(false)
+      setSchedulingPendenciaHistoricoLoading(false)
     }
   }, [])
 
   const openSchedulingPendencias = () => {
     setView('schedulingPendencias')
     setFeedback(null)
-    void loadUnscheduledDemmMeters()
+    void loadSchedulingPendenciaHistorico()
   }
 
   const closeSchedulingPendencias = () => {
@@ -1071,9 +1075,9 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               <div>
                 <h3 className="entrada-section-title">Medidores pendentes de agendamento</h3>
                 <p className="demm-analysis-summary">
-                  {unscheduledDemmMetersLoading
-                    ? 'Carregando pendências...'
-                    : `${unscheduledDemmMeters.length} medidor(es) na DEMM sem agendamento`}
+                  {schedulingPendenciaHistoricoLoading
+                    ? 'Carregando histórico...'
+                    : `${schedulingPendenciaHistorico.filter((item) => item.status === 'pendente').length} pendente(s) de ${schedulingPendenciaHistorico.length} medidor(es) que já passaram por aqui`}
                 </p>
               </div>
               <button
@@ -1101,11 +1105,44 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               </div>
             ) : null}
 
-            <DemmMetersTable
-              meters={unscheduledDemmMeters}
-              loading={unscheduledDemmMetersLoading}
-              showSources
-            />
+            {schedulingPendenciaHistoricoLoading ? (
+              <p className="entrada-panel-empty">Carregando histórico...</p>
+            ) : schedulingPendenciaHistorico.length === 0 ? (
+              <p className="entrada-panel-empty">
+                Nenhum medidor passou por pendência de agendamento ainda.
+              </p>
+            ) : (
+              <div className="entrada-table-wrap">
+                <table className="data-table entrada-table">
+                  <thead>
+                    <tr>
+                      <th>Medidor</th>
+                      <th>CSD</th>
+                      <th>Status</th>
+                      <th>Pendente desde</th>
+                      <th>Agendado em</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {schedulingPendenciaHistorico.map((item) => (
+                      <tr key={item.id}>
+                        <td>{item.meter}</td>
+                        <td>{item.csdName ?? '—'}</td>
+                        <td>
+                          <span
+                            className={`demm-status-badge ${item.status === 'agendado' ? 'is-scheduled' : 'is-not-scheduled'}`}
+                          >
+                            {item.status === 'agendado' ? 'Agendado' : 'Pendente'}
+                          </span>
+                        </td>
+                        <td>{formatDateTime(item.detectedAt)}</td>
+                        <td>{item.resolvedAt ? formatDateTime(item.resolvedAt) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         </div>
       </>

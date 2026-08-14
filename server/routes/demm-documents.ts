@@ -252,6 +252,19 @@ export async function createDemmDocument(req: Request, res: Response) {
     )
   }
 
+  const pendingMeters = [
+    ...new Set(extractedMeters.filter((item) => !item.scheduled).map((item) => item.meter)),
+  ]
+  if (pendingMeters.length) {
+    await query(
+      `INSERT INTO meter_phase_history (id, meter, csd_id, csd_name, phase, demm_document_id)
+       SELECT 'phase-' || $4 || '-' || m, m, $2, $3, 'pendente_agendamento', $4
+       FROM unnest($1::text[]) AS m
+       ON CONFLICT (meter, phase) WHERE resolved_at IS NULL DO NOTHING`,
+      [pendingMeters, csd.rows[0].id, csd.rows[0].name, document.id],
+    )
+  }
+
   res.status(201).json({
     document,
     analysis: {
@@ -521,4 +534,37 @@ export async function getCsdDemmHistorico(_req: Request, res: Response) {
   }
 
   res.json({ weeks, csds: [...csdMap.values()] })
+}
+
+type MeterPhaseHistoryRow = {
+  id: string
+  meter: string
+  csd_id: string | null
+  csd_name: string | null
+  detected_at: Date
+  resolved_at: Date | null
+}
+
+export async function getMeterSchedulingPendenciaHistorico(_req: Request, res: Response) {
+  const result = await query<MeterPhaseHistoryRow>(
+    `SELECT id, meter, csd_id, csd_name, detected_at, resolved_at
+     FROM meter_phase_history
+     WHERE phase = 'pendente_agendamento'
+     ORDER BY detected_at DESC`,
+  )
+
+  const records = result.rows.map((row) => ({
+    id: row.id,
+    meter: row.meter,
+    csdId: row.csd_id,
+    csdName: row.csd_name,
+    detectedAt: row.detected_at.toISOString(),
+    resolvedAt: row.resolved_at ? row.resolved_at.toISOString() : null,
+    status: (row.resolved_at ? 'agendado' : 'pendente') as 'agendado' | 'pendente',
+  }))
+
+  res.json({
+    records,
+    pendingCount: records.filter((record) => record.status === 'pendente').length,
+  })
 }

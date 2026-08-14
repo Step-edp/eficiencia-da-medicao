@@ -19,6 +19,16 @@ export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 const BACKOFFICE_SCOPE = 'Lavratura de TOI - Backoffice'
 const PONTO_FOCAL_SCOPE = 'Lavratura de TOI - Ponto Focal'
 
+/** Fecha o registro de "pendente de agendamento" (vindo de uma DEMM) ao criar o agendamento do medidor. */
+async function resolveMeterPhaseHistory(meter: string, meterScheduleId: string) {
+  await query(
+    `UPDATE meter_phase_history
+     SET resolved_at = NOW(), meter_schedule_id = $2
+     WHERE meter = $1 AND phase = 'pendente_agendamento' AND resolved_at IS NULL`,
+    [meter, meterScheduleId],
+  )
+}
+
 type MeterScheduleRow = {
   id: string
   meter: string
@@ -583,6 +593,8 @@ export async function createMeterSchedule(req: Request, res: Response) {
     metadata: { meter: schedule.meter },
   })
 
+  await resolveMeterPhaseHistory(schedule.meter, schedule.id)
+
   res.status(201).json({ schedule })
 }
 
@@ -689,6 +701,8 @@ export async function createPassiveMeterSchedule(req: Request, res: Response) {
     newData: schedule,
     metadata: { meter: schedule.meter },
   })
+
+  await resolveMeterPhaseHistory(schedule.meter, schedule.id)
 
   res.status(201).json({ schedule })
 }
