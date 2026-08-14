@@ -1793,7 +1793,7 @@ button {
   gap: 8px;
 }
 
-.entrada-demm-switch {
+.panel-switch.entrada-demm-switch {
   display: flex;
   flex-wrap: nowrap;
   align-items: stretch;
@@ -1801,14 +1801,19 @@ button {
   overflow-x: auto;
   grid-template-columns: none;
   margin-left: auto;
+  gap: 6px;
+  padding: 6px;
 }
 
-.entrada-demm-switch > button {
+.panel-switch.entrada-demm-switch > button {
   flex: 0 0 auto;
   white-space: nowrap;
+  padding: 9px 12px;
+  font-size: 0.85rem;
+  border-radius: 10px;
 }
 
-.entrada-demm-switch > button:disabled {
+.panel-switch.entrada-demm-switch > button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -2121,6 +2126,36 @@ button {
   color: #fff2cc;
   background: rgba(200, 150, 30, 0.28);
   border: 1px solid rgba(230, 180, 60, 0.5);
+}
+
+.demm-status-cell {
+  text-align: center;
+}
+
+.demm-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.demm-status-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.demm-status-icon.is-ok {
+  color: #3fd68f;
+}
+
+.demm-status-icon.is-late {
+  color: #ff7c6a;
+}
+
+.demm-status-icon.is-pending {
+  color: var(--text-soft);
+  font-size: 1.1rem;
 }
 
 .lab-trail-connector {

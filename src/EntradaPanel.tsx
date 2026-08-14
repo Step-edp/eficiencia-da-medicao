@@ -20,6 +20,46 @@ function formatWorkSubtypeLabel(workSubtype: string | null) {
   return workSubtype
 }
 
+function DemmStatusIcon({ status }: { status: 'entregue' | 'pendente' | 'nao_entregue' }) {
+  if (status === 'pendente') {
+    return (
+      <span className="demm-status-icon is-pending" aria-label="Pendente" title="Pendente">
+        —
+      </span>
+    )
+  }
+
+  const isOk = status === 'entregue'
+  return (
+    <span
+      className={`demm-status-icon ${isOk ? 'is-ok' : 'is-late'}`}
+      aria-label={isOk ? 'Entregue' : 'Não entregue'}
+      title={isOk ? 'Entregue' : 'Não entregue'}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        {isOk ? (
+          <path
+            d="M5 12.5l4.5 4.5L19 7.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : (
+          <path
+            d="M6 6l12 12M18 6L6 18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+          />
+        )}
+      </svg>
+    </span>
+  )
+}
+
 function formatDateTime(isoDate: string) {
   return new Intl.DateTimeFormat('pt-BR', {
     dateStyle: 'short',
@@ -966,14 +1006,8 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                         <td>{csd.name}</td>
                         <td>{csd.responsibleName ?? csd.responsibleRegistration ?? '—'}</td>
                         {csd.weeks.map((week) => (
-                          <td key={week.weekStart}>
-                            {week.status === 'entregue' ? (
-                              <span className="schedule-ok-badge">Entregue</span>
-                            ) : week.status === 'nao_entregue' ? (
-                              <span className="schedule-late-badge">Não entregue</span>
-                            ) : (
-                              <span className="schedule-pending-badge">Pendente</span>
-                            )}
+                          <td key={week.weekStart} className="demm-status-cell">
+                            <DemmStatusIcon status={week.status} />
                           </td>
                         ))}
                       </tr>
