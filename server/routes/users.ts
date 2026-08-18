@@ -499,7 +499,7 @@ export async function listUsers(_req: Request, res: Response) {
             u.personal_description, u.hobby, u.work_area, u.work_subtype, u.whatsapp,
             u.employment_type, u.third_party_company, u.locality, u.edp_unit,
             u.access_areas, u.access_processes, u.password_plain,
-            '' AS profile_photo,
+            u.profile_photo,
             a.name AS approved_by_name,
             a.registration AS approved_by_registration
      FROM users u
