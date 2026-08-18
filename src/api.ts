@@ -381,6 +381,18 @@ export type EnsaiosManualBlock = {
   reason: string
 }
 
+export type EnsaiosCalendarMeterStatus = 'Agendado' | 'Recebido' | 'Ensaiado'
+
+export type EnsaiosCalendarMeter = {
+  id: string
+  meter: string
+  csd: string
+  trailStep: string
+  scheduledAt: string
+  scheduledDate: string
+  status: EnsaiosCalendarMeterStatus
+}
+
 export type MeterRegistryRecord = {
   meter: string
   installation: string
@@ -1310,6 +1322,12 @@ export const api = {
     }),
   listEnsaiosManualBlocks: () =>
     request<{ blocks: EnsaiosManualBlock[] }>('/api/ensaios-calendar/manual-blocks'),
+  listEnsaiosCalendarMeters: (from: string, to: string) => {
+    const search = new URLSearchParams({ from, to })
+    return request<{ meters: EnsaiosCalendarMeter[] }>(
+      `/api/ensaios-calendar/meters?${search.toString()}`,
+    )
+  },
   toggleEnsaiosManualBlock: (date: string, reason?: string) =>
     request<{ blocks: EnsaiosManualBlock[]; blocked: boolean }>(
       '/api/ensaios-calendar/manual-blocks',

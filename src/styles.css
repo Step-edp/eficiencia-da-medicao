@@ -2537,16 +2537,17 @@ button {
 .ensaios-calendar-day {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: 4px;
-  min-height: 72px;
+  min-height: 92px;
   padding: 8px 6px;
   border: 1px solid rgba(24, 216, 240, 0.18);
   border-radius: 12px;
   background: rgba(2, 18, 31, 0.55);
   color: var(--text-main);
   font: inherit;
+  cursor: pointer;
   transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
 }
 
@@ -2575,7 +2576,17 @@ button {
 .ensaios-calendar-day.is-auto-blocked {
   border-color: rgba(255, 92, 92, 0.35);
   background: rgba(255, 92, 92, 0.1);
-  cursor: not-allowed;
+}
+
+.ensaios-calendar-day.is-all-ensaiado {
+  border-color: rgba(46, 204, 113, 0.55);
+  background: rgba(46, 204, 113, 0.18);
+}
+
+.ensaios-calendar-day.is-all-ensaiado:hover:not(:disabled),
+.ensaios-calendar-day.is-all-ensaiado:focus-visible:not(:disabled) {
+  border-color: rgba(46, 204, 113, 0.78);
+  background: rgba(46, 204, 113, 0.24);
 }
 
 .ensaios-calendar-day.is-today {
@@ -2589,6 +2600,50 @@ button {
 .ensaios-calendar-day-number {
   font-size: 1rem;
   font-weight: 700;
+  text-align: center;
+}
+
+.ensaios-calendar-day-meters {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.ensaios-calendar-day-meter {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 4px;
+  border-radius: 6px;
+  font-size: 0.58rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.ensaios-calendar-day-meter.is-agendado {
+  background: rgba(150, 187, 215, 0.14);
+  color: #c8e4f8;
+}
+
+.ensaios-calendar-day-meter.is-recebido {
+  background: rgba(255, 170, 0, 0.16);
+  color: #ffd699;
+}
+
+.ensaios-calendar-day-meter.is-ensaiado {
+  background: rgba(46, 204, 113, 0.18);
+  color: #8ef0b8;
+}
+
+.ensaios-calendar-day-meter.is-more {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-soft);
+  text-align: center;
 }
 
 .ensaios-calendar-day-tag {
@@ -2913,6 +2968,84 @@ button {
   background: rgba(255, 92, 92, 0.14);
 }
 
+.ensaios-calendar-swatch.is-all-ensaiado {
+  border: 1px solid rgba(46, 204, 113, 0.55);
+  background: rgba(46, 204, 113, 0.22);
+}
+
+.ensaios-day-modal {
+  width: min(520px, 100%);
+}
+
+.ensaios-day-meter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.ensaios-day-meter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(150, 187, 215, 0.18);
+  border-radius: 10px;
+  background: rgba(5, 26, 44, 0.45);
+}
+
+.ensaios-day-meter-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.ensaios-day-meter-main strong {
+  font-size: 0.95rem;
+}
+
+.ensaios-day-meter-csd {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+}
+
+.ensaios-day-meter-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ensaios-day-meter-status.is-agendado {
+  background: rgba(150, 187, 215, 0.16);
+  color: #c8e4f8;
+}
+
+.ensaios-day-meter-status.is-recebido {
+  background: rgba(255, 170, 0, 0.18);
+  color: #ffd699;
+}
+
+.ensaios-day-meter-status.is-ensaiado {
+  background: rgba(46, 204, 113, 0.2);
+  color: #8ef0b8;
+}
+
+.ensaios-day-modal-admin {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.75rem;
+}
+
 @media (max-width: 720px) {
   .ensaios-calendar-toolbar {
     flex-wrap: wrap;
@@ -2920,7 +3053,7 @@ button {
   }
 
   .ensaios-calendar-day {
-    min-height: 56px;
+    min-height: 72px;
     padding: 6px 4px;
   }
 

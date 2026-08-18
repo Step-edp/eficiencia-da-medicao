@@ -31,6 +31,7 @@ import {
 import {
   listManualBlocks,
   toggleManualBlock,
+  listCalendarMeters,
 } from './routes/ensaios-calendar.js'
 import {
   createCsd,
@@ -269,6 +270,7 @@ async function start() {
   app.post('/api/public/pesquisa/:laudoId', submitSatisfactionSurvey)
 
   app.get('/api/ensaios-calendar/manual-blocks', requireAuth, listManualBlocks)
+  app.get('/api/ensaios-calendar/meters', requireAuth, listCalendarMeters)
   app.post(
     '/api/ensaios-calendar/manual-blocks',
     requireAuth,

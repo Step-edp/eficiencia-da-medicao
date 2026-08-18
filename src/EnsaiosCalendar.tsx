@@ -1,9 +1,13 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, ApiError, type EnsaiosManualBlock } from './api'
+import {
+  api,
+  ApiError,
+  type EnsaiosCalendarMeter,
+  type EnsaiosManualBlock,
+} from './api'
 import {
   getAutoBlockReason,
-  isAutoBlocked,
   toDateKey,
 } from './brazilianHolidays'
 
@@ -38,6 +42,37 @@ function blocksToMap(blocks: EnsaiosManualBlock[]) {
   return new Map(blocks.map((block) => [block.date, block.reason]))
 }
 
+function metersToMap(meters: EnsaiosCalendarMeter[]) {
+  const map = new Map<string, EnsaiosCalendarMeter[]>()
+  for (const meter of meters) {
+    const current = map.get(meter.scheduledDate) ?? []
+    current.push(meter)
+    map.set(meter.scheduledDate, current)
+  }
+  return map
+}
+
+function getMonthDateRange(year: number, month: number) {
+  const pad = (value: number) => String(value).padStart(2, '0')
+  const from = `${year}-${pad(month + 1)}-01`
+  const lastDay = new Date(year, month + 1, 0).getDate()
+  const to = `${year}-${pad(month + 1)}-${pad(lastDay)}`
+  return { from, to }
+}
+
+function calendarMeterStatusLabel(status: EnsaiosCalendarMeter['status']) {
+  switch (status) {
+    case 'Agendado':
+      return 'Agendado'
+    case 'Recebido':
+      return 'Recebido'
+    case 'Ensaiado':
+      return 'Ensaiado'
+    default:
+      return status
+  }
+}
+
 function buildMonthGrid(year: number, month: number): CalendarCell[] {
   const firstDay = new Date(year, month, 1)
   const startOffset = firstDay.getDay()
@@ -58,8 +93,10 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [manualBlocks, setManualBlocks] = useState<Map<string, string>>(new Map())
+  const [dayMeters, setDayMeters] = useState<Map<string, EnsaiosCalendarMeter[]>>(new Map())
   const [loading, setLoading] = useState(true)
   const [busyDate, setBusyDate] = useState<string | null>(null)
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -70,24 +107,29 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
   const [submittingBlock, setSubmittingBlock] = useState(false)
   const [submittingUnblock, setSubmittingUnblock] = useState(false)
 
-  const loadBlocks = useCallback(async () => {
+  const loadCalendarData = useCallback(async () => {
     setLoading(true)
+    const { from, to } = getMonthDateRange(viewYear, viewMonth)
     try {
-      const { blocks } = await api.listEnsaiosManualBlocks()
-      setManualBlocks(blocksToMap(blocks))
+      const [blocksResponse, metersResponse] = await Promise.all([
+        api.listEnsaiosManualBlocks(),
+        api.listEnsaiosCalendarMeters(from, to),
+      ])
+      setManualBlocks(blocksToMap(blocksResponse.blocks))
+      setDayMeters(metersToMap(metersResponse.meters))
     } catch {
       setFeedback({
         type: 'error',
-        message: 'Não foi possível carregar as datas bloqueadas.',
+        message: 'Não foi possível carregar o calendário de ensaios.',
       })
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [viewMonth, viewYear])
 
   useEffect(() => {
-    void loadBlocks()
-  }, [loadBlocks])
+    void loadCalendarData()
+  }, [loadCalendarData])
 
   const cells = useMemo(
     () => buildMonthGrid(viewYear, viewMonth),
@@ -123,22 +165,33 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
     setSubmittingUnblock(false)
   }
 
-  const handleDayClick = (date: Date) => {
-    if (isAutoBlocked(date)) return
+  const closeDayModal = () => {
+    setSelectedDay(null)
+  }
 
-    const key = toDateKey(date)
-    const manualReason = manualBlocks.get(key)
+  const handleDayClick = (date: Date, inMonth: boolean) => {
+    if (!inMonth) return
+    setSelectedDay(toDateKey(date))
+    setFeedback(null)
+  }
 
-    if (manualReason) {
-      setPendingUnblockDate(key)
-      setFeedback(null)
-      return
-    }
-
-    setPendingBlockDate(key)
+  const openBlockFromDay = (dateKey: string) => {
+    closeDayModal()
+    setPendingBlockDate(dateKey)
     setBlockReason('')
     setFeedback(null)
   }
+
+  const openUnblockFromDay = (dateKey: string) => {
+    closeDayModal()
+    setPendingUnblockDate(dateKey)
+    setFeedback(null)
+  }
+
+  const selectedDayMeters = selectedDay ? (dayMeters.get(selectedDay) ?? []) : []
+  const selectedDayDate = selectedDay ? new Date(`${selectedDay}T12:00:00`) : null
+  const selectedDayAutoReason = selectedDayDate ? getAutoBlockReason(selectedDayDate) : null
+  const selectedDayManualReason = selectedDay ? manualBlocks.get(selectedDay) : undefined
 
   const confirmUnblock = async () => {
     if (!pendingUnblockDate) return
@@ -149,6 +202,7 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
     try {
       const { blocks } = await api.toggleEnsaiosManualBlock(pendingUnblockDate)
       setManualBlocks(blocksToMap(blocks))
+      void loadCalendarData()
       setFeedback({
         type: 'success',
         message: `Data ${formatDisplayDate(pendingUnblockDate)} liberada.`,
@@ -187,6 +241,7 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
     try {
       const { blocks } = await api.toggleEnsaiosManualBlock(pendingBlockDate, reason)
       setManualBlocks(blocksToMap(blocks))
+      void loadCalendarData()
       setFeedback({
         type: 'success',
         message: `Data ${formatDisplayDate(pendingBlockDate)} bloqueada.`,
@@ -241,20 +296,24 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
           const isManual = Boolean(manualReason)
           const isBlocked = Boolean(autoReason) || isManual
           const isToday = key === toDateKey(today)
-          const canToggle = !readOnly && inMonth && !autoReason && !loading
+          const meters = dayMeters.get(key) ?? []
+          const allEnsaiados =
+            meters.length > 0 && meters.every((meter) => meter.status === 'Ensaiado')
+          const previewMeters = meters.slice(0, 3)
+          const extraMeters = meters.length - previewMeters.length
 
-          let title = ''
+          let title = 'Clique para ver os medidores programados'
           if (autoReason) {
             title =
               autoReason.startsWith('Feriado') ||
               autoReason === 'Recebimento de Medidores' ||
               autoReason === 'Fim de Semana'
-                ? autoReason
-                : `Indisponível (${autoReason})`
+                ? `${autoReason} — ${title}`
+                : `Indisponível (${autoReason}) — ${title}`
           } else if (isManual) {
-            title = `Bloqueio manual: ${manualReason} — clique para liberar`
-          } else if (canToggle) {
-            title = 'Disponível — clique para bloquear'
+            title = `Bloqueio manual: ${manualReason} — ${title}`
+          } else if (allEnsaiados) {
+            title = 'Todos os medidores ensaiados'
           }
 
           return (
@@ -267,14 +326,15 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
                 isBlocked ? 'is-blocked' : 'is-available',
                 autoReason ? 'is-auto-blocked' : '',
                 isManual ? 'is-manual-blocked' : '',
+                allEnsaiados ? 'is-all-ensaiado' : '',
                 isToday ? 'is-today' : '',
                 busyDate === key ? 'is-busy' : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
-              disabled={!canToggle || busyDate === key}
+              disabled={!inMonth || busyDate === key}
               title={title}
-              onClick={() => handleDayClick(date)}
+              onClick={() => handleDayClick(date, inMonth)}
             >
               <span className="ensaios-calendar-day-number">{date.getDate()}</span>
               {autoReason === 'Recebimento de Medidores' ||
@@ -286,6 +346,21 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
               {manualReason ? (
                 <span className="ensaios-calendar-day-reason">{manualReason}</span>
               ) : null}
+              {meters.length > 0 ? (
+                <span className="ensaios-calendar-day-meters" aria-hidden="true">
+                  {previewMeters.map((meter) => (
+                    <span
+                      key={meter.id}
+                      className={`ensaios-calendar-day-meter is-${meter.status.toLowerCase()}`}
+                    >
+                      {meter.meter}
+                    </span>
+                  ))}
+                  {extraMeters > 0 ? (
+                    <span className="ensaios-calendar-day-meter is-more">+{extraMeters}</span>
+                  ) : null}
+                </span>
+              ) : null}
             </button>
           )
         })}
@@ -296,6 +371,10 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
           <span className="ensaios-calendar-swatch is-available" /> Disponível
         </li>
         <li>
+          <span className="ensaios-calendar-swatch is-all-ensaiado" /> Dia concluído (todos
+          ensaiados)
+        </li>
+        <li>
           <span className="ensaios-calendar-swatch is-manual-blocked" /> Bloqueio
           manual (com motivo)
         </li>
@@ -304,6 +383,76 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
           (Recebimento de Medidores), sábado e domingo (Fim de Semana) ou feriado
         </li>
       </ul>
+
+      {selectedDay
+        ? createPortal(
+            <div
+              className="ensaios-block-modal-overlay"
+              role="presentation"
+              onClick={closeDayModal}
+            >
+              <div
+                className="ensaios-block-modal ensaios-day-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="ensaios-day-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="ensaios-day-title">Medidores do dia</h3>
+                <p className="ensaios-block-modal-date">{formatDisplayDate(selectedDay)}</p>
+
+                {selectedDayMeters.length === 0 ? (
+                  <p className="entrada-panel-empty">Nenhum medidor programado para ensaio.</p>
+                ) : (
+                  <ul className="ensaios-day-meter-list">
+                    {selectedDayMeters.map((meter) => (
+                      <li key={meter.id} className="ensaios-day-meter-item">
+                        <div className="ensaios-day-meter-main">
+                          <strong>{meter.meter}</strong>
+                          <span className="ensaios-day-meter-csd">{meter.csd || '—'}</span>
+                        </div>
+                        <span
+                          className={`ensaios-day-meter-status is-${meter.status.toLowerCase()}`}
+                        >
+                          {calendarMeterStatusLabel(meter.status)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {!readOnly && selectedDay && !selectedDayAutoReason ? (
+                  <div className="ensaios-day-modal-admin">
+                    {selectedDayManualReason ? (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => openUnblockFromDay(selectedDay)}
+                      >
+                        Liberar bloqueio manual
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => openBlockFromDay(selectedDay)}
+                      >
+                        Bloquear dia manualmente
+                      </button>
+                    )}
+                  </div>
+                ) : null}
+
+                <div className="ensaios-block-modal-actions">
+                  <button type="button" className="primary-button" onClick={closeDayModal}>
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {pendingUnblockDate
         ? createPortal(

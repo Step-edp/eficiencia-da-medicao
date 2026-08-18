@@ -56,3 +56,26 @@ export function isMeterReadyForEnsaio(options: {
 export function getNextStatusAfterEntrada(): MeterProcessStatus {
   return 'Recebido'
 }
+
+export type CalendarMeterStatus = 'Agendado' | 'Recebido' | 'Ensaiado'
+
+export function resolveCalendarMeterStatus(
+  registryStatus: string | null | undefined,
+  trailStep: string,
+): CalendarMeterStatus {
+  const registry = registryStatus?.trim()
+  if (registry === 'Aprovado' || registry === 'Ensaiado') return 'Ensaiado'
+  if (registry === 'Recebido') return 'Recebido'
+  if (registry === 'Agendado') return 'Agendado'
+
+  const step = trailStep.trim()
+  if (step === ENSAIAR_TRAIL_STEP) return 'Recebido'
+  if (
+    step === APROVACAO_TRAIL_STEP ||
+    step === 'Pesquisa de satisfação' ||
+    step === SUCATA_TRAIL_STEP
+  ) {
+    return 'Ensaiado'
+  }
+  return 'Agendado'
+}

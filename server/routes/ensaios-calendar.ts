@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
+import { resolveCalendarMeterStatus } from '../lab-trail-status.js'
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
@@ -23,6 +24,48 @@ export async function listManualBlocks(_req: Request, res: Response) {
      ORDER BY blocked_date`,
   )
   res.json({ blocks: result.rows.map(mapBlock) })
+}
+
+type CalendarMeterRow = {
+  id: string
+  meter: string
+  csd: string
+  trail_step: string
+  scheduled_at: Date
+  registry_status: string | null
+}
+
+export async function listCalendarMeters(req: Request, res: Response) {
+  const from = typeof req.query.from === 'string' ? req.query.from.trim() : ''
+  const to = typeof req.query.to === 'string' ? req.query.to.trim() : ''
+
+  if (!DATE_PATTERN.test(from) || !DATE_PATTERN.test(to)) {
+    res.status(400).json({ error: 'Informe from e to no formato YYYY-MM-DD.' })
+    return
+  }
+
+  const result = await query<CalendarMeterRow>(
+    `SELECT ms.id, ms.meter, ms.csd, ms.trail_step, ms.scheduled_at,
+            mr.status AS registry_status
+     FROM meter_schedules ms
+     LEFT JOIN meter_registry mr ON mr.meter = ms.meter
+     WHERE ms.scheduled_at::date >= $1::date
+       AND ms.scheduled_at::date <= $2::date
+     ORDER BY ms.scheduled_at ASC, ms.meter ASC`,
+    [from, to],
+  )
+
+  res.json({
+    meters: result.rows.map((row) => ({
+      id: row.id,
+      meter: row.meter,
+      csd: row.csd,
+      trailStep: row.trail_step,
+      scheduledAt: row.scheduled_at.toISOString(),
+      scheduledDate: row.scheduled_at.toISOString().slice(0, 10),
+      status: resolveCalendarMeterStatus(row.registry_status, row.trail_step),
+    })),
+  })
 }
 
 export async function toggleManualBlock(req: Request, res: Response) {
