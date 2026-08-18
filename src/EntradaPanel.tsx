@@ -1425,9 +1425,6 @@ export function EntradaPanel({
           <section className="entrada-section users-dashboard" aria-label="Dash de entrada">
             <div className="entrada-section-heading">
               <h3 className="entrada-section-title">Dash</h3>
-              <p className="demm-analysis-summary">
-                Erros e desempenho por CSD — entregas fora do prazo, SLA e medidores sem agendamento
-              </p>
             </div>
 
             <EntradaCsdDashboard />

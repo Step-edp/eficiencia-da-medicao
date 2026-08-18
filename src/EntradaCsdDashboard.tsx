@@ -121,12 +121,6 @@ export function EntradaCsdDashboard() {
 
   return (
     <div className="entrada-csd-dashboard">
-      <p className="produtividade-intro">
-        Indicadores de erro e desempenho por CSD. O score (0–100) combina entrega fora do prazo
-        (40%), SLA médio entre agendar e a entrada no laboratório (30%) e medidores que chegaram
-        sem agendamento prévio (30%).
-      </p>
-
       <div className="users-dashboard-kpis" aria-label="Resumo geral">
         <article className="users-dashboard-kpi">
           <p className="users-dashboard-kpi-label">Entregas fora do prazo</p>
