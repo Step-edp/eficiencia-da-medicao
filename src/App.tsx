@@ -1598,6 +1598,60 @@ function PendingApprovalItem({
   )
 }
 
+function RejectedUserItem({ user }: { user: AppUser }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <article className={`approval-item${expanded ? ' is-expanded' : ' is-collapsed'}`}>
+      <button
+        type="button"
+        className="approval-item-summary"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((current) => !current)}
+      >
+        {user.profilePhoto ? (
+          <img className="profile-photo-thumb" src={user.profilePhoto} alt="" />
+        ) : (
+          <span className="profile-photo-placeholder" aria-hidden="true">
+            {user.name.trim().charAt(0).toUpperCase() || '?'}
+          </span>
+        )}
+        <strong>{user.name}</strong>
+        <span className="approval-item-toggle" aria-hidden="true">
+          {expanded ? '▾' : '▸'}
+        </span>
+      </button>
+
+      {expanded ? (
+        <dl className="user-detail-grid approval-item-details-grid">
+          <div>
+            <dt>Matrícula</dt>
+            <dd>{user.registration || '—'}</dd>
+          </div>
+          <div>
+            <dt>E-mail</dt>
+            <dd>{user.email || '—'}</dd>
+          </div>
+          <div>
+            <dt>Telefone</dt>
+            <dd>{user.whatsapp || '—'}</dd>
+          </div>
+          <div>
+            <dt>Reprovado em</dt>
+            <dd>
+              {user.rejectedAt ? new Date(user.rejectedAt).toLocaleString('pt-BR') : '—'}
+            </dd>
+          </div>
+          <div>
+            <dt>Justificativa</dt>
+            <dd>{user.rejectionReason || '—'}</dd>
+          </div>
+        </dl>
+      ) : null}
+    </article>
+  )
+}
+
 function HomePanel({
   currentUser,
   activeRoute,
@@ -3913,45 +3967,7 @@ function HomePanel({
                   <div className="approval-list" aria-label="Cadastros reprovados">
                     {rejectedUsers.length ? (
                       rejectedUsers.map((user) => (
-                        <article key={user.id} className="approval-item is-expanded">
-                          <div className="approval-item-summary" aria-disabled="true">
-                            {user.profilePhoto ? (
-                              <img
-                                className="profile-photo-thumb"
-                                src={user.profilePhoto}
-                                alt=""
-                              />
-                            ) : (
-                              <span className="profile-photo-placeholder" aria-hidden="true">
-                                {user.name.trim().charAt(0).toUpperCase() || '?'}
-                              </span>
-                            )}
-                            <strong>{user.name}</strong>
-                            <span className="approval-item-toggle" aria-hidden="true">▾</span>
-                          </div>
-                          <dl className="user-detail-grid approval-item-details-grid">
-                            <div>
-                              <dt>Matrícula</dt>
-                              <dd>{user.registration || '—'}</dd>
-                            </div>
-                            <div>
-                              <dt>E-mail</dt>
-                              <dd>{user.email || '—'}</dd>
-                            </div>
-                            <div>
-                              <dt>Telefone</dt>
-                              <dd>{user.whatsapp || '—'}</dd>
-                            </div>
-                            <div>
-                              <dt>Reprovado em</dt>
-                              <dd>{user.rejectedAt ? new Date(user.rejectedAt).toLocaleString('pt-BR') : '—'}</dd>
-                            </div>
-                            <div>
-                              <dt>Justificativa</dt>
-                              <dd>{user.rejectionReason || '—'}</dd>
-                            </div>
-                          </dl>
-                        </article>
+                        <RejectedUserItem key={user.id} user={user} />
                       ))
                     ) : (
                       <p className="generated-password-empty">
