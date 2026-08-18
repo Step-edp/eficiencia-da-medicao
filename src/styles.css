@@ -52,6 +52,7 @@ button {
 }
 
 .hero-card {
+  position: relative;
   width: min(1220px, 100%);
   display: grid;
   grid-template-columns: 1.05fr 1fr;
@@ -5014,9 +5015,16 @@ body.laudo-viewer-open {
   width: min(360px, 100%);
 }
 
-.auth-panel-switch {
-  grid-template-columns: repeat(3, 1fr);
-  width: min(480px, 100%);
+.hero-support-button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 2;
+}
+
+.hero-support-button .item-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .auth-support-lead {

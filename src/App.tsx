@@ -104,7 +104,7 @@ const THIRD_PARTY_COMPANIES = ['BMB', 'Cosampa', 'Engeserv', 'ROTARY', 'TIVIT'] 
 
 const AREA_OPTIONS = [...DEFAULT_AREA_OPTIONS] as const
 
-type Panel = 'login' | 'cadastro' | 'suporte'
+type Panel = 'login' | 'cadastro'
 type AppRoute = 'default' | 'compras-homologacao' | 'pesquisa-satisfacao'
 
 function parseAppRoute(hash: string): { route: AppRoute; surveyLaudoId?: string } {
@@ -150,6 +150,7 @@ export default function App() {
     type: 'success' | 'error'
     message: string
   } | null>(null)
+  const [showAuthSupport, setShowAuthSupport] = useState(false)
 
   const loadAdminData = useCallback(async () => {
     const [usersResponse, requestsResponse] = await Promise.all([
@@ -336,6 +337,16 @@ export default function App() {
   return (
     <main className="shell">
       <section className="hero-card">
+        <button
+          type="button"
+          className="icon-button hero-support-button"
+          onClick={() => setShowAuthSupport(true)}
+          aria-label="Suporte"
+          title="Suporte"
+        >
+          <ItemIcon title="Suporte" />
+        </button>
+
         <div className="brand-column">
           <EdpLogo />
           <div>
@@ -343,7 +354,7 @@ export default function App() {
             <h1>Changing tomorrow now</h1>
           </div>
 
-          <div className="panel-switch auth-panel-switch" role="tablist" aria-label="Autenticação">
+          <div className="panel-switch" role="tablist" aria-label="Autenticação">
             <button
               className={activePanel === 'login' ? 'active' : ''}
               onClick={() => setActivePanel('login')}
@@ -362,15 +373,6 @@ export default function App() {
             >
               Cadastrar
             </button>
-            <button
-              className={activePanel === 'suporte' ? 'active' : ''}
-              onClick={() => setActivePanel('suporte')}
-              type="button"
-              role="tab"
-              aria-selected={activePanel === 'suporte'}
-            >
-              Suporte
-            </button>
           </div>
         </div>
 
@@ -386,7 +388,7 @@ export default function App() {
                 }
               }}
             />
-          ) : activePanel === 'cadastro' ? (
+          ) : (
             <RegisterPanel
               activeRoute={activeRoute}
               onRegister={handleRegisterUser}
@@ -400,11 +402,14 @@ export default function App() {
                 setActivePanel('login')
               }}
             />
-          ) : (
-            <AuthSupportPanel />
           )}
         </div>
       </section>
+
+      <AuthSupportModal
+        open={showAuthSupport}
+        onClose={() => setShowAuthSupport(false)}
+      />
     </main>
   )
 }
@@ -565,7 +570,13 @@ function LoginPanel({ onLoginSuccess, bannerFeedback = null }: LoginPanelProps) 
   )
 }
 
-function AuthSupportPanel() {
+function AuthSupportModal({
+  open,
+  onClose,
+}: {
+  open: boolean
+  onClose: () => void
+}) {
   const [name, setName] = useState('')
   const [registration, setRegistration] = useState('')
   const [subject, setSubject] = useState('')
@@ -576,6 +587,26 @@ function AuthSupportPanel() {
     message: string
   } | null>(null)
   const [ticketNumber, setTicketNumber] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setName('')
+    setRegistration('')
+    setSubject('')
+    setMessage('')
+    setFeedback(null)
+    setTicketNumber(null)
+    setSubmitting(false)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open, onClose])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -609,79 +640,122 @@ function AuthSupportPanel() {
     }
   }
 
-  return (
-    <section className="auth-panel">
-      <h2>Suporte</h2>
-      <p className="auth-support-lead">
-        Abra um chamado sem precisar entrar no portal. Informe seus dados e descreva a
-        solicitação.
-      </p>
+  if (!open) return null
 
-      {feedback ? (
-        <LoginFeedback
-          type={feedback.type}
-          message={feedback.message}
-          onClose={() => setFeedback(null)}
-        />
-      ) : null}
-
-      {ticketNumber ? (
-        <p className="csds-form-hint">
-          Guarde o número <strong>{ticketNumber}</strong>. A equipe responderá pelo menu
-          Suporte após você entrar no portal.
-        </p>
-      ) : null}
-
-      <form className="form-grid" onSubmit={(event) => void handleSubmit(event)}>
-        <label>
-          Nome
-          <input
-            type="text"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Seu nome completo"
-            required
-          />
-        </label>
-
-        <label>
-          Matrícula
-          <input
-            type="text"
-            value={registration}
-            onChange={(event) => setRegistration(event.target.value)}
-            placeholder="Digite sua matrícula"
-            required
-          />
-        </label>
-
-        <label>
-          Assunto
-          <input
-            type="text"
-            value={subject}
-            onChange={(event) => setSubject(event.target.value)}
-            placeholder="Ex.: Erro ao fazer login"
-            maxLength={120}
-          />
-        </label>
-
-        <label>
-          Solicitação
-          <textarea
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-            placeholder="Descreva o que precisa com o máximo de detalhes possível."
-            rows={5}
-            required
-          />
-        </label>
-
-        <button className="primary-button login-enter-button" type="submit" disabled={submitting}>
-          {submitting ? 'Enviando...' : 'Enviar solicitação'}
+  return createPortal(
+    <div
+      className="ensaios-block-modal-overlay"
+      role="presentation"
+      onClick={onClose}
+    >
+      <div
+        className="ensaios-block-modal support-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-support-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="icon-button schedule-slot-modal-close"
+          onClick={onClose}
+          aria-label="Fechar"
+          title="Fechar"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6 6l12 12M18 6L6 18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
         </button>
-      </form>
-    </section>
+
+        <h3 id="auth-support-modal-title">Suporte</h3>
+        <p className="auth-support-lead">
+          Abra um chamado sem precisar entrar no portal. Informe seus dados e descreva a
+          solicitação.
+        </p>
+
+        {feedback ? (
+          <LoginFeedback
+            type={feedback.type}
+            message={feedback.message}
+            onClose={() => setFeedback(null)}
+          />
+        ) : null}
+
+        {ticketNumber ? (
+          <p className="csds-form-hint">
+            Guarde o número <strong>{ticketNumber}</strong>. A equipe responderá pelo menu
+            Suporte após você entrar no portal.
+          </p>
+        ) : null}
+
+        <form className="support-request-form" onSubmit={(event) => void handleSubmit(event)}>
+          <label>
+            Nome
+            <input
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Seu nome completo"
+              required
+            />
+          </label>
+
+          <label>
+            Matrícula
+            <input
+              type="text"
+              value={registration}
+              onChange={(event) => setRegistration(event.target.value)}
+              placeholder="Digite sua matrícula"
+              required
+            />
+          </label>
+
+          <label>
+            Assunto
+            <input
+              type="text"
+              value={subject}
+              onChange={(event) => setSubject(event.target.value)}
+              placeholder="Ex.: Erro ao fazer login"
+              maxLength={120}
+            />
+          </label>
+
+          <label>
+            Solicitação
+            <textarea
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              placeholder="Descreva o que precisa com o máximo de detalhes possível."
+              rows={5}
+              required
+            />
+          </label>
+
+          <div className="ensaios-block-modal-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="primary-button" disabled={submitting}>
+              {submitting ? 'Enviando...' : 'Enviar solicitação'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
