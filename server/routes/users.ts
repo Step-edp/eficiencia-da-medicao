@@ -400,8 +400,8 @@ export async function register(req: Request, res: Response) {
     res.status(409).json({
       error:
         existingByRegistration.approval_status === 'pending'
-          ? 'Já existe um cadastro pendente com esta matrícula.'
-          : 'Já existe um cadastro aprovado com esta matrícula.',
+          ? 'Já existe um cadastro pendente com esta matrícula. Aguarde a análise do ADM.'
+          : 'Esta matrícula já possui acesso aprovado ao portal. Use a tela de login.',
     })
     return
   }
@@ -673,6 +673,17 @@ export async function approveUser(req: Request, res: Response) {
   }
 
   const pending = previous.rows[0]
+
+  if (pending.approval_status !== 'pending') {
+    res.status(400).json({
+      error:
+        pending.approval_status === 'rejected'
+          ? 'Este cadastro está reprovado. O usuário deve enviar um novo cadastro antes da aprovação.'
+          : 'Este usuário já está aprovado.',
+    })
+    return
+  }
+
   const jobTitle = pending.job_title
   const workArea = pending.work_area
   const employmentType = pending.employment_type
@@ -838,6 +849,8 @@ export async function approveUser(req: Request, res: Response) {
      SET approval_status = 'approved',
          approved_at = NOW(),
          approved_by_user_id = $7,
+         rejected_at = NULL,
+         rejection_reason = '',
          third_party_company = $2,
          work_subtype = $3,
          access_areas = $4::jsonb,
@@ -846,7 +859,9 @@ export async function approveUser(req: Request, res: Response) {
            WHEN $6::boolean THEN NULL
            ELSE COALESCE(vacation_required_since, NOW())
          END
-     WHERE id = $1 AND role = 'compras'
+     WHERE id = $1
+       AND role = 'compras'
+       AND approval_status = 'pending'
      RETURNING *`,
     [
       id,
@@ -858,6 +873,11 @@ export async function approveUser(req: Request, res: Response) {
       approverId,
     ],
   )
+
+  if (!result.rows[0]) {
+    res.status(404).json({ error: 'Cadastro pendente não encontrado.' })
+    return
+  }
 
   const user = {
     ...(await mapUserWithVacation(result.rows[0], { includePassword: true })),

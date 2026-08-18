@@ -245,6 +245,7 @@ export default function App() {
   const handleApproveUser = async (userId: string, payload?: ApproveUserPayload) => {
     const { user } = await api.approveUser(userId, payload)
     setRegisteredUsers((prev) => prev.map((item) => (item.id === user.id ? user : item)))
+    await loadAdminData()
   }
 
   const handleRejectUser = async (userId: string, reason: string) => {
@@ -337,6 +338,7 @@ export default function App() {
         onCurrentUserChange={setAuthenticatedUser}
         onCreateHomologationRequest={handleCreateHomologationRequest}
         onLogout={handleLogout}
+        onRefreshAdminData={loadAdminData}
       />
     )
   }
@@ -806,6 +808,7 @@ type HomePanelProps = {
     >,
   ) => Promise<void>
   onLogout: () => Promise<void>
+  onRefreshAdminData?: () => Promise<void>
 }
 
 type Area = {
@@ -1787,6 +1790,7 @@ function HomePanel({
   onCurrentUserChange,
   onCreateHomologationRequest,
   onLogout,
+  onRefreshAdminData,
 }: HomePanelProps) {
   const savedNav = useMemo(() => loadHomeNavState(currentUser.id), [currentUser.id])
   const [navReady, setNavReady] = useState(() => !savedNav?.selectedAreaTitle)
@@ -2038,6 +2042,13 @@ function HomePanel({
   const [userNameFilter, setUserNameFilter] = useState('')
   const [userRegistrationFilter, setUserRegistrationFilter] = useState('')
   const isAdmin = currentUser.role === 'admin'
+
+  useEffect(() => {
+    if (selectedArea?.title === 'Usuários' && isAdmin && onRefreshAdminData) {
+      void onRefreshAdminData()
+    }
+  }, [selectedArea?.title, isAdmin, onRefreshAdminData])
+
   const pendingApprovalUsers = users.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'pending',
   )
