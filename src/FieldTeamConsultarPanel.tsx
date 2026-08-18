@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type MeterScheduleRecord } from './api'
+import { formatSchedulePartnerLabel } from './schedulePartnerLabel'
 
 type FieldTeamSchedulesPanelProps = {
   mode?: 'all' | 'mine'
@@ -34,6 +35,7 @@ function scheduleSearchText(item: MeterScheduleRecord) {
       item.toi,
       item.note,
       item.csd,
+      formatSchedulePartnerLabel(item),
       item.partnerName,
       item.partnerRegistration,
       item.scheduledAtLabel,
@@ -188,7 +190,7 @@ export function FieldTeamConsultarPanel({
                 <th>Invólucro</th>
                 <th>Nota</th>
                 <th>CSD</th>
-                <th>Parceiro</th>
+                <th>Parceiro / Equipe</th>
                 <th>Data agendada</th>
                 <th>Prazo entrega</th>
                 <th>Status entrega</th>
@@ -231,13 +233,7 @@ export function FieldTeamConsultarPanel({
                   </td>
                   <td>{item.note || '—'}</td>
                   <td>{item.csd || '—'}</td>
-                  <td>
-                    {item.partnerName
-                      ? `${item.partnerName}${
-                          item.partnerRegistration ? ` (${item.partnerRegistration})` : ''
-                        }`
-                      : '—'}
-                  </td>
+                  <td>{formatSchedulePartnerLabel(item) || '—'}</td>
                   <td>{item.scheduledAtLabel || '—'}</td>
                   <td>{item.deliveryDeadlineLabel || '—'}</td>
                   <td>
