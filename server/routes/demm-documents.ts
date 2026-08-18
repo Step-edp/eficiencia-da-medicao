@@ -235,12 +235,14 @@ export async function createDemmDocument(req: Request, res: Response) {
   }
 
   const id = `demm-${Date.now()}-${linkedMeter}`
+  const importedByLab =
+    Boolean(targetWeekStartDate) || (await isLabDemmImporter(req.user?.id ?? null))
 
   const insert = await query<Omit<DemmDocumentRow, 'created_by_registration' | 'csd_name'>>(
     `INSERT INTO demm_documents (
       id, meter_schedule_id, meter, file_name, file_data, extracted_meters,
-      document_number, emission_date, csd_id, target_week_start, created_by_user_id
-    ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11)
+      document_number, emission_date, csd_id, target_week_start, imported_by_lab, created_by_user_id
+    ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12)
     RETURNING id, meter_schedule_id, meter, file_name, file_data, extracted_meters,
               document_number, emission_date, csd_id, created_at, created_by_user_id`,
     [
@@ -254,6 +256,7 @@ export async function createDemmDocument(req: Request, res: Response) {
       emissionDate,
       csd.rows[0].id,
       targetWeekStartDate ? normalizedTargetWeekStart : null,
+      importedByLab,
       req.user?.id ?? null,
     ],
   )
@@ -454,6 +457,22 @@ function parseDateKey(value: string): Date | null {
   return parsed
 }
 
+async function isLabDemmImporter(userId: string | null | undefined): Promise<boolean> {
+  if (!userId) return false
+
+  const result = await query<{ role: string; work_area: string; work_subtype: string }>(
+    `SELECT role, work_area, work_subtype FROM users WHERE id = $1`,
+    [userId],
+  )
+  const row = result.rows[0]
+  if (!row) return false
+  if (row.role === 'admin') return true
+
+  const area = row.work_area?.trim() ?? ''
+  const subtype = row.work_subtype?.trim() ?? ''
+  return area === 'Medição' && subtype === 'Laboratório de Medição'
+}
+
 type CsdDemmPendenciaRow = {
   id: string
   name: string
@@ -534,11 +553,19 @@ export async function getCsdDemmHistorico(_req: Request, res: Response) {
                 AND d.created_at >= gs.week_start
                 AND d.created_at <= gs.week_start + interval '4 days 23 hours 59 minutes 59 seconds'
                 AND d.target_week_start IS NULL
+                AND d.imported_by_lab = false
             ) AS delivered_on_time,
             EXISTS (
               SELECT 1 FROM demm_documents d
               WHERE d.csd_id = c.id
-                AND d.target_week_start = gs.week_start::date
+                AND (
+                  d.target_week_start = gs.week_start::date
+                  OR (
+                    d.imported_by_lab = true
+                    AND d.created_at >= gs.week_start
+                    AND d.created_at <= gs.week_start + interval '4 days 23 hours 59 minutes 59 seconds'
+                  )
+                )
             ) AS delivered_retroactive
      FROM csds c
      LEFT JOIN users u ON u.id = c.responsible_user_id

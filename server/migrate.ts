@@ -275,6 +275,7 @@ export async function migrate() {
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS emission_date TEXT;
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS csd_id TEXT REFERENCES csds(id) ON DELETE SET NULL;
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS target_week_start DATE;
+    ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS imported_by_lab BOOLEAN NOT NULL DEFAULT false;
     CREATE INDEX IF NOT EXISTS idx_demm_documents_csd_id ON demm_documents (csd_id);
     ALTER TABLE org_cells ADD COLUMN IF NOT EXISTS substitute_user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_required_since TIMESTAMPTZ;
@@ -868,4 +869,21 @@ export async function migrate() {
 
   // Substituída pela tela "Medidores da semana" (calculada em tempo real a partir das DEMMs).
   await query(`DROP TABLE IF EXISTS meter_phase_history`)
+
+  await query(`
+    UPDATE demm_documents d
+    SET imported_by_lab = true
+    FROM users u
+    WHERE d.created_by_user_id = u.id
+      AND (
+        u.role = 'admin'
+        OR (u.work_area = 'Medição' AND u.work_subtype = 'Laboratório de Medição')
+      )
+  `)
+
+  await query(`
+    UPDATE demm_documents
+    SET imported_by_lab = true
+    WHERE target_week_start IS NOT NULL
+  `)
 }

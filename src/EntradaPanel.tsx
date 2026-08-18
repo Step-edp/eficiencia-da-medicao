@@ -42,10 +42,10 @@ function DemmStatusIcon({
     <span
       className={`demm-status-icon ${isOk ? 'is-ok' : isRetroactive ? 'is-retroactive' : 'is-late'}`}
       aria-label={
-        isOk ? 'Entregue' : isRetroactive ? 'Entregue retroativamente' : 'Não entregue'
+        isOk ? 'Entregue' : isRetroactive ? 'Importada pelo Lab' : 'Não entregue'
       }
       title={
-        isOk ? 'Entregue' : isRetroactive ? 'Entregue retroativamente' : 'Não entregue'
+        isOk ? 'Entregue' : isRetroactive ? 'Importada pelo Lab' : 'Não entregue'
       }
     >
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1488,8 +1488,8 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
 
             {!readOnly ? (
               <p className="field-hint">
-                Clique no X vermelho para importar DEMM retroativa da semana. Após o envio, o ícone
-                fica amarelo.
+                Clique no X vermelho para importar DEMM retroativa da semana. DEMMs importadas
+                pelo Lab aparecem com X amarelo, mesmo dentro do prazo.
               </p>
             ) : null}
 
