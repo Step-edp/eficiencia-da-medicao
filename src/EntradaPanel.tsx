@@ -49,7 +49,7 @@ function DemmStatusIcon({
       }
     >
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        {isOk ? (
+        {isOk || isRetroactive ? (
           <path
             d="M5 12.5l4.5 4.5L19 7.5"
             fill="none"
@@ -973,7 +973,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             {demmTargetWeekStart ? (
               <p className="demm-modal-intro">
                 Semana com prazo em {formatWeekLabel(demmTargetWeekStart)} (sexta-feira). O ícone
-                ficará amarelo após o envio.
+                ficará com check amarelo após o envio.
               </p>
             ) : null}
 
@@ -1489,7 +1489,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             {!readOnly ? (
               <p className="field-hint">
                 Clique no X vermelho para importar DEMM retroativa da semana. DEMMs importadas
-                pelo Lab aparecem com X amarelo, mesmo dentro do prazo.
+                pelo Lab aparecem com check amarelo, mesmo dentro do prazo.
               </p>
             ) : null}
 
