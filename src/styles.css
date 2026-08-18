@@ -2524,7 +2524,7 @@ button {
 .lab-highlighted-sections {
   margin: 18px 0 22px;
   grid-template-columns: repeat(auto-fill, minmax(170px, 210px));
-  justify-content: start;
+  justify-content: center;
 }
 
 .measurement-item-highlighted {
