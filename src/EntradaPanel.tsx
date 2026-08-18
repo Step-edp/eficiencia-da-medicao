@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import {
   api,
   ApiError,
+  type AppUser,
   type CsdDemmHistoricoRecord,
   type CsdDemmPendenciaRecord,
   type DemmDocumentRecord,
@@ -15,6 +16,37 @@ import {
 import { ENTRADA_TRAIL_STEP } from './labTrailSteps'
 import { useCsdsOptions } from './useCsdsOptions'
 import { readFileAsBase64 } from './fileUtils'
+import { UserDetailModal } from './UserDetailModal'
+import { EntradaCsdDashboard } from './EntradaCsdDashboard'
+
+const TERCEIRA_OPTIONS = ['BMB', 'Cosampa', 'Engeserv', 'ROTARY', 'TIVIT']
+
+function ResponsibleUserCell({
+  userId,
+  name,
+  registration,
+  onOpenProfile,
+}: {
+  userId: string | null
+  name: string | null
+  registration: string | null
+  onOpenProfile: (userId: string) => void
+}) {
+  const label = name ?? registration
+  if (!userId || !label) return <>—</>
+
+  return (
+    <button
+      type="button"
+      className="schedule-meter-link"
+      onClick={() => onOpenProfile(userId)}
+      aria-label={`Ver perfil de ${label}`}
+      title="Ver perfil"
+    >
+      {label}
+    </button>
+  )
+}
 
 function formatWorkSubtypeLabel(workSubtype: string | null) {
   if (!workSubtype) return '—'
@@ -471,6 +503,12 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     type: 'success' | 'error'
     message: string
   } | null>(null)
+  const [profileUser, setProfileUser] = useState<AppUser | null>(null)
+  const [profileUsers, setProfileUsers] = useState<AppUser[]>([])
+  const [profileOrgCells, setProfileOrgCells] = useState<
+    Array<{ id: string; responsibleUserId?: string | null; responsibleName?: string | null }>
+  >([])
+  const [profilePhotos, setProfilePhotos] = useState<Record<string, string>>({})
 
   const onTrailCountsChangeRef = useRef(onTrailCountsChange)
   useEffect(() => {
@@ -516,6 +554,54 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     setDemmTargetWeekStart(null)
     setDemmModalFeedback(null)
   }
+
+  const openUserProfile = useCallback(
+    async (userId: string) => {
+      try {
+        let approved = profileUsers
+        if (!approved.length) {
+          const [usersResponse, orgResponse] = await Promise.all([
+            api.listUsers(),
+            api.listOrgCells(),
+          ])
+          approved = usersResponse.users.filter(
+            (user) => user.role !== 'admin' && user.approvalStatus === 'approved',
+          )
+          setProfileUsers(approved)
+          setProfileOrgCells(
+            orgResponse.cells.map((cell) => ({
+              id: cell.id,
+              responsibleUserId: cell.responsibleUserId,
+              responsibleName: cell.responsibleName,
+            })),
+          )
+        }
+
+        const user = approved.find((item) => item.id === userId)
+        if (!user) return
+
+        setProfileUser(user)
+
+        if (
+          (user.hasProfilePhoto ?? Boolean(user.profilePhoto)) &&
+          !profilePhotos[userId] &&
+          !user.profilePhoto
+        ) {
+          const photosResponse = await api.listUserProfilePhotos([userId])
+          setProfilePhotos((current) => ({ ...current, ...photosResponse.photos }))
+        }
+      } catch (error) {
+        setFeedback({
+          type: 'error',
+          message:
+            error instanceof ApiError
+              ? error.message
+              : 'Não foi possível abrir o perfil do responsável.',
+        })
+      }
+    },
+    [profilePhotos, profileUsers],
+  )
 
   const openDemmModal = (csdId?: string, targetWeekStart?: string) => {
     setDemmModalFeedback(null)
@@ -962,16 +1048,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     (sum, document) => sum + document.scheduledCount,
     0,
   )
-  const dashLoading =
-    loading || csdPendenciasLoading || inspectionPendenciasLoading || weekMetersLoading
-  const pendingCsdCount = csdPendencias.filter((csd) => csd.status !== 'entregue').length
-  const lateScheduleCount = schedules.filter((schedule) => schedule.isLate).length
-  const weekMeterCounts = {
-    naoAgendado: weekMeters.filter((item) => item.status === 'nao_agendado').length,
-    semDocumento: weekMeters.filter((item) => item.status === 'sem_documento_inspecao').length,
-    bloqueado: weekMeters.filter((item) => item.status === 'bloqueado').length,
-    liberado: weekMeters.filter((item) => item.status === 'liberado').length,
-  }
 
   const demmModal = showDemmModal
     ? createPortal(
@@ -1078,6 +1154,28 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
       )
     : null
 
+  const userProfileModal = profileUser
+    ? createPortal(
+        <UserDetailModal
+          user={profileUser}
+          profilePhotoSrc={profilePhotos[profileUser.id] ?? profileUser.profilePhoto}
+          approvedUsers={profileUsers}
+          orgCells={profileOrgCells}
+          terceiraOptions={[...TERCEIRA_OPTIONS]}
+          showPassword={false}
+          onClose={() => setProfileUser(null)}
+          onSaved={(user) => {
+            setProfileUsers((current) =>
+              current.map((item) => (item.id === user.id ? user : item)),
+            )
+            setProfileUser(user)
+          }}
+          onFeedback={setFeedback}
+        />,
+        document.body,
+      )
+    : null
+
   if (view === 'dash') {
     return (
       <>
@@ -1094,111 +1192,14 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             <div className="entrada-section-heading">
               <h3 className="entrada-section-title">Dash</h3>
               <p className="demm-analysis-summary">
-                {dashLoading ? 'Atualizando indicadores...' : 'Resumo da etapa Entrada'}
+                Erros e desempenho por CSD — entregas fora do prazo, SLA e medidores sem agendamento
               </p>
             </div>
 
-            {dashLoading ? (
-              <p className="entrada-panel-empty">Carregando indicadores...</p>
-            ) : (
-              <>
-                <div className="users-dashboard-kpis">
-                  <div className="users-dashboard-kpi">
-                    <span className="users-dashboard-kpi-label">DEMMs cadastradas</span>
-                    <strong className="users-dashboard-kpi-value">{demmDocuments.length}</strong>
-                  </div>
-                  <div className="users-dashboard-kpi">
-                    <span className="users-dashboard-kpi-label">Medidores nas DEMMs</span>
-                    <strong className="users-dashboard-kpi-value">{totalDemmMeters}</strong>
-                  </div>
-                  <div className="users-dashboard-kpi">
-                    <span className="users-dashboard-kpi-label">Aguardando entrada</span>
-                    <strong className="users-dashboard-kpi-value">{schedules.length}</strong>
-                  </div>
-                  <div className="users-dashboard-kpi">
-                    <span className="users-dashboard-kpi-label">Entrega atrasada</span>
-                    <strong className="users-dashboard-kpi-value">{lateScheduleCount}</strong>
-                  </div>
-                  <div className="users-dashboard-kpi">
-                    <span className="users-dashboard-kpi-label">CSDs pendentes DEMM</span>
-                    <strong className="users-dashboard-kpi-value">{pendingCsdCount}</strong>
-                  </div>
-                  <div className="users-dashboard-kpi">
-                    <span className="users-dashboard-kpi-label">Inspeção pendente</span>
-                    <strong className="users-dashboard-kpi-value">
-                      {inspectionPendencias.length}
-                    </strong>
-                  </div>
-                  <div className="users-dashboard-kpi">
-                    <span className="users-dashboard-kpi-label">Medidores da semana</span>
-                    <strong className="users-dashboard-kpi-value">{weekMeters.length}</strong>
-                  </div>
-                  <div className="users-dashboard-kpi">
-                    <span className="users-dashboard-kpi-label">Não agendados (semana)</span>
-                    <strong className="users-dashboard-kpi-value">
-                      {weekMeterCounts.naoAgendado}
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="users-dashboard-grid">
-                  <div className="users-dashboard-card">
-                    <h4>Medidores da semana por status</h4>
-                    <ul className="users-dashboard-bars">
-                      <li>
-                        <div className="users-dashboard-bar-meta">
-                          <span>Não agendado</span>
-                          <strong>{weekMeterCounts.naoAgendado}</strong>
-                        </div>
-                      </li>
-                      <li>
-                        <div className="users-dashboard-bar-meta">
-                          <span>Sem documento de inspeção</span>
-                          <strong>{weekMeterCounts.semDocumento}</strong>
-                        </div>
-                      </li>
-                      <li>
-                        <div className="users-dashboard-bar-meta">
-                          <span>Bloqueado</span>
-                          <strong>{weekMeterCounts.bloqueado}</strong>
-                        </div>
-                      </li>
-                      <li>
-                        <div className="users-dashboard-bar-meta">
-                          <span>Liberado</span>
-                          <strong>{weekMeterCounts.liberado}</strong>
-                        </div>
-                      </li>
-                    </ul>
-                  </div>
-                  <div className="users-dashboard-card">
-                    <h4>Base de DEMMs</h4>
-                    <ul className="users-dashboard-bars">
-                      <li>
-                        <div className="users-dashboard-bar-meta">
-                          <span>Medidores identificados</span>
-                          <strong>{totalDemmMeters}</strong>
-                        </div>
-                      </li>
-                      <li>
-                        <div className="users-dashboard-bar-meta">
-                          <span>Já agendados no app</span>
-                          <strong>{totalDemmScheduled}</strong>
-                        </div>
-                      </li>
-                      <li>
-                        <div className="users-dashboard-bar-meta">
-                          <span>CSDs na semana (total)</span>
-                          <strong>{csdPendencias.length}</strong>
-                        </div>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </>
-            )}
+            <EntradaCsdDashboard />
           </section>
         </div>
+        {userProfileModal}
       </>
     )
   }
@@ -1280,6 +1281,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             )}
           </section>
         </div>
+        {userProfileModal}
       </>
     )
   }
@@ -1334,7 +1336,14 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     {csdPendencias.map((csd) => (
                       <tr key={csd.id}>
                         <td>{csd.name}</td>
-                        <td>{csd.responsibleName ?? csd.responsibleRegistration ?? '—'}</td>
+                        <td>
+                          <ResponsibleUserCell
+                            userId={csd.responsibleUserId}
+                            name={csd.responsibleName}
+                            registration={csd.responsibleRegistration}
+                            onOpenProfile={(userId) => void openUserProfile(userId)}
+                          />
+                        </td>
                         <td>{formatWorkSubtypeLabel(csd.responsibleWorkSubtype)}</td>
                         <td>
                           {csd.status === 'nao_entregue' ? (
@@ -1366,6 +1375,8 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
         </div>
 
         {demmModal}
+
+        {userProfileModal}
 
         {analysisModal ? (
           <DemmAnalysisModal
@@ -1439,7 +1450,12 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                         <td>{pendencia.trailStep}</td>
                         <td>{formatDateTime(pendencia.scheduledAt)}</td>
                         <td>
-                          {pendencia.responsibleName ?? pendencia.responsibleRegistration ?? '—'}
+                          <ResponsibleUserCell
+                            userId={pendencia.responsibleUserId}
+                            name={pendencia.responsibleName}
+                            registration={pendencia.responsibleRegistration}
+                            onOpenProfile={(userId) => void openUserProfile(userId)}
+                          />
                         </td>
                         <td>{formatWorkSubtypeLabel(pendencia.responsibleWorkSubtype)}</td>
                         <td>
@@ -1479,6 +1495,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             )}
           </section>
         </div>
+        {userProfileModal}
       </>
     )
   }
@@ -1619,6 +1636,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             onSubmit={(payload) => void handleQuickScheduleSubmit(payload)}
           />
         ) : null}
+        {userProfileModal}
       </>
     )
   }
@@ -1667,7 +1685,14 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     {demmHistoricoCsds.map((csd) => (
                       <tr key={csd.id}>
                         <td>{csd.name}</td>
-                        <td>{csd.responsibleName ?? csd.responsibleRegistration ?? '—'}</td>
+                        <td>
+                          <ResponsibleUserCell
+                            userId={csd.responsibleUserId}
+                            name={csd.responsibleName}
+                            registration={csd.responsibleRegistration}
+                            onOpenProfile={(userId) => void openUserProfile(userId)}
+                          />
+                        </td>
                         {csd.weeks.map((week) => (
                           <td key={week.weekStart} className="demm-status-cell">
                             {!readOnly && week.status === 'nao_entregue' ? (
@@ -1695,6 +1720,8 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
         </div>
 
         {demmModal}
+
+        {userProfileModal}
 
         {analysisModal ? (
           <DemmAnalysisModal
@@ -1824,6 +1851,8 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
       </div>
 
       {demmModal}
+
+      {userProfileModal}
 
       {analysisModal ? (
         <DemmAnalysisModal

@@ -608,6 +608,7 @@ export type CsdDemmPendenciaRecord = {
 export type CsdDemmHistoricoRecord = {
   id: string
   name: string
+  responsibleUserId: string | null
   responsibleName: string | null
   responsibleRegistration: string | null
   responsibleWorkSubtype: string | null
@@ -615,6 +616,43 @@ export type CsdDemmHistoricoRecord = {
 }
 
 export type CsdDemmHistoricoWeek = { weekStart: string; weekDeadline: string }
+
+export type EntradaCsdDashboardRecord = {
+  csdId: string
+  csdName: string
+  responsibleName: string | null
+  scheduledTotal: number
+  lateNow: number
+  deliveredLate: number
+  deliveredOnTime: number
+  onTimePending: number
+  delayedOverall: number
+  lateProportion: number
+  avgSlaDays: number | null
+  slaSampleCount: number
+  demmMetersTotal: number
+  unscheduledMeters: number
+  unscheduledProportion: number
+  score: number
+  rank: number | null
+}
+
+export type EntradaCsdDashboardData = {
+  summary: {
+    scheduledTotal: number
+    delayedOverall: number
+    unscheduledMeters: number
+    demmMetersTotal: number
+    avgScore: number | null
+  }
+  csds: EntradaCsdDashboardRecord[]
+  rankings: {
+    byScore: EntradaCsdDashboardRecord[]
+    byLate: EntradaCsdDashboardRecord[]
+    bySla: EntradaCsdDashboardRecord[]
+    byUnscheduled: EntradaCsdDashboardRecord[]
+  }
+}
 
 export type WeekMeterStatus = 'nao_agendado' | 'sem_documento_inspecao' | 'bloqueado' | 'liberado'
 
@@ -1387,6 +1425,8 @@ export const api = {
     request<{ weeks: CsdDemmHistoricoWeek[]; csds: CsdDemmHistoricoRecord[] }>(
       '/api/csds/demm-historico',
     ),
+  getEntradaCsdDashboard: () =>
+    request<EntradaCsdDashboardData>('/api/csds/entrada-dashboard'),
   listWeekMeters: () =>
     request<{ meters: WeekMeterRecord[]; total: number }>('/api/demm-week-meters'),
   uploadInspectionDocument: (

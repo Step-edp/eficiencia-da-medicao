@@ -5,11 +5,27 @@ import { parseDemmPdf } from '../demm-pdf-parser.js'
 import { analyzeDemmMeters, type DemmMeterAnalysis } from '../demm-meter-analysis.js'
 import { validateDemmUploadMeters } from '../demm-upload-validation.js'
 import {
+  ENTRADA_TRAIL_STEP,
   ENSAIAR_TRAIL_STEP,
   getNextStatusAfterEntrada,
 } from '../lab-trail-status.js'
+import {
+  isMeterDeliveryLate,
+  lastFridayBeforeAssay,
+  toCalendarDate,
+} from '../delivery-deadline.js'
 
 const MAX_PDF_BYTES = 15 * 1024 * 1024
+
+function calendarDaysBetween(from: Date, to: Date): number {
+  const start = toCalendarDate(from).getTime()
+  const end = toCalendarDate(to).getTime()
+  return Math.max(0, Math.round((end - start) / (24 * 60 * 60 * 1000)))
+}
+
+function normalizeCsdKey(value: string) {
+  return value.trim().toUpperCase()
+}
 
 type DemmDocumentRow = {
   id: string
@@ -527,6 +543,7 @@ const DEMM_HISTORY_WEEKS = 8
 type CsdDemmHistoricoRow = {
   id: string
   name: string
+  responsible_user_id: string | null
   responsible_name: string | null
   responsible_registration: string | null
   responsible_work_subtype: string | null
@@ -543,6 +560,7 @@ export async function getCsdDemmHistorico(_req: Request, res: Response) {
 
   const result = await query<CsdDemmHistoricoRow>(
     `SELECT c.id, c.name,
+            c.responsible_user_id,
             u.name AS responsible_name,
             u.registration AS responsible_registration,
             u.work_subtype AS responsible_work_subtype,
@@ -579,6 +597,7 @@ export async function getCsdDemmHistorico(_req: Request, res: Response) {
     {
       id: string
       name: string
+      responsibleUserId: string | null
       responsibleName: string | null
       responsibleRegistration: string | null
       responsibleWorkSubtype: string | null
@@ -591,6 +610,7 @@ export async function getCsdDemmHistorico(_req: Request, res: Response) {
       csdMap.set(row.id, {
         id: row.id,
         name: row.name,
+        responsibleUserId: row.responsible_user_id,
         responsibleName: row.responsible_name,
         responsibleRegistration: row.responsible_registration,
         responsibleWorkSubtype: row.responsible_work_subtype,
@@ -728,4 +748,300 @@ export async function listWeekMeters(_req: Request, res: Response) {
   })
 
   res.json({ meters, total: meters.length })
+}
+
+type CsdDashboardAccumulator = {
+  csdId: string
+  csdName: string
+  responsibleName: string | null
+  scheduledTotal: number
+  lateNow: number
+  deliveredLate: number
+  deliveredOnTime: number
+  onTimePending: number
+  slaDaySamples: number[]
+  demmMetersTotal: number
+  unscheduledMeters: number
+}
+
+function emptyCsdAccumulator(
+  csdId: string,
+  csdName: string,
+  responsibleName: string | null,
+): CsdDashboardAccumulator {
+  return {
+    csdId,
+    csdName,
+    responsibleName,
+    scheduledTotal: 0,
+    lateNow: 0,
+    deliveredLate: 0,
+    deliveredOnTime: 0,
+    onTimePending: 0,
+    slaDaySamples: [],
+    demmMetersTotal: 0,
+    unscheduledMeters: 0,
+  }
+}
+
+function computeCsdScore(options: {
+  lateProportion: number
+  avgSlaDays: number | null
+  unscheduledProportion: number
+  hasScheduledData: boolean
+  hasDemmData: boolean
+}) {
+  const lateScore = (1 - options.lateProportion) * 100
+  const slaScore =
+    options.avgSlaDays === null
+      ? 100
+      : Math.max(0, 100 - (Math.min(options.avgSlaDays, 30) / 30) * 100)
+  const unscheduledScore = (1 - options.unscheduledProportion) * 100
+
+  if (!options.hasScheduledData && !options.hasDemmData) {
+    return 100
+  }
+  if (!options.hasScheduledData) {
+    return Math.round(unscheduledScore)
+  }
+  if (!options.hasDemmData) {
+    return Math.round(lateScore * 0.6 + slaScore * 0.4)
+  }
+
+  return Math.round(lateScore * 0.4 + slaScore * 0.3 + unscheduledScore * 0.3)
+}
+
+/** Dashboard de erros e desempenho por CSD na etapa Entrada. */
+export async function getEntradaCsdDashboard(_req: Request, res: Response) {
+  const now = new Date()
+
+  const csdsResult = await query<{
+    id: string
+    name: string
+    responsible_name: string | null
+  }>(
+    `SELECT c.id, c.name, u.name AS responsible_name
+     FROM csds c
+     LEFT JOIN users u ON u.id = c.responsible_user_id
+     ORDER BY c.name ASC`,
+  )
+
+  const csdByKey = new Map(
+    csdsResult.rows.map((row) => [
+      normalizeCsdKey(row.name),
+      emptyCsdAccumulator(row.id, row.name, row.responsible_name),
+    ]),
+  )
+
+  const ensureCsd = (csdName: string | null | undefined) => {
+    const key = normalizeCsdKey(csdName?.trim() ?? '')
+    if (!key) return null
+    return csdByKey.get(key) ?? null
+  }
+
+  const schedulesResult = await query<{
+    id: string
+    meter: string
+    csd: string
+    scheduled_at: Date
+    trail_step: string
+    created_at: Date
+    entry_at: Date | null
+  }>(
+    `SELECT ms.id, ms.meter, ms.csd, ms.scheduled_at, ms.trail_step, ms.created_at,
+            d.created_at AS entry_at
+     FROM meter_schedules ms
+     LEFT JOIN LATERAL (
+       SELECT created_at
+       FROM demm_documents
+       WHERE meter_schedule_id = ms.id OR meter = ms.meter
+       ORDER BY created_at ASC
+       LIMIT 1
+     ) d ON true
+     ORDER BY ms.scheduled_at ASC`,
+  )
+
+  for (const row of schedulesResult.rows) {
+    const bucket = ensureCsd(row.csd)
+    if (!bucket) continue
+
+    bucket.scheduledTotal += 1
+    const deadline = lastFridayBeforeAssay(row.scheduled_at)
+    const hasEntry = Boolean(row.entry_at) || row.trail_step.trim() !== ENTRADA_TRAIL_STEP
+
+    if (hasEntry) {
+      if (row.entry_at) {
+        const daysLate = calendarDaysBetween(deadline, row.entry_at)
+        const slaDays = calendarDaysBetween(row.created_at, row.entry_at)
+        bucket.slaDaySamples.push(slaDays)
+        if (daysLate > 0) {
+          bucket.deliveredLate += 1
+        } else {
+          bucket.deliveredOnTime += 1
+        }
+      } else {
+        bucket.deliveredOnTime += 1
+      }
+      continue
+    }
+
+    const currentlyLate = isMeterDeliveryLate({
+      scheduledAt: row.scheduled_at,
+      trailStep: row.trail_step,
+      entradaTrailStep: ENTRADA_TRAIL_STEP,
+      now,
+    })
+    if (currentlyLate) {
+      bucket.lateNow += 1
+    } else {
+      bucket.onTimePending += 1
+    }
+  }
+
+  const demmResult = await query<{
+    csd_id: string | null
+    csd_name: string | null
+    created_at: Date
+    extracted_meters: Array<{ meter: string }> | null
+  }>(
+    `SELECT d.csd_id, c.name AS csd_name, d.created_at, d.extracted_meters
+     FROM demm_documents d
+     LEFT JOIN csds c ON c.id = d.csd_id
+     ORDER BY d.created_at ASC`,
+  )
+
+  const allDemmMeters = new Set<string>()
+  for (const doc of demmResult.rows) {
+    for (const item of doc.extracted_meters ?? []) {
+      allDemmMeters.add(item.meter)
+    }
+  }
+
+  const priorSchedulesResult = allDemmMeters.size
+    ? await query<{ meter: string; created_at: Date }>(
+        `SELECT meter, created_at
+         FROM meter_schedules
+         WHERE meter = ANY($1::text[])`,
+        [[...allDemmMeters]],
+      )
+    : { rows: [] as Array<{ meter: string; created_at: Date }> }
+
+  const schedulesByMeter = new Map<string, Date[]>()
+  for (const row of priorSchedulesResult.rows) {
+    const list = schedulesByMeter.get(row.meter) ?? []
+    list.push(row.created_at)
+    schedulesByMeter.set(row.meter, list)
+  }
+
+  for (const doc of demmResult.rows) {
+    const bucket = doc.csd_id
+      ? [...csdByKey.values()].find((item) => item.csdId === doc.csd_id) ?? ensureCsd(doc.csd_name)
+      : ensureCsd(doc.csd_name)
+    if (!bucket) continue
+
+    for (const item of doc.extracted_meters ?? []) {
+      bucket.demmMetersTotal += 1
+      const priorDates = schedulesByMeter.get(item.meter) ?? []
+      const hadPriorSchedule = priorDates.some(
+        (createdAt) => createdAt.getTime() <= doc.created_at.getTime(),
+      )
+      if (!hadPriorSchedule) {
+        bucket.unscheduledMeters += 1
+      }
+    }
+  }
+
+  const csds = [...csdByKey.values()].map((bucket) => {
+    const delayedOverall = bucket.lateNow + bucket.deliveredLate
+    const lateProportion =
+      bucket.scheduledTotal > 0 ? delayedOverall / bucket.scheduledTotal : 0
+    const avgSlaDays = bucket.slaDaySamples.length
+      ? bucket.slaDaySamples.reduce((sum, value) => sum + value, 0) /
+        bucket.slaDaySamples.length
+      : null
+    const unscheduledProportion =
+      bucket.demmMetersTotal > 0 ? bucket.unscheduledMeters / bucket.demmMetersTotal : 0
+    const score = computeCsdScore({
+      lateProportion,
+      avgSlaDays,
+      unscheduledProportion,
+      hasScheduledData: bucket.scheduledTotal > 0,
+      hasDemmData: bucket.demmMetersTotal > 0,
+    })
+
+    return {
+      csdId: bucket.csdId,
+      csdName: bucket.csdName,
+      responsibleName: bucket.responsibleName,
+      scheduledTotal: bucket.scheduledTotal,
+      lateNow: bucket.lateNow,
+      deliveredLate: bucket.deliveredLate,
+      deliveredOnTime: bucket.deliveredOnTime,
+      onTimePending: bucket.onTimePending,
+      delayedOverall,
+      lateProportion,
+      avgSlaDays:
+        avgSlaDays === null ? null : Math.round(avgSlaDays * 10) / 10,
+      slaSampleCount: bucket.slaDaySamples.length,
+      demmMetersTotal: bucket.demmMetersTotal,
+      unscheduledMeters: bucket.unscheduledMeters,
+      unscheduledProportion,
+      score,
+    }
+  })
+
+  const rankedCsds = [...csds]
+    .filter((item) => item.scheduledTotal > 0 || item.demmMetersTotal > 0)
+    .sort((a, b) => b.score - a.score || a.csdName.localeCompare(b.csdName, 'pt-BR'))
+    .map((item, index) => ({ ...item, rank: index + 1 }))
+
+  const inactiveCsds = csds
+    .filter((item) => item.scheduledTotal === 0 && item.demmMetersTotal === 0)
+    .map((item) => ({ ...item, rank: null as number | null }))
+
+  const summary = {
+    scheduledTotal: csds.reduce((sum, item) => sum + item.scheduledTotal, 0),
+    delayedOverall: csds.reduce((sum, item) => sum + item.delayedOverall, 0),
+    unscheduledMeters: csds.reduce((sum, item) => sum + item.unscheduledMeters, 0),
+    demmMetersTotal: csds.reduce((sum, item) => sum + item.demmMetersTotal, 0),
+    avgScore:
+      rankedCsds.length > 0
+        ? Math.round(
+            rankedCsds.reduce((sum, item) => sum + item.score, 0) / rankedCsds.length,
+          )
+        : null,
+  }
+
+  res.json({
+    summary,
+    csds: [...rankedCsds, ...inactiveCsds],
+    rankings: {
+      byScore: rankedCsds.slice(0, 5),
+      byLate: [...rankedCsds]
+        .sort(
+          (a, b) =>
+            b.lateProportion - a.lateProportion ||
+            b.delayedOverall - a.delayedOverall ||
+            a.csdName.localeCompare(b.csdName, 'pt-BR'),
+        )
+        .slice(0, 5),
+      bySla: [...rankedCsds]
+        .filter((item) => item.avgSlaDays !== null)
+        .sort(
+          (a, b) =>
+            (b.avgSlaDays ?? 0) - (a.avgSlaDays ?? 0) ||
+            a.csdName.localeCompare(b.csdName, 'pt-BR'),
+        )
+        .slice(0, 5),
+      byUnscheduled: [...rankedCsds]
+        .filter((item) => item.demmMetersTotal > 0)
+        .sort(
+          (a, b) =>
+            b.unscheduledMeters - a.unscheduledMeters ||
+            b.unscheduledProportion - a.unscheduledProportion ||
+            a.csdName.localeCompare(b.csdName, 'pt-BR'),
+        )
+        .slice(0, 5),
+    },
+  })
 }

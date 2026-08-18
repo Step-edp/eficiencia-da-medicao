@@ -65,6 +65,7 @@ import {
   listDemmDocuments,
   listCsdDemmPendencias,
   getCsdDemmHistorico,
+  getEntradaCsdDashboard,
   listWeekMeters,
 } from './routes/demm-documents.js'
 import {
@@ -356,6 +357,7 @@ async function start() {
   app.get('/api/demm-documents/:id/file', requireAuth, downloadDemmDocument)
   app.get('/api/csds/demm-pendencias', requireAuth, listCsdDemmPendencias)
   app.get('/api/csds/demm-historico', requireAuth, getCsdDemmHistorico)
+  app.get('/api/csds/entrada-dashboard', requireAuth, getEntradaCsdDashboard)
   app.get('/api/demm-week-meters', requireAuth, listWeekMeters)
 
   app.get('/api/support-tickets', requireAuth, listSupportTickets)
