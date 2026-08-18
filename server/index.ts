@@ -150,6 +150,7 @@ async function start() {
   app.post('/api/auth/embed-token', ...wrap(authRoutes.createEmbedToken))
   app.post('/api/auth/sso-exchange', wrap(authRoutes.exchangeSsoToken))
   app.get('/api/users', ...wrap(authRoutes.listUsers))
+  app.post('/api/users/profile-photos', ...wrap(authRoutes.listUserProfilePhotos))
   app.patch('/api/users/:id/approve', ...wrap(authRoutes.approveUser))
   app.patch('/api/users/:id/reject', ...wrap(authRoutes.rejectUser))
   app.patch('/api/users/:id/pending', ...wrap(authRoutes.resetUserToPending))

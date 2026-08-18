@@ -155,6 +155,7 @@ type UserRow = {
   locality: string
   edp_unit: string
   profile_photo: string
+  has_profile_photo?: boolean
   access_areas: unknown
   access_processes: unknown
   password_plain?: string
@@ -203,6 +204,7 @@ function mapUser(row: UserRow, options?: { includePassword?: boolean }) {
     locality: row.locality,
     edpUnit: row.edp_unit,
     profilePhoto: row.profile_photo || '',
+    hasProfilePhoto: Boolean(row.has_profile_photo ?? row.profile_photo?.trim()),
     accessAreas: parseAccessAreas(row.access_areas),
     accessProcesses: parseAccessAreas(row.access_processes),
     ...(options?.includePassword
@@ -640,7 +642,8 @@ export async function listUsers(_req: Request, res: Response) {
             u.personal_description, u.hobby, u.work_area, u.work_subtype, u.whatsapp,
             u.employment_type, u.third_party_company, u.locality, u.edp_unit,
             u.access_areas, u.access_processes, u.password_plain,
-            u.profile_photo,
+            (u.profile_photo <> '') AS has_profile_photo,
+            '' AS profile_photo,
             a.name AS approved_by_name,
             a.registration AS approved_by_registration
      FROM users u
@@ -651,6 +654,35 @@ export async function listUsers(_req: Request, res: Response) {
     result.rows.map((row) => mapUserWithVacation(row, { includePassword: true })),
   )
   res.json({ users })
+}
+
+export async function listUserProfilePhotos(req: Request, res: Response) {
+  const rawIds: unknown[] = Array.isArray(req.body?.ids) ? req.body.ids : []
+  const ids = rawIds
+    .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+    .map((id) => id.trim())
+    .slice(0, 200)
+
+  if (!ids.length) {
+    res.json({ photos: {} })
+    return
+  }
+
+  const result = await query<{ id: string; profile_photo: string }>(
+    `SELECT id, profile_photo
+     FROM users
+     WHERE id = ANY($1::text[])`,
+    [ids],
+  )
+
+  const photos: Record<string, string> = {}
+  for (const row of result.rows) {
+    if (row.profile_photo.trim()) {
+      photos[row.id] = row.profile_photo
+    }
+  }
+
+  res.json({ photos })
 }
 
 export async function approveUser(req: Request, res: Response) {
@@ -1601,6 +1633,7 @@ export const authRoutes = {
   createEmbedToken: [requireAuth, createEmbedToken],
   exchangeSsoToken,
   listUsers: [requireAuth, requireAdmin, listUsers],
+  listUserProfilePhotos: [requireAuth, requireAdmin, listUserProfilePhotos],
   approveUser: [requireAuth, requireAdmin, approveUser],
   updateUser: [requireAuth, requireAdmin, updateUser],
   rejectUser: [requireAuth, requireAdmin, rejectUser],

@@ -6,6 +6,7 @@ import {
   type AppUser,
 } from './api'
 import { LoginFeedback } from './LoginFeedback'
+import { UserProfilePhoto } from './UserProfilePhoto'
 import { roleLabel } from './profilesAccess'
 import {
   buildRequestedProfile,
@@ -62,6 +63,7 @@ type UserDetailModalProps = {
   onFeedback: (feedback: { type: 'success' | 'error'; message: string }) => void
   startInEditMode?: boolean
   showPassword?: boolean
+  profilePhotoSrc?: string
 }
 
 function statusLabel(status: AppUser['approvalStatus']) {
@@ -86,6 +88,7 @@ export function UserDetailModal({
   onFeedback,
   startInEditMode = false,
   showPassword = false,
+  profilePhotoSrc = '',
 }: UserDetailModalProps) {
   const isAdminUser = user.role === 'admin'
   const canDelete = !isAdminUser
@@ -129,7 +132,7 @@ export function UserDetailModal({
     [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
   )
   const [observation, setObservation] = useState(user.personalDescription ?? '')
-  const [profilePhoto, setProfilePhoto] = useState(user.profilePhoto ?? '')
+  const [profilePhoto, setProfilePhoto] = useState(profilePhotoSrc || user.profilePhoto || '')
   const [profilePhotoName, setProfilePhotoName] = useState('')
   const [password, setPassword] = useState(user.password ?? '')
   const [csdScopeOptions, setCsdScopeOptions] = useState<string[]>([
@@ -191,11 +194,16 @@ export function UserDetailModal({
       [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
     )
     setObservation(user.personalDescription ?? '')
-    setProfilePhoto(user.profilePhoto ?? '')
+    setProfilePhoto(profilePhotoSrc || user.profilePhoto || '')
     setProfilePhotoName('')
     setPassword(user.password ?? '')
     setEditing(startInEditMode)
-  }, [user, startInEditMode])
+  }, [user, startInEditMode, profilePhotoSrc])
+
+  useEffect(() => {
+    if (editing || !profilePhotoSrc) return
+    setProfilePhoto(profilePhotoSrc)
+  }, [profilePhotoSrc, editing])
 
   const subtypeOptions = (() => {
     const base = [...subtypesForCargo(jobTitle, workArea, { csdScopes: csdScopeOptions })]
@@ -254,7 +262,7 @@ export function UserDetailModal({
       [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
     )
     setObservation(user.personalDescription ?? '')
-    setProfilePhoto(user.profilePhoto ?? '')
+    setProfilePhoto(profilePhotoSrc || user.profilePhoto || '')
     setProfilePhotoName('')
     setPassword(user.password ?? '')
   }
@@ -510,11 +518,15 @@ export function UserDetailModal({
           />
         ) : null}
 
-        {profilePhoto ? (
-          <img
-            className="profile-photo-detail"
-            src={profilePhoto}
-            alt={`Foto de ${user.name}`}
+        {!editing &&
+        (profilePhoto || user.hasProfilePhoto || user.profilePhoto || profilePhotoSrc) ? (
+          <UserProfilePhoto
+            name={user.name}
+            photoSrc={profilePhoto}
+            hasProfilePhoto={
+              user.hasProfilePhoto ?? Boolean(profilePhoto || profilePhotoSrc || user.profilePhoto)
+            }
+            detail
           />
         ) : null}
 

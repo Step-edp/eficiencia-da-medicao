@@ -47,6 +47,7 @@ export type AppUser = {
   locality?: string
   edpUnit?: string
   profilePhoto?: string
+  hasProfilePhoto?: boolean
   accessAreas?: string[]
   accessProcesses?: string[]
   /** Visível apenas para o administrador (não vem no login do próprio usuário). */
@@ -776,6 +777,11 @@ export const api = {
       method: 'POST',
     }),
   listUsers: () => request<{ users: AppUser[] }>('/api/users'),
+  listUserProfilePhotos: (ids: string[]) =>
+    request<{ photos: Record<string, string> }>('/api/users/profile-photos', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
   approveUser: (
     id: string,
     payload?: {

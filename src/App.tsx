@@ -10,6 +10,7 @@ import { EnviarDocumentosPanel } from './EnviarDocumentosPanel'
 import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
+import { UserProfilePhoto } from './UserProfilePhoto'
 import { UsersDashboard } from './UsersDashboard'
 import { GestaoDashboard, CellResponsibleEditor, CreateOrgAreaForm, AreaLeadershipEditor, GestaoPessoasPanel } from './GestaoDashboard'
 import { AgendaPanel, agendaViewTitle, type AgendaView } from './AgendaPanel'
@@ -152,6 +153,7 @@ export default function App() {
     message: string
   } | null>(null)
   const [showAuthSupport, setShowAuthSupport] = useState(false)
+  const [userProfilePhotos, setUserProfilePhotos] = useState<Record<string, string>>({})
 
   const loadAdminData = useCallback(async () => {
     const [usersResponse, requestsResponse] = await Promise.all([
@@ -160,6 +162,21 @@ export default function App() {
     ])
     setRegisteredUsers(usersResponse.users)
     setHomologationRequests(requestsResponse.requests)
+
+    const photoIds = usersResponse.users
+      .filter((user) => user.hasProfilePhoto)
+      .map((user) => user.id)
+    if (!photoIds.length) {
+      setUserProfilePhotos({})
+      return
+    }
+
+    void api
+      .listUserProfilePhotos(photoIds)
+      .then(({ photos }) => setUserProfilePhotos(photos))
+      .catch(() => {
+        setUserProfilePhotos({})
+      })
   }, [])
 
   useEffect(() => {
@@ -329,6 +346,9 @@ export default function App() {
         onRejectUser={handleRejectUser}
         onUpdateUser={(user) => {
           setRegisteredUsers((prev) => prev.map((item) => (item.id === user.id ? user : item)))
+          if (user.profilePhoto?.trim()) {
+            setUserProfilePhotos((prev) => ({ ...prev, [user.id]: user.profilePhoto!.trim() }))
+          }
         }}
         onDeleteUser={(user) => {
           setRegisteredUsers((prev) =>
@@ -339,6 +359,7 @@ export default function App() {
         onCreateHomologationRequest={handleCreateHomologationRequest}
         onLogout={handleLogout}
         onRefreshAdminData={loadAdminData}
+        userProfilePhotos={userProfilePhotos}
       />
     )
   }
@@ -809,6 +830,7 @@ type HomePanelProps = {
   ) => Promise<void>
   onLogout: () => Promise<void>
   onRefreshAdminData?: () => Promise<void>
+  userProfilePhotos: Record<string, string>
 }
 
 type Area = {
@@ -1111,6 +1133,7 @@ type PendingApprovalItemProps = {
   ) => Promise<{ emailSent?: boolean; warning?: string }>
   onEdit: (user: AppUser) => void
   onFeedback: (feedback: { type: 'success' | 'error'; message: string }) => void
+  userProfilePhotos: Record<string, string>
 }
 
 function PendingApprovalItem({
@@ -1124,6 +1147,7 @@ function PendingApprovalItem({
   onReject,
   onEdit,
   onFeedback,
+  userProfilePhotos,
 }: PendingApprovalItemProps) {
   const [expanded, setExpanded] = useState(false)
   const [showRejectForm, setShowRejectForm] = useState(false)
@@ -1307,17 +1331,11 @@ function PendingApprovalItem({
         aria-expanded={expanded}
         onClick={() => setExpanded((current) => !current)}
       >
-        {user.profilePhoto ? (
-          <img
-            className="profile-photo-thumb"
-            src={user.profilePhoto}
-            alt=""
-          />
-        ) : (
-          <span className="profile-photo-placeholder" aria-hidden="true">
-            {user.name.trim().charAt(0).toUpperCase() || '?'}
-          </span>
-        )}
+        <UserProfilePhoto
+          name={user.name}
+          photoSrc={userProfilePhotos[user.id] ?? user.profilePhoto}
+          hasProfilePhoto={user.hasProfilePhoto ?? Boolean(user.profilePhoto)}
+        />
         <strong>{user.name}</strong>
         <span className="approval-item-toggle" aria-hidden="true">
           {expanded ? '▾' : '▸'}
@@ -1606,11 +1624,13 @@ function UserRegistrationDetailsGrid({
   showPassword = false,
   statusLabel,
   trailingFields,
+  profilePhotoSrc = '',
 }: {
   user: AppUser
   showPassword?: boolean
   statusLabel: string
   trailingFields?: ReactNode
+  profilePhotoSrc?: string
 }) {
   const builtProfile = buildRequestedProfile(
     user.jobTitle,
@@ -1699,14 +1719,17 @@ function UserRegistrationDetailsGrid({
           <dd>{user.hobby.trim()}</dd>
         </div>
       ) : null}
-      {user.profilePhoto ? (
+      {(profilePhotoSrc || user.hasProfilePhoto || user.profilePhoto) ? (
         <div className="user-detail-full">
           <dt>Foto de perfil</dt>
           <dd>
-            <img
-              className="profile-photo-detail"
-              src={user.profilePhoto}
-              alt={`Foto de perfil de ${user.name}`}
+            <UserProfilePhoto
+              name={user.name}
+              photoSrc={profilePhotoSrc || user.profilePhoto}
+              hasProfilePhoto={
+                user.hasProfilePhoto ?? Boolean(profilePhotoSrc || user.profilePhoto)
+              }
+              detail
             />
           </dd>
         </div>
@@ -1725,9 +1748,11 @@ function UserRegistrationDetailsGrid({
 function RejectedUserItem({
   user,
   showPassword = false,
+  userProfilePhotos,
 }: {
   user: AppUser
   showPassword?: boolean
+  userProfilePhotos: Record<string, string>
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -1739,13 +1764,11 @@ function RejectedUserItem({
         aria-expanded={expanded}
         onClick={() => setExpanded((current) => !current)}
       >
-        {user.profilePhoto ? (
-          <img className="profile-photo-thumb" src={user.profilePhoto} alt="" />
-        ) : (
-          <span className="profile-photo-placeholder" aria-hidden="true">
-            {user.name.trim().charAt(0).toUpperCase() || '?'}
-          </span>
-        )}
+        <UserProfilePhoto
+          name={user.name}
+          photoSrc={userProfilePhotos[user.id] ?? user.profilePhoto}
+          hasProfilePhoto={user.hasProfilePhoto ?? Boolean(user.profilePhoto)}
+        />
         <strong>{user.name}</strong>
         <span className="approval-item-toggle" aria-hidden="true">
           {expanded ? '▾' : '▸'}
@@ -1757,6 +1780,7 @@ function RejectedUserItem({
           user={user}
           showPassword={showPassword}
           statusLabel="Reprovado"
+          profilePhotoSrc={userProfilePhotos[user.id] ?? user.profilePhoto}
           trailingFields={
             <>
               <div>
@@ -1791,6 +1815,7 @@ function HomePanel({
   onCreateHomologationRequest,
   onLogout,
   onRefreshAdminData,
+  userProfilePhotos,
 }: HomePanelProps) {
   const savedNav = useMemo(() => loadHomeNavState(currentUser.id), [currentUser.id])
   const [navReady, setNavReady] = useState(() => !savedNav?.selectedAreaTitle)
@@ -4090,6 +4115,7 @@ function HomePanel({
                             setSelectedUserDetail(user)
                           }}
                           onFeedback={setPasswordFeedback}
+                          userProfilePhotos={userProfilePhotos}
                         />
                       ))
                     ) : (
@@ -4106,6 +4132,7 @@ function HomePanel({
                           key={user.id}
                           user={user}
                           showPassword={canViewUserPasswords}
+                          userProfilePhotos={userProfilePhotos}
                         />
                       ))
                     ) : (
@@ -4186,20 +4213,14 @@ function HomePanel({
                               }}
                             >
                               <td className="users-table-photo-cell">
-                                {user.profilePhoto ? (
-                                  <img
-                                    className="users-table-photo"
-                                    src={user.profilePhoto}
-                                    alt=""
-                                  />
-                                ) : (
-                                  <span
-                                    className="users-table-photo-placeholder"
-                                    aria-hidden="true"
-                                  >
-                                    {user.name.trim().charAt(0).toUpperCase() || '?'}
-                                  </span>
-                                )}
+                                <UserProfilePhoto
+                                  name={user.name}
+                                  photoSrc={userProfilePhotos[user.id] ?? user.profilePhoto}
+                                  hasProfilePhoto={
+                                    user.hasProfilePhoto ?? Boolean(user.profilePhoto)
+                                  }
+                                  className="users-table-photo"
+                                />
                               </td>
                               <td className="users-table-cell-compact">{user.name}</td>
                               <td className="users-table-cell-nowrap">{user.registration}</td>
@@ -4389,6 +4410,7 @@ function HomePanel({
               ? createPortal(
                   <UserDetailModal
                     user={selectedUserDetail}
+                    profilePhotoSrc={userProfilePhotos[selectedUserDetail.id]}
                     approvedUsers={registeredUsers}
                     orgCells={orgCells}
                     terceiraOptions={terceiraOptions}
