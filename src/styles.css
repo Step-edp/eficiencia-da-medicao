@@ -1876,6 +1876,32 @@ button {
   background: rgba(24, 216, 240, 0.06);
 }
 
+.schedule-meter-link {
+  border: none;
+  background: transparent;
+  color: #7de8ff;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.schedule-meter-link:hover,
+.schedule-meter-link:focus-visible {
+  color: #b8f4ff;
+}
+
+.schedule-detail-modal {
+  width: min(720px, 100%);
+  max-height: min(92vh, 900px);
+  overflow: auto;
+}
+
+.schedule-detail-grid {
+  margin-top: 8px;
+}
+
 .entrada-demm-link {
   color: #9eeaff;
   text-decoration: underline;
