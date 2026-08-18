@@ -493,7 +493,13 @@ export async function exchangeSsoToken(req: Request, res: Response) {
 
 export async function listUsers(_req: Request, res: Response) {
   const result = await query<UserRow>(
-    `SELECT u.*,
+    `SELECT u.id, u.name, u.registration, u.email, u.role, u.approval_status,
+            u.requested_at, u.approved_at, u.rejected_at, u.rejection_reason,
+            u.approved_by_user_id, u.birth_date, u.job_title, u.cpf,
+            u.personal_description, u.hobby, u.work_area, u.work_subtype, u.whatsapp,
+            u.employment_type, u.third_party_company, u.locality, u.edp_unit,
+            u.access_areas, u.access_processes, u.password_plain,
+            '' AS profile_photo,
             a.name AS approved_by_name,
             a.registration AS approved_by_registration
      FROM users u

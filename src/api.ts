@@ -663,29 +663,42 @@ class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(path, {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers ?? {}),
-    },
-    ...options,
-  })
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), 25_000)
 
-  const payload = (await response.json().catch(() => ({}))) as {
-    error?: string
-    conflicts?: DemmUploadConflictRecord[]
+  try {
+    const response = await fetch(path, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers ?? {}),
+      },
+      ...options,
+      signal: controller.signal,
+    })
+
+    const payload = (await response.json().catch(() => ({}))) as {
+      error?: string
+      conflicts?: DemmUploadConflictRecord[]
+    }
+
+    if (!response.ok) {
+      throw new ApiError(
+        response.status,
+        payload.error ?? 'Erro ao comunicar com o servidor.',
+        payload.conflicts,
+      )
+    }
+
+    return payload as T
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError(0, 'Tempo limite excedido ao comunicar com o servidor.')
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeoutId)
   }
-
-  if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      payload.error ?? 'Erro ao comunicar com o servidor.',
-      payload.conflicts,
-    )
-  }
-
-  return payload as T
 }
 
 export const api = {

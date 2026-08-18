@@ -177,7 +177,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    let cancelled = false
+    let active = true
 
     async function bootstrap() {
       try {
@@ -188,28 +188,32 @@ export default function App() {
         }
 
         const { user } = await api.me()
-        if (cancelled) {
-          return
-        }
+        if (!active) return
+
         setAuthenticatedUser(user)
         if (user.role === 'admin') {
-          await loadAdminData()
+          void loadAdminData().catch(() => {
+            if (active) {
+              setRegisteredUsers([])
+              setHomologationRequests([])
+            }
+          })
         }
       } catch {
-        if (!cancelled) {
+        if (active) {
           setAuthenticatedUser(null)
         }
       } finally {
-        if (!cancelled) {
+        if (active) {
           setBootstrapping(false)
         }
       }
     }
 
-    bootstrap()
+    void bootstrap()
 
     return () => {
-      cancelled = true
+      active = false
     }
   }, [loadAdminData])
 
