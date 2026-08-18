@@ -5,8 +5,8 @@ import {
   isMeterReadyForEnsaio,
   METER_NOT_RECEIVED_MESSAGE,
 } from './meterEnsaioEligibility'
-import type { RatmFormData } from './types'
-import { IRREGULARITY_CODES, ITEM_LOOKUP_OPTIONS, TEST_BENCH_OPTIONS } from './types'
+import type { EntryFieldCheck, EntryFieldChecks, RatmFormData } from './types'
+import { createEmptyEntryFieldChecks, IRREGULARITY_CODES, ITEM_LOOKUP_OPTIONS, TEST_BENCH_OPTIONS } from './types'
 import {
   isEntryInfoSectionComplete,
   isEnclosureSealSectionComplete,
@@ -47,24 +47,35 @@ function displayOrDash(value?: string | null) {
   return trimmed || '—'
 }
 
-function EntryMatchIndicator({ matches }: { matches: boolean | null | undefined }) {
-  if (matches === true) {
-    return (
-      <span className="ratm-entry-match is-match" aria-label="Confere com o documento">
-        ✓
-      </span>
-    )
-  }
-  if (matches === false) {
-    return (
-      <span className="ratm-entry-match is-mismatch" aria-label="Não confere com o documento">
-        ✗
-      </span>
-    )
-  }
+function EntryFieldVerifier({
+  value,
+  onChange,
+}: {
+  value: EntryFieldCheck
+  onChange: (value: EntryFieldCheck) => void
+}) {
   return (
-    <span className="ratm-entry-match is-unknown" aria-label="Comparação indisponível">
-      —
+    <span className="ratm-entry-verifier" role="group" aria-label="Verificação do campo">
+      <button
+        type="button"
+        className={`ratm-entry-verifier-btn is-correct${value === 'correct' ? ' is-selected' : ''}`}
+        aria-pressed={value === 'correct'}
+        aria-label="Marcar como correto"
+        title="Correto"
+        onClick={() => onChange(value === 'correct' ? '' : 'correct')}
+      >
+        ✓
+      </button>
+      <button
+        type="button"
+        className={`ratm-entry-verifier-btn is-incorrect${value === 'incorrect' ? ' is-selected' : ''}`}
+        aria-pressed={value === 'incorrect'}
+        aria-label="Marcar como incorreto"
+        title="Incorreto"
+        onClick={() => onChange(value === 'incorrect' ? '' : 'incorrect')}
+      >
+        ✗
+      </button>
     </span>
   )
 }
@@ -72,16 +83,23 @@ function EntryMatchIndicator({ matches }: { matches: boolean | null | undefined 
 type EntryReadonlyFieldProps = {
   label: string
   value: string
-  matches?: boolean | null
+  check: EntryFieldCheck
+  onCheckChange: (value: EntryFieldCheck) => void
   fullWidth?: boolean
 }
 
-function EntryReadonlyField({ label, value, matches, fullWidth = false }: EntryReadonlyFieldProps) {
+function EntryReadonlyField({
+  label,
+  value,
+  check,
+  onCheckChange,
+  fullWidth = false,
+}: EntryReadonlyFieldProps) {
   return (
     <div className={`ratm-readonly-field${fullWidth ? ' full-width' : ''}`}>
       <div className="ratm-readonly-field-header">
         <span className="ratm-readonly-label">{label}</span>
-        <EntryMatchIndicator matches={matches} />
+        <EntryFieldVerifier value={check} onChange={onCheckChange} />
       </div>
       <p className="ratm-readonly-value">{displayOrDash(value)}</p>
     </div>
@@ -144,6 +162,7 @@ function emptyScheduleFields(): Partial<RatmFormData> {
     registryStatus: '',
     scheduleId: '',
     entryComparisons: null,
+    entryFieldChecks: createEmptyEntryFieldChecks(),
     scheduleDate: '',
     scheduleHour: '08',
     scheduleMinute: '30',
@@ -415,6 +434,18 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const measurementsComplete = isMeasurementsSectionComplete(data)
   const testResultsComplete = isTestResultsSectionComplete(data)
 
+  const updateEntryFieldCheck = (
+    key: keyof EntryFieldChecks,
+    value: EntryFieldCheck,
+  ) => {
+    onChange({
+      entryFieldChecks: {
+        ...data.entryFieldChecks,
+        [key]: value,
+      },
+    })
+  }
+
   const updatePhoto = (photoIndex: number, value: string) => {
     const photos = [...data.photos]
     photos[photoIndex] = value
@@ -463,6 +494,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         registryStatus: schedule.registryStatus || '',
         scheduleId: schedule.id,
         entryComparisons,
+        entryFieldChecks: createEmptyEntryFieldChecks(),
         scheduleLabel: schedule.scheduledAtLabel || '',
         installation: schedule.installation || '',
         toi: schedule.toi || '',
@@ -557,7 +589,10 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           <div className="ratm-readonly-field">
             <div className="ratm-readonly-field-header">
               <span className="ratm-readonly-label">Data de agendamento</span>
-              <EntryMatchIndicator matches={data.entryComparisons?.scheduleDate.matches} />
+              <EntryFieldVerifier
+                value={data.entryFieldChecks.scheduleDate}
+                onChange={(value) => updateEntryFieldCheck('scheduleDate', value)}
+              />
             </div>
             <p className="ratm-readonly-value">{formatScheduleDisplay(data)}</p>
           </div>
@@ -566,42 +601,50 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             <EntryReadonlyField
               label="Instalação"
               value={data.installation}
-              matches={data.entryComparisons?.installation.matches}
+              check={data.entryFieldChecks.installation}
+              onCheckChange={(value) => updateEntryFieldCheck('installation', value)}
             />
             <EntryReadonlyField
               label="TOI"
               value={data.toi}
-              matches={data.entryComparisons?.toi.matches}
+              check={data.entryFieldChecks.toi}
+              onCheckChange={(value) => updateEntryFieldCheck('toi', value)}
             />
             <EntryReadonlyField
               label="Nota"
               value={data.note}
-              matches={data.entryComparisons?.note.matches}
+              check={data.entryFieldChecks.note}
+              onCheckChange={(value) => updateEntryFieldCheck('note', value)}
             />
             <EntryReadonlyField
               label="CSD"
               value={data.csd}
-              matches={data.entryComparisons?.csd.matches}
+              check={data.entryFieldChecks.csd}
+              onCheckChange={(value) => updateEntryFieldCheck('csd', value)}
             />
             <EntryReadonlyField
               label="Parceiro"
               value={data.partnerLabel}
-              matches={data.entryComparisons?.partner.matches}
+              check={data.entryFieldChecks.partner}
+              onCheckChange={(value) => updateEntryFieldCheck('partner', value)}
             />
             <EntryReadonlyField
               label="Cliente presente"
               value={data.clientPresent}
-              matches={data.entryComparisons?.clientPresent.matches}
+              check={data.entryFieldChecks.clientPresent}
+              onCheckChange={(value) => updateEntryFieldCheck('clientPresent', value)}
             />
             <EntryReadonlyField
               label="Prazo de entrega"
               value={data.deliveryDeadlineLabel}
-              matches={data.entryComparisons?.deliveryDeadline.matches}
+              check={data.entryFieldChecks.deliveryDeadline}
+              onCheckChange={(value) => updateEntryFieldCheck('deliveryDeadline', value)}
             />
             <EntryReadonlyField
               label="Observações"
               value={data.schedulingNotes}
-              matches={data.entryComparisons?.schedulingNotes.matches}
+              check={data.entryFieldChecks.schedulingNotes}
+              onCheckChange={(value) => updateEntryFieldCheck('schedulingNotes', value)}
               fullWidth
             />
           </div>

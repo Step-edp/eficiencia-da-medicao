@@ -6817,6 +6817,48 @@ input[type='file'] {
   gap: 0.5rem;
 }
 
+.ratm-entry-verifier {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.ratm-entry-verifier-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.ratm-entry-verifier-btn:hover,
+.ratm-entry-verifier-btn:focus-visible {
+  border-color: rgba(24, 216, 240, 0.45);
+}
+
+.ratm-entry-verifier-btn.is-correct.is-selected {
+  background: rgba(46, 204, 113, 0.18);
+  border-color: rgba(46, 204, 113, 0.45);
+  color: #8ef0b8;
+}
+
+.ratm-entry-verifier-btn.is-incorrect.is-selected {
+  background: rgba(255, 90, 70, 0.18);
+  border-color: rgba(255, 90, 70, 0.45);
+  color: #ff9b8d;
+}
+
 .ratm-entry-match {
   display: inline-flex;
   align-items: center;

@@ -1,4 +1,4 @@
-import type { RatmFormData } from './types'
+import { ENTRY_FIELD_CHECK_KEYS, type EntryFieldCheck, type RatmFormData } from './types'
 
 function isFilled(value: string | null | undefined) {
   return Boolean(value?.trim())
@@ -14,7 +14,12 @@ function hasScheduleDate(data: RatmFormData) {
   return isFilled(data.scheduleLabel) || isFilled(data.scheduleDate)
 }
 
+function isEntryFieldChecked(value: EntryFieldCheck) {
+  return value === 'correct' || value === 'incorrect'
+}
+
 export function isEntryInfoSectionComplete(data: RatmFormData) {
+  const checks = data.entryFieldChecks
   return (
     isFilled(data.meter) &&
     isFilled(data.meterStatus) &&
@@ -24,7 +29,8 @@ export function isEntryInfoSectionComplete(data: RatmFormData) {
     isFilled(data.note) &&
     isFilled(data.csd) &&
     isFilled(data.clientPresent) &&
-    isFilled(data.deliveryDeadlineLabel)
+    isFilled(data.deliveryDeadlineLabel) &&
+    ENTRY_FIELD_CHECK_KEYS.every((key) => isEntryFieldChecked(checks[key]))
   )
 }
 

@@ -1,5 +1,45 @@
 import type { ScheduleEntryComparisons } from '../api'
 
+export type EntryFieldCheck = 'correct' | 'incorrect' | ''
+
+export type EntryFieldChecks = {
+  scheduleDate: EntryFieldCheck
+  installation: EntryFieldCheck
+  toi: EntryFieldCheck
+  note: EntryFieldCheck
+  csd: EntryFieldCheck
+  partner: EntryFieldCheck
+  clientPresent: EntryFieldCheck
+  deliveryDeadline: EntryFieldCheck
+  schedulingNotes: EntryFieldCheck
+}
+
+export const ENTRY_FIELD_CHECK_KEYS = [
+  'scheduleDate',
+  'installation',
+  'toi',
+  'note',
+  'csd',
+  'partner',
+  'clientPresent',
+  'deliveryDeadline',
+  'schedulingNotes',
+] as const satisfies ReadonlyArray<keyof EntryFieldChecks>
+
+export function createEmptyEntryFieldChecks(): EntryFieldChecks {
+  return {
+    scheduleDate: '',
+    installation: '',
+    toi: '',
+    note: '',
+    csd: '',
+    partner: '',
+    clientPresent: '',
+    deliveryDeadline: '',
+    schedulingNotes: '',
+  }
+}
+
 export type RatmFormData = {
   meterSearch: string
   meter: string
@@ -8,6 +48,7 @@ export type RatmFormData = {
   registryStatus: string
   scheduleId: string
   entryComparisons: ScheduleEntryComparisons | null
+  entryFieldChecks: EntryFieldChecks
   scheduleDate: string
   scheduleHour: string
   scheduleMinute: string
@@ -94,6 +135,7 @@ export function createEmptyRatmForm(): RatmFormData {
     registryStatus: '',
     scheduleId: '',
     entryComparisons: null,
+    entryFieldChecks: createEmptyEntryFieldChecks(),
     scheduleDate: '',
     scheduleHour: '08',
     scheduleMinute: '30',
@@ -164,6 +206,10 @@ export function normalizeRatmForm(data?: Partial<RatmFormData> | null): RatmForm
   return {
     ...createEmptyRatmForm(),
     ...(data ?? {}),
+    entryFieldChecks: {
+      ...createEmptyEntryFieldChecks(),
+      ...(data?.entryFieldChecks ?? {}),
+    },
     photos: Array.isArray(data?.photos) && data.photos.length
       ? [...data.photos, '', '', '', ''].slice(0, 4)
       : ['', '', '', ''],
