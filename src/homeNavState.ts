@@ -1,5 +1,5 @@
 export type GestaoHomeTab = 'dash' | 'celulas' | 'pessoas'
-export type UsersViewTab = 'usuarios' | 'pendentes' | 'dashboard'
+export type UsersViewTab = 'usuarios' | 'pendentes' | 'reprovados' | 'dashboard'
 
 export type HomeNavState = {
   userId: string
@@ -23,7 +23,7 @@ function isGestaoHomeTab(value: unknown): value is GestaoHomeTab {
 }
 
 function isUsersViewTab(value: unknown): value is UsersViewTab {
-  return value === 'usuarios' || value === 'pendentes' || value === 'dashboard'
+  return value === 'usuarios' || value === 'pendentes' || value === 'reprovados' || value === 'dashboard'
 }
 
 export function loadHomeNavState(userId: string): HomeNavState | null {

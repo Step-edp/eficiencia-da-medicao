@@ -65,7 +65,9 @@ type UserDetailModalProps = {
 }
 
 function statusLabel(status: AppUser['approvalStatus']) {
-  return status === 'approved' ? 'Aprovado' : 'Pendente'
+  if (status === 'approved') return 'Aprovado'
+  if (status === 'rejected') return 'Reprovado'
+  return 'Pendente'
 }
 
 function formatValue(value?: string | null) {

@@ -9,9 +9,11 @@ export async function migrate() {
       password_hash TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       role TEXT NOT NULL CHECK (role IN ('admin', 'compras', 'field')),
-      approval_status TEXT NOT NULL CHECK (approval_status IN ('approved', 'pending')),
+      approval_status TEXT NOT NULL CHECK (approval_status IN ('approved', 'pending', 'rejected')),
       requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       approved_at TIMESTAMPTZ,
+      rejected_at TIMESTAMPTZ,
+      rejection_reason TEXT NOT NULL DEFAULT '',
       birth_date TEXT NOT NULL DEFAULT '',
       job_title TEXT NOT NULL DEFAULT '',
       cpf TEXT NOT NULL DEFAULT '',
@@ -255,6 +257,8 @@ export async function migrate() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS work_area TEXT NOT NULL DEFAULT '';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS work_subtype TEXT NOT NULL DEFAULT '';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp TEXT NOT NULL DEFAULT '';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS rejection_reason TEXT NOT NULL DEFAULT '';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS employment_type TEXT NOT NULL DEFAULT '';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS third_party_company TEXT NOT NULL DEFAULT '';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS locality TEXT NOT NULL DEFAULT '';

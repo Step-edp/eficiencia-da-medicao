@@ -134,9 +134,11 @@ type UserRow = {
   registration: string
   email: string
   role: 'admin' | 'compras' | 'field'
-  approval_status: 'approved' | 'pending'
+  approval_status: 'approved' | 'pending' | 'rejected'
   requested_at: Date
   approved_at: Date | null
+  rejected_at: Date | null
+  rejection_reason: string
   approved_by_user_id?: string | null
   approved_by_name?: string | null
   approved_by_registration?: string | null
@@ -183,6 +185,8 @@ function mapUser(row: UserRow, options?: { includePassword?: boolean }) {
     approvalStatus: row.approval_status,
     requestedAt: row.requested_at.toISOString(),
     approvedAt: row.approved_at?.toISOString(),
+    rejectedAt: row.rejected_at?.toISOString() ?? null,
+    rejectionReason: row.rejection_reason || '',
     approvedByUserId: row.approved_by_user_id ?? null,
     approvedByName: row.approved_by_name || '',
     approvedByRegistration: row.approved_by_registration || '',
@@ -1173,95 +1177,114 @@ export async function updateUser(req: Request, res: Response) {
 }
 
 export async function rejectUser(req: Request, res: Response) {
-  const { id } = req.params
-  const reason =
-    typeof req.body?.reason === 'string' ? req.body.reason.trim() : ''
-
-  if (!reason || reason.length < 5) {
-    res.status(400).json({
-      error: 'Informe a justificativa da reprovação (mínimo de 5 caracteres).',
-    })
-    return
-  }
-
-  if (reason.length > 2000) {
-    res.status(400).json({
-      error: 'A justificativa deve ter no máximo 2000 caracteres.',
-    })
-    return
-  }
-
-  const previous = await query<UserRow>(
-    `SELECT * FROM users
-     WHERE id = $1
-       AND role = 'compras'
-       AND approval_status = 'pending'`,
-    [id],
-  )
-
-  if (!previous.rows[0]) {
-    res.status(404).json({ error: 'Cadastro pendente não encontrado.' })
-    return
-  }
-
-  const pending = mapUser(previous.rows[0])
-
-  let emailSent = false
   try {
-    emailSent = await sendRegistrationRejectedEmail({
-      to: pending.email,
-      name: pending.name,
-      reason,
+    const { id } = req.params
+    const reason =
+      typeof req.body?.reason === 'string' ? req.body.reason.trim() : ''
+
+    if (!reason || reason.length < 5) {
+      res.status(400).json({
+        error: 'Informe a justificativa da reprovação (mínimo de 5 caracteres).',
+      })
+      return
+    }
+
+    if (reason.length > 2000) {
+      res.status(400).json({
+        error: 'A justificativa deve ter no máximo 2000 caracteres.',
+      })
+      return
+    }
+
+    const previous = await query<UserRow>(
+      `SELECT * FROM users
+       WHERE id = $1
+         AND role = 'compras'
+         AND approval_status = 'pending'`,
+      [id],
+    )
+
+    if (!previous.rows[0]) {
+      res.status(404).json({ error: 'Cadastro pendente não encontrado.' })
+      return
+    }
+
+    const pending = mapUser(previous.rows[0])
+
+    const result = await query<UserRow>(
+      `UPDATE users
+       SET approval_status = 'rejected',
+           rejected_at = NOW(),
+           rejection_reason = $2
+       WHERE id = $1
+         AND role = 'compras'
+         AND approval_status = 'pending'
+       RETURNING *`,
+      [id, reason],
+    )
+
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'Cadastro pendente não encontrado.' })
+      return
+    }
+
+    let emailSent = false
+    let emailError: string | undefined
+    if (pending.email?.trim()) {
+      try {
+        emailSent = await sendRegistrationRejectedEmail({
+          to: pending.email,
+          name: pending.name,
+          reason,
+        })
+      } catch (error) {
+        emailError =
+          error instanceof Error ? error.message : 'Falha ao enviar e-mail de reprovação.'
+        console.error('Falha ao enviar e-mail de reprovação:', error)
+      }
+    }
+
+    await writeAuditLog(req, {
+      action: 'reject',
+      entityType: 'user',
+      entityId: pending.id,
+      summary: `Cadastro reprovado: ${pending.registration}`,
+      oldData: {
+        ...pending,
+        profilePhoto: pending.profilePhoto ? '[imagem anexada]' : '',
+      },
+      newData: {
+        reason,
+        emailSent,
+        emailError,
+        emailedTo: pending.email,
+        approvalStatus: 'rejected',
+      },
+    })
+
+    await query(`UPDATE audit_logs SET user_id = NULL WHERE user_id = $1`, [id])
+
+    let warning: string | undefined
+    if (emailSent) {
+      warning = undefined
+    } else if (emailError) {
+      warning = `Cadastro reprovado, mas o e-mail não foi enviado: ${emailError}`
+    } else if (isMailConfigured()) {
+      warning = 'Cadastro reprovado, mas não foi possível enviar o e-mail de notificação.'
+    } else {
+      warning = 'Cadastro reprovado, mas o envio de e-mail não está configurado no servidor.'
+    }
+
+    res.json({
+      ok: true,
+      id,
+      emailSent,
+      warning,
     })
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Falha ao enviar e-mail de reprovação.'
-    res.status(502).json({
-      error: `${message} A reprovação não foi concluída. Tente novamente.`,
-    })
-    return
+    console.error('Falha ao reprovar cadastro:', error)
+    res.status(500).json({ error: 'Não foi possível reprovar o cadastro.' })
   }
-
-  if (isMailConfigured() && !emailSent) {
-    res.status(502).json({
-      error: 'Não foi possível enviar o e-mail de reprovação. Tente novamente.',
-    })
-    return
-  }
-
-  await writeAuditLog(req, {
-    action: 'reject',
-    entityType: 'user',
-    entityId: pending.id,
-    summary: `Cadastro reprovado: ${pending.registration}`,
-    oldData: {
-      ...pending,
-      profilePhoto: pending.profilePhoto ? '[imagem anexada]' : '',
-    },
-    newData: {
-      reason,
-      emailSent,
-      emailedTo: pending.email,
-    },
-  })
-
-  await query(`UPDATE audit_logs SET user_id = NULL WHERE user_id = $1`, [id])
-  await query(
-    `DELETE FROM users
-     WHERE id = $1
-       AND role = 'compras'
-       AND approval_status = 'pending'`,
-    [id],
-  )
-
-  res.json({
-    ok: true,
-    id,
-    emailSent,
-    warning: emailSent
-      ? undefined
-      : 'Cadastro reprovado, mas o envio de e-mail não está configurado no servidor.',
-  })
 }
 
 export async function resetUserToPending(req: Request, res: Response) {

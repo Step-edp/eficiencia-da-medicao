@@ -1,5 +1,5 @@
 export type UserRole = 'admin' | 'compras' | 'field'
-export type ApprovalStatus = 'approved' | 'pending'
+export type ApprovalStatus = 'approved' | 'pending' | 'rejected'
 export type VacationStatus = 'ok' | 'pendente' | 'bloqueado' | 'em_ausencia' | 'em_ferias'
 export type AbsenceType =
   | 'ferias'
@@ -29,6 +29,8 @@ export type AppUser = {
   approvalStatus: ApprovalStatus
   requestedAt: string
   approvedAt?: string
+  rejectedAt?: string | null
+  rejectionReason?: string
   approvedByUserId?: string | null
   approvedByName?: string
   approvedByRegistration?: string

@@ -243,7 +243,18 @@ export default function App() {
 
   const handleRejectUser = async (userId: string, reason: string) => {
     const result = await api.rejectUser(userId, { reason })
-    setRegisteredUsers((prev) => prev.filter((item) => item.id !== userId))
+    setRegisteredUsers((prev) =>
+      prev.map((item) =>
+        item.id === userId
+          ? {
+              ...item,
+              approvalStatus: 'rejected',
+              rejectedAt: new Date().toISOString(),
+              rejectionReason: reason,
+            }
+          : item,
+      ),
+    )
     return result
   }
 
@@ -1619,6 +1630,9 @@ function HomePanel({
   const isAdmin = currentUser.role === 'admin'
   const pendingApprovalUsers = users.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'pending',
+  )
+  const rejectedUsers = users.filter(
+    (user) => user.role === 'compras' && user.approvalStatus === 'rejected',
   )
   const registeredUsers = users.filter(
     (user) => user.role !== 'admin' && user.approvalStatus === 'approved',
@@ -3503,8 +3517,11 @@ function HomePanel({
     }
 
     if (selectedArea.title === 'Usuários') {
-      const statusLabel = (status: AppUser['approvalStatus']) =>
-        status === 'approved' ? 'Aprovado' : 'Pendente'
+      const statusLabel = (status: AppUser['approvalStatus']) => {
+        if (status === 'approved') return 'Aprovado'
+        if (status === 'rejected') return 'Reprovado'
+        return 'Pendente'
+      }
 
       const leaveUsersArea = () => {
         clearAreaSections()
@@ -3588,6 +3605,16 @@ function HomePanel({
                     <span className="users-view-count">{pendingApprovalUsers.length}</span>
                   </button>
                   <button
+                    className={usersView === 'reprovados' ? 'active' : ''}
+                    type="button"
+                    role="tab"
+                    aria-selected={usersView === 'reprovados'}
+                    onClick={() => setUsersView('reprovados')}
+                  >
+                    Reprovados
+                    <span className="users-view-count">{rejectedUsers.length}</span>
+                  </button>
+                  <button
                     className={usersView === 'dashboard' ? 'active' : ''}
                     type="button"
                     role="tab"
@@ -3628,6 +3655,56 @@ function HomePanel({
                     ) : (
                       <p className="generated-password-empty">
                         Nenhuma solicitação pendente no momento.
+                      </p>
+                    )}
+                  </div>
+                ) : usersView === 'reprovados' ? (
+                  <div className="approval-list" aria-label="Cadastros reprovados">
+                    {rejectedUsers.length ? (
+                      rejectedUsers.map((user) => (
+                        <article key={user.id} className="approval-item is-expanded">
+                          <div className="approval-item-summary" aria-disabled="true">
+                            {user.profilePhoto ? (
+                              <img
+                                className="profile-photo-thumb"
+                                src={user.profilePhoto}
+                                alt=""
+                              />
+                            ) : (
+                              <span className="profile-photo-placeholder" aria-hidden="true">
+                                {user.name.trim().charAt(0).toUpperCase() || '?'}
+                              </span>
+                            )}
+                            <strong>{user.name}</strong>
+                            <span className="approval-item-toggle" aria-hidden="true">▾</span>
+                          </div>
+                          <dl className="user-detail-grid approval-item-details-grid">
+                            <div>
+                              <dt>Matrícula</dt>
+                              <dd>{user.registration || '—'}</dd>
+                            </div>
+                            <div>
+                              <dt>E-mail</dt>
+                              <dd>{user.email || '—'}</dd>
+                            </div>
+                            <div>
+                              <dt>Telefone</dt>
+                              <dd>{user.whatsapp || '—'}</dd>
+                            </div>
+                            <div>
+                              <dt>Reprovado em</dt>
+                              <dd>{user.rejectedAt ? new Date(user.rejectedAt).toLocaleString('pt-BR') : '—'}</dd>
+                            </div>
+                            <div>
+                              <dt>Justificativa</dt>
+                              <dd>{user.rejectionReason || '—'}</dd>
+                            </div>
+                          </dl>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="generated-password-empty">
+                        Nenhum cadastro reprovado registrado.
                       </p>
                     )}
                   </div>

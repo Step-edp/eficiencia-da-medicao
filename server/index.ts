@@ -395,6 +395,21 @@ async function start() {
     res.sendFile(path.join(distPath, 'index.html'))
   })
 
+  app.use(
+    (
+      error: unknown,
+      _req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction,
+    ) => {
+      console.error('Erro não tratado na API:', error)
+      if (res.headersSent) {
+        return
+      }
+      res.status(500).json({ error: 'Erro interno do servidor.' })
+    },
+  )
+
   app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`)
   })
