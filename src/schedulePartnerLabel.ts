@@ -62,16 +62,24 @@ export function formatScheduleCreatedAtLabel(createdAt?: string) {
   })
 }
 
+export function formatScheduleCollaborator1Label(
+  item: Pick<MeterScheduleRecord, 'toiCollaborator1Name' | 'toiCollaborator1Registration'>,
+) {
+  return formatPerson(item.toiCollaborator1Name, item.toiCollaborator1Registration)
+}
+
+export function formatScheduleCollaborator2Label(
+  item: Pick<MeterScheduleRecord, 'toiCollaborator2Name' | 'toiCollaborator2Registration'>,
+) {
+  return formatPerson(item.toiCollaborator2Name, item.toiCollaborator2Registration)
+}
+
 export function formatSchedulePartnerLabel(
   item: Pick<
     MeterScheduleRecord,
     | 'partnerName'
     | 'partnerRegistration'
     | 'partnerUserId'
-    | 'toiCollaborator1Name'
-    | 'toiCollaborator1Registration'
-    | 'toiCollaborator2Name'
-    | 'toiCollaborator2Registration'
     | 'createdByUserId'
     | 'createdByRegistration'
   >,
@@ -86,16 +94,30 @@ export function formatSchedulePartnerLabel(
     return formatPerson(item.partnerName, item.partnerRegistration)
   }
 
-  const team = [
-    formatPerson(item.toiCollaborator1Name, item.toiCollaborator1Registration),
-    formatPerson(item.toiCollaborator2Name, item.toiCollaborator2Registration),
+  return ''
+}
+
+export function formatSchedulePartnerAndTeamLabel(
+  item: Pick<
+    MeterScheduleRecord,
+    | 'partnerName'
+    | 'partnerRegistration'
+    | 'partnerUserId'
+    | 'createdByUserId'
+    | 'createdByRegistration'
+    | 'toiCollaborator1Name'
+    | 'toiCollaborator1Registration'
+    | 'toiCollaborator2Name'
+    | 'toiCollaborator2Registration'
+  >,
+) {
+  const parts = [
+    formatSchedulePartnerLabel(item),
+    formatScheduleCollaborator1Label(item),
+    formatScheduleCollaborator2Label(item),
   ].filter(Boolean)
 
-  if (team.length) {
-    return `Equipe TOI: ${team.join(', ')}`
-  }
-
-  return ''
+  return parts.join(' · ')
 }
 
 export function scheduleAuditSearchText(

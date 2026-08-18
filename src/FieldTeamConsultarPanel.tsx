@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type MeterScheduleRecord } from './api'
-import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, scheduleAuditSearchText } from './schedulePartnerLabel'
+import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, scheduleAuditSearchText } from './schedulePartnerLabel'
 
 type FieldTeamSchedulesPanelProps = {
   mode?: 'all' | 'mine'
@@ -159,7 +159,7 @@ export function FieldTeamConsultarPanel({
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Pesquisar por medidor, nota, CSD, parceiro, usuário, carimbo, status…"
+              placeholder="Pesquisar por medidor, nota, CSD, parceiro, colaborador, usuário, carimbo, status…"
               autoComplete="off"
               spellCheck={false}
             />
@@ -191,8 +191,10 @@ export function FieldTeamConsultarPanel({
                 <th>Invólucro</th>
                 <th>Nota</th>
                 <th>CSD</th>
-                <th>Parceiro / Equipe</th>
+                <th>Parceiro</th>
                 <th>Agendado por</th>
+                <th>Colaborador 1</th>
+                <th>Colaborador 2</th>
                 <th>Carimbo</th>
                 <th>Data de ensaio</th>
                 <th>Prazo entrega</th>
@@ -238,6 +240,8 @@ export function FieldTeamConsultarPanel({
                   <td>{item.csd || '—'}</td>
                   <td>{formatSchedulePartnerLabel(item) || '—'}</td>
                   <td>{formatScheduleCreatedByLabel(item) || '—'}</td>
+                  <td>{formatScheduleCollaborator1Label(item) || '—'}</td>
+                  <td>{formatScheduleCollaborator2Label(item) || '—'}</td>
                   <td>{formatScheduleCreatedAtLabel(item.createdAt) || '—'}</td>
                   <td>{item.scheduledAtLabel || '—'}</td>
                   <td>{item.deliveryDeadlineLabel || '—'}</td>

@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent, type ReactNode } from 'react'
 import { api, ApiError } from '../api'
-import { formatSchedulePartnerLabel } from '../schedulePartnerLabel'
+import { formatSchedulePartnerAndTeamLabel } from '../schedulePartnerLabel'
 import type { RatmFormData } from './types'
 import { IRREGULARITY_CODES, ITEM_LOOKUP_OPTIONS, TEST_BENCH_OPTIONS } from './types'
 
@@ -352,7 +352,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         return
       }
 
-      const partnerLabel = formatSchedulePartnerLabel(schedule)
+      const partnerLabel = formatSchedulePartnerAndTeamLabel(schedule)
 
       onChange({
         meter: schedule.meter,
