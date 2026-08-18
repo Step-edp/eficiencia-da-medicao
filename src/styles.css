@@ -63,6 +63,7 @@ button {
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
   backdrop-filter: blur(24px);
+  overflow: hidden;
 }
 
 .home-card {
@@ -1826,13 +1827,17 @@ button {
 .entrada-panel {
   display: grid;
   gap: 16px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .entrada-panel-header {
   display: flex;
   align-items: flex-start;
-  justify-content: flex-end;
+  justify-content: stretch;
   gap: 16px;
+  width: 100%;
+  min-width: 0;
 }
 
 .entrada-panel-actions {
@@ -1846,9 +1851,12 @@ button {
   flex-wrap: nowrap;
   align-items: stretch;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   overflow-x: auto;
   grid-template-columns: none;
-  margin-left: auto;
+  margin-left: 0;
   gap: 6px;
   padding: 6px;
 }
@@ -1894,6 +1902,8 @@ button {
 .entrada-section {
   display: grid;
   gap: 12px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .entrada-section-title {
@@ -2370,6 +2380,8 @@ button {
 
 .entrada-table-wrap {
   overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .entrada-table td,
@@ -4456,6 +4468,8 @@ button {
 .entrada-csd-dashboard {
   display: grid;
   gap: 28px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .entrada-csd-score {
@@ -4496,12 +4510,15 @@ button {
 .users-dashboard {
   display: grid;
   gap: 40px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .users-dashboard-kpis {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+  min-width: 0;
 }
 
 .users-dashboard-kpi {
@@ -4513,6 +4530,7 @@ button {
     rgba(24, 216, 240, 0.08),
     rgba(8, 28, 48, 0.55)
   );
+  min-width: 0;
 }
 
 .users-dashboard-kpi-label {
@@ -4541,6 +4559,8 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
   background: rgba(5, 20, 38, 0.45);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .users-dashboard-card h4 {
@@ -4557,6 +4577,7 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+  min-width: 0;
 }
 
 .users-dashboard-assign-header {
@@ -5588,6 +5609,8 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .panel-switch {
@@ -6815,6 +6838,7 @@ input[type='file'] {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .ratm-entry-verifier {
@@ -6889,6 +6913,8 @@ input[type='file'] {
 }
 
 .ratm-readonly-label {
+  min-width: 0;
+  flex: 1 1 auto;
   color: var(--text-soft);
   font-size: 0.9rem;
 }
@@ -7136,6 +7162,7 @@ input[type='file'] {
   display: grid;
   gap: 14px;
   padding: 14px 16px 16px;
+  min-width: 0;
 }
 
 .ratm-expandable-body .ratm-status-line {
