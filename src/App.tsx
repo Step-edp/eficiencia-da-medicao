@@ -583,6 +583,7 @@ function AuthSupportModal({
 }) {
   const [name, setName] = useState('')
   const [registration, setRegistration] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -596,6 +597,7 @@ function AuthSupportModal({
     if (!open) return
     setName('')
     setRegistration('')
+    setWhatsapp('')
     setSubject('')
     setMessage('')
     setFeedback(null)
@@ -621,6 +623,7 @@ function AuthSupportModal({
       const { ticket } = await api.createSupportTicket({
         name: name.trim(),
         registration: registration.trim(),
+        whatsapp: whatsapp.trim(),
         subject: subject.trim(),
         message: message.trim(),
       })
@@ -679,8 +682,8 @@ function AuthSupportModal({
 
         <h3 id="auth-support-modal-title">Suporte</h3>
         <p className="auth-support-lead">
-          Abra um chamado sem precisar entrar no portal. Informe seus dados e descreva a
-          solicitação.
+          Abra um chamado sem precisar entrar no portal. Informe seus dados e WhatsApp para
+          receber o retorno.
         </p>
 
         {feedback ? (
@@ -716,7 +719,19 @@ function AuthSupportModal({
               type="text"
               value={registration}
               onChange={(event) => setRegistration(event.target.value)}
-              placeholder="Digite sua matrícula"
+              placeholder="Digite sua matrícula (se tiver)"
+            />
+          </label>
+
+          <label>
+            WhatsApp
+            <input
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={whatsapp}
+              onChange={(event) => setWhatsapp(event.target.value)}
+              placeholder="DDD + número para retorno"
               required
             />
           </label>

@@ -96,8 +96,8 @@ export function SupportPanel({ onOpenCountChange, readOnly = false }: SupportPan
   return (
     <div className="support-panel">
       <p className="csds-form-hint">
-        Solicitações abertas pelo card Suporte na home. Expanda um chamado para ver os
-        detalhes e responder.
+        Solicitações abertas pelo card Suporte na home ou pela tela de login. Expanda um
+        chamado para ver os detalhes, WhatsApp do solicitante e responder.
       </p>
 
       {feedback ? (
@@ -156,8 +156,16 @@ export function SupportPanel({ onOpenCountChange, readOnly = false }: SupportPan
                       <p className="support-ticket-subject">{ticket.subject}</p>
                     ) : null}
                     <p className="support-ticket-requester">
-                      {ticket.requesterName} ({ticket.requesterRegistration})
+                      {ticket.requesterName}
+                      {ticket.requesterRegistration
+                        ? ` (${ticket.requesterRegistration})`
+                        : ''}
                     </p>
+                    {ticket.requesterWhatsapp ? (
+                      <p className="support-ticket-meta">
+                        WhatsApp: {ticket.requesterWhatsapp}
+                      </p>
+                    ) : null}
                     <p className="support-ticket-message">{ticket.message}</p>
 
                     {ticket.response ? (

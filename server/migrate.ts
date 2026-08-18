@@ -583,6 +583,10 @@ export async function migrate() {
     ALTER TABLE support_tickets ALTER COLUMN requester_user_id DROP NOT NULL
   `)
   await query(`
+    ALTER TABLE support_tickets
+      ADD COLUMN IF NOT EXISTS requester_whatsapp TEXT NOT NULL DEFAULT ''
+  `)
+  await query(`
     CREATE TABLE IF NOT EXISTS meter_models (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,

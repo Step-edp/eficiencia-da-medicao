@@ -478,6 +478,7 @@ export type SupportTicketRecord = {
   requesterUserId: string | null
   requesterName: string
   requesterRegistration: string
+  requesterWhatsapp: string
   subject: string
   message: string
   status: 'aberto' | 'respondido' | 'fechado'
@@ -1425,6 +1426,7 @@ export const api = {
     message: string
     name?: string
     registration?: string
+    whatsapp?: string
   }) =>
     request<{ ticket: SupportTicketRecord }>('/api/support-tickets', {
       method: 'POST',

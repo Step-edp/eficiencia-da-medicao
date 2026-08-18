@@ -8,6 +8,7 @@ type SupportTicketRow = {
   requester_user_id: string | null
   requester_name: string
   requester_registration: string
+  requester_whatsapp: string
   subject: string
   message: string
   status: 'aberto' | 'respondido' | 'fechado'
@@ -26,6 +27,7 @@ function mapTicket(row: SupportTicketRow) {
     requesterUserId: row.requester_user_id,
     requesterName: row.requester_name,
     requesterRegistration: row.requester_registration,
+    requesterWhatsapp: row.requester_whatsapp || '',
     subject: row.subject,
     message: row.message,
     status: row.status,
@@ -77,6 +79,9 @@ export async function createSupportTicket(req: Request, res: Response) {
   const guestRegistration =
     typeof req.body?.registration === 'string' ? req.body.registration.trim() : ''
 
+  const guestWhatsapp =
+    typeof req.body?.whatsapp === 'string' ? req.body.whatsapp.trim() : ''
+
   if (!message) {
     res.status(400).json({ error: 'Descreva sua solicitação.' })
     return
@@ -85,10 +90,11 @@ export async function createSupportTicket(req: Request, res: Response) {
   let requesterUserId: string | null = null
   let requesterName = ''
   let requesterRegistration = ''
+  let requesterWhatsapp = ''
 
   if (user) {
-    const profile = await query<{ name: string; registration: string }>(
-      `SELECT name, registration FROM users WHERE id = $1`,
+    const profile = await query<{ name: string; registration: string; whatsapp: string }>(
+      `SELECT name, registration, whatsapp FROM users WHERE id = $1`,
       [user.id],
     )
 
@@ -100,16 +106,25 @@ export async function createSupportTicket(req: Request, res: Response) {
     requesterUserId = user.id
     requesterName = profile.rows[0].name
     requesterRegistration = profile.rows[0].registration
+    requesterWhatsapp = guestWhatsapp || profile.rows[0].whatsapp || ''
   } else {
-    if (!guestName || !guestRegistration) {
+    if (!guestName || !guestWhatsapp) {
       res.status(400).json({
-        error: 'Informe seu nome e matrícula para abrir o chamado.',
+        error: 'Informe seu nome e WhatsApp para abrir o chamado.',
       })
       return
     }
 
     requesterName = guestName
     requesterRegistration = guestRegistration.toUpperCase()
+    requesterWhatsapp = guestWhatsapp
+  }
+
+  if (!requesterWhatsapp) {
+    res.status(400).json({
+      error: 'Informe um WhatsApp para receber o retorno.',
+    })
+    return
   }
 
   const id = `sup-${Date.now()}`
@@ -118,8 +133,8 @@ export async function createSupportTicket(req: Request, res: Response) {
   const insert = await query<SupportTicketRow>(
     `INSERT INTO support_tickets (
        id, ticket_number, requester_user_id, requester_name, requester_registration,
-       subject, message, status
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'aberto')
+       requester_whatsapp, subject, message, status
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'aberto')
      RETURNING *`,
     [
       id,
@@ -127,6 +142,7 @@ export async function createSupportTicket(req: Request, res: Response) {
       requesterUserId,
       requesterName,
       requesterRegistration,
+      requesterWhatsapp,
       subject || 'Solicitação de suporte',
       message,
     ],
