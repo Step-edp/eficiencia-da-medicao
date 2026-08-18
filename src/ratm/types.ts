@@ -40,6 +40,31 @@ export function createEmptyEntryFieldChecks(): EntryFieldChecks {
   }
 }
 
+function entryCheckFromMatch(matches: boolean | null | undefined): EntryFieldCheck {
+  if (matches === true) return 'correct'
+  if (matches === false) return 'incorrect'
+  return ''
+}
+
+/** Preenche sugestões de ✓/✗ com base na comparação documento × cadastro. */
+export function entryFieldChecksFromComparisons(
+  comparisons: ScheduleEntryComparisons | null | undefined,
+): EntryFieldChecks {
+  if (!comparisons) return createEmptyEntryFieldChecks()
+
+  return {
+    scheduleDate: entryCheckFromMatch(comparisons.scheduleDate.matches),
+    installation: entryCheckFromMatch(comparisons.installation.matches),
+    toi: entryCheckFromMatch(comparisons.toi.matches),
+    note: entryCheckFromMatch(comparisons.note.matches),
+    csd: entryCheckFromMatch(comparisons.csd.matches),
+    partner: entryCheckFromMatch(comparisons.partner.matches),
+    clientPresent: entryCheckFromMatch(comparisons.clientPresent.matches),
+    deliveryDeadline: entryCheckFromMatch(comparisons.deliveryDeadline.matches),
+    schedulingNotes: entryCheckFromMatch(comparisons.schedulingNotes.matches),
+  }
+}
+
 export type RatmFormData = {
   meterSearch: string
   meter: string

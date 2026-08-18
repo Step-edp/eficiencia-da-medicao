@@ -6887,6 +6887,49 @@ input[type='file'] {
   color: #ff9b8d;
 }
 
+.ratm-entry-verifier-btn.is-correct.is-suggested:not(.is-selected) {
+  border-style: dashed;
+  border-color: rgba(72, 220, 120, 0.65);
+  color: #8ef0b8;
+}
+
+.ratm-entry-verifier-btn.is-incorrect.is-suggested:not(.is-selected) {
+  border-style: dashed;
+  border-color: rgba(255, 120, 100, 0.65);
+  color: #ff9b8d;
+}
+
+.ratm-entry-comparison-hint {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.ratm-entry-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 0.85rem;
+}
+
+.ratm-entry-comparison-item {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.ratm-entry-comparison-label {
+  color: var(--text-soft);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ratm-entry-comparison .ratm-readonly-value {
+  margin: 0;
+  word-break: break-word;
+}
+
 .ratm-entry-match {
   display: inline-flex;
   align-items: center;
