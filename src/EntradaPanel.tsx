@@ -277,8 +277,6 @@ type QuickScheduleModalProps = {
     toi: string
     note: string
     schedulingNotes: string
-    scheduledByName: string
-    schedulingDate: string
   }) => void
 }
 
@@ -295,8 +293,6 @@ function QuickScheduleModal({
   const [toi, setToi] = useState('')
   const [note, setNote] = useState('')
   const [schedulingNotes, setSchedulingNotes] = useState('')
-  const [scheduledByName, setScheduledByName] = useState('')
-  const [schedulingDate, setSchedulingDate] = useState('')
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -308,8 +304,6 @@ function QuickScheduleModal({
       toi,
       note,
       schedulingNotes,
-      scheduledByName,
-      schedulingDate,
     })
   }
 
@@ -385,23 +379,6 @@ function QuickScheduleModal({
           <label className="full-width">
             Nota
             <input value={note} onChange={(event) => setNote(event.target.value)} disabled={submitting} />
-          </label>
-          <label>
-            Agendamento feito por
-            <input
-              value={scheduledByName}
-              onChange={(event) => setScheduledByName(event.target.value)}
-              disabled={submitting}
-            />
-          </label>
-          <label>
-            Data do agendamento
-            <input
-              type="date"
-              value={schedulingDate}
-              onChange={(event) => setSchedulingDate(event.target.value)}
-              disabled={submitting}
-            />
           </label>
           <label className="full-width">
             Observações
@@ -755,8 +732,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     toi: string
     note: string
     schedulingNotes: string
-    scheduledByName: string
-    schedulingDate: string
   }) => {
     if (!quickScheduleMeter) return
 
@@ -771,8 +746,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
         toi: payload.toi,
         note: payload.note,
         schedulingNotes: payload.schedulingNotes,
-        scheduledByName: payload.scheduledByName,
-        schedulingDate: payload.schedulingDate || undefined,
         scheduledAt: payload.scheduledAt,
       })
 

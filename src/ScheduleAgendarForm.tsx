@@ -19,7 +19,11 @@ const minuteOptions = Array.from({ length: 60 }, (_, index) =>
 
 type ScheduleFieldErrors = Partial<Record<NumericFieldKey | 'csmDate', string>>
 
-export function ScheduleAgendarForm() {
+type ScheduleAgendarFormProps = {
+  showPassiveFields?: boolean
+}
+
+export function ScheduleAgendarForm({ showPassiveFields = false }: ScheduleAgendarFormProps) {
   const { options: csdOptions, loading: csdLoading, error: csdError } = useCsdsOptions()
   const [csmDate, setCsmDate] = useState('')
   const [csmHour, setCsmHour] = useState('00')
@@ -107,8 +111,12 @@ export function ScheduleAgendarForm() {
         note,
         csd,
         schedulingNotes,
-        scheduledByName,
-        schedulingDate: schedulingDate || undefined,
+        ...(showPassiveFields
+          ? {
+              scheduledByName,
+              schedulingDate: schedulingDate || undefined,
+            }
+          : {}),
         scheduledAt,
       })
 
@@ -181,26 +189,30 @@ export function ScheduleAgendarForm() {
           <FormFieldError id="schedule-csm-date-error" message={fieldErrors.csmDate} />
         </label>
 
-        <label>
-          Agendamento feito por
-          <input
-            type="text"
-            autoComplete="off"
-            value={scheduledByName}
-            onChange={(event) => setScheduledByName(event.target.value)}
-            disabled={submitting}
-          />
-        </label>
+        {showPassiveFields ? (
+          <>
+            <label>
+              Agendamento feito por
+              <input
+                type="text"
+                autoComplete="off"
+                value={scheduledByName}
+                onChange={(event) => setScheduledByName(event.target.value)}
+                disabled={submitting}
+              />
+            </label>
 
-        <label>
-          Data do agendamento
-          <input
-            type="date"
-            value={schedulingDate}
-            onChange={(event) => setSchedulingDate(event.target.value)}
-            disabled={submitting}
-          />
-        </label>
+            <label>
+              Data do agendamento
+              <input
+                type="date"
+                value={schedulingDate}
+                onChange={(event) => setSchedulingDate(event.target.value)}
+                disabled={submitting}
+              />
+            </label>
+          </>
+        ) : null}
 
         <label className={fieldErrors.medidor ? 'has-field-error' : undefined}>
           <span className="required-label">
@@ -312,8 +324,9 @@ export function ScheduleAgendarForm() {
         </label>
 
         <p className="field-hint full-width">
-          Use este formulário para medidores que não foram agendados pela equipe de
-          campo (agendamento passivo no laboratório).
+          {showPassiveFields
+            ? 'Use este formulário para medidores que não foram agendados pela equipe de campo (agendamento passivo no laboratório).'
+            : 'Preencha os dados para reservar a data de agendamento.'}
         </p>
 
         <button className="reserve-button full-width" type="submit" disabled={submitting}>

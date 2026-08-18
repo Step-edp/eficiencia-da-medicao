@@ -5244,7 +5244,7 @@ function HomePanel({
                     confunde com o cadastro de senhas passivas em{' '}
                     <strong>Medição → Geração de senha</strong>.
                   </p>
-                  <ScheduleAgendarForm />
+                  <ScheduleAgendarForm showPassiveFields />
                 </>
               )
             ) : selectedLabMeasurementSection === 'Criar Modelo' ? (
