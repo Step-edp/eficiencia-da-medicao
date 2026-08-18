@@ -467,6 +467,14 @@ export async function createMeterSchedule(req: Request, res: Response) {
     normalized.toiCollaborator1Registration = collaborator1.registration
     normalized.toiCollaborator2Name = collaborator2.name
     normalized.toiCollaborator2Registration = collaborator2.registration
+
+    if (normalized.toiTeamReason.length < 5) {
+      res.status(400).json({
+        error:
+          'Informe o motivo pelo qual está agendando pela equipe (mínimo de 5 caracteres).',
+      })
+      return
+    }
   }
 
   let partner: { id: string; name: string; registration: string } | null = null

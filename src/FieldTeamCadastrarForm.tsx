@@ -277,6 +277,11 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       ) {
         nextErrors.collaborator2 = 'Os colaboradores 1 e 2 devem ser usuários diferentes.'
       }
+      const trimmedTeamReason = teamReason.trim()
+      if (trimmedTeamReason.length < 5) {
+        nextErrors.teamReason =
+          'Informe o motivo pelo qual está agendando pela equipe (mínimo de 5 caracteres).'
+      }
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -302,7 +307,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
               toiCollaborator1Registration: resolvedCollaborator1!.registration,
               toiCollaborator2Name: resolvedCollaborator2!.name,
               toiCollaborator2Registration: resolvedCollaborator2!.registration,
-              ...(teamReason.trim() ? { toiTeamReason: teamReason.trim() } : {}),
+              toiTeamReason: teamReason.trim(),
             }
           : {
               partnerUserId: resolvedPartner!.id,
@@ -791,15 +796,23 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
             </div>
 
             <label className="full-width">
-              Motivo pelo qual está agendando pela equipe (opcional)
+              <RequiredLabel>
+                Motivo pelo qual está agendando pela equipe
+              </RequiredLabel>
               <textarea
                 rows={3}
                 value={teamReason}
+                required
+                minLength={5}
                 onChange={(event) => {
                   setTeamReason(event.target.value)
                   clearFieldError('teamReason')
                 }}
-                placeholder="Se quiser, descreva o motivo do agendamento em nome da equipe"
+                placeholder="Descreva o motivo do agendamento em nome da equipe"
+              />
+              <FormFieldError
+                id="field-team-team-reason-error"
+                message={fieldErrors.teamReason}
               />
             </label>
           </fieldset>
