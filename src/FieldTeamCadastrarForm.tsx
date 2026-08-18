@@ -546,6 +546,9 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
         {!requireToiTeam ? (
           <div className={`full-width partner-search${fieldErrors.partner ? ' has-field-error' : ''}`}>
             <RequiredLabel>Parceiro</RequiredLabel>
+            <p id="field-team-partner-hint" className="field-hint">
+              Se seu parceiro ainda não possuir cadastro, é necessário que ele faça isso antes.
+            </p>
             <div className="partner-search-control">
               <input
                 type="text"
@@ -573,7 +576,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                 aria-autocomplete="list"
                 aria-expanded={partnerMenuOpen}
                 aria-controls="field-team-partner-list"
-                aria-describedby="field-team-partner-error"
+                aria-describedby="field-team-partner-hint field-team-partner-error"
                 required
               />
               {partnerMenuOpen && !partnersLoading ? (
