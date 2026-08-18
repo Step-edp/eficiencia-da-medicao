@@ -593,7 +593,7 @@ export type MeterInspectionPendenciaRecord = {
   missingComunicado: boolean
 }
 
-export type DemmWeekStatus = 'entregue' | 'pendente' | 'nao_entregue'
+export type DemmWeekStatus = 'entregue' | 'pendente' | 'nao_entregue' | 'retroativo'
 
 export type CsdDemmPendenciaRecord = {
   id: string
@@ -1366,6 +1366,7 @@ export const api = {
     fileName: string
     fileBase64: string
     csdId: string
+    targetWeekStart?: string
   }) =>
     request<{
       document: DemmDocumentRecord

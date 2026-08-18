@@ -122,11 +122,12 @@ export async function getDemmMetersBase(_req: Request, res: Response) {
 }
 
 export async function createDemmDocument(req: Request, res: Response) {
-  const { meterScheduleId, fileName, fileBase64, csdId } = req.body as {
+  const { meterScheduleId, fileName, fileBase64, csdId, targetWeekStart } = req.body as {
     meterScheduleId?: string
     fileName?: string
     fileBase64?: string
     csdId?: string
+    targetWeekStart?: string
   }
 
   if (!fileName?.trim() || !fileBase64?.trim()) {
@@ -147,6 +148,37 @@ export async function createDemmDocument(req: Request, res: Response) {
   if (!csd.rows[0]) {
     res.status(404).json({ error: 'CSD não encontrado.' })
     return
+  }
+
+  const normalizedTargetWeekStart = targetWeekStart?.trim() ?? ''
+  let targetWeekStartDate: Date | null = null
+  if (normalizedTargetWeekStart) {
+    targetWeekStartDate = parseDateKey(normalizedTargetWeekStart)
+    if (!targetWeekStartDate) {
+      res.status(400).json({ error: 'Semana retroativa inválida.' })
+      return
+    }
+    const now = new Date()
+    if (now <= fridayDeadline(targetWeekStartDate)) {
+      res.status(400).json({
+        error:
+          'Só é possível importar DEMM retroativa para semanas com prazo (sexta-feira) já encerrado.',
+      })
+      return
+    }
+
+    const existingRetro = await query<{ id: string }>(
+      `SELECT id FROM demm_documents
+       WHERE csd_id = $1 AND target_week_start = $2::date
+       LIMIT 1`,
+      [normalizedCsdId, normalizedTargetWeekStart],
+    )
+    if (existingRetro.rows[0]) {
+      res.status(409).json({
+        error: 'Já existe DEMM retroativa registrada para este CSD nesta semana.',
+      })
+      return
+    }
   }
 
   if (!fileName.trim().toLowerCase().endsWith('.pdf')) {
@@ -207,8 +239,8 @@ export async function createDemmDocument(req: Request, res: Response) {
   const insert = await query<Omit<DemmDocumentRow, 'created_by_registration' | 'csd_name'>>(
     `INSERT INTO demm_documents (
       id, meter_schedule_id, meter, file_name, file_data, extracted_meters,
-      document_number, emission_date, csd_id, created_by_user_id
-    ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10)
+      document_number, emission_date, csd_id, target_week_start, created_by_user_id
+    ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11)
     RETURNING id, meter_schedule_id, meter, file_name, file_data, extracted_meters,
               document_number, emission_date, csd_id, created_at, created_by_user_id`,
     [
@@ -221,6 +253,7 @@ export async function createDemmDocument(req: Request, res: Response) {
       documentNumber,
       emissionDate,
       csd.rows[0].id,
+      targetWeekStartDate ? normalizedTargetWeekStart : null,
       req.user?.id ?? null,
     ],
   )
@@ -390,12 +423,35 @@ function dateKey(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-type DemmWeekStatus = 'entregue' | 'pendente' | 'nao_entregue'
+type DemmWeekStatus = 'entregue' | 'pendente' | 'nao_entregue' | 'retroativo'
 
-/** Uma semana só fica "não entregue" depois que o prazo (sexta) já passou; não dá para entregar retroativo. */
-function computeWeekStatus(weekStart: Date, delivered: boolean, now: Date): DemmWeekStatus {
-  if (delivered) return 'entregue'
+function computeWeekStatus(
+  weekStart: Date,
+  deliveredOnTime: boolean,
+  deliveredRetroactive: boolean,
+  now: Date,
+): DemmWeekStatus {
+  if (deliveredOnTime) return 'entregue'
+  if (deliveredRetroactive) return 'retroativo'
   return now > fridayDeadline(weekStart) ? 'nao_entregue' : 'pendente'
+}
+
+function parseDateKey(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
+  if (!match) return null
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const parsed = new Date(year, month - 1, day)
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null
+  }
+  parsed.setHours(0, 0, 0, 0)
+  return parsed
 }
 
 type CsdDemmPendenciaRow = {
@@ -436,7 +492,7 @@ export async function listCsdDemmPendencias(_req: Request, res: Response) {
     responsibleName: row.responsible_name,
     responsibleRegistration: row.responsible_registration,
     responsibleWorkSubtype: row.responsible_work_subtype,
-    status: computeWeekStatus(weekStart, row.delivered_this_week, now),
+    status: computeWeekStatus(weekStart, row.delivered_this_week, false, now),
   }))
 
   res.json({
@@ -456,7 +512,8 @@ type CsdDemmHistoricoRow = {
   responsible_registration: string | null
   responsible_work_subtype: string | null
   week_start: Date
-  delivered: boolean
+  delivered_on_time: boolean
+  delivered_retroactive: boolean
 }
 
 export async function getCsdDemmHistorico(_req: Request, res: Response) {
@@ -475,8 +532,14 @@ export async function getCsdDemmHistorico(_req: Request, res: Response) {
               SELECT 1 FROM demm_documents d
               WHERE d.csd_id = c.id
                 AND d.created_at >= gs.week_start
-                AND d.created_at < gs.week_start + interval '5 days'
-            ) AS delivered
+                AND d.created_at <= gs.week_start + interval '4 days 23 hours 59 minutes 59 seconds'
+                AND d.target_week_start IS NULL
+            ) AS delivered_on_time,
+            EXISTS (
+              SELECT 1 FROM demm_documents d
+              WHERE d.csd_id = c.id
+                AND d.target_week_start = gs.week_start::date
+            ) AS delivered_retroactive
      FROM csds c
      LEFT JOIN users u ON u.id = c.responsible_user_id
      CROSS JOIN generate_series($1::timestamptz, $2::timestamptz, interval '1 week') AS gs(week_start)
@@ -509,7 +572,12 @@ export async function getCsdDemmHistorico(_req: Request, res: Response) {
     }
     csdMap.get(row.id)!.weeks.push({
       weekStart: dateKey(row.week_start),
-      status: computeWeekStatus(row.week_start, row.delivered, now),
+      status: computeWeekStatus(
+        row.week_start,
+        row.delivered_on_time,
+        row.delivered_retroactive,
+        now,
+      ),
     })
   }
 

@@ -2204,9 +2204,30 @@ button {
   color: #ff7c6a;
 }
 
+.demm-status-icon.is-retroactive {
+  color: #e6b43c;
+}
+
 .demm-status-icon.is-pending {
   color: var(--text-soft);
   font-size: 1.1rem;
+}
+
+.demm-status-clickable {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.demm-status-clickable:hover .demm-status-icon.is-late,
+.demm-status-clickable:focus-visible .demm-status-icon.is-late {
+  color: #ff9988;
+  box-shadow: 0 0 0 2px rgba(255, 124, 106, 0.25);
 }
 
 .lab-trail-connector {

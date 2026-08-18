@@ -23,7 +23,11 @@ function formatWorkSubtypeLabel(workSubtype: string | null) {
   return workSubtype
 }
 
-function DemmStatusIcon({ status }: { status: 'entregue' | 'pendente' | 'nao_entregue' }) {
+function DemmStatusIcon({
+  status,
+}: {
+  status: 'entregue' | 'pendente' | 'nao_entregue' | 'retroativo'
+}) {
   if (status === 'pendente') {
     return (
       <span className="demm-status-icon is-pending" aria-label="Pendente" title="Pendente">
@@ -33,11 +37,16 @@ function DemmStatusIcon({ status }: { status: 'entregue' | 'pendente' | 'nao_ent
   }
 
   const isOk = status === 'entregue'
+  const isRetroactive = status === 'retroativo'
   return (
     <span
-      className={`demm-status-icon ${isOk ? 'is-ok' : 'is-late'}`}
-      aria-label={isOk ? 'Entregue' : 'Não entregue'}
-      title={isOk ? 'Entregue' : 'Não entregue'}
+      className={`demm-status-icon ${isOk ? 'is-ok' : isRetroactive ? 'is-retroactive' : 'is-late'}`}
+      aria-label={
+        isOk ? 'Entregue' : isRetroactive ? 'Entregue retroativamente' : 'Não entregue'
+      }
+      title={
+        isOk ? 'Entregue' : isRetroactive ? 'Entregue retroativamente' : 'Não entregue'
+      }
     >
       <svg viewBox="0 0 24 24" aria-hidden="true">
         {isOk ? (
@@ -446,6 +455,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   const [showDemmModal, setShowDemmModal] = useState(false)
   const [demmFile, setDemmFile] = useState<File | null>(null)
   const [demmCsdId, setDemmCsdId] = useState('')
+  const [demmTargetWeekStart, setDemmTargetWeekStart] = useState<string | null>(null)
   const [demmModalFeedback, setDemmModalFeedback] = useState<DemmModalFeedback | null>(null)
   const [submittingDemm, setSubmittingDemm] = useState(false)
   const [deletingDemmId, setDeletingDemmId] = useState<string | null>(null)
@@ -506,12 +516,14 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     setShowDemmModal(false)
     setDemmFile(null)
     setDemmCsdId('')
+    setDemmTargetWeekStart(null)
     setDemmModalFeedback(null)
   }
 
-  const openDemmModal = (csdId?: string) => {
+  const openDemmModal = (csdId?: string, targetWeekStart?: string) => {
     setDemmModalFeedback(null)
     setDemmCsdId(csdId ?? '')
+    setDemmTargetWeekStart(targetWeekStart ?? null)
     setShowDemmModal(true)
   }
 
@@ -800,16 +812,20 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
 
     try {
       const fileBase64 = await readFileAsBase64(demmFile)
+      const wasRetroactive = Boolean(demmTargetWeekStart)
       const response = await api.createDemmDocument({
         fileName: demmFile.name,
         fileBase64,
         csdId: demmCsdId,
+        ...(demmTargetWeekStart ? { targetWeekStart: demmTargetWeekStart } : {}),
       })
 
       closeDemmModal()
       setFeedback({
         type: 'success',
-        message: `DEMM registrada. ${response.analysis.total} medidor(es) identificado(s).`,
+        message: wasRetroactive
+          ? `DEMM retroativa registrada. ${response.analysis.total} medidor(es) identificado(s).`
+          : `DEMM registrada. ${response.analysis.total} medidor(es) identificado(s).`,
       })
       setAnalysisModal({
         title: 'Medidores identificados na DEMM',
@@ -821,6 +837,9 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
       await reloadEntradaData()
       if (view === 'csdPendencias') {
         void loadCsdPendencias()
+      }
+      if (view === 'demmHistorico') {
+        void loadDemmHistorico()
       }
     } catch (error) {
       if (error instanceof ApiError) {
@@ -897,7 +916,15 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               </svg>
             </button>
 
-            <h3 id="demm-modal-title">Nova DEMM</h3>
+            <h3 id="demm-modal-title">
+              {demmTargetWeekStart ? 'Importar DEMM retroativa' : 'Nova DEMM'}
+            </h3>
+            {demmTargetWeekStart ? (
+              <p className="demm-modal-intro">
+                Semana com prazo em {formatWeekLabel(demmTargetWeekStart)} (sexta-feira). O ícone
+                ficará amarelo após o envio.
+              </p>
+            ) : null}
 
             {demmModalFeedback ? (
               <div className="demm-modal-feedback error" role="alert">
@@ -914,7 +941,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                 <select
                   value={demmCsdId}
                   onChange={(event) => setDemmCsdId(event.target.value)}
-                  disabled={submittingDemm}
+                  disabled={submittingDemm || Boolean(demmTargetWeekStart && demmCsdId)}
                   required
                 >
                   <option value="">
@@ -1493,6 +1520,13 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               </div>
             ) : null}
 
+            {!readOnly ? (
+              <p className="field-hint">
+                Clique no X vermelho para importar DEMM retroativa da semana. Após o envio, o ícone
+                fica amarelo.
+              </p>
+            ) : null}
+
             {demmHistoricoLoading ? (
               <p className="entrada-panel-empty">Carregando histórico...</p>
             ) : demmHistoricoCsds.length === 0 ? (
@@ -1518,7 +1552,19 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                         <td>{csd.responsibleName ?? csd.responsibleRegistration ?? '—'}</td>
                         {csd.weeks.map((week) => (
                           <td key={week.weekStart} className="demm-status-cell">
-                            <DemmStatusIcon status={week.status} />
+                            {!readOnly && week.status === 'nao_entregue' ? (
+                              <button
+                                type="button"
+                                className="demm-status-clickable"
+                                onClick={() => openDemmModal(csd.id, week.weekStart)}
+                                aria-label={`Importar DEMM retroativa de ${csd.name} na semana de ${formatWeekLabel(week.weekStart)}`}
+                                title="Importar DEMM retroativa"
+                              >
+                                <DemmStatusIcon status={week.status} />
+                              </button>
+                            ) : (
+                              <DemmStatusIcon status={week.status} />
+                            )}
                           </td>
                         ))}
                       </tr>
@@ -1529,6 +1575,19 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             )}
           </section>
         </div>
+
+        {demmModal}
+
+        {analysisModal ? (
+          <DemmAnalysisModal
+            title={analysisModal.title}
+            fileName={analysisModal.fileName}
+            meters={analysisModal.meters}
+            loading={analysisModal.loading}
+            showSources={analysisModal.showSources}
+            onClose={() => setAnalysisModal(null)}
+          />
+        ) : null}
       </>
     )
   }
