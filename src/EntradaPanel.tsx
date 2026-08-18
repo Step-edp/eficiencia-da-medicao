@@ -1380,7 +1380,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                       <th>CSD</th>
                       <th>Nº DEMM</th>
                       <th>Status</th>
-                      <th>Data agendada</th>
+                      <th>Data de ensaio</th>
                       <th>Ações</th>
                     </tr>
                   </thead>
