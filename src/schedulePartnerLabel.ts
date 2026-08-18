@@ -1,6 +1,6 @@
 import type { MeterScheduleRecord } from './api'
 
-function formatPerson(name?: string, registration?: string) {
+function formatPerson(name?: string | null, registration?: string | null) {
   const normalizedName = name?.trim()
   const normalizedRegistration = registration?.trim()
   if (!normalizedName && !normalizedRegistration) return ''
@@ -37,7 +37,7 @@ function isScheduleCreator(
 export function formatScheduleCreatedByLabel(
   item: Pick<
     MeterScheduleRecord,
-    'createdByName' | 'createdByRegistration' | 'scheduledByName' | 'createdByUserId'
+    'createdByName' | 'createdByRegistration' | 'scheduledByName'
   >,
 ) {
   if (item.createdByName?.trim() || item.createdByRegistration?.trim()) {
