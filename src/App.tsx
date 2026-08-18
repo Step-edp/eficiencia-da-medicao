@@ -1627,6 +1627,8 @@ function HomePanel({
   } | null>(null)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [userPendingDelete, setUserPendingDelete] = useState<AppUser | null>(null)
+  const [userNameFilter, setUserNameFilter] = useState('')
+  const [userRegistrationFilter, setUserRegistrationFilter] = useState('')
   const isAdmin = currentUser.role === 'admin'
   const pendingApprovalUsers = users.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'pending',
@@ -1637,6 +1639,20 @@ function HomePanel({
   const registeredUsers = users.filter(
     (user) => user.role !== 'admin' && user.approvalStatus === 'approved',
   )
+  const filteredRegisteredUsers = useMemo(() => {
+    const normalizedName = userNameFilter.trim().toLowerCase()
+    const normalizedRegistration = userRegistrationFilter.trim().toLowerCase()
+
+    return registeredUsers.filter((user) => {
+      const matchesName = normalizedName
+        ? user.name.toLowerCase().includes(normalizedName)
+        : true
+      const matchesRegistration = normalizedRegistration
+        ? user.registration.toLowerCase().includes(normalizedRegistration)
+        : true
+      return matchesName && matchesRegistration
+    })
+  }, [registeredUsers, userNameFilter, userRegistrationFilter])
   const previewUserOptions = useMemo(
     () =>
       [...registeredUsers].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
@@ -3716,8 +3732,31 @@ function HomePanel({
                   />
                 ) : (
                   <>
+                    <div className="materials-filters-grid">
+                      <label>
+                        Nome
+                        <input
+                          type="search"
+                          value={userNameFilter}
+                          onChange={(event) => setUserNameFilter(event.target.value)}
+                          placeholder="Filtrar por nome"
+                        />
+                      </label>
+                      <label>
+                        Matrícula
+                        <input
+                          type="search"
+                          value={userRegistrationFilter}
+                          onChange={(event) => setUserRegistrationFilter(event.target.value)}
+                          placeholder="Filtrar por matrícula"
+                        />
+                      </label>
+                    </div>
                     <p className="consultar-summary">
-                      {registeredUsers.length} usuário(s) com acesso aprovado
+                      {filteredRegisteredUsers.length} usuário(s) com acesso aprovado
+                      {userNameFilter.trim() || userRegistrationFilter.trim()
+                        ? ` (de ${registeredUsers.length})`
+                        : ''}
                     </p>
                     <div className="entrada-table-wrap">
                       <table className="data-table">
@@ -3737,7 +3776,7 @@ function HomePanel({
                           </tr>
                         </thead>
                         <tbody>
-                          {registeredUsers.map((user) => (
+                          {filteredRegisteredUsers.map((user) => (
                             <tr
                               key={user.id}
                               className="users-table-row"
@@ -3871,9 +3910,11 @@ function HomePanel({
                         </tbody>
                       </table>
                     </div>
-                    {!registeredUsers.length ? (
+                    {!filteredRegisteredUsers.length ? (
                       <p className="generated-password-empty">
-                        Nenhum usuário aprovado no momento.
+                        {registeredUsers.length
+                          ? 'Nenhum usuário encontrado com os filtros informados.'
+                          : 'Nenhum usuário aprovado no momento.'}
                       </p>
                     ) : null}
                   </>
