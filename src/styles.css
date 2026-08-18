@@ -1667,6 +1667,53 @@ button {
   transform: translateY(-1px);
 }
 
+.lab-trail-nav {
+  margin: 18px 0 22px;
+}
+
+.lab-trail-nav .lab-trail {
+  margin: 0;
+}
+
+.lab-trail-calendar-slot {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.lab-trail-calendar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  border-radius: 12px;
+  background: rgba(2, 18, 31, 0.55);
+  color: var(--text-main);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.lab-trail-calendar-icon:hover,
+.lab-trail-calendar-icon:focus-visible {
+  border-color: rgba(24, 216, 240, 0.55);
+  transform: translateY(-1px);
+}
+
+.lab-trail-calendar-icon.is-active {
+  border-color: rgba(24, 216, 240, 0.75);
+  background: rgba(24, 216, 240, 0.12);
+  box-shadow: 0 0 0 1px rgba(24, 216, 240, 0.2);
+}
+
+.lab-trail-calendar-icon .item-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
 .lab-trail {
   margin: 18px 0 22px;
 }

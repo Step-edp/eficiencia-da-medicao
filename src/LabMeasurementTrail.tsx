@@ -14,6 +14,38 @@ type LabMeasurementTrailProps = {
   isStepEnabled?: (stepKey: string, index: number) => boolean
 }
 
+type LabTrailNavProps = LabMeasurementTrailProps & {
+  onOpenCalendar?: () => void
+  calendarActive?: boolean
+  renderCalendarIcon?: () => ReactNode
+}
+
+export function LabTrailNav({
+  onOpenCalendar,
+  calendarActive = false,
+  renderCalendarIcon,
+  ...trailProps
+}: LabTrailNavProps) {
+  return (
+    <div className="lab-trail-nav">
+      {onOpenCalendar ? (
+        <div className="lab-trail-calendar-slot">
+          <button
+            type="button"
+            className={`lab-trail-calendar-icon${calendarActive ? ' is-active' : ''}`}
+            onClick={onOpenCalendar}
+            aria-label="Calendário de ensaios"
+            title="Calendário de ensaios"
+          >
+            {renderCalendarIcon?.()}
+          </button>
+        </div>
+      ) : null}
+      <LabMeasurementTrail {...trailProps} />
+    </div>
+  )
+}
+
 export function LabMeasurementTrail({
   activeStep,
   onSelect,

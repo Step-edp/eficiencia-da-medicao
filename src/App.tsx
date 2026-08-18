@@ -39,7 +39,7 @@ import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
 import { SatisfactionSurveyPage } from './ratm/SatisfactionSurveyPage'
 import { mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
 import type { RatmFormData } from './ratm/types'
-import { LabMeasurementTrail } from './LabMeasurementTrail'
+import { LabMeasurementTrail, LabTrailNav } from './LabMeasurementTrail'
 import { EnsaiosCalendar } from './EnsaiosCalendar'
 import { CsdsPanel } from './CsdsPanel'
 import { CriarModeloPanel } from './CriarModeloPanel'
@@ -59,7 +59,7 @@ import { LoginFeedback } from './LoginFeedback'
 import { PassivoPanel } from './PassivoPanel'
 import { AuditPanel } from './AuditPanel'
 import { EntradaPanel } from './EntradaPanel'
-import { CONSOLIDACAO_CARGA_TRAIL_STEPS, ENTRADA_TRAIL_STEP, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS, MEMORY_MASS_TRAIL_STEPS } from './labTrailSteps'
+import { CONSOLIDACAO_CARGA_TRAIL_STEPS, ENTRADA_TRAIL_STEP, ENSAIOS_CALENDAR_SECTION, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS, MEMORY_MASS_TRAIL_STEPS } from './labTrailSteps'
 import {
   api,
   ApiError,
@@ -5188,19 +5188,33 @@ function HomePanel({
                 dados do laboratório, sem executar cadastros, ensaios ou aprovações.
               </div>
             ) : null}
-            {LAB_TRAIL_KEYS.has(selectedLabMeasurementSection) &&
-            selectedLabMeasurementSection !== 'Entrada de medidores' &&
-            selectedLabMeasurementSection !== 'Agendar' &&
+            {showLabTrail &&
             !inventarioMonthTitle &&
-            showLabTrail ? (
-              <LabMeasurementTrail
-                activeStep={selectedLabMeasurementSection}
+            ((LAB_TRAIL_KEYS.has(selectedLabMeasurementSection) &&
+              selectedLabMeasurementSection !== 'Entrada de medidores' &&
+              selectedLabMeasurementSection !== 'Agendar') ||
+              selectedLabMeasurementSection === ENSAIOS_CALENDAR_SECTION) ? (
+              <LabTrailNav
+                activeStep={
+                  selectedLabMeasurementSection === ENSAIOS_CALENDAR_SECTION
+                    ? null
+                    : selectedLabMeasurementSection
+                }
                 onSelect={setSelectedLabMeasurementSection}
                 renderIcon={(title) => <ItemIcon title={title} />}
                 stepCounts={trailStepCounts}
+                onOpenCalendar={() =>
+                  setSelectedLabMeasurementSection(ENSAIOS_CALENDAR_SECTION)
+                }
+                calendarActive={
+                  selectedLabMeasurementSection === ENSAIOS_CALENDAR_SECTION
+                }
+                renderCalendarIcon={() => (
+                  <ItemIcon title={ENSAIOS_CALENDAR_SECTION} />
+                )}
               />
             ) : null}
-            {selectedLabMeasurementSection === 'Calendário de ensaios' ? (
+            {selectedLabMeasurementSection === ENSAIOS_CALENDAR_SECTION ? (
               <EnsaiosCalendar readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Reagendar' ? (
               <ReagendarPanel readOnly={labMedicaoReadOnly} />
@@ -5752,10 +5766,17 @@ function HomePanel({
           {selectedArea.title === 'Laboratório de Medição' ? (
             <>
               {showLabTrail ? (
-                <LabMeasurementTrail
+                <LabTrailNav
                   activeStep={null}
                   onSelect={setSelectedLabMeasurementSection}
                   renderIcon={(title) => <ItemIcon title={title} />}
+                  onOpenCalendar={() =>
+                    setSelectedLabMeasurementSection(ENSAIOS_CALENDAR_SECTION)
+                  }
+                  calendarActive={false}
+                  renderCalendarIcon={() => (
+                    <ItemIcon title={ENSAIOS_CALENDAR_SECTION} />
+                  )}
                 />
               ) : null}
               {visibleLabHighlightedSections.length > 0 ? (

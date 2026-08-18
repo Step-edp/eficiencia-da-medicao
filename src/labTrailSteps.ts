@@ -6,7 +6,6 @@ export type LabTrailStep = {
 export const LAB_TRAIL_STEPS: LabTrailStep[] = [
   { key: 'Agendar', label: 'Agendamento' },
   { key: 'Entrada de medidores', label: 'Entrada' },
-  { key: 'Calendário de ensaios', label: 'Calendário' },
   { key: 'Ensaiar', label: 'Ensaio' },
   { key: 'Aprovação de RATM', label: 'Aprovação' },
   { key: 'Pesquisa de satisfação', label: 'Pesquisa de Satisfação' },
@@ -48,6 +47,7 @@ export const CONSOLIDACAO_CARGA_TRAIL_KEYS = new Set(
 )
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
+export const ENSAIOS_CALENDAR_SECTION = 'Calendário de ensaios'
 export const ENSAIAR_TRAIL_STEP = 'Ensaiar'
 export const APROVACAO_TRAIL_STEP = 'Aprovação de RATM'
 export const SUCATA_TRAIL_STEP = 'Sucata'
