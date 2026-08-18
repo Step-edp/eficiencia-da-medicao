@@ -297,12 +297,15 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
           const isBlocked = Boolean(autoReason) || isManual
           const isToday = key === toDateKey(today)
           const meters = dayMeters.get(key) ?? []
+          const hasMeters = meters.length > 0
           const allEnsaiados =
-            meters.length > 0 && meters.every((meter) => meter.status === 'Ensaiado')
+            hasMeters && meters.every((meter) => meter.status === 'Ensaiado')
           const previewMeters = meters.slice(0, 3)
           const extraMeters = meters.length - previewMeters.length
 
-          let title = 'Clique para ver os medidores programados'
+          let title = hasMeters
+            ? 'Clique para ver os medidores programados'
+            : 'Sem ensaio programado — clique para detalhes'
           if (autoReason) {
             title =
               autoReason.startsWith('Feriado') ||
@@ -323,7 +326,9 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
               className={[
                 'ensaios-calendar-day',
                 !inMonth ? 'is-outside' : '',
-                isBlocked ? 'is-blocked' : 'is-available',
+                inMonth && !hasMeters ? 'is-no-ensaio' : '',
+                isBlocked ? 'is-blocked' : '',
+                !isBlocked && hasMeters && !allEnsaiados ? 'is-available' : '',
                 autoReason ? 'is-auto-blocked' : '',
                 isManual ? 'is-manual-blocked' : '',
                 allEnsaiados ? 'is-all-ensaiado' : '',
@@ -368,7 +373,10 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
 
       <ul className="ensaios-calendar-legend" aria-label="Legenda do calendário">
         <li>
-          <span className="ensaios-calendar-swatch is-available" /> Disponível
+          <span className="ensaios-calendar-swatch is-available" /> Com ensaio programado
+        </li>
+        <li>
+          <span className="ensaios-calendar-swatch is-no-ensaio" /> Sem ensaio programado
         </li>
         <li>
           <span className="ensaios-calendar-swatch is-all-ensaiado" /> Dia concluído (todos

@@ -2555,6 +2555,30 @@ button {
   opacity: 0.35;
 }
 
+.ensaios-calendar-day.is-no-ensaio {
+  opacity: 0.34;
+  border-color: rgba(150, 187, 215, 0.08);
+  background: rgba(2, 18, 31, 0.22);
+  color: rgba(196, 214, 228, 0.55);
+  cursor: pointer;
+}
+
+.ensaios-calendar-day.is-no-ensaio .ensaios-calendar-day-number {
+  color: rgba(196, 214, 228, 0.45);
+}
+
+.ensaios-calendar-day.is-no-ensaio:hover:not(:disabled),
+.ensaios-calendar-day.is-no-ensaio:focus-visible:not(:disabled) {
+  opacity: 0.52;
+  border-color: rgba(150, 187, 215, 0.16);
+  background: rgba(2, 18, 31, 0.32);
+}
+
+.ensaios-calendar-day.is-no-ensaio.is-auto-blocked,
+.ensaios-calendar-day.is-no-ensaio.is-manual-blocked {
+  opacity: 0.28;
+}
+
 .ensaios-calendar-day.is-available:hover:not(:disabled),
 .ensaios-calendar-day.is-available:focus-visible:not(:disabled) {
   border-color: rgba(57, 255, 0, 0.55);
@@ -2956,6 +2980,12 @@ button {
 .ensaios-calendar-swatch.is-available {
   border: 1px solid rgba(57, 255, 0, 0.55);
   background: rgba(57, 255, 0, 0.12);
+}
+
+.ensaios-calendar-swatch.is-no-ensaio {
+  border: 1px solid rgba(150, 187, 215, 0.12);
+  background: rgba(2, 18, 31, 0.22);
+  opacity: 0.55;
 }
 
 .ensaios-calendar-swatch.is-manual-blocked {
