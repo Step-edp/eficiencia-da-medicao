@@ -245,6 +245,14 @@ export async function login(req: Request, res: Response) {
     return
   }
 
+  if (user.approval_status === 'rejected') {
+    res.status(403).json({
+      error:
+        'Seu cadastro foi reprovado. Envie um novo cadastro na tela inicial para nova análise do ADM.',
+    })
+    return
+  }
+
   if (user.approval_status !== 'approved') {
     res.status(403).json({
       error: 'Seu cadastro ainda está pendente de aprovação do ADM.',
@@ -374,10 +382,143 @@ export async function register(req: Request, res: Response) {
 
   const normalizedRegistration = registration.trim().toUpperCase()
   const normalizedEmail = email.trim().toLowerCase()
-  const id = `${Date.now()}-${normalizedRegistration}`
   const passwordHash = await bcrypt.hash(password, 10)
 
+  const existingUsers = await query<UserRow>(
+    `SELECT * FROM users
+     WHERE UPPER(registration) = $1 OR LOWER(email) = $2`,
+    [normalizedRegistration, normalizedEmail],
+  )
+  const existingByRegistration = existingUsers.rows.find(
+    (row) => row.registration.trim().toUpperCase() === normalizedRegistration,
+  )
+  const existingByEmail = existingUsers.rows.find(
+    (row) => row.email.trim().toLowerCase() === normalizedEmail,
+  )
+
+  if (existingByRegistration && existingByRegistration.approval_status !== 'rejected') {
+    res.status(409).json({
+      error:
+        existingByRegistration.approval_status === 'pending'
+          ? 'Já existe um cadastro pendente com esta matrícula.'
+          : 'Já existe um cadastro aprovado com esta matrícula.',
+    })
+    return
+  }
+
+  if (
+    existingByEmail &&
+    (!existingByRegistration || existingByEmail.id !== existingByRegistration.id)
+  ) {
+    if (existingByEmail.approval_status !== 'rejected') {
+      res.status(409).json({ error: 'Já existe um cadastro com este e-mail.' })
+      return
+    }
+    res.status(409).json({
+      error:
+        'Este e-mail pertence a outro cadastro reprovado. Use a mesma matrícula do cadastro anterior ou outro e-mail.',
+    })
+    return
+  }
+
+  const registrationPayload = {
+    name: name.trim(),
+    registration: normalizedRegistration,
+    passwordHash,
+    password,
+    email: normalizedEmail,
+    birthDate,
+    jobTitle: normalizedJobTitle,
+    cpf: cpf.trim(),
+    personalDescription: personalDescription?.trim() ?? '',
+    hobby: hobby ?? '',
+    whatsapp: normalizedWhatsapp,
+    employmentType: normalizedEmploymentType,
+    workArea: normalizedWorkArea,
+    locality: normalizedLocality,
+    edpUnit: normalizedEdpUnit,
+    profilePhoto: normalizedProfilePhoto,
+  }
+
   try {
+    if (existingByRegistration?.approval_status === 'rejected') {
+      const update = await query<UserRow>(
+        `UPDATE users
+         SET name = $2,
+             registration = $3,
+             password_hash = $4,
+             password_plain = $5,
+             email = $6,
+             approval_status = 'pending',
+             requested_at = NOW(),
+             approved_at = NULL,
+             rejected_at = NULL,
+             rejection_reason = '',
+             approved_by_user_id = NULL,
+             birth_date = $7,
+             job_title = $8,
+             cpf = $9,
+             personal_description = $10,
+             hobby = $11,
+             whatsapp = $12,
+             employment_type = $13,
+             third_party_company = '',
+             work_area = $14,
+             work_subtype = '',
+             locality = $15,
+             edp_unit = $16,
+             profile_photo = $17,
+             access_areas = '[]'::jsonb,
+             access_processes = '[]'::jsonb
+         WHERE id = $1
+           AND approval_status = 'rejected'
+         RETURNING *`,
+        [
+          existingByRegistration.id,
+          registrationPayload.name,
+          registrationPayload.registration,
+          registrationPayload.passwordHash,
+          registrationPayload.password,
+          registrationPayload.email,
+          registrationPayload.birthDate,
+          registrationPayload.jobTitle,
+          registrationPayload.cpf,
+          registrationPayload.personalDescription,
+          registrationPayload.hobby,
+          registrationPayload.whatsapp,
+          registrationPayload.employmentType,
+          registrationPayload.workArea,
+          registrationPayload.locality,
+          registrationPayload.edpUnit,
+          registrationPayload.profilePhoto,
+        ],
+      )
+
+      if (!update.rows[0]) {
+        res.status(409).json({ error: 'Não foi possível reenviar o cadastro reprovado.' })
+        return
+      }
+
+      const stampedUser = mapUser(update.rows[0])
+
+      await writeAuditLog(req, {
+        action: 'register',
+        entityType: 'user',
+        entityId: stampedUser.id,
+        summary: `Cadastro reenviado após reprovação: ${stampedUser.registration}`,
+        oldData: mapUser(existingByRegistration),
+        newData: {
+          ...stampedUser,
+          profilePhoto: stampedUser.profilePhoto ? '[imagem anexada]' : '',
+        },
+      })
+
+      const { requestedAt: _requestedAt, approvedAt: _approvedAt, ...publicUser } = stampedUser
+      res.status(201).json({ user: publicUser })
+      return
+    }
+
+    const id = `${Date.now()}-${normalizedRegistration}`
     const insert = await query<UserRow>(
       `INSERT INTO users (
         id, name, registration, password_hash, password_plain, email, role, approval_status,
@@ -393,24 +534,24 @@ export async function register(req: Request, res: Response) {
       RETURNING *`,
       [
         id,
-        name.trim(),
-        normalizedRegistration,
-        passwordHash,
-        password,
-        normalizedEmail,
-        birthDate,
-        normalizedJobTitle,
-        cpf.trim(),
-        personalDescription?.trim() ?? '',
-        hobby ?? '',
-        normalizedWhatsapp,
-        normalizedEmploymentType,
+        registrationPayload.name,
+        registrationPayload.registration,
+        registrationPayload.passwordHash,
+        registrationPayload.password,
+        registrationPayload.email,
+        registrationPayload.birthDate,
+        registrationPayload.jobTitle,
+        registrationPayload.cpf,
+        registrationPayload.personalDescription,
+        registrationPayload.hobby,
+        registrationPayload.whatsapp,
+        registrationPayload.employmentType,
         '',
-        normalizedWorkArea,
+        registrationPayload.workArea,
         '',
-        normalizedLocality,
-        normalizedEdpUnit,
-        normalizedProfilePhoto,
+        registrationPayload.locality,
+        registrationPayload.edpUnit,
+        registrationPayload.profilePhoto,
       ],
     )
 
