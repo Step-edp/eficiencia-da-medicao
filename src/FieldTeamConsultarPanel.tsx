@@ -194,7 +194,7 @@ export function FieldTeamConsultarPanel({
                 <th>Parceiro / Equipe</th>
                 <th>Agendado por</th>
                 <th>Carimbo</th>
-                <th>Data agendada</th>
+                <th>Data de ensaio</th>
                 <th>Prazo entrega</th>
                 <th>Status entrega</th>
               </tr>
