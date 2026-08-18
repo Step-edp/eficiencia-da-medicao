@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
@@ -1598,7 +1598,134 @@ function PendingApprovalItem({
   )
 }
 
-function RejectedUserItem({ user }: { user: AppUser }) {
+function UserRegistrationDetailsGrid({
+  user,
+  showPassword = false,
+  statusLabel,
+  trailingFields,
+}: {
+  user: AppUser
+  showPassword?: boolean
+  statusLabel: string
+  trailingFields?: ReactNode
+}) {
+  const builtProfile = buildRequestedProfile(
+    user.jobTitle,
+    user.workSubtype ?? '',
+    user.workArea ?? '',
+  )
+  const scopeLabel = user.jobTitle === 'Engenheiro' ? 'Abrangência' : 'Escopo'
+
+  return (
+    <dl className="user-detail-grid approval-item-details-grid">
+      <div>
+        <dt>Matrícula</dt>
+        <dd>{user.registration || '—'}</dd>
+      </div>
+      {showPassword ? (
+        <div>
+          <dt>Senha</dt>
+          <dd className="user-password-value">
+            {user.password?.trim() ? user.password : 'Indisponível (cadastro antigo)'}
+          </dd>
+        </div>
+      ) : null}
+      <div>
+        <dt>E-mail</dt>
+        <dd>{user.email || '—'}</dd>
+      </div>
+      <div>
+        <dt>WhatsApp</dt>
+        <dd>{user.whatsapp || '—'}</dd>
+      </div>
+      <div>
+        <dt>CPF</dt>
+        <dd>{user.cpf || '—'}</dd>
+      </div>
+      <div>
+        <dt>Data de nascimento</dt>
+        <dd>{user.birthDate || '—'}</dd>
+      </div>
+      <div>
+        <dt>Tipo</dt>
+        <dd>{user.employmentType || '—'}</dd>
+      </div>
+      <div>
+        <dt>Abrangência EDP</dt>
+        <dd>{user.edpUnit || '—'}</dd>
+      </div>
+      <div>
+        <dt>Área</dt>
+        <dd>{user.workArea || '—'}</dd>
+      </div>
+      <div>
+        <dt>Cargo</dt>
+        <dd>{user.jobTitle || '—'}</dd>
+      </div>
+      <div>
+        <dt>Localidade</dt>
+        <dd>{user.locality || '—'}</dd>
+      </div>
+      {user.employmentType === 'Terceira' ? (
+        <div>
+          <dt>Empresa terceira</dt>
+          <dd>{user.thirdPartyCompany || '—'}</dd>
+        </div>
+      ) : null}
+      <div>
+        <dt>{scopeLabel}</dt>
+        <dd>{user.workSubtype || '—'}</dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd>{statusLabel}</dd>
+      </div>
+      <div>
+        <dt>Data do cadastro</dt>
+        <dd>{user.requestedAt ? new Date(user.requestedAt).toLocaleString('pt-BR') : '—'}</dd>
+      </div>
+      {user.personalDescription?.trim() ? (
+        <div className="user-detail-full">
+          <dt>Observação</dt>
+          <dd>{user.personalDescription.trim()}</dd>
+        </div>
+      ) : null}
+      {user.hobby?.trim() ? (
+        <div className="user-detail-full">
+          <dt>Hobby</dt>
+          <dd>{user.hobby.trim()}</dd>
+        </div>
+      ) : null}
+      {user.profilePhoto ? (
+        <div className="user-detail-full">
+          <dt>Foto de perfil</dt>
+          <dd>
+            <img
+              className="profile-photo-detail"
+              src={user.profilePhoto}
+              alt={`Foto de perfil de ${user.name}`}
+            />
+          </dd>
+        </div>
+      ) : null}
+      {builtProfile ? (
+        <div className="user-detail-full">
+          <dt>Perfil solicitado</dt>
+          <dd>{builtProfile}</dd>
+        </div>
+      ) : null}
+      {trailingFields}
+    </dl>
+  )
+}
+
+function RejectedUserItem({
+  user,
+  showPassword = false,
+}: {
+  user: AppUser
+  showPassword?: boolean
+}) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -1623,30 +1750,25 @@ function RejectedUserItem({ user }: { user: AppUser }) {
       </button>
 
       {expanded ? (
-        <dl className="user-detail-grid approval-item-details-grid">
-          <div>
-            <dt>Matrícula</dt>
-            <dd>{user.registration || '—'}</dd>
-          </div>
-          <div>
-            <dt>E-mail</dt>
-            <dd>{user.email || '—'}</dd>
-          </div>
-          <div>
-            <dt>Telefone</dt>
-            <dd>{user.whatsapp || '—'}</dd>
-          </div>
-          <div>
-            <dt>Reprovado em</dt>
-            <dd>
-              {user.rejectedAt ? new Date(user.rejectedAt).toLocaleString('pt-BR') : '—'}
-            </dd>
-          </div>
-          <div>
-            <dt>Justificativa</dt>
-            <dd>{user.rejectionReason || '—'}</dd>
-          </div>
-        </dl>
+        <UserRegistrationDetailsGrid
+          user={user}
+          showPassword={showPassword}
+          statusLabel="Reprovado"
+          trailingFields={
+            <>
+              <div>
+                <dt>Reprovado em</dt>
+                <dd>
+                  {user.rejectedAt ? new Date(user.rejectedAt).toLocaleString('pt-BR') : '—'}
+                </dd>
+              </div>
+              <div className="user-detail-full">
+                <dt>Justificativa</dt>
+                <dd>{user.rejectionReason || '—'}</dd>
+              </div>
+            </>
+          }
+        />
       ) : null}
     </article>
   )
@@ -3967,7 +4089,11 @@ function HomePanel({
                   <div className="approval-list" aria-label="Cadastros reprovados">
                     {rejectedUsers.length ? (
                       rejectedUsers.map((user) => (
-                        <RejectedUserItem key={user.id} user={user} />
+                        <RejectedUserItem
+                          key={user.id}
+                          user={user}
+                          showPassword={canViewUserPasswords}
+                        />
                       ))
                     ) : (
                       <p className="generated-password-empty">
