@@ -1722,6 +1722,14 @@ button {
   height: 22px;
 }
 
+.lab-trail-nav.is-calendar-only {
+  margin-bottom: 10px;
+}
+
+.lab-trail-nav.is-calendar-only .lab-trail-calendar-slot {
+  margin-bottom: 0;
+}
+
 .lab-trail {
   margin: 18px 0 22px;
 }

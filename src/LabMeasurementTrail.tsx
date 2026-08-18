@@ -27,7 +27,7 @@ export function LabTrailNav({
   ...trailProps
 }: LabTrailNavProps) {
   return (
-    <div className="lab-trail-nav">
+    <div className={`lab-trail-nav${calendarActive ? ' is-calendar-only' : ''}`}>
       {onOpenCalendar ? (
         <div className="lab-trail-calendar-slot">
           <button
@@ -41,7 +41,7 @@ export function LabTrailNav({
           </button>
         </div>
       ) : null}
-      <LabMeasurementTrail {...trailProps} />
+      {!calendarActive ? <LabMeasurementTrail {...trailProps} /> : null}
     </div>
   )
 }
