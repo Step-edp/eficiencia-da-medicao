@@ -3280,7 +3280,7 @@ button {
 }
 
 .partner-search > .field-hint {
-  margin: 8px 0 12px;
+  margin-bottom: 16px;
 }
 
 .partner-search-label-row {
