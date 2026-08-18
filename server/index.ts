@@ -90,7 +90,7 @@ import {
   listEnsaiosRealizados,
   getEnsaioSessaoMedicoes,
 } from './routes/analisadores-tensao.js'
-import { requireAuth } from './auth.js'
+import { requireAuth, optionalAuth } from './auth.js'
 import { mailRoutes } from './routes/mail.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -358,7 +358,7 @@ async function start() {
   app.get('/api/demm-week-meters', requireAuth, listWeekMeters)
 
   app.get('/api/support-tickets', requireAuth, listSupportTickets)
-  app.post('/api/support-tickets', requireAuth, createSupportTicket)
+  app.post('/api/support-tickets', optionalAuth, createSupportTicket)
   app.patch(
     '/api/support-tickets/:id/reply',
     requireAuth,

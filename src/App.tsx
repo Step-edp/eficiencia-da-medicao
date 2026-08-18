@@ -104,7 +104,7 @@ const THIRD_PARTY_COMPANIES = ['BMB', 'Cosampa', 'Engeserv', 'ROTARY', 'TIVIT'] 
 
 const AREA_OPTIONS = [...DEFAULT_AREA_OPTIONS] as const
 
-type Panel = 'login' | 'cadastro'
+type Panel = 'login' | 'cadastro' | 'suporte'
 type AppRoute = 'default' | 'compras-homologacao' | 'pesquisa-satisfacao'
 
 function parseAppRoute(hash: string): { route: AppRoute; surveyLaudoId?: string } {
@@ -343,11 +343,13 @@ export default function App() {
             <h1>Changing tomorrow now</h1>
           </div>
 
-          <div className="panel-switch" role="tablist" aria-label="Autenticação">
+          <div className="panel-switch auth-panel-switch" role="tablist" aria-label="Autenticação">
             <button
               className={activePanel === 'login' ? 'active' : ''}
               onClick={() => setActivePanel('login')}
               type="button"
+              role="tab"
+              aria-selected={activePanel === 'login'}
             >
               Login
             </button>
@@ -355,8 +357,19 @@ export default function App() {
               className={activePanel === 'cadastro' ? 'active' : ''}
               onClick={() => setActivePanel('cadastro')}
               type="button"
+              role="tab"
+              aria-selected={activePanel === 'cadastro'}
             >
               Cadastrar
+            </button>
+            <button
+              className={activePanel === 'suporte' ? 'active' : ''}
+              onClick={() => setActivePanel('suporte')}
+              type="button"
+              role="tab"
+              aria-selected={activePanel === 'suporte'}
+            >
+              Suporte
             </button>
           </div>
         </div>
@@ -373,7 +386,7 @@ export default function App() {
                 }
               }}
             />
-          ) : (
+          ) : activePanel === 'cadastro' ? (
             <RegisterPanel
               activeRoute={activeRoute}
               onRegister={handleRegisterUser}
@@ -387,6 +400,8 @@ export default function App() {
                 setActivePanel('login')
               }}
             />
+          ) : (
+            <AuthSupportPanel />
           )}
         </div>
       </section>
@@ -544,6 +559,126 @@ function LoginPanel({ onLoginSuccess, bannerFeedback = null }: LoginPanelProps) 
 
         <button className="primary-button login-enter-button" type="submit" disabled={submitting}>
           {submitting ? 'Entrando...' : 'Entrar'}
+        </button>
+      </form>
+    </section>
+  )
+}
+
+function AuthSupportPanel() {
+  const [name, setName] = useState('')
+  const [registration, setRegistration] = useState('')
+  const [subject, setSubject] = useState('')
+  const [message, setMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
+  const [ticketNumber, setTicketNumber] = useState<string | null>(null)
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSubmitting(true)
+    setFeedback(null)
+
+    try {
+      const { ticket } = await api.createSupportTicket({
+        name: name.trim(),
+        registration: registration.trim(),
+        subject: subject.trim(),
+        message: message.trim(),
+      })
+      setTicketNumber(ticket.ticketNumber)
+      setFeedback({
+        type: 'success',
+        message: `Solicitação enviada. Seu número de chamado é ${ticket.ticketNumber}.`,
+      })
+      setSubject('')
+      setMessage('')
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível enviar a solicitação.',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <section className="auth-panel">
+      <h2>Suporte</h2>
+      <p className="auth-support-lead">
+        Abra um chamado sem precisar entrar no portal. Informe seus dados e descreva a
+        solicitação.
+      </p>
+
+      {feedback ? (
+        <LoginFeedback
+          type={feedback.type}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
+      ) : null}
+
+      {ticketNumber ? (
+        <p className="csds-form-hint">
+          Guarde o número <strong>{ticketNumber}</strong>. A equipe responderá pelo menu
+          Suporte após você entrar no portal.
+        </p>
+      ) : null}
+
+      <form className="form-grid" onSubmit={(event) => void handleSubmit(event)}>
+        <label>
+          Nome
+          <input
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Seu nome completo"
+            required
+          />
+        </label>
+
+        <label>
+          Matrícula
+          <input
+            type="text"
+            value={registration}
+            onChange={(event) => setRegistration(event.target.value)}
+            placeholder="Digite sua matrícula"
+            required
+          />
+        </label>
+
+        <label>
+          Assunto
+          <input
+            type="text"
+            value={subject}
+            onChange={(event) => setSubject(event.target.value)}
+            placeholder="Ex.: Erro ao fazer login"
+            maxLength={120}
+          />
+        </label>
+
+        <label>
+          Solicitação
+          <textarea
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            placeholder="Descreva o que precisa com o máximo de detalhes possível."
+            rows={5}
+            required
+          />
+        </label>
+
+        <button className="primary-button login-enter-button" type="submit" disabled={submitting}>
+          {submitting ? 'Enviando...' : 'Enviar solicitação'}
         </button>
       </form>
     </section>

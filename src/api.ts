@@ -475,7 +475,7 @@ export type FieldPartnerOption = {
 export type SupportTicketRecord = {
   id: string
   ticketNumber: string
-  requesterUserId: string
+  requesterUserId: string | null
   requesterName: string
   requesterRegistration: string
   subject: string
@@ -1407,7 +1407,12 @@ export const api = {
       `/api/support-tickets${queryString ? `?${queryString}` : ''}`,
     )
   },
-  createSupportTicket: (payload: { subject?: string; message: string }) =>
+  createSupportTicket: (payload: {
+    subject?: string
+    message: string
+    name?: string
+    registration?: string
+  }) =>
     request<{ ticket: SupportTicketRecord }>('/api/support-tickets', {
       method: 'POST',
       body: JSON.stringify(payload),

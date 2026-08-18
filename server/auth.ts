@@ -62,6 +62,17 @@ export function clearAuthCookie(res: Response) {
   res.clearCookie(COOKIE_NAME)
 }
 
+export function optionalAuth(req: Request, res: Response, next: NextFunction) {
+  const token = extractAuthToken(req)
+  if (token) {
+    const user = verifyAuthToken(token)
+    if (user) {
+      req.user = user
+    }
+  }
+  next()
+}
+
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = extractAuthToken(req)
 

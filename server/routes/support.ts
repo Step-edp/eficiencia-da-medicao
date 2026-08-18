@@ -5,7 +5,7 @@ import { writeAuditLog } from '../audit.js'
 type SupportTicketRow = {
   id: string
   ticket_number: string
-  requester_user_id: string
+  requester_user_id: string | null
   requester_name: string
   requester_registration: string
   subject: string
@@ -68,29 +68,48 @@ export async function listSupportTickets(req: Request, res: Response) {
 
 export async function createSupportTicket(req: Request, res: Response) {
   const user = req.user
-  if (!user) {
-    res.status(401).json({ error: 'Não autenticado.' })
-    return
-  }
-
   const subject =
     typeof req.body?.subject === 'string' ? req.body.subject.trim() : ''
   const message =
     typeof req.body?.message === 'string' ? req.body.message.trim() : ''
+  const guestName =
+    typeof req.body?.name === 'string' ? req.body.name.trim() : ''
+  const guestRegistration =
+    typeof req.body?.registration === 'string' ? req.body.registration.trim() : ''
 
   if (!message) {
     res.status(400).json({ error: 'Descreva sua solicitação.' })
     return
   }
 
-  const profile = await query<{ name: string; registration: string }>(
-    `SELECT name, registration FROM users WHERE id = $1`,
-    [user.id],
-  )
+  let requesterUserId: string | null = null
+  let requesterName = ''
+  let requesterRegistration = ''
 
-  if (!profile.rows[0]) {
-    res.status(404).json({ error: 'Usuário não encontrado.' })
-    return
+  if (user) {
+    const profile = await query<{ name: string; registration: string }>(
+      `SELECT name, registration FROM users WHERE id = $1`,
+      [user.id],
+    )
+
+    if (!profile.rows[0]) {
+      res.status(404).json({ error: 'Usuário não encontrado.' })
+      return
+    }
+
+    requesterUserId = user.id
+    requesterName = profile.rows[0].name
+    requesterRegistration = profile.rows[0].registration
+  } else {
+    if (!guestName || !guestRegistration) {
+      res.status(400).json({
+        error: 'Informe seu nome e matrícula para abrir o chamado.',
+      })
+      return
+    }
+
+    requesterName = guestName
+    requesterRegistration = guestRegistration.toUpperCase()
   }
 
   const id = `sup-${Date.now()}`
@@ -105,9 +124,9 @@ export async function createSupportTicket(req: Request, res: Response) {
     [
       id,
       ticketNumber,
-      user.id,
-      profile.rows[0].name,
-      profile.rows[0].registration,
+      requesterUserId,
+      requesterName,
+      requesterRegistration,
       subject || 'Solicitação de suporte',
       message,
     ],

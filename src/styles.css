@@ -5014,6 +5014,17 @@ body.laudo-viewer-open {
   width: min(360px, 100%);
 }
 
+.auth-panel-switch {
+  grid-template-columns: repeat(3, 1fr);
+  width: min(480px, 100%);
+}
+
+.auth-support-lead {
+  margin: 0 0 16px;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
 .eyebrow,
 .section-tag {
   margin: 0 0 10px;

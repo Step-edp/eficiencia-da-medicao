@@ -580,6 +580,9 @@ export async function migrate() {
       ON support_tickets (created_at DESC)
   `)
   await query(`
+    ALTER TABLE support_tickets ALTER COLUMN requester_user_id DROP NOT NULL
+  `)
+  await query(`
     CREATE TABLE IF NOT EXISTS meter_models (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
