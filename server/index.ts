@@ -79,6 +79,7 @@ import {
   downloadInspectionDocument,
   deleteInspectionDocument,
   listInspectionDocuments,
+  getScheduleEntryComparisons,
   listInspectionPendencias,
 } from './routes/meter-inspection-documents.js'
 import {
@@ -331,6 +332,11 @@ async function start() {
   app.get('/api/meter-registry', requireAuth, getMeterRegistry)
 
   app.get('/api/meter-schedules/inspection-pendencias', requireAuth, listInspectionPendencias)
+  app.get(
+    '/api/meter-schedules/:id/entry-comparisons',
+    requireAuth,
+    getScheduleEntryComparisons,
+  )
   app.get(
     '/api/meter-schedules/:id/inspection-documents',
     requireAuth,

@@ -39,6 +39,47 @@ function displayOrDash(value?: string | null) {
   return trimmed || '—'
 }
 
+function EntryMatchIndicator({ matches }: { matches: boolean | null | undefined }) {
+  if (matches === true) {
+    return (
+      <span className="ratm-entry-match is-match" aria-label="Confere com o documento">
+        ✓
+      </span>
+    )
+  }
+  if (matches === false) {
+    return (
+      <span className="ratm-entry-match is-mismatch" aria-label="Não confere com o documento">
+        ✗
+      </span>
+    )
+  }
+  return (
+    <span className="ratm-entry-match is-unknown" aria-label="Comparação indisponível">
+      —
+    </span>
+  )
+}
+
+type EntryReadonlyFieldProps = {
+  label: string
+  value: string
+  matches?: boolean | null
+  fullWidth?: boolean
+}
+
+function EntryReadonlyField({ label, value, matches, fullWidth = false }: EntryReadonlyFieldProps) {
+  return (
+    <div className={`ratm-readonly-field${fullWidth ? ' full-width' : ''}`}>
+      <div className="ratm-readonly-field-header">
+        <span className="ratm-readonly-label">{label}</span>
+        <EntryMatchIndicator matches={matches} />
+      </div>
+      <p className="ratm-readonly-value">{displayOrDash(value)}</p>
+    </div>
+  )
+}
+
 function RatmExpandableSection({
   title,
   children,
@@ -74,6 +115,8 @@ function emptyScheduleFields(): Partial<RatmFormData> {
     meterStatus: '',
     demmDocumentId: null,
     registryStatus: '',
+    scheduleId: '',
+    entryComparisons: null,
     scheduleDate: '',
     scheduleHour: '08',
     scheduleMinute: '30',
@@ -366,11 +409,21 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
       const partnerLabel = formatSchedulePartnerAndTeamLabel(schedule)
 
+      let entryComparisons = null
+      try {
+        const comparisonResponse = await api.getScheduleEntryComparisons(schedule.id)
+        entryComparisons = comparisonResponse.comparisons
+      } catch {
+        entryComparisons = null
+      }
+
       onChange({
         meter: schedule.meter,
         meterStatus: schedule.trailStep || 'Agendado',
         demmDocumentId: schedule.demmDocumentId,
         registryStatus: schedule.registryStatus || '',
+        scheduleId: schedule.id,
+        entryComparisons,
         scheduleLabel: schedule.scheduledAtLabel || '',
         installation: schedule.installation || '',
         toi: schedule.toi || '',
@@ -457,43 +510,55 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           ) : null}
 
           <div className="ratm-readonly-field">
-            <span className="ratm-readonly-label">Data de agendamento</span>
+            <div className="ratm-readonly-field-header">
+              <span className="ratm-readonly-label">Data de agendamento</span>
+              <EntryMatchIndicator matches={data.entryComparisons?.scheduleDate.matches} />
+            </div>
             <p className="ratm-readonly-value">{formatScheduleDisplay(data)}</p>
           </div>
 
           <div className="ratm-schedule-details" aria-label="Informações do agendamento">
-            <div className="ratm-readonly-field">
-              <span className="ratm-readonly-label">Instalação</span>
-              <p className="ratm-readonly-value">{displayOrDash(data.installation)}</p>
-            </div>
-            <div className="ratm-readonly-field">
-              <span className="ratm-readonly-label">TOI</span>
-              <p className="ratm-readonly-value">{displayOrDash(data.toi)}</p>
-            </div>
-            <div className="ratm-readonly-field">
-              <span className="ratm-readonly-label">Nota</span>
-              <p className="ratm-readonly-value">{displayOrDash(data.note)}</p>
-            </div>
-            <div className="ratm-readonly-field">
-              <span className="ratm-readonly-label">CSD</span>
-              <p className="ratm-readonly-value">{displayOrDash(data.csd)}</p>
-            </div>
-            <div className="ratm-readonly-field">
-              <span className="ratm-readonly-label">Parceiro</span>
-              <p className="ratm-readonly-value">{displayOrDash(data.partnerLabel)}</p>
-            </div>
-            <div className="ratm-readonly-field">
-              <span className="ratm-readonly-label">Cliente presente</span>
-              <p className="ratm-readonly-value">{displayOrDash(data.clientPresent)}</p>
-            </div>
-            <div className="ratm-readonly-field">
-              <span className="ratm-readonly-label">Prazo de entrega</span>
-              <p className="ratm-readonly-value">{displayOrDash(data.deliveryDeadlineLabel)}</p>
-            </div>
-            <div className="ratm-readonly-field full-width">
-              <span className="ratm-readonly-label">Observações</span>
-              <p className="ratm-readonly-value">{displayOrDash(data.schedulingNotes)}</p>
-            </div>
+            <EntryReadonlyField
+              label="Instalação"
+              value={data.installation}
+              matches={data.entryComparisons?.installation.matches}
+            />
+            <EntryReadonlyField
+              label="TOI"
+              value={data.toi}
+              matches={data.entryComparisons?.toi.matches}
+            />
+            <EntryReadonlyField
+              label="Nota"
+              value={data.note}
+              matches={data.entryComparisons?.note.matches}
+            />
+            <EntryReadonlyField
+              label="CSD"
+              value={data.csd}
+              matches={data.entryComparisons?.csd.matches}
+            />
+            <EntryReadonlyField
+              label="Parceiro"
+              value={data.partnerLabel}
+              matches={data.entryComparisons?.partner.matches}
+            />
+            <EntryReadonlyField
+              label="Cliente presente"
+              value={data.clientPresent}
+              matches={data.entryComparisons?.clientPresent.matches}
+            />
+            <EntryReadonlyField
+              label="Prazo de entrega"
+              value={data.deliveryDeadlineLabel}
+              matches={data.entryComparisons?.deliveryDeadline.matches}
+            />
+            <EntryReadonlyField
+              label="Observações"
+              value={data.schedulingNotes}
+              matches={data.entryComparisons?.schedulingNotes.matches}
+              fullWidth
+            />
           </div>
         </RatmExpandableSection>
 

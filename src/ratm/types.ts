@@ -1,9 +1,13 @@
+import type { ScheduleEntryComparisons } from '../api'
+
 export type RatmFormData = {
   meterSearch: string
   meter: string
   meterStatus: string
   demmDocumentId: string | null
   registryStatus: string
+  scheduleId: string
+  entryComparisons: ScheduleEntryComparisons | null
   scheduleDate: string
   scheduleHour: string
   scheduleMinute: string
@@ -88,6 +92,8 @@ export function createEmptyRatmForm(): RatmFormData {
     meterStatus: '',
     demmDocumentId: null,
     registryStatus: '',
+    scheduleId: '',
+    entryComparisons: null,
     scheduleDate: '',
     scheduleHour: '08',
     scheduleMinute: '30',

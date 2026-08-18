@@ -605,6 +605,24 @@ export type InspectionDocumentRecord = {
   hasComunicado: boolean
 }
 
+export type EntryFieldMatch = {
+  registered: string | null
+  document: string | null
+  matches: boolean | null
+}
+
+export type ScheduleEntryComparisons = {
+  scheduleDate: EntryFieldMatch
+  installation: EntryFieldMatch
+  toi: EntryFieldMatch
+  note: EntryFieldMatch
+  csd: EntryFieldMatch
+  partner: EntryFieldMatch
+  clientPresent: EntryFieldMatch
+  deliveryDeadline: EntryFieldMatch
+  schedulingNotes: EntryFieldMatch
+}
+
 export type MeterInspectionPendenciaRecord = {
   id: string
   meter: string
@@ -1516,6 +1534,10 @@ export const api = {
       hasToi: boolean
       hasComunicado: boolean
     }>(`/api/meter-schedules/${meterScheduleId}/inspection-documents`),
+  getScheduleEntryComparisons: (meterScheduleId: string) =>
+    request<{ meterScheduleId: string; comparisons: ScheduleEntryComparisons }>(
+      `/api/meter-schedules/${meterScheduleId}/entry-comparisons`,
+    ),
   listInspectionPendencias: () =>
     request<{ pendencias: MeterInspectionPendenciaRecord[]; pendingCount: number }>(
       '/api/meter-schedules/inspection-pendencias',

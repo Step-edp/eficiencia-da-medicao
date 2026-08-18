@@ -13,6 +13,15 @@ const METER_NUMBER_PATTERN = /\b\d{7,9}\b/
 const LACRE_LABEL_PATTERN = /n[uú]mero\s+do\(s\)\s+lacre\(s\)\s*:?/i
 const LACRE_VALUE_PATTERN = /\b[0-9A-Za-z-]{4,}\b/
 
+const INSTALLATION_LABEL_PATTERN = /instala[cç][aã]o(?:\s+n[oº.]?\s*)?\s*:?\s*/i
+const INSTALLATION_VALUE_PATTERN = /\b\d{8,9}\b/
+
+const TOI_LABEL_PATTERN = /(?:n[uú]mero\s+(?:do\s+)?toi|toi\s*n[oº.]?\s*)\s*:?\s*/i
+const TOI_VALUE_PATTERN = /\b\d{6,10}\b/
+
+const NOTA_LABEL_PATTERN = /nota(?:\s+fiscal)?\s*:?\s*/i
+const NOTA_VALUE_PATTERN = /\b\d{8,12}\b/
+
 const TOI_MARKER = /termo\s+de\s+ocorr[eê]ncia\s+e\s+inspe[cç][aã]o/i
 const COMUNICADO_MARKER = /comunicado\s+de\s+substitui[cç][aã]o\s+de\s+medidor/i
 
@@ -23,6 +32,9 @@ type TextItem = {
 export type InspectionDocumentParseResult = {
   meterEncontrado: string | null
   lacre: string | null
+  installation: string | null
+  toi: string | null
+  note: string | null
 }
 
 export type InspectionDocumentType = 'toi' | 'comunicado' | 'ambos' | 'desconhecido'
@@ -79,6 +91,14 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
   return {
     meterEncontrado: extractMeterEncontrado(normalized),
     lacre: extractAfterLabel(normalized, LACRE_LABEL_PATTERN, null, LACRE_VALUE_PATTERN),
+    installation: extractAfterLabel(
+      normalized,
+      INSTALLATION_LABEL_PATTERN,
+      DADOS_MEDICAO_START,
+      INSTALLATION_VALUE_PATTERN,
+    ),
+    toi: extractAfterLabel(normalized, TOI_LABEL_PATTERN, DADOS_MEDICAO_START, TOI_VALUE_PATTERN),
+    note: extractAfterLabel(normalized, NOTA_LABEL_PATTERN, DADOS_MEDICAO_START, NOTA_VALUE_PATTERN),
   }
 }
 

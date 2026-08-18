@@ -168,6 +168,9 @@ export async function migrate() {
 
     ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS extracted_meter TEXT;
     ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS extracted_lacre TEXT;
+    ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS extracted_installation TEXT;
+    ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS extracted_toi TEXT;
+    ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS extracted_note TEXT;
     ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS blocked BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE meter_inspection_documents ADD COLUMN IF NOT EXISTS block_reason TEXT;
 

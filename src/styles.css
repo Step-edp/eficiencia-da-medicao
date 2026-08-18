@@ -6600,6 +6600,42 @@ input[type='file'] {
   min-width: 0;
 }
 
+.ratm-readonly-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ratm-entry-match {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.ratm-entry-match.is-match {
+  background: rgba(46, 204, 113, 0.18);
+  color: #8ef0b8;
+}
+
+.ratm-entry-match.is-mismatch {
+  background: rgba(255, 90, 70, 0.18);
+  color: #ff9b8d;
+}
+
+.ratm-entry-match.is-unknown {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
 .ratm-readonly-label {
   color: var(--text-soft);
   font-size: 0.9rem;

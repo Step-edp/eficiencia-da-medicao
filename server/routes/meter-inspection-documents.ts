@@ -7,6 +7,11 @@ import {
   parseInspectionText,
   type InspectionDocumentType,
 } from '../inspection-document-parser.js'
+import { formatAvailableSlot } from '../schedule-slots.js'
+import {
+  formatDeliveryDeadlineLabel,
+  lastFridayBeforeAssay,
+} from '../delivery-deadline.js'
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024
 
@@ -18,11 +23,32 @@ type InspectionDocumentRow = {
   file_data: Buffer
   extracted_meter: string | null
   extracted_lacre: string | null
+  extracted_installation: string | null
+  extracted_toi: string | null
+  extracted_note: string | null
   blocked: boolean
   block_reason: string | null
   created_at: Date
   created_by_user_id: string | null
   created_by_registration: string | null
+}
+
+export type EntryFieldMatch = {
+  registered: string | null
+  document: string | null
+  matches: boolean | null
+}
+
+export type ScheduleEntryComparisons = {
+  scheduleDate: EntryFieldMatch
+  installation: EntryFieldMatch
+  toi: EntryFieldMatch
+  note: EntryFieldMatch
+  csd: EntryFieldMatch
+  partner: EntryFieldMatch
+  clientPresent: EntryFieldMatch
+  deliveryDeadline: EntryFieldMatch
+  schedulingNotes: EntryFieldMatch
 }
 
 function decodeFileBase64(fileBase64: string): Buffer | null {
@@ -80,6 +106,107 @@ function compareSeal(extracted: string | null, registered: string | null): boole
   const registeredValue = normalizeSeal(registered)
   if (!documentValue || !registeredValue) return null
   return documentValue === registeredValue
+}
+
+function normalizeEntryValue(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length >= 4) return digits
+  return trimmed.toLowerCase()
+}
+
+function compareEntryField(
+  extracted: string | null | undefined,
+  registered: string | null | undefined,
+): boolean | null {
+  const documentValue = normalizeEntryValue(extracted)
+  const registeredValue = normalizeEntryValue(registered)
+  if (!documentValue || !registeredValue) return null
+  return documentValue === registeredValue
+}
+
+function buildEntryFieldMatch(
+  registered: string | null | undefined,
+  document: string | null | undefined,
+): EntryFieldMatch {
+  const registeredValue = registered?.trim() || null
+  const documentValue = document?.trim() || null
+  return {
+    registered: registeredValue,
+    document: documentValue,
+    matches: compareEntryField(documentValue, registeredValue),
+  }
+}
+
+function pickToiExtractionRow(
+  rows: Array<
+    Pick<
+      InspectionDocumentRow,
+      | 'doc_type'
+      | 'extracted_installation'
+      | 'extracted_toi'
+      | 'extracted_note'
+    >
+  >,
+) {
+  return (
+    rows.find((row) => row.doc_type === 'ambos') ??
+    rows.find((row) => row.doc_type === 'toi') ??
+    null
+  )
+}
+
+function buildScheduleEntryComparisons(
+  schedule: {
+    scheduled_at: Date
+    installation: string
+    toi: string
+    note: string
+    csd: string
+    partner_name: string
+    partner_registration: string
+    toi_collaborator1_name: string
+    toi_collaborator2_name: string
+    client_present: string
+    scheduling_notes: string
+  },
+  extraction: Pick<
+    InspectionDocumentRow,
+    'extracted_installation' | 'extracted_toi' | 'extracted_note'
+  > | null,
+): ScheduleEntryComparisons {
+  const partnerRegistered = [schedule.partner_name, schedule.partner_registration]
+    .filter(Boolean)
+    .join(' — ')
+  const teamRegistered = [schedule.toi_collaborator1_name, schedule.toi_collaborator2_name]
+    .filter(Boolean)
+    .join(', ')
+  const partnerLabel = partnerRegistered || teamRegistered || null
+  const clientPresent =
+    schedule.client_present === 'sim'
+      ? 'Sim'
+      : schedule.client_present === 'nao'
+        ? 'Não'
+        : null
+  const deliveryDeadlineLabel = formatDeliveryDeadlineLabel(
+    lastFridayBeforeAssay(schedule.scheduled_at),
+  )
+
+  return {
+    scheduleDate: buildEntryFieldMatch(formatAvailableSlot(schedule.scheduled_at), null),
+    installation: buildEntryFieldMatch(
+      schedule.installation,
+      extraction?.extracted_installation ?? null,
+    ),
+    toi: buildEntryFieldMatch(schedule.toi, extraction?.extracted_toi ?? null),
+    note: buildEntryFieldMatch(schedule.note, extraction?.extracted_note ?? null),
+    csd: buildEntryFieldMatch(schedule.csd, null),
+    partner: buildEntryFieldMatch(partnerLabel, null),
+    clientPresent: buildEntryFieldMatch(clientPresent, null),
+    deliveryDeadline: buildEntryFieldMatch(deliveryDeadlineLabel, null),
+    schedulingNotes: buildEntryFieldMatch(schedule.scheduling_notes, null),
+  }
 }
 
 function evaluateInspectionDocument(
@@ -181,11 +308,17 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   let evaluation: InspectionEvaluation = { blocked: false, reason: null }
   let extractedMeter: string | null = null
   let extractedLacre: string | null = null
+  let extractedInstallation: string | null = null
+  let extractedToi: string | null = null
+  let extractedNote: string | null = null
 
   if (docType === 'toi' || docType === 'ambos') {
     const parsed = parseInspectionText(text)
     extractedMeter = parsed.meterEncontrado
     extractedLacre = parsed.lacre
+    extractedInstallation = parsed.installation
+    extractedToi = parsed.toi
+    extractedNote = parsed.note
     evaluation = evaluateInspectionDocument(
       parsed.lacre,
       parsed.meterEncontrado,
@@ -199,19 +332,24 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   const insert = await query<Omit<InspectionDocumentRow, 'created_by_registration'>>(
     `INSERT INTO meter_inspection_documents (
       id, meter_schedule_id, doc_type, file_name, file_data,
-      extracted_meter, extracted_lacre, blocked, block_reason, created_by_user_id
+      extracted_meter, extracted_lacre, extracted_installation, extracted_toi, extracted_note,
+      blocked, block_reason, created_by_user_id
     )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      ON CONFLICT (meter_schedule_id, doc_type) DO UPDATE SET
        file_name = EXCLUDED.file_name,
        file_data = EXCLUDED.file_data,
        extracted_meter = EXCLUDED.extracted_meter,
        extracted_lacre = EXCLUDED.extracted_lacre,
+       extracted_installation = EXCLUDED.extracted_installation,
+       extracted_toi = EXCLUDED.extracted_toi,
+       extracted_note = EXCLUDED.extracted_note,
        blocked = EXCLUDED.blocked,
        block_reason = EXCLUDED.block_reason,
        created_at = NOW(),
        created_by_user_id = EXCLUDED.created_by_user_id
      RETURNING id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_lacre,
+               extracted_installation, extracted_toi, extracted_note,
                blocked, block_reason, created_at, created_by_user_id`,
     [
       id,
@@ -221,6 +359,9 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
       fileBuffer,
       extractedMeter,
       extractedLacre,
+      extractedInstallation,
+      extractedToi,
+      extractedNote,
       evaluation.blocked,
       evaluation.reason,
       req.user?.id ?? null,
@@ -307,6 +448,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
 
   const result = await query<Omit<InspectionDocumentRow, 'file_data'>>(
     `SELECT id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_lacre,
+            extracted_installation, extracted_toi, extracted_note,
             blocked, block_reason, created_at, created_by_user_id
      FROM meter_inspection_documents
      WHERE meter_schedule_id = $1
@@ -327,6 +469,55 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     hasToi: presence.hasToi,
     hasComunicado: presence.hasComunicado,
   })
+}
+
+export async function getScheduleEntryComparisons(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+
+  const schedule = await query<{
+    id: string
+    scheduled_at: Date
+    installation: string
+    toi: string
+    note: string
+    csd: string
+    partner_name: string
+    partner_registration: string
+    toi_collaborator1_name: string
+    toi_collaborator2_name: string
+    client_present: string
+    scheduling_notes: string
+  }>(
+    `SELECT id, scheduled_at, installation, toi, note, csd,
+            partner_name, partner_registration,
+            toi_collaborator1_name, toi_collaborator2_name,
+            client_present, scheduling_notes
+     FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  if (!schedule.rows[0]) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  const documents = await query<
+    Pick<
+      InspectionDocumentRow,
+      'doc_type' | 'extracted_installation' | 'extracted_toi' | 'extracted_note'
+    >
+  >(
+    `SELECT doc_type, extracted_installation, extracted_toi, extracted_note
+     FROM meter_inspection_documents
+     WHERE meter_schedule_id = $1`,
+    [meterScheduleId],
+  )
+
+  const comparisons = buildScheduleEntryComparisons(
+    schedule.rows[0],
+    pickToiExtractionRow(documents.rows),
+  )
+
+  res.json({ meterScheduleId, comparisons })
 }
 
 export async function downloadInspectionDocument(req: Request, res: Response) {
