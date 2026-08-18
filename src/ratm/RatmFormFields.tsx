@@ -7,6 +7,13 @@ import {
 } from './meterEnsaioEligibility'
 import type { RatmFormData } from './types'
 import { IRREGULARITY_CODES, ITEM_LOOKUP_OPTIONS, TEST_BENCH_OPTIONS } from './types'
+import {
+  isEntryInfoSectionComplete,
+  isEnclosureSealSectionComplete,
+  isSeal1SectionComplete,
+  isSeal2SectionComplete,
+  isTestResultsSectionComplete,
+} from './ratmSectionCompletion'
 
 type RatmFormFieldsProps = {
   index: number
@@ -84,15 +91,19 @@ function RatmExpandableSection({
   title,
   children,
   defaultOpen = false,
+  complete = false,
 }: {
   title: string
   children: ReactNode
   defaultOpen?: boolean
+  complete?: boolean
 }) {
   const [open, setOpen] = useState(defaultOpen)
 
   return (
-    <section className={`ratm-expandable full-width${open ? ' is-open' : ''}`}>
+    <section
+      className={`ratm-expandable full-width${open ? ' is-open' : ''}${complete ? ' is-complete' : ''}`}
+    >
       <button
         type="button"
         className="ratm-expandable-summary"
@@ -100,6 +111,9 @@ function RatmExpandableSection({
         onClick={() => setOpen((current) => !current)}
       >
         <span className="ratm-expandable-title">{title}</span>
+        {complete ? (
+          <span className="ratm-expandable-complete-badge">Completa</span>
+        ) : null}
         <span className="ratm-expandable-chevron" aria-hidden="true">
           ▾
         </span>
@@ -376,6 +390,12 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const fieldIrregularityDescription =
     IRREGULARITY_CODES[data.fieldIrregularityCode] ?? 'Selecione um código válido.'
 
+  const entryInfoComplete = isEntryInfoSectionComplete(data)
+  const enclosureSealComplete = isEnclosureSealSectionComplete(data)
+  const seal1Complete = isSeal1SectionComplete(data)
+  const seal2Complete = isSeal2SectionComplete(data)
+  const testResultsComplete = isTestResultsSectionComplete(data)
+
   const updatePhoto = (photoIndex: number, value: string) => {
     const photos = [...data.photos]
     photos[photoIndex] = value
@@ -504,7 +524,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           <p className="ratm-readonly-value">{displayOrDash(data.meter)}</p>
         </div>
 
-        <RatmExpandableSection title="Informações de entrada">
+        <RatmExpandableSection title="Informações de entrada" complete={entryInfoComplete}>
           {data.meterStatus ? (
             <p className="ratm-status-line">Status - {data.meterStatus}</p>
           ) : null}
@@ -604,7 +624,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           onChange={(value) => onChange({ dielectric: value })}
         />
 
-        <RatmExpandableSection title="Lacre do Invólucro">
+        <RatmExpandableSection title="Lacre do Invólucro" complete={enclosureSealComplete}>
           <div className="ratm-section-box-grid">
             <label className="full-width">
               Número do lacre
@@ -653,7 +673,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           </div>
         </RatmExpandableSection>
 
-        <RatmExpandableSection title="Lacre 1">
+        <RatmExpandableSection title="Lacre 1" complete={seal1Complete}>
           <div className="ratm-section-box-grid">
             <label className="full-width">
               Número do lacre
@@ -682,7 +702,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           </div>
         </RatmExpandableSection>
 
-        <RatmExpandableSection title="Lacre 2">
+        <RatmExpandableSection title="Lacre 2" complete={seal2Complete}>
           <div className="ratm-section-box-grid">
             <label className="full-width">
               Número do lacre
@@ -927,7 +947,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           vertical
         />
 
-        <RatmExpandableSection title="Resultados de ensaio">
+        <RatmExpandableSection title="Resultados de ensaio" complete={testResultsComplete}>
           <div className="ratm-section-box-grid">
             <ClearableRadioGroup
               legend="Medidor quebrado/ furado"
