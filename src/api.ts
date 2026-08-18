@@ -830,9 +830,10 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
-  deleteUser: (id: string) =>
+  deleteUser: (id: string, payload: { reason: string }) =>
     request<{ ok: boolean; id: string; user: AppUser }>(`/api/users/${id}`, {
       method: 'DELETE',
+      body: JSON.stringify(payload),
     }),
   listProcessAssignments: () =>
     request<{ assignments: ProcessAssignment[] }>('/api/process-assignments'),

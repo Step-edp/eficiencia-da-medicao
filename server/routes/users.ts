@@ -1499,7 +1499,23 @@ export async function resetUserToPending(req: Request, res: Response) {
 
 export async function deleteUser(req: Request, res: Response) {
   const { id } = req.params
-  const rejectionReason = 'Excluído pelo administrador.'
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : ''
+
+  if (!reason || reason.length < 5) {
+    res.status(400).json({
+      error: 'Informe o motivo da exclusão (mínimo de 5 caracteres).',
+    })
+    return
+  }
+
+  if (reason.length > 2000) {
+    res.status(400).json({
+      error: 'O motivo deve ter no máximo 2000 caracteres.',
+    })
+    return
+  }
+
+  const rejectionReason = reason
 
   const previous = await query<UserRow>(`SELECT * FROM users WHERE id = $1`, [id])
   if (!previous.rows[0]) {

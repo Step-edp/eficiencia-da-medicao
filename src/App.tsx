@@ -2034,6 +2034,7 @@ function HomePanel({
   } | null>(null)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [userPendingDelete, setUserPendingDelete] = useState<AppUser | null>(null)
+  const [deleteReason, setDeleteReason] = useState('')
   const [userNameFilter, setUserNameFilter] = useState('')
   const [userRegistrationFilter, setUserRegistrationFilter] = useState('')
   const isAdmin = currentUser.role === 'admin'
@@ -3951,17 +3952,18 @@ function HomePanel({
         handleAreaBack()
       }
 
-      const handleDeleteRegisteredUser = async (user: AppUser) => {
+      const handleDeleteRegisteredUser = async (user: AppUser, reason: string) => {
         if (deletingUserId) return
 
         setDeletingUserId(user.id)
         try {
-          const { user: rejectedUser } = await api.deleteUser(user.id)
+          const { user: rejectedUser } = await api.deleteUser(user.id, { reason })
           onDeleteUser(rejectedUser)
           setSelectedUserDetail((current) =>
             current?.id === user.id ? null : current,
           )
           setUserPendingDelete(null)
+          setDeleteReason('')
           setUsersView('reprovados')
           setPasswordFeedback({
             type: 'success',
@@ -4268,6 +4270,7 @@ function HomePanel({
                                   onClick={(event) => {
                                     event.stopPropagation()
                                     if (deletingUserId) return
+                                    setDeleteReason('')
                                     setUserPendingDelete(user)
                                   }}
                                 >
@@ -4307,6 +4310,7 @@ function HomePanel({
                     onClick={() => {
                       if (deletingUserId) return
                       setUserPendingDelete(null)
+                      setDeleteReason('')
                     }}
                   >
                     <div
@@ -4323,20 +4327,41 @@ function HomePanel({
                         {userPendingDelete.registration})? O usuário perderá acesso ao
                         portal e o cadastro será movido para <strong>Reprovados</strong>.
                       </p>
+                      <label className="approval-reject-form">
+                        Motivo da exclusão
+                        <textarea
+                          rows={4}
+                          value={deleteReason}
+                          onChange={(event) => setDeleteReason(event.target.value)}
+                          placeholder="Descreva o motivo da exclusão..."
+                          maxLength={2000}
+                          disabled={Boolean(deletingUserId)}
+                        />
+                      </label>
                       <div className="ensaios-block-modal-actions">
                         <button
                           type="button"
                           className="secondary-button"
                           disabled={Boolean(deletingUserId)}
-                          onClick={() => setUserPendingDelete(null)}
+                          onClick={() => {
+                            setUserPendingDelete(null)
+                            setDeleteReason('')
+                          }}
                         >
                           Cancelar
                         </button>
                         <button
                           type="button"
                           className="danger-button"
-                          disabled={Boolean(deletingUserId)}
-                          onClick={() => void handleDeleteRegisteredUser(userPendingDelete)}
+                          disabled={
+                            Boolean(deletingUserId) || deleteReason.trim().length < 5
+                          }
+                          onClick={() =>
+                            void handleDeleteRegisteredUser(
+                              userPendingDelete,
+                              deleteReason.trim(),
+                            )
+                          }
                         >
                           {deletingUserId === userPendingDelete.id
                             ? 'Excluindo...'

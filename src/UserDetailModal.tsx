@@ -93,6 +93,7 @@ export function UserDetailModal({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [deleteReason, setDeleteReason] = useState('')
   const [cargoOptions, setCargoOptions] = useState<string[]>([
     'Técnico',
     'Analista',
@@ -435,11 +436,21 @@ export function UserDetailModal({
   const handleDelete = async () => {
     if (!canDelete || deleting) return
 
+    const reason = deleteReason.trim()
+    if (reason.length < 5) {
+      emitFeedback({
+        type: 'error',
+        message: 'Informe o motivo da exclusão (mínimo de 5 caracteres).',
+      })
+      return
+    }
+
     setDeleting(true)
     try {
-      const { user: rejectedUser } = await api.deleteUser(user.id)
+      const { user: rejectedUser } = await api.deleteUser(user.id, { reason })
       onDeleted?.(rejectedUser)
       setConfirmDeleteOpen(false)
+      setDeleteReason('')
       onClose()
       onFeedback({ type: 'success', message: 'Cadastro movido para Reprovados.' })
     } catch (error) {
@@ -1004,7 +1015,10 @@ export function UserDetailModal({
                   type="button"
                   className="danger-button compact-button"
                   disabled={deleting}
-                  onClick={() => setConfirmDeleteOpen(true)}
+                  onClick={() => {
+                    setDeleteReason('')
+                    setConfirmDeleteOpen(true)
+                  }}
                 >
                   Excluir usuário
                 </button>
@@ -1023,6 +1037,7 @@ export function UserDetailModal({
               onClick={() => {
                 if (deleting) return
                 setConfirmDeleteOpen(false)
+                setDeleteReason('')
               }}
             >
               <div
@@ -1038,19 +1053,33 @@ export function UserDetailModal({
                   O usuário perderá acesso ao portal e o cadastro será movido para{' '}
                   <strong>Reprovados</strong>.
                 </p>
+                <label className="approval-reject-form">
+                  Motivo da exclusão
+                  <textarea
+                    rows={4}
+                    value={deleteReason}
+                    onChange={(event) => setDeleteReason(event.target.value)}
+                    placeholder="Descreva o motivo da exclusão..."
+                    maxLength={2000}
+                    disabled={deleting}
+                  />
+                </label>
                 <div className="ensaios-block-modal-actions">
                   <button
                     type="button"
                     className="secondary-button"
                     disabled={deleting}
-                    onClick={() => setConfirmDeleteOpen(false)}
+                    onClick={() => {
+                      setConfirmDeleteOpen(false)
+                      setDeleteReason('')
+                    }}
                   >
                     Cancelar
                   </button>
                   <button
                     type="button"
                     className="danger-button"
-                    disabled={deleting}
+                    disabled={deleting || deleteReason.trim().length < 5}
                     onClick={() => void handleDelete()}
                   >
                     {deleting ? 'Excluindo...' : 'Excluir'}
