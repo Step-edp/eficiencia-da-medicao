@@ -4979,6 +4979,7 @@ function HomePanel({
             ) : null}
             {LAB_TRAIL_KEYS.has(selectedLabMeasurementSection) &&
             selectedLabMeasurementSection !== 'Entrada de medidores' &&
+            selectedLabMeasurementSection !== 'Agendar' &&
             !inventarioMonthTitle &&
             showLabTrail ? (
               <LabMeasurementTrail
