@@ -1678,7 +1678,7 @@ button {
 
 .lab-trail-calendar-slot {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   margin-bottom: 10px;
 }
 
@@ -1686,12 +1686,12 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 1px solid rgba(24, 216, 240, 0.22);
-  border-radius: 12px;
-  background: rgba(2, 18, 31, 0.55);
+  width: auto;
+  height: auto;
+  padding: 4px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
   color: var(--text-main);
   font: inherit;
   cursor: pointer;
@@ -1700,14 +1700,21 @@ button {
 
 .lab-trail-calendar-icon:hover,
 .lab-trail-calendar-icon:focus-visible {
-  border-color: rgba(24, 216, 240, 0.55);
+  background: rgba(24, 216, 240, 0.08);
   transform: translateY(-1px);
 }
 
 .lab-trail-calendar-icon.is-active {
-  border-color: rgba(24, 216, 240, 0.75);
   background: rgba(24, 216, 240, 0.12);
-  box-shadow: 0 0 0 1px rgba(24, 216, 240, 0.2);
+  box-shadow: none;
+}
+
+.lab-trail-calendar-icon .item-icon {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #c8f4ff;
 }
 
 .lab-trail-calendar-icon .item-icon svg {
