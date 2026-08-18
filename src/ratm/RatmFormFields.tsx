@@ -504,7 +504,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           <p className="ratm-readonly-value">{displayOrDash(data.meter)}</p>
         </div>
 
-        <RatmExpandableSection title="Informações de entrada" defaultOpen>
+        <RatmExpandableSection title="Informações de entrada">
           {data.meterStatus ? (
             <p className="ratm-status-line">Status - {data.meterStatus}</p>
           ) : null}
@@ -604,7 +604,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           onChange={(value) => onChange({ dielectric: value })}
         />
 
-        <RatmExpandableSection title="Lacre do Invólucro" defaultOpen>
+        <RatmExpandableSection title="Lacre do Invólucro">
           <div className="ratm-section-box-grid">
             <label className="full-width">
               Número do lacre
@@ -653,7 +653,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           </div>
         </RatmExpandableSection>
 
-        <RatmExpandableSection title="Lacre 1" defaultOpen>
+        <RatmExpandableSection title="Lacre 1">
           <div className="ratm-section-box-grid">
             <label className="full-width">
               Número do lacre
@@ -682,7 +682,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           </div>
         </RatmExpandableSection>
 
-        <RatmExpandableSection title="Lacre 2" defaultOpen>
+        <RatmExpandableSection title="Lacre 2">
           <div className="ratm-section-box-grid">
             <label className="full-width">
               Número do lacre
@@ -927,7 +927,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           vertical
         />
 
-        <RatmExpandableSection title="Resultados de ensaio" defaultOpen>
+        <RatmExpandableSection title="Resultados de ensaio">
           <div className="ratm-section-box-grid">
             <ClearableRadioGroup
               legend="Medidor quebrado/ furado"
