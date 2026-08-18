@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
+import { LabAgendarPanel } from './LabAgendarPanel'
 import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
 import { FieldTeamConsultarPanel } from './FieldTeamConsultarPanel'
 import { PontoFocalDashboard } from './PontoFocalDashboard'
@@ -5059,17 +5060,7 @@ function HomePanel({
                 onTrailCountsChange={refreshTrailStepCounts}
               />
             ) : selectedLabMeasurementSection === 'Agendar' ? (
-              labMedicaoReadOnly ? (
-                <>
-                  <p>Agendamentos realizados (visualização).</p>
-                  <FieldTeamConsultarPanel />
-                </>
-              ) : (
-                <>
-                  <p>Preencha os dados abaixo para reservar a data de agendamento.</p>
-                  <ScheduleAgendarForm />
-                </>
-              )
+              <LabAgendarPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Ensaiar' ? (
               labMedicaoReadOnly ? (
                 <p>
