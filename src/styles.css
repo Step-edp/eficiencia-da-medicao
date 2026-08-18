@@ -3279,6 +3279,10 @@ button {
   line-height: 1.35;
 }
 
+.partner-search > .field-hint {
+  margin: 8px 0 12px;
+}
+
 .partner-search-label-row {
   display: flex;
   flex-wrap: wrap;
