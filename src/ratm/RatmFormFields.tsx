@@ -87,18 +87,24 @@ function EntryReadonlyField({ label, value, matches, fullWidth = false }: EntryR
   )
 }
 
+type RatmSectionId = 'entry' | 'enclosure' | 'seal1' | 'seal2' | 'testResults'
+
 function RatmExpandableSection({
+  sectionId,
   title,
   children,
-  defaultOpen = false,
+  openSection,
+  onToggle,
   complete = false,
 }: {
+  sectionId: RatmSectionId
   title: string
   children: ReactNode
-  defaultOpen?: boolean
+  openSection: RatmSectionId | null
+  onToggle: (sectionId: RatmSectionId) => void
   complete?: boolean
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const open = openSection === sectionId
 
   return (
     <section
@@ -108,7 +114,7 @@ function RatmExpandableSection({
         type="button"
         className="ratm-expandable-summary"
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => onToggle(sectionId)}
       >
         <span className="ratm-expandable-title">{title}</span>
         {complete ? (
@@ -383,6 +389,11 @@ function PhotoUpload({ label, value, onChange }: PhotoUploadProps) {
 export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFormFieldsProps) {
   const [searchingMeter, setSearchingMeter] = useState(false)
   const [meterLookupError, setMeterLookupError] = useState('')
+  const [openSection, setOpenSection] = useState<RatmSectionId | null>(null)
+
+  const handleSectionToggle = (sectionId: RatmSectionId) => {
+    setOpenSection((current) => (current === sectionId ? null : sectionId))
+  }
 
   const irregularityDescription =
     IRREGULARITY_CODES[data.irregularityCode] ?? 'Selecione um código válido.'
@@ -524,7 +535,13 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           <p className="ratm-readonly-value">{displayOrDash(data.meter)}</p>
         </div>
 
-        <RatmExpandableSection title="Informações de entrada" complete={entryInfoComplete}>
+        <RatmExpandableSection
+          sectionId="entry"
+          title="Informações de entrada"
+          openSection={openSection}
+          onToggle={handleSectionToggle}
+          complete={entryInfoComplete}
+        >
           {data.meterStatus ? (
             <p className="ratm-status-line">Status - {data.meterStatus}</p>
           ) : null}
@@ -624,7 +641,13 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           onChange={(value) => onChange({ dielectric: value })}
         />
 
-        <RatmExpandableSection title="Lacre do Invólucro" complete={enclosureSealComplete}>
+        <RatmExpandableSection
+          sectionId="enclosure"
+          title="Lacre do Invólucro"
+          openSection={openSection}
+          onToggle={handleSectionToggle}
+          complete={enclosureSealComplete}
+        >
           <div className="ratm-section-box-grid">
             <label className="full-width">
               Número do lacre
@@ -673,7 +696,13 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           </div>
         </RatmExpandableSection>
 
-        <RatmExpandableSection title="Lacre 1" complete={seal1Complete}>
+        <RatmExpandableSection
+          sectionId="seal1"
+          title="Lacre 1"
+          openSection={openSection}
+          onToggle={handleSectionToggle}
+          complete={seal1Complete}
+        >
           <div className="ratm-section-box-grid">
             <label className="full-width">
               Número do lacre
@@ -702,7 +731,13 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           </div>
         </RatmExpandableSection>
 
-        <RatmExpandableSection title="Lacre 2" complete={seal2Complete}>
+        <RatmExpandableSection
+          sectionId="seal2"
+          title="Lacre 2"
+          openSection={openSection}
+          onToggle={handleSectionToggle}
+          complete={seal2Complete}
+        >
           <div className="ratm-section-box-grid">
             <label className="full-width">
               Número do lacre
@@ -947,7 +982,13 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           vertical
         />
 
-        <RatmExpandableSection title="Resultados de ensaio" complete={testResultsComplete}>
+        <RatmExpandableSection
+          sectionId="testResults"
+          title="Resultados de ensaio"
+          openSection={openSection}
+          onToggle={handleSectionToggle}
+          complete={testResultsComplete}
+        >
           <div className="ratm-section-box-grid">
             <ClearableRadioGroup
               legend="Medidor quebrado/ furado"
