@@ -480,7 +480,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               <p className="ratm-readonly-value">{displayOrDash(data.deliveryDeadlineLabel)}</p>
             </div>
             <div className="ratm-readonly-field full-width">
-              <span className="ratm-readonly-label">Observações de agendamento</span>
+              <span className="ratm-readonly-label">Observações</span>
               <p className="ratm-readonly-value">{displayOrDash(data.schedulingNotes)}</p>
             </div>
           </div>

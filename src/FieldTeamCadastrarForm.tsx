@@ -807,7 +807,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
         ) : null}
 
         <label className="full-width">
-          Observações de agendamento
+          Observações
           <textarea
             rows={3}
             value={schedulingNotes}

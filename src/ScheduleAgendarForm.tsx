@@ -302,7 +302,7 @@ export function ScheduleAgendarForm() {
         </label>
 
         <label className="full-width">
-          Observações de agendamento
+          Observações
           <input
             type="text"
             value={schedulingNotes}
