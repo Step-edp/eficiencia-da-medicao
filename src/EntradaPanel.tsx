@@ -1052,15 +1052,6 @@ export function EntradaPanel({
         <button
           type="button"
           role="tab"
-          aria-selected={view === 'dash'}
-          className={view === 'dash' ? 'active' : ''}
-          onClick={() => openDash()}
-        >
-          Dash
-        </button>
-        <button
-          type="button"
-          role="tab"
           aria-selected={view === 'overview'}
           className={view === 'overview' ? 'active' : ''}
           onClick={() => openOverview()}
@@ -1111,6 +1102,15 @@ export function EntradaPanel({
           onClick={() => openDemmHistorico()}
         >
           Histórico de DEMM
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'dash'}
+          className={view === 'dash' ? 'active' : ''}
+          onClick={() => openDash()}
+        >
+          Dash
         </button>
       </div>
     </div>
