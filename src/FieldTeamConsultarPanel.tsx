@@ -123,14 +123,6 @@ export function FieldTeamConsultarPanel({
 
   return (
     <div className="entrada-panel">
-      {isMine ? null : (
-        <p className="entrada-panel-intro">
-          Consulta dos medidores agendados. Perfis Ponto Focal veem apenas os agendamentos
-          dos CSDs (localidades) atribuídos a eles. A entrega deve ocorrer na última sexta
-          antes da data de ensaio; após esse prazo o medidor fica <strong>atrasado</strong>.
-        </p>
-      )}
-
       {feedback ? (
         <div className={`login-feedback ${feedback.type}`} role="status">
           {feedback.message}
