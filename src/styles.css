@@ -6916,8 +6916,8 @@ input[type='file'] {
 
 .ratm-entry-comparison-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem 0.85rem;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
 }
 
 .ratm-entry-comparison-item {
