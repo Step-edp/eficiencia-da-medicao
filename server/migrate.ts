@@ -371,6 +371,22 @@ export async function migrate() {
     END $$;
   `)
 
+  // Permite status rejected na reprovação de cadastros pendentes.
+  await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'users_approval_status_check' AND conrelid = 'users'::regclass
+      ) THEN
+        ALTER TABLE users DROP CONSTRAINT users_approval_status_check;
+      END IF;
+      ALTER TABLE users
+        ADD CONSTRAINT users_approval_status_check
+        CHECK (approval_status IN ('approved', 'pending', 'rejected'));
+    END $$;
+  `)
+
   // Abrangência do engenheiro: novos rótulos no cadastro.
   await query(`
     UPDATE users SET work_subtype = 'Responsável por célula'

@@ -1282,7 +1282,15 @@ export async function rejectUser(req: Request, res: Response) {
       warning,
     })
   } catch (error) {
+    const pgError = error as { code?: string; message?: string }
     console.error('Falha ao reprovar cadastro:', error)
+    if (pgError.code === '23514') {
+      res.status(500).json({
+        error:
+          'O banco ainda não aceita o status de reprovação. Aguarde a atualização do servidor ou contate o suporte.',
+      })
+      return
+    }
     res.status(500).json({ error: 'Não foi possível reprovar o cadastro.' })
   }
 }
