@@ -1645,13 +1645,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               </p>
             </div>
 
-            {!readOnly ? (
-              <p className="field-hint">
-                Clique no X vermelho para importar DEMM retroativa da semana. DEMMs importadas
-                pelo Lab aparecem com check amarelo, mesmo dentro do prazo.
-              </p>
-            ) : null}
-
             {demmHistoricoLoading ? (
               <p className="entrada-panel-empty">Carregando histórico...</p>
             ) : demmHistoricoCsds.length === 0 ? (
