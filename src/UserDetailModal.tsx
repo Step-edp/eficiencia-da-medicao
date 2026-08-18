@@ -58,7 +58,7 @@ type UserDetailModalProps = {
   terceiraOptions: string[]
   onClose: () => void
   onSaved: (user: AppUser) => void
-  onDeleted?: (userId: string) => void
+  onDeleted?: (user: AppUser) => void
   onFeedback: (feedback: { type: 'success' | 'error'; message: string }) => void
   startInEditMode?: boolean
   showPassword?: boolean
@@ -437,11 +437,11 @@ export function UserDetailModal({
 
     setDeleting(true)
     try {
-      await api.deleteUser(user.id)
-      onDeleted?.(user.id)
+      const { user: rejectedUser } = await api.deleteUser(user.id)
+      onDeleted?.(rejectedUser)
       setConfirmDeleteOpen(false)
       onClose()
-      onFeedback({ type: 'success', message: 'Usuário excluído.' })
+      onFeedback({ type: 'success', message: 'Cadastro movido para Reprovados.' })
     } catch (error) {
       emitFeedback({
         type: 'error',
@@ -1035,7 +1035,8 @@ export function UserDetailModal({
                 <h3 id="user-detail-delete-title">Excluir cadastro</h3>
                 <p className="ensaios-unblock-message">
                   Excluir o cadastro de <strong>{user.name}</strong> ({user.registration})?
-                  Esta ação não pode ser desfeita.
+                  O usuário perderá acesso ao portal e o cadastro será movido para{' '}
+                  <strong>Reprovados</strong>.
                 </p>
                 <div className="ensaios-block-modal-actions">
                   <button

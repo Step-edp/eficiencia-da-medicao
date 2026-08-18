@@ -1358,6 +1358,7 @@ export async function resetUserToPending(req: Request, res: Response) {
 
 export async function deleteUser(req: Request, res: Response) {
   const { id } = req.params
+  const rejectionReason = 'Excluído pelo administrador.'
 
   const previous = await query<UserRow>(`SELECT * FROM users WHERE id = $1`, [id])
   if (!previous.rows[0]) {
@@ -1377,47 +1378,42 @@ export async function deleteUser(req: Request, res: Response) {
 
   const target = mapUser(previous.rows[0])
 
-  await writeAuditLog(req, {
-    action: 'delete',
-    entityType: 'user',
-    entityId: target.id,
-    summary: `Usuário excluído: ${target.registration}`,
-    oldData: {
-      ...target,
-      profilePhoto: target.profilePhoto ? '[imagem anexada]' : '',
-    },
-  })
-
-  await query(`UPDATE csds SET responsible_user_id = NULL WHERE responsible_user_id = $1`, [id])
-  await query(`DELETE FROM homologation_requests WHERE requester_user_id = $1`, [id])
-  await query(`UPDATE ratm_laudos SET created_by_user_id = NULL WHERE created_by_user_id = $1`, [
-    id,
-  ])
-  await query(
-    `UPDATE ensaios_manual_blocks SET created_by_user_id = NULL WHERE created_by_user_id = $1`,
-    [id],
-  )
-  await query(
-    `UPDATE meter_schedules SET created_by_user_id = NULL WHERE created_by_user_id = $1`,
-    [id],
-  )
-  await query(
-    `UPDATE demm_documents SET created_by_user_id = NULL WHERE created_by_user_id = $1`,
-    [id],
-  )
-  await query(`UPDATE audit_logs SET user_id = NULL WHERE user_id = $1`, [id])
-
-  const deleted = await query<{ id: string }>(
-    `DELETE FROM users WHERE id = $1 AND role <> 'admin' RETURNING id`,
-    [id],
+  const result = await query<UserRow>(
+    `UPDATE users
+     SET approval_status = 'rejected',
+         rejected_at = NOW(),
+         rejection_reason = $2,
+         access_areas = '[]'::jsonb,
+         access_processes = '[]'::jsonb
+     WHERE id = $1 AND role <> 'admin'
+     RETURNING *`,
+    [id, rejectionReason],
   )
 
-  if (!deleted.rows[0]) {
+  if (!result.rows[0]) {
     res.status(403).json({ error: 'O administrador não pode ser excluído.' })
     return
   }
 
-  res.json({ ok: true, id })
+  await query(`UPDATE csds SET responsible_user_id = NULL WHERE responsible_user_id = $1`, [id])
+
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'user',
+    entityId: target.id,
+    summary: `Cadastro excluído (reprovado): ${target.registration}`,
+    oldData: {
+      ...target,
+      profilePhoto: target.profilePhoto ? '[imagem anexada]' : '',
+    },
+    newData: {
+      approvalStatus: 'rejected',
+      rejectionReason,
+    },
+  })
+
+  const user = await mapUserWithVacation(result.rows[0], { includePassword: true })
+  res.json({ ok: true, id, user })
 }
 
 export const authRoutes = {

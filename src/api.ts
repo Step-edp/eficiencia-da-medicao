@@ -830,7 +830,7 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   deleteUser: (id: string) =>
-    request<{ ok: boolean; id: string }>(`/api/users/${id}`, {
+    request<{ ok: boolean; id: string; user: AppUser }>(`/api/users/${id}`, {
       method: 'DELETE',
     }),
   listProcessAssignments: () =>

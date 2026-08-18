@@ -329,8 +329,10 @@ export default function App() {
         onUpdateUser={(user) => {
           setRegisteredUsers((prev) => prev.map((item) => (item.id === user.id ? user : item)))
         }}
-        onDeleteUser={(userId) => {
-          setRegisteredUsers((prev) => prev.filter((item) => item.id !== userId))
+        onDeleteUser={(user) => {
+          setRegisteredUsers((prev) =>
+            prev.map((item) => (item.id === user.id ? user : item)),
+          )
         }}
         onCurrentUserChange={setAuthenticatedUser}
         onCreateHomologationRequest={handleCreateHomologationRequest}
@@ -788,7 +790,7 @@ type HomePanelProps = {
   onApproveUser: (userId: string, payload?: ApproveUserPayload) => Promise<void>
   onRejectUser: (userId: string, reason: string) => Promise<{ emailSent?: boolean; warning?: string }>
   onUpdateUser: (user: AppUser) => void
-  onDeleteUser: (userId: string) => void
+  onDeleteUser: (user: AppUser) => void
   onCurrentUserChange: (user: AppUser) => void
   onCreateHomologationRequest: (
     payload: Omit<
@@ -3778,13 +3780,17 @@ function HomePanel({
 
         setDeletingUserId(user.id)
         try {
-          await api.deleteUser(user.id)
-          onDeleteUser(user.id)
+          const { user: rejectedUser } = await api.deleteUser(user.id)
+          onDeleteUser(rejectedUser)
           setSelectedUserDetail((current) =>
             current?.id === user.id ? null : current,
           )
           setUserPendingDelete(null)
-          setPasswordFeedback({ type: 'success', message: 'Cadastro excluído.' })
+          setUsersView('reprovados')
+          setPasswordFeedback({
+            type: 'success',
+            message: 'Cadastro movido para Reprovados.',
+          })
         } catch (error) {
           setPasswordFeedback({
             type: 'error',
@@ -4172,8 +4178,8 @@ function HomePanel({
                       <p className="ensaios-unblock-message">
                         Excluir o cadastro de{' '}
                         <strong>{userPendingDelete.name}</strong> (
-                        {userPendingDelete.registration})? Esta ação não pode ser
-                        desfeita.
+                        {userPendingDelete.registration})? O usuário perderá acesso ao
+                        portal e o cadastro será movido para <strong>Reprovados</strong>.
                       </p>
                       <div className="ensaios-block-modal-actions">
                         <button
@@ -4219,10 +4225,11 @@ function HomePanel({
                       setSelectedUserDetail(user)
                       setUserDetailStartEditing(false)
                     }}
-                    onDeleted={(userId) => {
-                      onDeleteUser(userId)
+                    onDeleted={(rejectedUser) => {
+                      onDeleteUser(rejectedUser)
                       setSelectedUserDetail(null)
                       setUserDetailStartEditing(false)
+                      setUsersView('reprovados')
                     }}
                     onFeedback={setPasswordFeedback}
                   />,
