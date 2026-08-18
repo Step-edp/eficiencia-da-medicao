@@ -5231,6 +5231,26 @@ h2 {
   border: 1px solid rgba(158, 183, 203, 0.25);
 }
 
+.profile-photo-expand-trigger {
+  display: inline-flex;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+  border-radius: inherit;
+  line-height: 0;
+}
+
+.profile-photo-expand-trigger:hover .profile-photo-thumb,
+.profile-photo-expand-trigger:hover .profile-photo-detail,
+.profile-photo-expand-trigger:hover .users-table-photo,
+.profile-photo-expand-trigger:focus-visible .profile-photo-thumb,
+.profile-photo-expand-trigger:focus-visible .profile-photo-detail,
+.profile-photo-expand-trigger:focus-visible .users-table-photo {
+  border-color: rgba(24, 216, 240, 0.65);
+  box-shadow: 0 0 0 2px rgba(24, 216, 240, 0.2);
+}
+
 .profile-photo-detail {
   width: 96px;
   height: 96px;
