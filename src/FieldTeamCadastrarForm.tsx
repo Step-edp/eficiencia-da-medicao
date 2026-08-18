@@ -464,10 +464,6 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
         >
           <div className="partner-search-label-row">
             <RequiredLabel>Número do Invólucro</RequiredLabel>
-            <p id="field-team-envelope-hint" className="field-hint partner-search-label-hint">
-              A foto deve aparecer nítidamente o número do invólucro, o medidor dentro dele e o
-              invólucro lacrado.
-            </p>
           </div>
           <div className="file-picker">
             <input
@@ -478,7 +474,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
               capture="environment"
               required={!envelopePhoto}
               aria-invalid={Boolean(fieldErrors.envelopePhoto)}
-              aria-describedby="field-team-envelope-hint field-team-envelope-error"
+              aria-describedby="field-team-envelope-error"
               onChange={(event) => {
                 const file = event.target.files?.[0]
                 if (!file) {
