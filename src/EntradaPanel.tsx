@@ -421,13 +421,14 @@ type EntradaPanelProps = {
 
 export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaPanelProps) {
   const [view, setView] = useState<
+    | 'dash'
     | 'overview'
     | 'metersBase'
     | 'csdPendencias'
     | 'inspectionPendencias'
     | 'weekMeters'
     | 'demmHistorico'
-  >('overview')
+  >('dash')
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
   const [schedules, setSchedules] = useState<Awaited<ReturnType<typeof api.listMeterSchedules>>['schedules']>([])
   const [csdPendencias, setCsdPendencias] = useState<CsdDemmPendenciaRecord[]>([])
@@ -507,10 +508,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     await loadData()
     refreshTrailCounts()
   }, [loadData, refreshTrailCounts])
-
-  useEffect(() => {
-    void loadData()
-  }, [loadData])
 
   const closeDemmModal = () => {
     setShowDemmModal(false)
@@ -720,6 +717,24 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     void loadData()
   }
 
+  const openDash = () => {
+    setView('dash')
+    setFeedback(null)
+    void Promise.all([
+      loadData(),
+      loadCsdPendencias(),
+      loadInspectionPendencias(),
+      loadWeekMeters(),
+    ])
+  }
+
+  useEffect(() => {
+    void loadData()
+    void loadCsdPendencias()
+    void loadInspectionPendencias()
+    void loadWeekMeters()
+  }, [loadData, loadCsdPendencias, loadInspectionPendencias, loadWeekMeters])
+
   const renderEntradaTabBar = () => (
     <div className="entrada-panel-header">
       <div
@@ -727,6 +742,15 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
         role="tablist"
         aria-label="Ações DEMM"
       >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'dash'}
+          className={view === 'dash' ? 'active' : ''}
+          onClick={() => openDash()}
+        >
+          Dash
+        </button>
         <button
           type="button"
           role="tab"
@@ -938,6 +962,16 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     (sum, document) => sum + document.scheduledCount,
     0,
   )
+  const dashLoading =
+    loading || csdPendenciasLoading || inspectionPendenciasLoading || weekMetersLoading
+  const pendingCsdCount = csdPendencias.filter((csd) => csd.status !== 'entregue').length
+  const lateScheduleCount = schedules.filter((schedule) => schedule.isLate).length
+  const weekMeterCounts = {
+    naoAgendado: weekMeters.filter((item) => item.status === 'nao_agendado').length,
+    semDocumento: weekMeters.filter((item) => item.status === 'sem_documento_inspecao').length,
+    bloqueado: weekMeters.filter((item) => item.status === 'bloqueado').length,
+    liberado: weekMeters.filter((item) => item.status === 'liberado').length,
+  }
 
   const demmModal = showDemmModal
     ? createPortal(
@@ -1043,6 +1077,131 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
         document.body,
       )
     : null
+
+  if (view === 'dash') {
+    return (
+      <>
+        <div className="entrada-panel">
+          {renderEntradaTabBar()}
+
+          {feedback ? (
+            <div className={`login-feedback ${feedback.type}`} role="status">
+              {feedback.message}
+            </div>
+          ) : null}
+
+          <section className="entrada-section users-dashboard" aria-label="Dash de entrada">
+            <div className="entrada-section-heading">
+              <h3 className="entrada-section-title">Dash</h3>
+              <p className="demm-analysis-summary">
+                {dashLoading ? 'Atualizando indicadores...' : 'Resumo da etapa Entrada'}
+              </p>
+            </div>
+
+            {dashLoading ? (
+              <p className="entrada-panel-empty">Carregando indicadores...</p>
+            ) : (
+              <>
+                <div className="users-dashboard-kpis">
+                  <div className="users-dashboard-kpi">
+                    <span className="users-dashboard-kpi-label">DEMMs cadastradas</span>
+                    <strong className="users-dashboard-kpi-value">{demmDocuments.length}</strong>
+                  </div>
+                  <div className="users-dashboard-kpi">
+                    <span className="users-dashboard-kpi-label">Medidores nas DEMMs</span>
+                    <strong className="users-dashboard-kpi-value">{totalDemmMeters}</strong>
+                  </div>
+                  <div className="users-dashboard-kpi">
+                    <span className="users-dashboard-kpi-label">Aguardando entrada</span>
+                    <strong className="users-dashboard-kpi-value">{schedules.length}</strong>
+                  </div>
+                  <div className="users-dashboard-kpi">
+                    <span className="users-dashboard-kpi-label">Entrega atrasada</span>
+                    <strong className="users-dashboard-kpi-value">{lateScheduleCount}</strong>
+                  </div>
+                  <div className="users-dashboard-kpi">
+                    <span className="users-dashboard-kpi-label">CSDs pendentes DEMM</span>
+                    <strong className="users-dashboard-kpi-value">{pendingCsdCount}</strong>
+                  </div>
+                  <div className="users-dashboard-kpi">
+                    <span className="users-dashboard-kpi-label">Inspeção pendente</span>
+                    <strong className="users-dashboard-kpi-value">
+                      {inspectionPendencias.length}
+                    </strong>
+                  </div>
+                  <div className="users-dashboard-kpi">
+                    <span className="users-dashboard-kpi-label">Medidores da semana</span>
+                    <strong className="users-dashboard-kpi-value">{weekMeters.length}</strong>
+                  </div>
+                  <div className="users-dashboard-kpi">
+                    <span className="users-dashboard-kpi-label">Não agendados (semana)</span>
+                    <strong className="users-dashboard-kpi-value">
+                      {weekMeterCounts.naoAgendado}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="users-dashboard-grid">
+                  <div className="users-dashboard-card">
+                    <h4>Medidores da semana por status</h4>
+                    <ul className="users-dashboard-bars">
+                      <li>
+                        <div className="users-dashboard-bar-meta">
+                          <span>Não agendado</span>
+                          <strong>{weekMeterCounts.naoAgendado}</strong>
+                        </div>
+                      </li>
+                      <li>
+                        <div className="users-dashboard-bar-meta">
+                          <span>Sem documento de inspeção</span>
+                          <strong>{weekMeterCounts.semDocumento}</strong>
+                        </div>
+                      </li>
+                      <li>
+                        <div className="users-dashboard-bar-meta">
+                          <span>Bloqueado</span>
+                          <strong>{weekMeterCounts.bloqueado}</strong>
+                        </div>
+                      </li>
+                      <li>
+                        <div className="users-dashboard-bar-meta">
+                          <span>Liberado</span>
+                          <strong>{weekMeterCounts.liberado}</strong>
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="users-dashboard-card">
+                    <h4>Base de DEMMs</h4>
+                    <ul className="users-dashboard-bars">
+                      <li>
+                        <div className="users-dashboard-bar-meta">
+                          <span>Medidores identificados</span>
+                          <strong>{totalDemmMeters}</strong>
+                        </div>
+                      </li>
+                      <li>
+                        <div className="users-dashboard-bar-meta">
+                          <span>Já agendados no app</span>
+                          <strong>{totalDemmScheduled}</strong>
+                        </div>
+                      </li>
+                      <li>
+                        <div className="users-dashboard-bar-meta">
+                          <span>CSDs na semana (total)</span>
+                          <strong>{csdPendencias.length}</strong>
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      </>
+    )
+  }
 
   if (view === 'metersBase') {
     return (
