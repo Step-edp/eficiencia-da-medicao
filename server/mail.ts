@@ -56,7 +56,11 @@ async function sendWithSmtp(input: SendMailInput) {
     host,
     port,
     secure,
+    requireTLS: !secure,
     auth: { user, pass },
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 20_000,
   })
 
   await transporter.sendMail({
@@ -70,14 +74,30 @@ async function sendWithSmtp(input: SendMailInput) {
   return true
 }
 
+export function getMailProvider(): 'resend' | 'smtp' | null {
+  if (process.env.RESEND_API_KEY?.trim()) return 'resend'
+  if (
+    process.env.SMTP_HOST?.trim() &&
+    process.env.SMTP_USER?.trim() &&
+    process.env.SMTP_PASS?.trim()
+  ) {
+    return 'smtp'
+  }
+  return null
+}
+
+export function getMailStatus() {
+  const configured = isMailConfigured()
+  return {
+    configured,
+    provider: getMailProvider(),
+    from: configured ? getFromAddress() : null,
+  }
+}
+
 /** Indica se há provedor de e-mail configurado. */
 export function isMailConfigured() {
-  return Boolean(
-    process.env.RESEND_API_KEY?.trim() ||
-      (process.env.SMTP_HOST?.trim() &&
-        process.env.SMTP_USER?.trim() &&
-        process.env.SMTP_PASS?.trim()),
-  )
+  return getMailProvider() !== null
 }
 
 /**

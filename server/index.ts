@@ -91,6 +91,7 @@ import {
   getEnsaioSessaoMedicoes,
 } from './routes/analisadores-tensao.js'
 import { requireAuth } from './auth.js'
+import { mailRoutes } from './routes/mail.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT ?? 3000)
@@ -138,6 +139,9 @@ async function start() {
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true })
   })
+
+  app.get('/api/mail/status', ...wrap(mailRoutes.status))
+  app.post('/api/mail/test', ...wrap(mailRoutes.test))
 
   app.post('/api/auth/login', wrap(authRoutes.login))
   app.post('/api/auth/register', wrap(authRoutes.register))
