@@ -468,6 +468,7 @@ export type MeterScheduleRecord = {
   partnerName?: string
   partnerRegistration?: string
   envelopePhoto?: string
+  envelopeSeal?: string
   scheduledByName?: string
   schedulingDate?: string | null
   scheduledAt: string
@@ -590,6 +591,10 @@ export type InspectionDocumentRecord = {
   fileName: string
   extractedMeter: string | null
   extractedLacre: string | null
+  registeredMeter?: string | null
+  registeredLacre?: string | null
+  meterMatches?: boolean | null
+  lacreMatches?: boolean | null
   blocked: boolean
   blockReason: string | null
   createdAt: string
@@ -1398,6 +1403,7 @@ export const api = {
     schedulingNotes?: string
     partnerUserId?: string
     envelopePhoto: string
+    envelopeSeal: string
     toiCollaborator1Name?: string
     toiCollaborator1Registration?: string
     toiCollaborator2Name?: string
@@ -1503,6 +1509,7 @@ export const api = {
   listInspectionDocuments: (meterScheduleId: string) =>
     request<{
       meter: string
+      registeredLacre: string | null
       meterScheduleId: string
       documents: InspectionDocumentRecord[]
       complete: boolean

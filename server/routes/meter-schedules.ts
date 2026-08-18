@@ -37,6 +37,7 @@ type MeterScheduleRow = {
   partner_name: string
   partner_registration: string
   envelope_photo: string
+  envelope_seal: string
   scheduled_by_name: string
   scheduling_date: string | null
   scheduled_at: Date
@@ -78,6 +79,7 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     partnerName: row.partner_name || '',
     partnerRegistration: row.partner_registration || '',
     envelopePhoto: row.envelope_photo || '',
+    envelopeSeal: row.envelope_seal || '',
     scheduledByName: row.scheduled_by_name || '',
     schedulingDate: row.scheduling_date,
     scheduledAt: row.scheduled_at.toISOString(),
@@ -315,6 +317,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     schedulingNotes,
     partnerUserId,
     envelopePhoto,
+    envelopeSeal,
     toiCollaborator1Name,
     toiCollaborator1Registration,
     toiCollaborator2Name,
@@ -330,6 +333,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     schedulingNotes?: string
     partnerUserId?: string
     envelopePhoto?: string
+    envelopeSeal?: string
     toiCollaborator1Name?: string
     toiCollaborator1Registration?: string
     toiCollaborator2Name?: string
@@ -347,6 +351,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     schedulingNotes: schedulingNotes?.trim() ?? '',
     partnerUserId: partnerUserId?.trim() ?? '',
     envelopePhoto: envelopePhoto?.trim() ?? '',
+    envelopeSeal: envelopeSeal?.trim() ?? '',
     toiCollaborator1Name: toiCollaborator1Name?.trim() ?? '',
     toiCollaborator1Registration: toiCollaborator1Registration?.trim() ?? '',
     toiCollaborator2Name: toiCollaborator2Name?.trim() ?? '',
@@ -381,6 +386,11 @@ export async function createMeterSchedule(req: Request, res: Response) {
       error:
         'Anexe uma foto nítida do número do invólucro (até cerca de 2 MB), com o medidor visível dentro dele.',
     })
+    return
+  }
+
+  if (!normalized.envelopeSeal) {
+    res.status(400).json({ error: 'Informe o número do invólucro cadastrado no campo.' })
     return
   }
 
@@ -555,9 +565,9 @@ export async function createMeterSchedule(req: Request, res: Response) {
       toi_collaborator2_name, toi_collaborator2_registration,
       toi_team_reason,
       partner_user_id, partner_name, partner_registration,
-      envelope_photo,
+      envelope_photo, envelope_seal,
       scheduled_at, trail_step, source, created_by_user_id
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'field_team',$20)
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'field_team',$21)
     RETURNING *`,
     [
       id,
@@ -577,6 +587,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
       partner?.name ?? '',
       partner?.registration ?? '',
       normalized.envelopePhoto,
+      normalized.envelopeSeal,
       nextSlot.toISOString(),
       ENTRADA_TRAIL_STEP,
       req.user?.id ?? null,

@@ -447,7 +447,8 @@ export async function migrate() {
   // Foto do número do invólucro no agendamento de campo.
   await query(`
     ALTER TABLE meter_schedules
-      ADD COLUMN IF NOT EXISTS envelope_photo TEXT NOT NULL DEFAULT '';
+      ADD COLUMN IF NOT EXISTS envelope_photo TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS envelope_seal TEXT NOT NULL DEFAULT '';
   `)
 
   // Agendamento passivo (laboratório): quem agendou e a data do agendamento.

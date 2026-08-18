@@ -32,6 +32,7 @@ type FieldTeamFieldErrors = Partial<
     | 'csd'
     | 'partner'
     | 'envelopePhoto'
+    | 'envelopeSeal'
     | 'collaborator1'
     | 'collaborator2'
     | 'teamReason',
@@ -56,6 +57,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
   const [note, setNote] = useState('')
   const [envelopePhoto, setEnvelopePhoto] = useState('')
   const [envelopePhotoName, setEnvelopePhotoName] = useState('')
+  const [envelopeSeal, setEnvelopeSeal] = useState('')
   const [csd, setCsd] = useState('')
   const [partnerUserId, setPartnerUserId] = useState('')
   const [partnerQuery, setPartnerQuery] = useState('')
@@ -232,6 +234,10 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
         'Anexe a foto do número do invólucro, com o medidor visível dentro dele.'
     }
 
+    if (!envelopeSeal.trim()) {
+      nextErrors.envelopeSeal = 'Informe o número do invólucro.'
+    }
+
     const resolvedPartner = requireToiTeam ? null : resolvePartnerFromQuery()
     if (!requireToiTeam) {
       if (!resolvedPartner) {
@@ -313,6 +319,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
               partnerUserId: resolvedPartner!.id,
             }),
         envelopePhoto,
+        envelopeSeal: envelopeSeal.trim(),
       })
 
       setSlotModal({
@@ -326,6 +333,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       setNote('')
       setEnvelopePhoto('')
       setEnvelopePhotoName('')
+      setEnvelopeSeal('')
       setCsd('')
       setPartnerUserId('')
       setPartnerQuery('')
@@ -469,12 +477,28 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
 
         <div
           className={`full-width envelope-photo-field${
-            fieldErrors.envelopePhoto ? ' has-field-error' : ''
+            fieldErrors.envelopeSeal || fieldErrors.envelopePhoto ? ' has-field-error' : ''
           }`}
         >
           <div className="partner-search-label-row">
             <RequiredLabel>Número do Invólucro</RequiredLabel>
           </div>
+          <label className={`full-width${fieldErrors.envelopeSeal ? ' has-field-error' : ''}`}>
+            <span className="sr-only">Número do invólucro</span>
+            <input
+              type="text"
+              value={envelopeSeal}
+              onChange={(event) => {
+                setEnvelopeSeal(event.target.value)
+                clearFieldError('envelopeSeal')
+              }}
+              placeholder="Digite o número do lacre do invólucro"
+              aria-invalid={Boolean(fieldErrors.envelopeSeal)}
+              aria-describedby="field-team-envelope-seal-error"
+              required
+            />
+            <FormFieldError id="field-team-envelope-seal-error" message={fieldErrors.envelopeSeal} />
+          </label>
           <div className="file-picker">
             <input
               id={envelopePhotoInputId}

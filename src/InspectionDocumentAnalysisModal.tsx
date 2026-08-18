@@ -28,6 +28,61 @@ function formatDateTime(isoDate: string) {
   }).format(new Date(isoDate))
 }
 
+function MatchIndicator({ matches }: { matches: boolean | null | undefined }) {
+  if (matches === true) {
+    return (
+      <span className="inspection-document-match is-match" aria-label="Confere">
+        ✓
+      </span>
+    )
+  }
+  if (matches === false) {
+    return (
+      <span className="inspection-document-match is-mismatch" aria-label="Não confere">
+        ✗
+      </span>
+    )
+  }
+  return (
+    <span className="inspection-document-match is-unknown" aria-label="Comparação indisponível">
+      —
+    </span>
+  )
+}
+
+type ComparisonFieldProps = {
+  label: string
+  documentValue: string | null | undefined
+  registeredValue: string | null | undefined
+  matches: boolean | null | undefined
+}
+
+function ComparisonField({
+  label,
+  documentValue,
+  registeredValue,
+  matches,
+}: ComparisonFieldProps) {
+  return (
+    <div className="inspection-document-comparison">
+      <dt>{label}</dt>
+      <dd>
+        <div className="inspection-document-comparison-grid">
+          <div className="inspection-document-comparison-item">
+            <span className="inspection-document-comparison-label">No documento</span>
+            <strong>{documentValue?.trim() || '—'}</strong>
+          </div>
+          <div className="inspection-document-comparison-item">
+            <span className="inspection-document-comparison-label">Cadastrado</span>
+            <strong>{registeredValue?.trim() || '—'}</strong>
+          </div>
+          <MatchIndicator matches={matches} />
+        </div>
+      </dd>
+    </div>
+  )
+}
+
 export function InspectionDocumentAnalysisModal({
   meter,
   scheduleId,
@@ -36,6 +91,8 @@ export function InspectionDocumentAnalysisModal({
   const [loading, setLoading] = useState(true)
   const [documents, setDocuments] = useState<InspectionDocumentRecord[]>([])
   const [complete, setComplete] = useState(false)
+  const [registeredMeter, setRegisteredMeter] = useState(meter)
+  const [registeredLacre, setRegisteredLacre] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -47,10 +104,14 @@ export function InspectionDocumentAnalysisModal({
         if (cancelled) return
         setDocuments(response.documents)
         setComplete(response.complete)
+        setRegisteredMeter(response.meter)
+        setRegisteredLacre(response.registeredLacre)
       } catch {
         if (!cancelled) {
           setDocuments([])
           setComplete(false)
+          setRegisteredMeter(meter)
+          setRegisteredLacre(null)
         }
       } finally {
         if (!cancelled) {
@@ -63,7 +124,7 @@ export function InspectionDocumentAnalysisModal({
     return () => {
       cancelled = true
     }
-  }, [scheduleId])
+  }, [meter, scheduleId])
 
   return createPortal(
     <div className="ensaios-block-modal-overlay" role="presentation" onClick={onClose}>
@@ -125,14 +186,18 @@ export function InspectionDocumentAnalysisModal({
                     <dt>Anexado em</dt>
                     <dd>{formatDateTime(document.createdAt)}</dd>
                   </div>
-                  <div>
-                    <dt>Medidor no documento</dt>
-                    <dd>{document.extractedMeter ?? '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>Lacre do invólucro</dt>
-                    <dd>{document.extractedLacre ?? '—'}</dd>
-                  </div>
+                  <ComparisonField
+                    label="Medidor"
+                    documentValue={document.extractedMeter}
+                    registeredValue={document.registeredMeter ?? registeredMeter}
+                    matches={document.meterMatches}
+                  />
+                  <ComparisonField
+                    label="Lacre do invólucro"
+                    documentValue={document.extractedLacre}
+                    registeredValue={document.registeredLacre ?? registeredLacre}
+                    matches={document.lacreMatches}
+                  />
                   {document.blockReason ? (
                     <div className="user-detail-full">
                       <dt>Motivo do bloqueio</dt>

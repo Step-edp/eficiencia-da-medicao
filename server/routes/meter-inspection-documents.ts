@@ -54,10 +54,39 @@ function isSequentialDigits(value: string): boolean {
 
 type InspectionEvaluation = { blocked: boolean; reason: string | null }
 
+function normalizeMeter(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  return trimmed || null
+}
+
+function normalizeSeal(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+  if (/^\d+$/.test(trimmed)) {
+    return trimmed.replace(/^0+/, '') || '0'
+  }
+  return trimmed.toUpperCase()
+}
+
+function compareMeter(extracted: string | null, registered: string | null): boolean | null {
+  const documentValue = normalizeMeter(extracted)
+  const registeredValue = normalizeMeter(registered)
+  if (!documentValue || !registeredValue) return null
+  return documentValue === registeredValue
+}
+
+function compareSeal(extracted: string | null, registered: string | null): boolean | null {
+  const documentValue = normalizeSeal(extracted)
+  const registeredValue = normalizeSeal(registered)
+  if (!documentValue || !registeredValue) return null
+  return documentValue === registeredValue
+}
+
 function evaluateInspectionDocument(
   lacre: string | null,
   meterEncontrado: string | null,
   expectedMeter: string,
+  expectedLacre: string | null = null,
 ): InspectionEvaluation {
   if (!lacre) {
     return { blocked: true, reason: 'Lacre do invólucro não informado no documento.' }
@@ -78,6 +107,14 @@ function evaluateInspectionDocument(
     return {
       blocked: true,
       reason: `Medidor encontrado no documento (${meterEncontrado}) diverge do medidor agendado (${expectedMeter}).`,
+    }
+  }
+  const registeredLacre = normalizeSeal(expectedLacre)
+  const documentLacre = normalizeSeal(lacre)
+  if (registeredLacre && documentLacre && registeredLacre !== documentLacre) {
+    return {
+      blocked: true,
+      reason: `Lacre do invólucro no documento (${lacre}) diverge do lacre cadastrado (${expectedLacre}).`,
     }
   }
   return { blocked: false, reason: null }
@@ -103,8 +140,8 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     return
   }
 
-  const schedule = await query<{ id: string; meter: string }>(
-    `SELECT id, meter FROM meter_schedules WHERE id = $1`,
+  const schedule = await query<{ id: string; meter: string; envelope_seal: string }>(
+    `SELECT id, meter, envelope_seal FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
   if (!schedule.rows[0]) {
@@ -149,7 +186,12 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     const parsed = parseInspectionText(text)
     extractedMeter = parsed.meterEncontrado
     extractedLacre = parsed.lacre
-    evaluation = evaluateInspectionDocument(parsed.lacre, parsed.meterEncontrado, schedule.rows[0].meter)
+    evaluation = evaluateInspectionDocument(
+      parsed.lacre,
+      parsed.meterEncontrado,
+      schedule.rows[0].meter,
+      schedule.rows[0].envelope_seal || null,
+    )
   }
 
   const id = `inspdoc-${Date.now()}-${meterScheduleId}-${docType}`
@@ -187,6 +229,9 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
 
   const presence = await loadDocTypePresence(meterScheduleId)
 
+  const registeredMeter = schedule.rows[0].meter
+  const registeredLacre = schedule.rows[0].envelope_seal || null
+
   const document = {
     id: insert.rows[0].id,
     meterScheduleId: insert.rows[0].meter_schedule_id,
@@ -194,6 +239,10 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     fileName: insert.rows[0].file_name,
     extractedMeter: insert.rows[0].extracted_meter,
     extractedLacre: insert.rows[0].extracted_lacre,
+    registeredMeter,
+    registeredLacre,
+    meterMatches: compareMeter(insert.rows[0].extracted_meter, registeredMeter),
+    lacreMatches: compareSeal(insert.rows[0].extracted_lacre, registeredLacre),
     blocked: insert.rows[0].blocked,
     blockReason: insert.rows[0].block_reason,
     createdAt: insert.rows[0].created_at.toISOString(),
@@ -219,6 +268,8 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
 function mapInspectionDocumentRow(
   row: Omit<InspectionDocumentRow, 'file_data' | 'created_by_registration'>,
   registration: string | null = null,
+  registeredMeter: string | null = null,
+  registeredLacre: string | null = null,
 ) {
   return {
     id: row.id,
@@ -227,6 +278,10 @@ function mapInspectionDocumentRow(
     fileName: row.file_name,
     extractedMeter: row.extracted_meter,
     extractedLacre: row.extracted_lacre,
+    registeredMeter,
+    registeredLacre,
+    meterMatches: compareMeter(row.extracted_meter, registeredMeter),
+    lacreMatches: compareSeal(row.extracted_lacre, registeredLacre),
     blocked: row.blocked,
     blockReason: row.block_reason,
     createdAt: row.created_at.toISOString(),
@@ -238,14 +293,17 @@ function mapInspectionDocumentRow(
 export async function listInspectionDocuments(req: Request, res: Response) {
   const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
 
-  const schedule = await query<{ id: string; meter: string }>(
-    `SELECT id, meter FROM meter_schedules WHERE id = $1`,
+  const schedule = await query<{ id: string; meter: string; envelope_seal: string }>(
+    `SELECT id, meter, envelope_seal FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
   if (!schedule.rows[0]) {
     res.status(404).json({ error: 'Agendamento não encontrado.' })
     return
   }
+
+  const registeredMeter = schedule.rows[0].meter
+  const registeredLacre = schedule.rows[0].envelope_seal || null
 
   const result = await query<Omit<InspectionDocumentRow, 'file_data'>>(
     `SELECT id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_lacre,
@@ -259,9 +317,12 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   const presence = await loadDocTypePresence(meterScheduleId)
 
   res.json({
-    meter: schedule.rows[0].meter,
+    meter: registeredMeter,
+    registeredLacre,
     meterScheduleId,
-    documents: result.rows.map((row) => mapInspectionDocumentRow(row)),
+    documents: result.rows.map((row) =>
+      mapInspectionDocumentRow(row, null, registeredMeter, registeredLacre),
+    ),
     complete: presence.complete,
     hasToi: presence.hasToi,
     hasComunicado: presence.hasComunicado,
