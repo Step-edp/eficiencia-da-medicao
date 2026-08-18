@@ -45,6 +45,7 @@ type MeterScheduleRow = {
   created_at: Date
   created_by_user_id: string | null
   created_by_registration: string | null
+  created_by_name?: string | null
   demm_document_id?: string | null
   demm_file_name?: string | null
   demm_meter_count?: number | null
@@ -88,6 +89,7 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
     createdByRegistration: row.created_by_registration,
+    createdByName: row.created_by_name || '',
     demmDocumentId: row.demm_document_id ?? null,
     demmFileName: row.demm_file_name ?? null,
     demmMeterCount: Number(row.demm_meter_count ?? 0),
@@ -196,7 +198,8 @@ export async function listMeterSchedules(req: Request, res: Response) {
     : `ORDER BY ms.scheduled_at ASC, ms.created_at DESC`
 
   const result = await query<MeterScheduleRow>(
-    `SELECT ms.*, ms.scheduling_date::text AS scheduling_date, u.registration AS created_by_registration,
+    `SELECT ms.*, ms.scheduling_date::text AS scheduling_date,
+            u.name AS created_by_name, u.registration AS created_by_registration,
             d.id AS demm_document_id, d.file_name AS demm_file_name,
             COALESCE(jsonb_array_length(d.extracted_meters), 0) AS demm_meter_count
      FROM meter_schedules ms

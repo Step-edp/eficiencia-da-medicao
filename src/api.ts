@@ -460,6 +460,7 @@ export type MeterScheduleRecord = {
   createdAt: string
   createdByUserId: string | null
   createdByRegistration: string | null
+  createdByName?: string
   demmDocumentId: string | null
   demmFileName: string | null
   demmMeterCount: number

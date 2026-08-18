@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type MeterScheduleRecord } from './api'
-import { formatSchedulePartnerLabel } from './schedulePartnerLabel'
+import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, scheduleAuditSearchText } from './schedulePartnerLabel'
 
 type FieldTeamSchedulesPanelProps = {
   mode?: 'all' | 'mine'
@@ -36,6 +36,7 @@ function scheduleSearchText(item: MeterScheduleRecord) {
       item.note,
       item.csd,
       formatSchedulePartnerLabel(item),
+      scheduleAuditSearchText(item),
       item.partnerName,
       item.partnerRegistration,
       item.scheduledAtLabel,
@@ -158,7 +159,7 @@ export function FieldTeamConsultarPanel({
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Pesquisar por medidor, nota, CSD, parceiro, status…"
+              placeholder="Pesquisar por medidor, nota, CSD, parceiro, usuário, carimbo, status…"
               autoComplete="off"
               spellCheck={false}
             />
@@ -191,6 +192,8 @@ export function FieldTeamConsultarPanel({
                 <th>Nota</th>
                 <th>CSD</th>
                 <th>Parceiro / Equipe</th>
+                <th>Agendado por</th>
+                <th>Carimbo</th>
                 <th>Data agendada</th>
                 <th>Prazo entrega</th>
                 <th>Status entrega</th>
@@ -234,6 +237,8 @@ export function FieldTeamConsultarPanel({
                   <td>{item.note || '—'}</td>
                   <td>{item.csd || '—'}</td>
                   <td>{formatSchedulePartnerLabel(item) || '—'}</td>
+                  <td>{formatScheduleCreatedByLabel(item) || '—'}</td>
+                  <td>{formatScheduleCreatedAtLabel(item.createdAt) || '—'}</td>
                   <td>{item.scheduledAtLabel || '—'}</td>
                   <td>{item.deliveryDeadlineLabel || '—'}</td>
                   <td>
