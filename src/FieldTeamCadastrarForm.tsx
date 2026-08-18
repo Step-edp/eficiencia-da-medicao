@@ -142,15 +142,20 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
   const matchUsersByRegistration = (
     queryValue: string,
     source: FieldPartnerOption[],
+    options?: { showAllWhenEmpty?: boolean },
   ) => {
     const query = queryValue.trim().toUpperCase()
-    if (!query) return source.slice(0, 8)
+    if (!query) {
+      return options?.showAllWhenEmpty ? source : source.slice(0, 8)
+    }
     return source
       .filter((partner) => partner.registration.toUpperCase().includes(query))
       .slice(0, 12)
   }
 
-  const partnerMatches = matchUsersByRegistration(partnerQuery, partners)
+  const partnerMatches = matchUsersByRegistration(partnerQuery, partners, {
+    showAllWhenEmpty: true,
+  })
   const collaborator1Matches = matchUsersByRegistration(
     collaborator1Query,
     toiCollaborators,
@@ -231,7 +236,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
     if (!requireToiTeam) {
       if (!resolvedPartner) {
         nextErrors.partner =
-          'Informe a matrícula de um usuário cadastrado. Se o parceiro não estiver na lista, solicite que ele faça o cadastro no portal.'
+          'Selecione um usuário com perfil Lavratura de TOI. Se o parceiro não estiver na lista, solicite que ele faça o cadastro no portal.'
       } else {
         setPartnerUserId(resolvedPartner.id)
         setPartnerQuery(resolvedPartner.registration)
@@ -547,7 +552,8 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
           <div className={`full-width partner-search${fieldErrors.partner ? ' has-field-error' : ''}`}>
             <RequiredLabel>Parceiro</RequiredLabel>
             <p id="field-team-partner-hint" className="field-hint">
-              Se seu parceiro ainda não possuir cadastro, é necessário que ele faça isso antes.
+              Selecione um parceiro com perfil Lavratura de TOI. Se ainda não possuir cadastro,
+              é necessário que ele faça isso antes.
             </p>
             <div className="partner-search-control">
               <input
@@ -605,7 +611,8 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                     ))
                   ) : (
                     <li className="partner-search-empty">
-                      Nenhuma matrícula encontrada. Solicite que o parceiro faça o cadastro.
+                      Nenhum usuário com perfil Lavratura de TOI encontrado. Solicite o cadastro
+                      no portal.
                     </li>
                   )}
                 </ul>

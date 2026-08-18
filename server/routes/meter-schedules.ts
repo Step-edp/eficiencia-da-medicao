@@ -243,7 +243,7 @@ export async function countMeterSchedules(req: Request, res: Response) {
   res.json({ total: Number(result.rows[0]?.total ?? 0), trailStep })
 }
 
-/** Parceiros: usuários aprovados cadastrados no portal (busca por matrícula). */
+/** Parceiros: usuários aprovados com perfil Lavratura de TOI (busca por matrícula). */
 export async function listFieldPartners(req: Request, res: Response) {
   const result = await query<{
     id: string
@@ -254,6 +254,7 @@ export async function listFieldPartners(req: Request, res: Response) {
      FROM users
      WHERE approval_status = 'approved'
        AND role <> 'admin'
+       AND REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-') ILIKE 'Lavratura de TOI%'
        AND ($1::text IS NULL OR id <> $1)
      ORDER BY registration ASC, name ASC`,
     [req.user?.id ?? null],
@@ -470,7 +471,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
     if (!normalized.partnerUserId) {
       res.status(400).json({
         error:
-          'Selecione o parceiro. Se ele não estiver na lista, solicite que faça o cadastro no portal.',
+          'Selecione o parceiro. Escolha um usuário com perfil Lavratura de TOI. Se ele não estiver na lista, solicite o cadastro no portal.',
       })
       return
     }
@@ -484,14 +485,15 @@ export async function createMeterSchedule(req: Request, res: Response) {
        FROM users
        WHERE id = $1
          AND approval_status = 'approved'
-         AND role <> 'admin'`,
+         AND role <> 'admin'
+         AND REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-') ILIKE 'Lavratura de TOI%'`,
       [normalized.partnerUserId],
     )
     partner = partnerResult.rows[0] ?? null
     if (!partner) {
       res.status(400).json({
         error:
-          'Parceiro inválido. Se ele não estiver na lista, solicite que faça o cadastro no portal.',
+          'Parceiro inválido. Selecione um usuário com perfil Lavratura de TOI. Se ele não estiver na lista, solicite o cadastro no portal.',
       })
       return
     }
