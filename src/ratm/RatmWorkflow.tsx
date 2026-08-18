@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { LoginFeedback } from '../LoginFeedback'
 import { RatmFormFields } from './RatmFormFields'
+import {
+  isMeterReadyForEnsaioFromForm,
+  METER_NOT_RECEIVED_MESSAGE,
+} from './meterEnsaioEligibility'
 import { clearRatmDraft, loadRatmDraft, saveRatmDraft } from './ratmDraft'
 import { createEmptyRatmForm, normalizeRatmForm, type RatmFormData } from './types'
 
@@ -64,6 +68,14 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
       return false
     }
 
+    if (!isMeterReadyForEnsaioFromForm(current)) {
+      setFeedback({
+        type: 'error',
+        message: METER_NOT_RECEIVED_MESSAGE,
+      })
+      return false
+    }
+
     return true
   }
 
@@ -95,6 +107,17 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
       setFeedback({
         type: 'error',
         message: `Preencha o medidor no RATM ${invalidIndex + 1} antes de finalizar.`,
+      })
+      return
+    }
+
+    const notReceivedIndex = forms.findIndex((form) => !isMeterReadyForEnsaioFromForm(form))
+
+    if (notReceivedIndex >= 0) {
+      setActiveIndex(notReceivedIndex)
+      setFeedback({
+        type: 'error',
+        message: METER_NOT_RECEIVED_MESSAGE,
       })
       return
     }

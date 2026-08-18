@@ -3,6 +3,7 @@ import { query } from '../db.js'
 import { requireAuth } from '../auth.js'
 import { generateRatmLaudoPdf } from '../ratm-laudo-pdf.js'
 import { writeAuditLog } from '../audit.js'
+import { isMeterReadyForEnsaio } from '../lab-trail-status.js'
 
 type RatmLaudoRow = {
   id: string
@@ -83,6 +84,43 @@ export async function createRatmLaudos(req: Request, res: Response) {
     const id = `laudo-${batchId}-${index + 1}`
     const meter = form.meter.trim()
     const client = form.client?.trim() || 'Não informado'
+
+    const meterState = await query<{
+      registry_status: string | null
+      trail_step: string | null
+      demm_id: string | null
+    }>(
+      `SELECT mr.status AS registry_status,
+              ms.trail_step,
+              d.id AS demm_id
+       FROM meter_schedules ms
+       LEFT JOIN meter_registry mr ON mr.meter = ms.meter
+       LEFT JOIN LATERAL (
+         SELECT id
+         FROM demm_documents
+         WHERE meter_schedule_id = ms.id
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) d ON true
+       WHERE ms.meter = $1
+       ORDER BY ms.created_at DESC
+       LIMIT 1`,
+      [meter],
+    )
+
+    const state = meterState.rows[0]
+    const readyForEnsaio = isMeterReadyForEnsaio({
+      registryStatus: state?.registry_status,
+      trailStep: state?.trail_step,
+      hasDemmEntry: Boolean(state?.demm_id),
+    })
+
+    if (!readyForEnsaio) {
+      res.status(409).json({
+        error: `O medidor ${meter} ainda não foi recebido na Entrada. Registre a DEMM antes de iniciar o ensaio.`,
+      })
+      return
+    }
 
     const result = await query<RatmLaudoRow>(
       `INSERT INTO ratm_laudos (

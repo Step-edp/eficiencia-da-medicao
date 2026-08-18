@@ -67,14 +67,18 @@ import {
   getCsdDemmHistorico,
   getEntradaCsdDashboard,
   listWeekMeters,
+  receiveWeekMeter,
+  receiveWeekMeterPassive,
 } from './routes/demm-documents.js'
 import {
   getMeterRegistryTrailCounts,
+  getMeterRegistry,
 } from './routes/meter-registry.js'
 import {
   uploadInspectionDocument,
   downloadInspectionDocument,
   deleteInspectionDocument,
+  listInspectionDocuments,
   listInspectionPendencias,
 } from './routes/meter-inspection-documents.js'
 import {
@@ -324,8 +328,14 @@ async function start() {
     rescheduleMeterSchedule,
   )
   app.get('/api/meter-registry/trail-counts', requireAuth, getMeterRegistryTrailCounts)
+  app.get('/api/meter-registry', requireAuth, getMeterRegistry)
 
   app.get('/api/meter-schedules/inspection-pendencias', requireAuth, listInspectionPendencias)
+  app.get(
+    '/api/meter-schedules/:id/inspection-documents',
+    requireAuth,
+    listInspectionDocuments,
+  )
   app.post(
     '/api/meter-schedules/:id/inspection-document',
     requireAuth,
@@ -359,6 +369,18 @@ async function start() {
   app.get('/api/csds/demm-historico', requireAuth, getCsdDemmHistorico)
   app.get('/api/csds/entrada-dashboard', requireAuth, getEntradaCsdDashboard)
   app.get('/api/demm-week-meters', requireAuth, listWeekMeters)
+  app.post(
+    '/api/demm-week-meters/receive',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    receiveWeekMeter,
+  )
+  app.post(
+    '/api/demm-week-meters/receive-passive',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    receiveWeekMeterPassive,
+  )
 
   app.get('/api/support-tickets', requireAuth, listSupportTickets)
   app.post('/api/support-tickets', optionalAuth, createSupportTicket)

@@ -381,6 +381,25 @@ export type EnsaiosManualBlock = {
   reason: string
 }
 
+export type MeterRegistryRecord = {
+  meter: string
+  installation: string
+  toi: string
+  note: string
+  csd: string
+  client: string
+  status: string
+  trailStep: string
+  manufacturer: string
+  model: string
+  ratmNumber: string | null
+  deliveredBy: string | null
+  schedulingNotes: string
+  availableAt: string | null
+  scheduledAt: string | null
+  receivedAt: string | null
+}
+
 export type MeterScheduleHistoryRecord = {
   id: string
   occurredAt: string
@@ -465,6 +484,7 @@ export type MeterScheduleRecord = {
   demmDocumentId: string | null
   demmFileName: string | null
   demmMeterCount: number
+  registryStatus?: string
 }
 
 export type FieldPartnerOption = {
@@ -554,6 +574,8 @@ export type DemmDocumentRecord = {
   extractedMeters: DemmMeterAnalysisRecord[]
   meterCount: number
   scheduledCount: number
+  bulkEntryReady?: boolean
+  liberadoCount?: number
   createdAt: string
   createdByUserId: string | null
   createdByRegistration: string | null
@@ -1360,6 +1382,12 @@ export const api = {
   },
   getMeterRegistryTrailCounts: () =>
     request<{ counts: Record<string, number> }>('/api/meter-registry/trail-counts'),
+  getMeterRegistry: (meter: string) => {
+    const search = new URLSearchParams({ meter })
+    return request<{ meter: string; registry: MeterRegistryRecord | null }>(
+      `/api/meter-registry?${search.toString()}`,
+    )
+  },
   createMeterSchedule: (payload: {
     meter: string
     installation: string
@@ -1429,6 +1457,26 @@ export const api = {
     request<EntradaCsdDashboardData>('/api/csds/entrada-dashboard'),
   listWeekMeters: () =>
     request<{ meters: WeekMeterRecord[]; total: number }>('/api/demm-week-meters'),
+  receiveWeekMeter: (payload: { meter: string; scheduleId?: string | null }) =>
+    request<{ ok: true; meter: string; scheduleId: string; receivedAt: string }>(
+      '/api/demm-week-meters/receive',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    ),
+  receiveWeekMeterPassive: (payload: {
+    meter: string
+    scheduleId?: string | null
+    receivedAt: string
+  }) =>
+    request<{ ok: true; meter: string; scheduleId: string; receivedAt: string; passive: true }>(
+      '/api/demm-week-meters/receive-passive',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    ),
   uploadInspectionDocument: (
     meterScheduleId: string,
     payload: { fileName: string; fileBase64: string },
@@ -1447,6 +1495,20 @@ export const api = {
     ),
   getInspectionDocumentFileUrl: (meterScheduleId: string, docType: InspectionDocumentType) =>
     `/api/meter-schedules/${meterScheduleId}/inspection-document/${docType}`,
+  getInspectionDocumentDownloadUrl: (
+    meterScheduleId: string,
+    docType: InspectionDocumentType,
+  ) =>
+    `/api/meter-schedules/${meterScheduleId}/inspection-document/${docType}?download=1`,
+  listInspectionDocuments: (meterScheduleId: string) =>
+    request<{
+      meter: string
+      meterScheduleId: string
+      documents: InspectionDocumentRecord[]
+      complete: boolean
+      hasToi: boolean
+      hasComunicado: boolean
+    }>(`/api/meter-schedules/${meterScheduleId}/inspection-documents`),
   listInspectionPendencias: () =>
     request<{ pendencias: MeterInspectionPendenciaRecord[]; pendingCount: number }>(
       '/api/meter-schedules/inspection-pendencias',

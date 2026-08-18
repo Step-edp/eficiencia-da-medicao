@@ -119,7 +119,7 @@ export function EnviarDocumentosPanel() {
       })
 
       if (!document.complete) {
-        const missing = !document.hasToi ? 'TOI' : 'Comunicado de Substituição de Medidor'
+        const missing = !document.hasToi ? 'TOI' : 'CSM'
         setInspectionFeedback({
           type: 'success',
           message: `Documento anexado ao medidor ${pendencia.meter}. Ainda falta anexar o ${missing}.`,
@@ -256,7 +256,7 @@ export function EnviarDocumentosPanel() {
                     <td>
                       {[
                         pendencia.missingToi ? 'TOI' : null,
-                        pendencia.missingComunicado ? 'Comunicado' : null,
+                        pendencia.missingComunicado ? 'CSM' : null,
                       ]
                         .filter(Boolean)
                         .join(' + ')}

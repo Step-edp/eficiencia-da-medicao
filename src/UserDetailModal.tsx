@@ -64,6 +64,7 @@ type UserDetailModalProps = {
   startInEditMode?: boolean
   showPassword?: boolean
   profilePhotoSrc?: string
+  allowProfilePhotoEdit?: boolean
 }
 
 function statusLabel(status: AppUser['approvalStatus']) {
@@ -75,6 +76,49 @@ function statusLabel(status: AppUser['approvalStatus']) {
 function formatValue(value?: string | null) {
   const trimmed = value?.trim()
   return trimmed ? trimmed : '—'
+}
+
+function buildUserUpdatePayload(user: AppUser, profilePhoto: string): UserUpdatePayload {
+  return {
+    name: user.name ?? '',
+    registration: user.registration ?? '',
+    email: user.email ?? '',
+    whatsapp: user.whatsapp ?? '',
+    birthDate: user.birthDate ?? '',
+    cpf: user.cpf ?? '',
+    jobTitle: user.jobTitle ?? '',
+    workArea: user.workArea ?? '',
+    employmentType: user.employmentType ?? '',
+    edpUnit: user.edpUnit ?? '',
+    locality: user.locality ?? '',
+    thirdPartyCompany: user.thirdPartyCompany ?? '',
+    workSubtype: user.workSubtype ?? '',
+    accessAreas: user.accessAreas ?? [],
+    accessProcesses: user.accessProcesses ?? [],
+    personalDescription: user.personalDescription ?? '',
+    hobby: user.hobby ?? '',
+    profilePhoto,
+  }
+}
+
+function readProfilePhotoFile(
+  file: File,
+  onSuccess: (dataUrl: string, fileName: string) => void,
+  onError: (message: string) => void,
+) {
+  if (!file.type.startsWith('image/') || file.size > 2_000_000) {
+    onError('Envie uma imagem válida com até 2 MB.')
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = () => {
+    if (typeof reader.result === 'string') {
+      onSuccess(reader.result, file.name)
+    }
+  }
+  reader.onerror = () => onError('Não foi possível carregar a imagem.')
+  reader.readAsDataURL(file)
 }
 
 export function UserDetailModal({
@@ -89,10 +133,12 @@ export function UserDetailModal({
   startInEditMode = false,
   showPassword = false,
   profilePhotoSrc = '',
+  allowProfilePhotoEdit = false,
 }: UserDetailModalProps) {
   const isAdminUser = user.role === 'admin'
   const canDelete = !isAdminUser
   const [editing, setEditing] = useState(startInEditMode)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
@@ -143,6 +189,7 @@ export function UserDetailModal({
     message: string
   } | null>(null)
   const photoInputId = `user-photo-${user.id}`
+  const photoOnlyInputId = `user-photo-only-${user.id}`
 
   const emitFeedback = (feedback: { type: 'success' | 'error'; message: string }) => {
     setLocalFeedback(feedback)
@@ -293,6 +340,45 @@ export function UserDetailModal({
       current.includes(encoded)
         ? current.filter((item) => item !== encoded)
         : [...current, encoded],
+    )
+  }
+
+  const saveProfilePhoto = async (nextProfilePhoto: string, fileName: string) => {
+    setLocalFeedback(null)
+    setUploadingPhoto(true)
+    try {
+      const { user: updated } = await api.updateUser(
+        user.id,
+        buildUserUpdatePayload(user, nextProfilePhoto),
+      )
+      setProfilePhoto(updated.profilePhoto ?? nextProfilePhoto)
+      setProfilePhotoName(fileName)
+      onSaved(updated)
+      emitFeedback({ type: 'success', message: 'Foto de perfil atualizada.' })
+    } catch (error) {
+      emitFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível atualizar a foto de perfil.',
+      })
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+
+  const handleProfilePhotoFile = (file: File | undefined, input?: HTMLInputElement | null) => {
+    if (!file) return
+    readProfilePhotoFile(
+      file,
+      (dataUrl, fileName) => {
+        void saveProfilePhoto(dataUrl, fileName)
+      },
+      (message) => {
+        emitFeedback({ type: 'error', message })
+        if (input) input.value = ''
+      },
     )
   }
 
@@ -520,14 +606,51 @@ export function UserDetailModal({
 
         {!editing &&
         (profilePhoto || user.hasProfilePhoto || user.profilePhoto || profilePhotoSrc) ? (
-          <UserProfilePhoto
-            name={user.name}
-            photoSrc={profilePhoto}
-            hasProfilePhoto={
-              user.hasProfilePhoto ?? Boolean(profilePhoto || profilePhotoSrc || user.profilePhoto)
-            }
-            detail
-          />
+          <>
+            <UserProfilePhoto
+              name={user.name}
+              photoSrc={profilePhoto}
+              hasProfilePhoto={
+                user.hasProfilePhoto ?? Boolean(profilePhoto || profilePhotoSrc || user.profilePhoto)
+              }
+              detail
+            />
+            {allowProfilePhotoEdit ? (
+              <div className="user-profile-photo-actions">
+                <input
+                  id={photoOnlyInputId}
+                  className="file-picker-input"
+                  type="file"
+                  accept="image/*"
+                  disabled={uploadingPhoto}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    handleProfilePhotoFile(file, event.target)
+                  }}
+                />
+                <label htmlFor={photoOnlyInputId} className="secondary-button compact-button">
+                  {uploadingPhoto ? 'Salvando foto...' : 'Alterar foto de perfil'}
+                </label>
+              </div>
+            ) : null}
+          </>
+        ) : allowProfilePhotoEdit && !editing ? (
+          <div className="user-profile-photo-actions">
+            <input
+              id={photoOnlyInputId}
+              className="file-picker-input"
+              type="file"
+              accept="image/*"
+              disabled={uploadingPhoto}
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                handleProfilePhotoFile(file, event.target)
+              }}
+            />
+            <label htmlFor={photoOnlyInputId} className="secondary-button compact-button">
+              {uploadingPhoto ? 'Salvando foto...' : 'Adicionar foto de perfil'}
+            </label>
+          </div>
         ) : null}
 
         {editing ? (
@@ -834,22 +957,17 @@ export function UserDetailModal({
                   onChange={(event) => {
                     const file = event.target.files?.[0]
                     if (!file) return
-                    if (!file.type.startsWith('image/') || file.size > 2_000_000) {
-                      onFeedback({
-                        type: 'error',
-                        message: 'Envie uma imagem válida com até 2 MB.',
-                      })
-                      event.target.value = ''
-                      return
-                    }
-                    const reader = new FileReader()
-                    reader.onload = () => {
-                      if (typeof reader.result === 'string') {
-                        setProfilePhoto(reader.result)
-                        setProfilePhotoName(file.name)
-                      }
-                    }
-                    reader.readAsDataURL(file)
+                    readProfilePhotoFile(
+                      file,
+                      (dataUrl, fileName) => {
+                        setProfilePhoto(dataUrl)
+                        setProfilePhotoName(fileName)
+                      },
+                      (message) => {
+                        onFeedback({ type: 'error', message })
+                        event.target.value = ''
+                      },
+                    )
                   }}
                 />
                 <label htmlFor={photoInputId} className="file-picker-button">

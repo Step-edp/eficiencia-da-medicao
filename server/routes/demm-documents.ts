@@ -8,6 +8,7 @@ import {
   ENTRADA_TRAIL_STEP,
   ENSAIAR_TRAIL_STEP,
   getNextStatusAfterEntrada,
+  hasMeterEntradaGiven,
 } from '../lab-trail-status.js'
 import {
   isMeterDeliveryLate,
@@ -21,6 +22,11 @@ function calendarDaysBetween(from: Date, to: Date): number {
   const start = toCalendarDate(from).getTime()
   const end = toCalendarDate(to).getTime()
   return Math.max(0, Math.round((end - start) / (24 * 60 * 60 * 1000)))
+}
+
+/** SLA: dias entre o agendamento no sistema e a entrada no laboratório (DEMM). */
+function computeEntradaSlaDays(agendadoEm: Date, entradaNoLaboratorioEm: Date) {
+  return calendarDaysBetween(agendadoEm, entradaNoLaboratorioEm)
 }
 
 function normalizeCsdKey(value: string) {
@@ -98,10 +104,29 @@ export async function listDemmDocuments(_req: Request, res: Response) {
      ORDER BY d.created_at DESC`,
   )
 
-  res.json({
-    documents: result.rows.map((row) =>
-      mapDemmDocument({ ...row, file_data: Buffer.alloc(0) }),
+  const allMeters = [
+    ...new Set(
+      result.rows.flatMap((row) => (row.extracted_meters ?? []).map((item) => item.meter)),
     ),
+  ]
+  const statusByMeter = await buildMeterWeekStatusMap(allMeters)
+
+  res.json({
+    documents: result.rows.map((row) => {
+      const mapped = mapDemmDocument({ ...row, file_data: Buffer.alloc(0) })
+      const meterNumbers = (row.extracted_meters ?? []).map((item) => item.meter)
+      const liberadoCount = meterNumbers.filter(
+        (meter) => statusByMeter.get(meter) === 'liberado',
+      ).length
+      const bulkEntryReady =
+        meterNumbers.length > 0 && liberadoCount === meterNumbers.length
+
+      return {
+        ...mapped,
+        bulkEntryReady,
+        liberadoCount,
+      }
+    }),
   })
 }
 
@@ -640,6 +665,88 @@ export async function getCsdDemmHistorico(_req: Request, res: Response) {
 
 export type WeekMeterStatus = 'nao_agendado' | 'sem_documento_inspecao' | 'bloqueado' | 'liberado'
 
+type WeekMeterInspection = {
+  has_toi: boolean
+  has_comunicado: boolean
+  any_blocked: boolean
+  block_reasons: string | null
+}
+
+function computeWeekMeterStatus(
+  scheduled: boolean,
+  inspection: WeekMeterInspection | undefined,
+): WeekMeterStatus {
+  const complete = Boolean(inspection?.has_toi && inspection?.has_comunicado)
+  if (!scheduled) {
+    return 'nao_agendado'
+  }
+  if (!complete) {
+    return 'sem_documento_inspecao'
+  }
+  if (inspection?.any_blocked) {
+    return 'bloqueado'
+  }
+  return 'liberado'
+}
+
+function meterAwaitingEntrada(
+  registryStatus: string | null | undefined,
+  scheduleTrailStep: string | null | undefined,
+): boolean {
+  if (registryStatus && hasMeterEntradaGiven(registryStatus)) {
+    return false
+  }
+  if (scheduleTrailStep && scheduleTrailStep.trim() !== ENTRADA_TRAIL_STEP) {
+    return false
+  }
+  return true
+}
+
+async function buildMeterWeekStatusMap(meters: string[]): Promise<Map<string, WeekMeterStatus>> {
+  const uniqueMeters = [...new Set(meters.map((meter) => meter.trim()).filter(Boolean))]
+  const statusByMeter = new Map<string, WeekMeterStatus>()
+  if (!uniqueMeters.length) {
+    return statusByMeter
+  }
+
+  const analyzed = await analyzeDemmMeters(uniqueMeters)
+  const analyzedByMeter = new Map(analyzed.map((item) => [item.meter, item]))
+
+  const scheduleIds = analyzed
+    .filter((item): item is typeof item & { scheduleId: string } => Boolean(item.scheduleId))
+    .map((item) => item.scheduleId)
+
+  const inspectionRows = scheduleIds.length
+    ? await query<WeekMeterInspection & { meter_schedule_id: string }>(
+        `SELECT meter_schedule_id,
+                bool_or(doc_type IN ('toi', 'ambos')) AS has_toi,
+                bool_or(doc_type IN ('comunicado', 'ambos')) AS has_comunicado,
+                bool_or(blocked) AS any_blocked,
+                string_agg(DISTINCT block_reason, ' | ') FILTER (WHERE block_reason IS NOT NULL) AS block_reasons
+         FROM meter_inspection_documents
+         WHERE meter_schedule_id = ANY($1::text[])
+         GROUP BY meter_schedule_id`,
+        [scheduleIds],
+      )
+    : { rows: [] as Array<WeekMeterInspection & { meter_schedule_id: string }> }
+  const inspectionByScheduleId = new Map(
+    inspectionRows.rows.map((row) => [row.meter_schedule_id, row]),
+  )
+
+  for (const meter of uniqueMeters) {
+    const item = analyzedByMeter.get(meter)
+    const inspection = item?.scheduleId
+      ? inspectionByScheduleId.get(item.scheduleId)
+      : undefined
+    statusByMeter.set(
+      meter,
+      computeWeekMeterStatus(Boolean(item?.scheduled), inspection),
+    )
+  }
+
+  return statusByMeter
+}
+
 export async function listWeekMeters(_req: Request, res: Response) {
   const documents = await query<{
     file_name: string
@@ -685,6 +792,25 @@ export async function listWeekMeters(_req: Request, res: Response) {
   const uniqueMeters = [...meterInfo.keys()]
   const analyzed = await analyzeDemmMeters(uniqueMeters)
 
+  const registryRows = uniqueMeters.length
+    ? await query<{ meter: string; status: string; trail_step: string }>(
+        `SELECT meter, status, trail_step FROM meter_registry WHERE meter = ANY($1::text[])`,
+        [uniqueMeters],
+      )
+    : { rows: [] as Array<{ meter: string; status: string; trail_step: string }> }
+  const registryByMeter = new Map(registryRows.rows.map((row) => [row.meter, row]))
+
+  const scheduleTrailRows = uniqueMeters.length
+    ? await query<{ meter: string; trail_step: string }>(
+        `SELECT DISTINCT ON (meter) meter, trail_step
+         FROM meter_schedules
+         WHERE meter = ANY($1::text[])
+         ORDER BY meter, created_at DESC`,
+        [uniqueMeters],
+      )
+    : { rows: [] as Array<{ meter: string; trail_step: string }> }
+  const scheduleTrailByMeter = new Map(scheduleTrailRows.rows.map((row) => [row.meter, row.trail_step]))
+
   const scheduleIds = analyzed
     .filter((item): item is typeof item & { scheduleId: string } => Boolean(item.scheduleId))
     .map((item) => item.scheduleId)
@@ -720,20 +846,16 @@ export async function listWeekMeters(_req: Request, res: Response) {
     inspectionRows.rows.map((row) => [row.meter_schedule_id, row]),
   )
 
-  const meters = analyzed.map((item) => {
+  const meters = analyzed
+    .filter((item) => {
+      const registry = registryByMeter.get(item.meter)
+      const scheduleTrailStep = scheduleTrailByMeter.get(item.meter)
+      return meterAwaitingEntrada(registry?.status, scheduleTrailStep)
+    })
+    .map((item) => {
     const info = meterInfo.get(item.meter)
     const inspection = item.scheduleId ? inspectionByScheduleId.get(item.scheduleId) : undefined
-    const complete = Boolean(inspection?.has_toi && inspection?.has_comunicado)
-    let status: WeekMeterStatus
-    if (!item.scheduled) {
-      status = 'nao_agendado'
-    } else if (!complete) {
-      status = 'sem_documento_inspecao'
-    } else if (inspection?.any_blocked) {
-      status = 'bloqueado'
-    } else {
-      status = 'liberado'
-    }
+    const status = computeWeekMeterStatus(item.scheduled, inspection)
     return {
       meter: item.meter,
       csdId: info?.csdId ?? null,
@@ -748,6 +870,214 @@ export async function listWeekMeters(_req: Request, res: Response) {
   })
 
   res.json({ meters, total: meters.length })
+}
+
+type WeekMeterScheduleRow = {
+  id: string
+  meter: string
+  trail_step: string
+}
+
+async function resolveWeekMeterSchedule(
+  meter: string,
+  scheduleId: string,
+): Promise<WeekMeterScheduleRow | null> {
+  const scheduleResult = scheduleId
+    ? await query<WeekMeterScheduleRow>(
+        `SELECT id, meter, trail_step FROM meter_schedules WHERE id = $1`,
+        [scheduleId],
+      )
+    : await query<WeekMeterScheduleRow>(
+        `SELECT id, meter, trail_step
+         FROM meter_schedules
+         WHERE meter = $1 AND trail_step = $2
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [meter, ENTRADA_TRAIL_STEP],
+      )
+
+  const schedule = scheduleResult.rows[0]
+  if (!schedule || schedule.meter !== meter) {
+    return null
+  }
+  return schedule
+}
+
+async function validateWeekMeterReadyToReceive(
+  schedule: WeekMeterScheduleRow,
+  res: Response,
+): Promise<boolean> {
+  if (schedule.trail_step.trim() !== ENTRADA_TRAIL_STEP) {
+    res.status(409).json({ error: 'Este medidor já teve entrada registrada.' })
+    return false
+  }
+
+  const registry = await query<{ status: string }>(
+    `SELECT status FROM meter_registry WHERE meter = $1`,
+    [schedule.meter],
+  )
+  if (registry.rows[0] && hasMeterEntradaGiven(registry.rows[0].status)) {
+    res.status(409).json({ error: 'Este medidor já teve entrada registrada.' })
+    return false
+  }
+
+  const inspectionRows = await query<WeekMeterInspection & { meter_schedule_id: string }>(
+    `SELECT meter_schedule_id,
+            bool_or(doc_type IN ('toi', 'ambos')) AS has_toi,
+            bool_or(doc_type IN ('comunicado', 'ambos')) AS has_comunicado,
+            bool_or(blocked) AS any_blocked,
+            string_agg(DISTINCT block_reason, ' | ') FILTER (WHERE block_reason IS NOT NULL) AS block_reasons
+     FROM meter_inspection_documents
+     WHERE meter_schedule_id = $1
+     GROUP BY meter_schedule_id`,
+    [schedule.id],
+  )
+  const inspection = inspectionRows.rows[0]
+  const status = computeWeekMeterStatus(true, inspection)
+
+  if (status === 'nao_agendado') {
+    res.status(409).json({ error: 'Medidor não está agendado.' })
+    return false
+  }
+  if (status === 'sem_documento_inspecao') {
+    res.status(409).json({
+      error: 'Anexe TOI e CSM antes de receber o medidor.',
+    })
+    return false
+  }
+  if (status === 'bloqueado') {
+    res.status(409).json({
+      error: inspection?.block_reasons
+        ? `Medidor bloqueado: ${inspection.block_reasons}`
+        : 'Medidor bloqueado pelos documentos de inspeção.',
+    })
+    return false
+  }
+
+  return true
+}
+
+async function applyWeekMeterReceive(
+  schedule: WeekMeterScheduleRow,
+  receivedAt: Date,
+  req: Request,
+  summarySuffix = '',
+) {
+  await query(
+    `UPDATE meter_schedules
+     SET trail_step = $1, received_at = $2
+     WHERE id = $3 AND trail_step = $4`,
+    [ENSAIAR_TRAIL_STEP, receivedAt.toISOString(), schedule.id, ENTRADA_TRAIL_STEP],
+  )
+
+  await query(
+    `UPDATE meter_registry
+     SET status = $1, trail_step = $2, received_at = $3
+     WHERE meter = $4 AND status = 'Agendado'`,
+    [
+      getNextStatusAfterEntrada(),
+      ENSAIAR_TRAIL_STEP,
+      receivedAt.toISOString(),
+      schedule.meter,
+    ],
+  )
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: schedule.id,
+    summary: `Medidor ${schedule.meter} recebido no laboratório${summarySuffix}`,
+    newData: {
+      meter: schedule.meter,
+      scheduleId: schedule.id,
+      receivedAt: receivedAt.toISOString(),
+    },
+    metadata: { meter: schedule.meter },
+  })
+}
+
+function parsePassiveReceivedAt(value: unknown): Date | null {
+  if (typeof value !== 'string' || !value.trim()) {
+    return null
+  }
+  const parsed = new Date(value.trim())
+  if (Number.isNaN(parsed.getTime())) {
+    return null
+  }
+  return parsed
+}
+
+export async function receiveWeekMeter(req: Request, res: Response) {
+  const meter = typeof req.body?.meter === 'string' ? req.body.meter.trim() : ''
+  const scheduleId =
+    typeof req.body?.scheduleId === 'string' ? req.body.scheduleId.trim() : ''
+
+  if (!meter) {
+    res.status(400).json({ error: 'Informe o medidor para receber.' })
+    return
+  }
+
+  const schedule = await resolveWeekMeterSchedule(meter, scheduleId)
+  if (!schedule) {
+    res.status(404).json({ error: 'Agendamento do medidor não encontrado.' })
+    return
+  }
+
+  if (!(await validateWeekMeterReadyToReceive(schedule, res))) {
+    return
+  }
+
+  const receivedAt = new Date()
+  await applyWeekMeterReceive(schedule, receivedAt, req)
+
+  res.json({ ok: true, meter, scheduleId: schedule.id, receivedAt: receivedAt.toISOString() })
+}
+
+export async function receiveWeekMeterPassive(req: Request, res: Response) {
+  if (req.user?.role !== 'admin') {
+    res.status(403).json({ error: 'Somente administradores podem registrar recebimento passivo.' })
+    return
+  }
+
+  const meter = typeof req.body?.meter === 'string' ? req.body.meter.trim() : ''
+  const scheduleId =
+    typeof req.body?.scheduleId === 'string' ? req.body.scheduleId.trim() : ''
+  const receivedAt = parsePassiveReceivedAt(req.body?.receivedAt)
+
+  if (!meter) {
+    res.status(400).json({ error: 'Informe o medidor para receber.' })
+    return
+  }
+
+  if (!receivedAt) {
+    res.status(400).json({ error: 'Informe a data real em que o medidor foi recebido.' })
+    return
+  }
+
+  if (receivedAt.getTime() > Date.now()) {
+    res.status(400).json({ error: 'A data de recebimento não pode ser no futuro.' })
+    return
+  }
+
+  const schedule = await resolveWeekMeterSchedule(meter, scheduleId)
+  if (!schedule) {
+    res.status(404).json({ error: 'Agendamento do medidor não encontrado.' })
+    return
+  }
+
+  if (!(await validateWeekMeterReadyToReceive(schedule, res))) {
+    return
+  }
+
+  await applyWeekMeterReceive(schedule, receivedAt, req, ' (passivo)')
+
+  res.json({
+    ok: true,
+    meter,
+    scheduleId: schedule.id,
+    receivedAt: receivedAt.toISOString(),
+    passive: true,
+  })
 }
 
 type CsdDashboardAccumulator = {
@@ -849,8 +1179,9 @@ export async function getEntradaCsdDashboard(_req: Request, res: Response) {
     entry_at: Date | null
   }>(
     `SELECT ms.id, ms.meter, ms.csd, ms.scheduled_at, ms.trail_step, ms.created_at,
-            d.created_at AS entry_at
+            COALESCE(ms.received_at, mr.received_at, d.created_at) AS entry_at
      FROM meter_schedules ms
+     LEFT JOIN meter_registry mr ON mr.meter = ms.meter
      LEFT JOIN LATERAL (
        SELECT created_at
        FROM demm_documents
@@ -872,8 +1203,7 @@ export async function getEntradaCsdDashboard(_req: Request, res: Response) {
     if (hasEntry) {
       if (row.entry_at) {
         const daysLate = calendarDaysBetween(deadline, row.entry_at)
-        const slaDays = calendarDaysBetween(row.created_at, row.entry_at)
-        bucket.slaDaySamples.push(slaDays)
+        bucket.slaDaySamples.push(computeEntradaSlaDays(row.created_at, row.entry_at))
         if (daysLate > 0) {
           bucket.deliveredLate += 1
         } else {

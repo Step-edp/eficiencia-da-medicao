@@ -34,6 +34,21 @@ function isScheduleCreator(
   return isSameRegistration(registration, item.createdByRegistration)
 }
 
+function isToiTeamSchedule(
+  item: Pick<
+    MeterScheduleRecord,
+    | 'toiCollaborator1Registration'
+    | 'toiCollaborator2Registration'
+    | 'toiTeamReason'
+  >,
+) {
+  return Boolean(
+    item.toiCollaborator1Registration?.trim() ||
+      item.toiCollaborator2Registration?.trim() ||
+      item.toiTeamReason?.trim(),
+  )
+}
+
 export function formatScheduleCreatedByLabel(
   item: Pick<
     MeterScheduleRecord,
@@ -63,20 +78,30 @@ export function formatScheduleCreatedAtLabel(createdAt?: string) {
 }
 
 export function formatScheduleCollaborator1Label(
-  item: Pick<MeterScheduleRecord, 'toiCollaborator1Name' | 'toiCollaborator1Registration'>,
+  item: Pick<
+    MeterScheduleRecord,
+    | 'toiCollaborator1Name'
+    | 'toiCollaborator1Registration'
+    | 'toiCollaborator2Registration'
+    | 'toiTeamReason'
+    | 'createdByName'
+    | 'createdByRegistration'
+    | 'scheduledByName'
+  >,
 ) {
+  if (isToiTeamSchedule(item)) {
+    return formatScheduleCreatedByLabel(item)
+  }
   return formatPerson(item.toiCollaborator1Name, item.toiCollaborator1Registration)
 }
 
 export function formatScheduleCollaborator2Label(
-  item: Pick<MeterScheduleRecord, 'toiCollaborator2Name' | 'toiCollaborator2Registration'>,
-) {
-  return formatPerson(item.toiCollaborator2Name, item.toiCollaborator2Registration)
-}
-
-export function formatSchedulePartnerLabel(
   item: Pick<
     MeterScheduleRecord,
+    | 'toiCollaborator2Name'
+    | 'toiCollaborator2Registration'
+    | 'toiCollaborator1Registration'
+    | 'toiTeamReason'
     | 'partnerName'
     | 'partnerRegistration'
     | 'partnerUserId'
@@ -84,6 +109,10 @@ export function formatSchedulePartnerLabel(
     | 'createdByRegistration'
   >,
 ) {
+  if (isToiTeamSchedule(item)) {
+    return formatPerson(item.toiCollaborator2Name, item.toiCollaborator2Registration)
+  }
+
   const partnerIsCreator = isScheduleCreator(
     item,
     item.partnerUserId,
@@ -97,6 +126,24 @@ export function formatSchedulePartnerLabel(
   return ''
 }
 
+export function formatSchedulePartnerLabel(
+  item: Pick<
+    MeterScheduleRecord,
+    | 'partnerName'
+    | 'partnerRegistration'
+    | 'partnerUserId'
+    | 'createdByUserId'
+    | 'createdByRegistration'
+    | 'toiCollaborator1Registration'
+    | 'toiCollaborator2Registration'
+    | 'toiCollaborator2Name'
+    | 'toiCollaborator2Registration'
+    | 'toiTeamReason'
+  >,
+) {
+  return formatScheduleCollaborator2Label(item)
+}
+
 export function formatSchedulePartnerAndTeamLabel(
   item: Pick<
     MeterScheduleRecord,
@@ -105,10 +152,13 @@ export function formatSchedulePartnerAndTeamLabel(
     | 'partnerUserId'
     | 'createdByUserId'
     | 'createdByRegistration'
+    | 'createdByName'
+    | 'scheduledByName'
     | 'toiCollaborator1Name'
     | 'toiCollaborator1Registration'
     | 'toiCollaborator2Name'
     | 'toiCollaborator2Registration'
+    | 'toiTeamReason'
   >,
 ) {
   const parts = [

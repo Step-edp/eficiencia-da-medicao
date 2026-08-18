@@ -61,3 +61,69 @@ export async function syncMeterRegistryTrailSteps(): Promise<number> {
 
   return Number(result.rows[0]?.count ?? 0)
 }
+
+type MeterRegistryRow = {
+  meter: string
+  installation: string
+  toi: string
+  note: string
+  csd: string
+  client: string
+  status: string
+  trail_step: string
+  manufacturer: string
+  model: string
+  ratm_number: string | null
+  delivered_by: string | null
+  scheduling_notes: string
+  available_at: Date | null
+  scheduled_at: Date | null
+  received_at: Date | null
+}
+
+function mapMeterRegistry(row: MeterRegistryRow) {
+  return {
+    meter: row.meter,
+    installation: row.installation,
+    toi: row.toi,
+    note: row.note,
+    csd: row.csd,
+    client: row.client,
+    status: row.status,
+    trailStep: row.trail_step,
+    manufacturer: row.manufacturer,
+    model: row.model,
+    ratmNumber: row.ratm_number,
+    deliveredBy: row.delivered_by,
+    schedulingNotes: row.scheduling_notes,
+    availableAt: row.available_at?.toISOString() ?? null,
+    scheduledAt: row.scheduled_at?.toISOString() ?? null,
+    receivedAt: row.received_at?.toISOString() ?? null,
+  }
+}
+
+export async function getMeterRegistry(req: Request, res: Response) {
+  const meter =
+    typeof req.query.meter === 'string' && req.query.meter.trim()
+      ? req.query.meter.trim()
+      : ''
+
+  if (!meter) {
+    res.status(400).json({ error: 'Informe o número do medidor.' })
+    return
+  }
+
+  const result = await query<MeterRegistryRow>(
+    `SELECT meter, installation, toi, note, csd, client, status, trail_step,
+            manufacturer, model, ratm_number, delivered_by, scheduling_notes,
+            available_at, scheduled_at, received_at
+     FROM meter_registry
+     WHERE meter = $1`,
+    [meter],
+  )
+
+  res.json({
+    meter,
+    registry: result.rows[0] ? mapMeterRegistry(result.rows[0]) : null,
+  })
+}

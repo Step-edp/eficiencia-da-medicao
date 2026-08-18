@@ -1902,6 +1902,84 @@ button {
   margin-top: 8px;
 }
 
+.meter-detail-modal {
+  width: min(960px, 100%);
+}
+
+.meter-detail-section + .meter-detail-section {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.meter-detail-section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.meter-detail-history-wrap {
+  max-height: 280px;
+  overflow: auto;
+}
+
+.inspection-document-modal {
+  width: min(720px, 100%);
+}
+
+.inspection-document-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.inspection-document-card {
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.inspection-document-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.inspection-document-status {
+  display: inline-flex;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.inspection-document-status.is-ok {
+  background: rgba(46, 204, 113, 0.18);
+  color: #8ef0b8;
+}
+
+.inspection-document-status.is-blocked {
+  background: rgba(231, 76, 60, 0.18);
+  color: #ffb3aa;
+}
+
+.inspection-document-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.inspection-document-card-actions a.primary-button,
+.inspection-document-card-actions a.secondary-button {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .entrada-demm-link {
   color: #9eeaff;
   text-decoration: underline;
@@ -2018,6 +2096,19 @@ button {
 
 .week-meters-filter select {
   min-width: 220px;
+}
+
+.week-meter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.week-meter-actions .primary-button,
+.week-meter-actions .secondary-button,
+.week-meter-actions .file-picker-button {
+  margin: 0;
 }
 
 .week-meter-status-badge {
@@ -2167,6 +2258,23 @@ button {
 
 .schedule-row-late td {
   background: rgba(180, 60, 40, 0.16);
+}
+
+.demm-row-bulk-ready td {
+  background: rgba(46, 204, 113, 0.12);
+}
+
+.demm-bulk-ready-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(46, 204, 113, 0.22);
+  color: #8ef0b8;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-wrap: balance;
 }
 
 .schedule-late-badge {
@@ -4657,6 +4765,14 @@ button {
   gap: 10px;
   margin-top: 18px;
   align-items: center;
+}
+
+.user-profile-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 12px;
 }
 
 .user-detail-admin-note {

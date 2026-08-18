@@ -123,8 +123,8 @@ export function EntradaCsdDashboard() {
     <div className="entrada-csd-dashboard">
       <p className="produtividade-intro">
         Indicadores de erro e desempenho por CSD. O score (0–100) combina entrega fora do prazo
-        (40%), SLA médio de entrega após o agendamento (30%) e medidores que chegaram sem
-        agendamento prévio (30%).
+        (40%), SLA médio entre agendar e a entrada no laboratório (30%) e medidores que chegaram
+        sem agendamento prévio (30%).
       </p>
 
       <div className="users-dashboard-kpis" aria-label="Resumo geral">
@@ -186,7 +186,7 @@ export function EntradaCsdDashboard() {
         />
         <RankingTable
           title="Maior SLA médio"
-          hint="Tempo médio em dias entre o agendamento e a entrega da DEMM."
+          hint="Tempo médio em dias entre o agendamento e a entrada no laboratório (cadastro da DEMM)."
           rows={rankings.bySla}
           valueLabel="SLA médio"
           renderValue={(row) =>
@@ -248,7 +248,7 @@ export function EntradaCsdDashboard() {
                           {row.avgSlaDays} dias
                           <span className="entrada-csd-submetric">
                             {' '}
-                            ({row.slaSampleCount} entrega(s))
+                            ({row.slaSampleCount} entrada(s) no lab)
                           </span>
                         </>
                       ) : (

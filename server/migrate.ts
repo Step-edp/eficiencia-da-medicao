@@ -886,4 +886,9 @@ export async function migrate() {
     SET imported_by_lab = true
     WHERE target_week_start IS NOT NULL
   `)
+
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS received_at TIMESTAMPTZ;
+  `)
 }

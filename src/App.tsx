@@ -346,9 +346,13 @@ export default function App() {
         onRejectUser={handleRejectUser}
         onUpdateUser={(user) => {
           setRegisteredUsers((prev) => prev.map((item) => (item.id === user.id ? user : item)))
-          if (user.profilePhoto?.trim()) {
-            setUserProfilePhotos((prev) => ({ ...prev, [user.id]: user.profilePhoto!.trim() }))
-          }
+          setUserProfilePhotos((prev) => {
+            const next = { ...prev }
+            if (user.profilePhoto?.trim()) {
+              next[user.id] = user.profilePhoto.trim()
+            }
+            return next
+          })
         }}
         onDeleteUser={(user) => {
           setRegisteredUsers((prev) =>
@@ -2139,7 +2143,6 @@ function HomePanel({
     'Minha produtividade',
     'Consultar RATM',
     'Consultar Medidor',
-    'Calendário de ensaios',
     'Reagendar',
     'Criar Modelo',
     'Galeria',
@@ -4415,6 +4418,7 @@ function HomePanel({
                     orgCells={orgCells}
                     terceiraOptions={terceiraOptions}
                     showPassword={canViewUserPasswords}
+                    allowProfilePhotoEdit={isAdmin}
                     startInEditMode={userDetailStartEditing}
                     onClose={() => {
                       setSelectedUserDetail(null)
@@ -5265,6 +5269,8 @@ function HomePanel({
             ) : selectedLabMeasurementSection === ENTRADA_TRAIL_STEP ? (
               <EntradaPanel
                 readOnly={labMedicaoReadOnly}
+                allowUserProfilePhotoEdit={isAdmin && !labMedicaoReadOnly}
+                isAdmin={isAdmin && !labMedicaoReadOnly}
                 onTrailCountsChange={refreshTrailStepCounts}
               />
             ) : selectedLabMeasurementSection === 'Agendar' ? (

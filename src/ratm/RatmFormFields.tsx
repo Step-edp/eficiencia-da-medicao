@@ -1,6 +1,10 @@
 import { useState, type ChangeEvent, type ReactNode } from 'react'
 import { api, ApiError } from '../api'
 import { formatSchedulePartnerAndTeamLabel } from '../schedulePartnerLabel'
+import {
+  isMeterReadyForEnsaio,
+  METER_NOT_RECEIVED_MESSAGE,
+} from './meterEnsaioEligibility'
 import type { RatmFormData } from './types'
 import { IRREGULARITY_CODES, ITEM_LOOKUP_OPTIONS, TEST_BENCH_OPTIONS } from './types'
 
@@ -68,6 +72,8 @@ function emptyScheduleFields(): Partial<RatmFormData> {
   return {
     meter: '',
     meterStatus: '',
+    demmDocumentId: null,
+    registryStatus: '',
     scheduleDate: '',
     scheduleHour: '08',
     scheduleMinute: '30',
@@ -352,11 +358,19 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         return
       }
 
+      if (!isMeterReadyForEnsaio(schedule)) {
+        onChange(emptyScheduleFields())
+        setMeterLookupError(METER_NOT_RECEIVED_MESSAGE)
+        return
+      }
+
       const partnerLabel = formatSchedulePartnerAndTeamLabel(schedule)
 
       onChange({
         meter: schedule.meter,
         meterStatus: schedule.trailStep || 'Agendado',
+        demmDocumentId: schedule.demmDocumentId,
+        registryStatus: schedule.registryStatus || '',
         scheduleLabel: schedule.scheduledAtLabel || '',
         installation: schedule.installation || '',
         toi: schedule.toi || '',

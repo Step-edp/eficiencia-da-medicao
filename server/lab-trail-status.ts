@@ -36,6 +36,23 @@ export function hasMeterEntradaGiven(status: string): boolean {
   return status === 'Recebido' || status === 'Ensaiado' || status === 'Aprovado'
 }
 
+export function isMeterReadyForEnsaio(options: {
+  registryStatus?: string | null
+  trailStep?: string | null
+  hasDemmEntry?: boolean
+}): boolean {
+  if (options.hasDemmEntry) {
+    return true
+  }
+
+  if (options.registryStatus && hasMeterEntradaGiven(options.registryStatus)) {
+    return true
+  }
+
+  const step = options.trailStep?.trim()
+  return Boolean(step && step !== ENTRADA_TRAIL_STEP)
+}
+
 export function getNextStatusAfterEntrada(): MeterProcessStatus {
   return 'Recebido'
 }

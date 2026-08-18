@@ -18,6 +18,8 @@ import { useCsdsOptions } from './useCsdsOptions'
 import { readFileAsBase64 } from './fileUtils'
 import { UserDetailModal } from './UserDetailModal'
 import { EntradaCsdDashboard } from './EntradaCsdDashboard'
+import { MeterDetailModal } from './MeterDetailModal'
+import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
 
 const TERCEIRA_OPTIONS = ['BMB', 'Cosampa', 'Engeserv', 'ROTARY', 'TIVIT']
 
@@ -131,16 +133,38 @@ function weekMeterStatusLabel(status: WeekMeterStatus) {
   }
 }
 
+function MeterLink({
+  meter,
+  onOpen,
+}: {
+  meter: string
+  onOpen: (meter: string) => void
+}) {
+  return (
+    <button
+      type="button"
+      className="schedule-meter-link"
+      onClick={() => onOpen(meter)}
+      aria-label={`Ver cadastro e histórico do medidor ${meter}`}
+      title="Ver cadastro e histórico"
+    >
+      {meter}
+    </button>
+  )
+}
+
 type DemmMetersTableProps = {
   meters: DemmMeterAnalysisRecord[]
   loading?: boolean
   showSources?: boolean
+  onOpenMeter?: (meter: string) => void
 }
 
 function DemmMetersTable({
   meters,
   loading = false,
   showSources = false,
+  onOpenMeter,
 }: DemmMetersTableProps) {
   if (loading) {
     return <p className="entrada-panel-empty">Carregando...</p>
@@ -164,7 +188,13 @@ function DemmMetersTable({
         <tbody>
           {meters.map((item) => (
             <tr key={`${item.meter}-${item.sourceFiles?.join(',') ?? ''}`}>
-              <td>{item.meter}</td>
+              <td>
+                {onOpenMeter ? (
+                  <MeterLink meter={item.meter} onOpen={onOpenMeter} />
+                ) : (
+                  item.meter
+                )}
+              </td>
               <td>
                 <span
                   className={`demm-status-badge ${item.scheduled ? 'is-scheduled' : 'is-not-scheduled'}`}
@@ -190,6 +220,7 @@ type DemmAnalysisModalProps = {
   meters: DemmMeterAnalysisRecord[]
   loading?: boolean
   showSources?: boolean
+  onOpenMeter?: (meter: string) => void
   onClose: () => void
 }
 
@@ -199,6 +230,7 @@ function DemmAnalysisModal({
   meters,
   loading = false,
   showSources = false,
+  onOpenMeter,
   onClose,
 }: DemmAnalysisModalProps) {
   const scheduledCount = meters.filter((item) => item.scheduled).length
@@ -238,7 +270,12 @@ function DemmAnalysisModal({
             : `${meters.length} medidor(es) · ${scheduledCount} agendado(s) no aplicativo`}
         </p>
 
-        <DemmMetersTable meters={meters} loading={loading} showSources={showSources} />
+        <DemmMetersTable
+          meters={meters}
+          loading={loading}
+          showSources={showSources}
+          onOpenMeter={onOpenMeter}
+        />
       </div>
     </div>,
     document.body,
@@ -446,12 +483,121 @@ function QuickScheduleModal({
   )
 }
 
+type PassiveReceiveModalProps = {
+  meter: WeekMeterRecord
+  submitting: boolean
+  feedback: string | null
+  onClose: () => void
+  onSubmit: (payload: { receivedAt: string }) => void
+}
+
+function PassiveReceiveModal({
+  meter,
+  submitting,
+  feedback,
+  onClose,
+  onSubmit,
+}: PassiveReceiveModalProps) {
+  const [receivedDate, setReceivedDate] = useState('')
+  const [receivedTime, setReceivedTime] = useState('08:00')
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!receivedDate) return
+    onSubmit({
+      receivedAt: new Date(`${receivedDate}T${receivedTime}:00`).toISOString(),
+    })
+  }
+
+  return createPortal(
+    <div className="ensaios-block-modal-overlay" role="presentation" onClick={onClose}>
+      <div
+        className="ensaios-block-modal demm-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="passive-receive-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="icon-button schedule-slot-modal-close"
+          onClick={onClose}
+          aria-label="Fechar"
+          title="Fechar"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6 6l12 12M18 6L6 18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+
+        <h3 id="passive-receive-title">Receber passivo — medidor {meter.meter}</h3>
+        <p className="demm-modal-intro">
+          Informe a data real em que o medidor foi recebido no laboratório. Essa data será usada
+          no dash do CSD.
+        </p>
+
+        {feedback ? (
+          <div className="demm-modal-feedback error" role="alert">
+            <p>{feedback}</p>
+          </div>
+        ) : null}
+
+        <form className="form-grid demm-form-grid" onSubmit={handleSubmit}>
+          <label>
+            Data de recebimento
+            <input
+              type="date"
+              value={receivedDate}
+              onChange={(event) => setReceivedDate(event.target.value)}
+              disabled={submitting}
+              required
+            />
+          </label>
+          <label>
+            Hora
+            <input
+              type="time"
+              value={receivedTime}
+              onChange={(event) => setReceivedTime(event.target.value)}
+              disabled={submitting}
+              required
+            />
+          </label>
+
+          <div className="ensaios-block-modal-actions full-width">
+            <button type="button" className="secondary-button" onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="submit" className="primary-button" disabled={submitting}>
+              {submitting ? 'Registrando...' : 'Receber passivo'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 type EntradaPanelProps = {
   onTrailCountsChange?: () => void
   readOnly?: boolean
+  allowUserProfilePhotoEdit?: boolean
+  isAdmin?: boolean
 }
 
-export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaPanelProps) {
+export function EntradaPanel({
+  onTrailCountsChange,
+  readOnly = false,
+  allowUserProfilePhotoEdit = false,
+  isAdmin = false,
+}: EntradaPanelProps) {
   const [view, setView] = useState<
     | 'dash'
     | 'overview'
@@ -475,6 +621,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   >([])
   const [inspectionPendenciasLoading, setInspectionPendenciasLoading] = useState(false)
   const [uploadingInspectionId, setUploadingInspectionId] = useState<string | null>(null)
+  const [receivingMeter, setReceivingMeter] = useState<string | null>(null)
   const [weekMeters, setWeekMeters] = useState<WeekMeterRecord[]>([])
   const [weekMetersLoading, setWeekMetersLoading] = useState(false)
   const [weekMetersStatusFilter, setWeekMetersStatusFilter] = useState<'todos' | WeekMeterStatus>(
@@ -483,6 +630,14 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   const [quickScheduleMeter, setQuickScheduleMeter] = useState<WeekMeterRecord | null>(null)
   const [submittingQuickSchedule, setSubmittingQuickSchedule] = useState(false)
   const [quickScheduleFeedback, setQuickScheduleFeedback] = useState<string | null>(null)
+  const [passiveReceiveMeter, setPassiveReceiveMeter] = useState<WeekMeterRecord | null>(null)
+  const [submittingPassiveReceive, setSubmittingPassiveReceive] = useState(false)
+  const [passiveReceiveFeedback, setPassiveReceiveFeedback] = useState<string | null>(null)
+  const [meterDetailTarget, setMeterDetailTarget] = useState<string | null>(null)
+  const [inspectionDocumentTarget, setInspectionDocumentTarget] = useState<{
+    meter: string
+    scheduleId: string
+  } | null>(null)
   const { options: csdOptions, loading: csdOptionsLoading, error: csdOptionsError } = useCsdsOptions()
   const [loading, setLoading] = useState(true)
   const [showDemmModal, setShowDemmModal] = useState(false)
@@ -738,11 +893,11 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
         document.docType === 'toi'
           ? 'TOI'
           : document.docType === 'comunicado'
-            ? 'Comunicado de Substituição'
-            : 'TOI + Comunicado de Substituição'
+            ? 'CSM'
+            : 'TOI + CSM'
 
       if (!document.complete) {
-        const missing = !document.hasToi ? 'TOI' : 'Comunicado de Substituição de Medidor'
+        const missing = !document.hasToi ? 'TOI' : 'CSM'
         setFeedback({
           type: 'success',
           message: `${docTypeLabel} anexado ao medidor ${target.meter}. Ainda falta anexar o ${missing}.`,
@@ -761,6 +916,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
 
       void loadInspectionPendencias()
       void loadWeekMeters()
+      void loadData()
       refreshTrailCounts()
     } catch (error) {
       setFeedback({
@@ -790,6 +946,71 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
       setWeekMetersLoading(false)
     }
   }, [])
+
+  const handleReceiveWeekMeter = async (item: WeekMeterRecord) => {
+    setReceivingMeter(item.meter)
+    setFeedback(null)
+
+    try {
+      await api.receiveWeekMeter({
+        meter: item.meter,
+        scheduleId: item.scheduleId,
+      })
+      setWeekMeters((prev) => prev.filter((row) => row.meter !== item.meter))
+      setFeedback({
+        type: 'success',
+        message: `Medidor ${item.meter} recebido no laboratório.`,
+      })
+      refreshTrailCounts()
+      void loadData()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível registrar a entrada do medidor.',
+      })
+    } finally {
+      setReceivingMeter(null)
+    }
+  }
+
+  const closePassiveReceive = () => {
+    setPassiveReceiveMeter(null)
+    setPassiveReceiveFeedback(null)
+  }
+
+  const handlePassiveReceiveSubmit = async (payload: { receivedAt: string }) => {
+    if (!passiveReceiveMeter) return
+
+    setSubmittingPassiveReceive(true)
+    setPassiveReceiveFeedback(null)
+
+    try {
+      await api.receiveWeekMeterPassive({
+        meter: passiveReceiveMeter.meter,
+        scheduleId: passiveReceiveMeter.scheduleId,
+        receivedAt: payload.receivedAt,
+      })
+      setWeekMeters((prev) => prev.filter((row) => row.meter !== passiveReceiveMeter.meter))
+      setFeedback({
+        type: 'success',
+        message: `Medidor ${passiveReceiveMeter.meter} recebido (passivo) com a data informada.`,
+      })
+      refreshTrailCounts()
+      void loadData()
+      closePassiveReceive()
+    } catch (error) {
+      setPassiveReceiveFeedback(
+        error instanceof ApiError
+          ? error.message
+          : 'Não foi possível registrar o recebimento passivo.',
+      )
+    } finally {
+      setSubmittingPassiveReceive(false)
+    }
+  }
 
   const openWeekMeters = () => {
     setView('weekMeters')
@@ -1163,18 +1384,31 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
           orgCells={profileOrgCells}
           terceiraOptions={[...TERCEIRA_OPTIONS]}
           showPassword={false}
+          allowProfilePhotoEdit={allowUserProfilePhotoEdit}
           onClose={() => setProfileUser(null)}
           onSaved={(user) => {
             setProfileUsers((current) =>
               current.map((item) => (item.id === user.id ? user : item)),
             )
             setProfileUser(user)
+            if (user.profilePhoto?.trim()) {
+              setProfilePhotos((current) => ({
+                ...current,
+                [user.id]: user.profilePhoto!.trim(),
+              }))
+            }
           }}
           onFeedback={setFeedback}
         />,
         document.body,
       )
     : null
+
+  const meterDetailModal = meterDetailTarget ? (
+    <MeterDetailModal meter={meterDetailTarget} onClose={() => setMeterDetailTarget(null)} />
+  ) : null
+
+  const openMeterDetail = (meter: string) => setMeterDetailTarget(meter)
 
   if (view === 'dash') {
     return (
@@ -1200,6 +1434,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
           </section>
         </div>
         {userProfileModal}
+        {meterDetailModal}
       </>
     )
   }
@@ -1256,7 +1491,9 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                         key={schedule.id}
                         className={schedule.isLate ? 'schedule-row-late' : undefined}
                       >
-                        <td>{schedule.meter}</td>
+                        <td>
+                          <MeterLink meter={schedule.meter} onOpen={openMeterDetail} />
+                        </td>
                         <td>{schedule.installation}</td>
                         <td>{schedule.toi}</td>
                         <td>{schedule.note}</td>
@@ -1282,6 +1519,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
           </section>
         </div>
         {userProfileModal}
+        {meterDetailModal}
       </>
     )
   }
@@ -1309,12 +1547,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                   : `${pendingCsds.length} de ${csdPendencias.length} CSD(s) sem DEMM entregue nesta semana`}
               </p>
             </div>
-
-            <p className="field-hint">
-              Prazo de entrega: sexta-feira da semana. Depois do prazo a semana fica marcada
-              como "Não entregue" e não pode mais ser regularizada — a pendência da próxima
-              semana já é uma nova cobrança.
-            </p>
 
             {csdPendenciasLoading ? (
               <p className="entrada-panel-empty">Carregando pendências...</p>
@@ -1377,6 +1609,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
         {demmModal}
 
         {userProfileModal}
+        {meterDetailModal}
 
         {analysisModal ? (
           <DemmAnalysisModal
@@ -1385,6 +1618,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             meters={analysisModal.meters}
             loading={analysisModal.loading}
             showSources={analysisModal.showSources}
+            onOpenMeter={openMeterDetail}
             onClose={() => setAnalysisModal(null)}
           />
         ) : null}
@@ -1461,7 +1695,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                         <td>
                           {[
                             pendencia.missingToi ? 'TOI' : null,
-                            pendencia.missingComunicado ? 'Comunicado' : null,
+                            pendencia.missingComunicado ? 'CSM' : null,
                           ]
                             .filter(Boolean)
                             .join(' + ')}
@@ -1496,6 +1730,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
           </section>
         </div>
         {userProfileModal}
+        {meterDetailModal}
       </>
     )
   }
@@ -1523,7 +1758,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
               <p className="demm-analysis-summary">
                 {weekMetersLoading
                   ? 'Carregando medidores...'
-                  : `${filteredWeekMeters.length} de ${weekMeters.length} medidor(es) da DEMM`}
+                  : `${filteredWeekMeters.length} de ${weekMeters.length} medidor(es) aguardando entrada`}
               </p>
             </div>
 
@@ -1546,7 +1781,11 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             {weekMetersLoading && weekMeters.length === 0 ? (
               <p className="entrada-panel-empty">Carregando medidores...</p>
             ) : filteredWeekMeters.length === 0 ? (
-              <p className="entrada-panel-empty">Nenhum medidor encontrado para esse filtro.</p>
+              <p className="entrada-panel-empty">
+                {weekMeters.length === 0
+                  ? 'Nenhum medidor aguardando entrada.'
+                  : 'Nenhum medidor encontrado para esse filtro.'}
+              </p>
             ) : (
               <div className="entrada-table-wrap">
                 <table className="data-table entrada-table">
@@ -1563,7 +1802,9 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                   <tbody>
                     {filteredWeekMeters.map((item) => (
                       <tr key={item.meter}>
-                        <td>{item.meter}</td>
+                        <td>
+                          <MeterLink meter={item.meter} onOpen={openMeterDetail} />
+                        </td>
                         <td>{item.csdName ?? '—'}</td>
                         <td>{item.demmDocumentNumber ?? '—'}</td>
                         <td>
@@ -1576,47 +1817,85 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                         </td>
                         <td>{item.scheduledAtLabel ?? '—'}</td>
                         <td>
-                          {item.status === 'nao_agendado' && !readOnly ? (
-                            <button
-                              type="button"
-                              className="secondary-button"
-                              onClick={() => setQuickScheduleMeter(item)}
-                            >
-                              Agendar
-                            </button>
-                          ) : null}
-                          {(item.status === 'sem_documento_inspecao' ||
-                            item.status === 'bloqueado') &&
-                          item.scheduleId ? (
-                            <>
-                              <input
-                                id={`week-meter-inspection-${item.scheduleId}`}
-                                type="file"
-                                className="file-picker-input"
-                                disabled={uploadingInspectionId === item.scheduleId}
-                                onChange={(event) => {
-                                  const file = event.target.files?.[0]
-                                  event.target.value = ''
-                                  if (file && item.scheduleId) {
-                                    void handleUploadInspectionDocument(
-                                      { id: item.scheduleId, meter: item.meter },
-                                      file,
-                                    )
-                                  }
-                                }}
-                              />
-                              <label
-                                htmlFor={`week-meter-inspection-${item.scheduleId}`}
-                                className="file-picker-button"
+                          <div className="week-meter-actions">
+                            {item.status === 'nao_agendado' && !readOnly ? (
+                              <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={() => setQuickScheduleMeter(item)}
                               >
-                                {uploadingInspectionId === item.scheduleId
-                                  ? 'Enviando...'
-                                  : item.status === 'bloqueado'
-                                    ? 'Reenviar documento'
-                                    : 'Importar documento'}
-                              </label>
-                            </>
-                          ) : null}
+                                Agendar
+                              </button>
+                            ) : null}
+                            {(item.status === 'sem_documento_inspecao' ||
+                              item.status === 'bloqueado') &&
+                            item.scheduleId ? (
+                              <>
+                                <input
+                                  id={`week-meter-inspection-${item.scheduleId}`}
+                                  type="file"
+                                  className="file-picker-input"
+                                  disabled={uploadingInspectionId === item.scheduleId}
+                                  onChange={(event) => {
+                                    const file = event.target.files?.[0]
+                                    event.target.value = ''
+                                    if (file && item.scheduleId) {
+                                      void handleUploadInspectionDocument(
+                                        { id: item.scheduleId, meter: item.meter },
+                                        file,
+                                      )
+                                    }
+                                  }}
+                                />
+                                <label
+                                  htmlFor={`week-meter-inspection-${item.scheduleId}`}
+                                  className="file-picker-button"
+                                >
+                                  {uploadingInspectionId === item.scheduleId
+                                    ? 'Enviando...'
+                                    : item.status === 'bloqueado'
+                                      ? 'Reenviar documento'
+                                      : 'Importar documento'}
+                                </label>
+                              </>
+                            ) : null}
+                            {item.status === 'liberado' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="primary-button"
+                                  disabled={readOnly || receivingMeter === item.meter}
+                                  onClick={() => void handleReceiveWeekMeter(item)}
+                                >
+                                  {receivingMeter === item.meter ? 'Recebendo...' : 'Receber'}
+                                </button>
+                                {isAdmin && !readOnly ? (
+                                  <button
+                                    type="button"
+                                    className="secondary-button"
+                                    disabled={submittingPassiveReceive}
+                                    onClick={() => setPassiveReceiveMeter(item)}
+                                  >
+                                    Receber passivo
+                                  </button>
+                                ) : null}
+                              </>
+                            ) : null}
+                            {item.scheduleId && item.status !== 'nao_agendado' ? (
+                              <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={() =>
+                                  setInspectionDocumentTarget({
+                                    meter: item.meter,
+                                    scheduleId: item.scheduleId!,
+                                  })
+                                }
+                              >
+                                Ver documento
+                              </button>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1636,7 +1915,24 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             onSubmit={(payload) => void handleQuickScheduleSubmit(payload)}
           />
         ) : null}
+        {passiveReceiveMeter ? (
+          <PassiveReceiveModal
+            meter={passiveReceiveMeter}
+            submitting={submittingPassiveReceive}
+            feedback={passiveReceiveFeedback}
+            onClose={closePassiveReceive}
+            onSubmit={(payload) => void handlePassiveReceiveSubmit(payload)}
+          />
+        ) : null}
+        {inspectionDocumentTarget ? (
+          <InspectionDocumentAnalysisModal
+            meter={inspectionDocumentTarget.meter}
+            scheduleId={inspectionDocumentTarget.scheduleId}
+            onClose={() => setInspectionDocumentTarget(null)}
+          />
+        ) : null}
         {userProfileModal}
+        {meterDetailModal}
       </>
     )
   }
@@ -1722,6 +2018,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
         {demmModal}
 
         {userProfileModal}
+        {meterDetailModal}
 
         {analysisModal ? (
           <DemmAnalysisModal
@@ -1730,6 +2027,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
             meters={analysisModal.meters}
             loading={analysisModal.loading}
             showSources={analysisModal.showSources}
+            onOpenMeter={openMeterDetail}
             onClose={() => setAnalysisModal(null)}
           />
         ) : null}
@@ -1773,6 +2071,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     <th>Arquivo</th>
                     <th>Medidores</th>
                     <th>Agendados</th>
+                    <th>Status</th>
                     <th>Cadastrado por</th>
                     <th>Cadastrado em</th>
                     <th>Ações</th>
@@ -1780,13 +2079,25 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                 </thead>
                 <tbody>
                   {demmDocuments.map((document) => (
-                    <tr key={document.id}>
+                    <tr
+                      key={document.id}
+                      className={document.bulkEntryReady ? 'demm-row-bulk-ready' : undefined}
+                    >
                       <td>{document.documentNumber ?? '—'}</td>
                       <td>{document.csdName ?? '—'}</td>
                       <td>{document.emissionDate ?? '—'}</td>
                       <td>{document.fileName}</td>
                       <td>{document.meterCount}</td>
                       <td>{document.scheduledCount}</td>
+                      <td>
+                        {document.bulkEntryReady ? (
+                          <span className="demm-bulk-ready-badge">
+                            DEMM liberada para entrada em massa
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td>{document.createdByRegistration ?? '—'}</td>
                       <td>{formatDateTime(document.createdAt)}</td>
                       <td>
@@ -1841,7 +2152,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
                     <td colSpan={4}>Total</td>
                     <td>{totalDemmMeters}</td>
                     <td>{totalDemmScheduled}</td>
-                    <td colSpan={3} />
+                    <td colSpan={4} />
                   </tr>
                 </tfoot>
               </table>
@@ -1853,6 +2164,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
       {demmModal}
 
       {userProfileModal}
+      {meterDetailModal}
 
       {analysisModal ? (
         <DemmAnalysisModal
@@ -1861,6 +2173,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
           meters={analysisModal.meters}
           loading={analysisModal.loading}
           showSources={analysisModal.showSources}
+          onOpenMeter={openMeterDetail}
           onClose={() => setAnalysisModal(null)}
         />
       ) : null}

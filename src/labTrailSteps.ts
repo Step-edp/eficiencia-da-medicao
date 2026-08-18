@@ -6,6 +6,7 @@ export type LabTrailStep = {
 export const LAB_TRAIL_STEPS: LabTrailStep[] = [
   { key: 'Agendar', label: 'Agendamento' },
   { key: 'Entrada de medidores', label: 'Entrada' },
+  { key: 'Calendário de ensaios', label: 'Calendário' },
   { key: 'Ensaiar', label: 'Ensaio' },
   { key: 'Aprovação de RATM', label: 'Aprovação' },
   { key: 'Pesquisa de satisfação', label: 'Pesquisa de Satisfação' },

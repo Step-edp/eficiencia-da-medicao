@@ -136,7 +136,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   if (docType === 'desconhecido') {
     res.status(400).json({
       error:
-        'Documento não reconhecido. Anexe o Termo de Ocorrência e Inspeção (TOI) e/ou o Comunicado de Substituição de Medidor.',
+        'Documento não reconhecido. Anexe o Termo de Ocorrência e Inspeção (TOI) e/ou o CSM.',
     })
     return
   }
@@ -216,6 +216,58 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   res.status(201).json({ document })
 }
 
+function mapInspectionDocumentRow(
+  row: Omit<InspectionDocumentRow, 'file_data' | 'created_by_registration'>,
+  registration: string | null = null,
+) {
+  return {
+    id: row.id,
+    meterScheduleId: row.meter_schedule_id,
+    docType: row.doc_type,
+    fileName: row.file_name,
+    extractedMeter: row.extracted_meter,
+    extractedLacre: row.extracted_lacre,
+    blocked: row.blocked,
+    blockReason: row.block_reason,
+    createdAt: row.created_at.toISOString(),
+    createdByUserId: row.created_by_user_id,
+    createdByRegistration: registration,
+  }
+}
+
+export async function listInspectionDocuments(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+
+  const schedule = await query<{ id: string; meter: string }>(
+    `SELECT id, meter FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  if (!schedule.rows[0]) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  const result = await query<Omit<InspectionDocumentRow, 'file_data'>>(
+    `SELECT id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_lacre,
+            blocked, block_reason, created_at, created_by_user_id
+     FROM meter_inspection_documents
+     WHERE meter_schedule_id = $1
+     ORDER BY created_at DESC`,
+    [meterScheduleId],
+  )
+
+  const presence = await loadDocTypePresence(meterScheduleId)
+
+  res.json({
+    meter: schedule.rows[0].meter,
+    meterScheduleId,
+    documents: result.rows.map((row) => mapInspectionDocumentRow(row)),
+    complete: presence.complete,
+    hasToi: presence.hasToi,
+    hasComunicado: presence.hasComunicado,
+  })
+}
+
 export async function downloadInspectionDocument(req: Request, res: Response) {
   const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
   const docType = typeof req.params.docType === 'string' ? req.params.docType : ''
@@ -233,8 +285,13 @@ export async function downloadInspectionDocument(req: Request, res: Response) {
 
   const { file_name, file_data } = result.rows[0]
   const safeName = file_name.replace(/[^\w.\-() ]+/g, '_')
+  const asDownload = req.query.download === '1' || req.query.download === 'true'
 
-  res.setHeader('Content-Disposition', `inline; filename="${safeName}"`)
+  res.setHeader('Content-Type', 'application/pdf')
+  res.setHeader(
+    'Content-Disposition',
+    `${asDownload ? 'attachment' : 'inline'}; filename="${safeName}"`,
+  )
   res.send(file_data)
 }
 
