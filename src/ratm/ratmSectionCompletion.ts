@@ -45,6 +45,20 @@ export function isSeal2SectionComplete(data: RatmFormData) {
   return isFilled(data.seal2) && isFilled(data.seal2Status)
 }
 
+function isMeasurementFieldComplete(value: string, preset: string) {
+  return isFilled(value) || isFilled(preset)
+}
+
+export function isMeasurementsSectionComplete(data: RatmFormData) {
+  return (
+    isMeasurementFieldComplete(data.cn, data.cnPreset) &&
+    isMeasurementFieldComplete(data.ci, data.ciPreset) &&
+    isMeasurementFieldComplete(data.cp, data.cpPreset) &&
+    isMeasurementFieldComplete(data.cnRi, data.cnRiPreset) &&
+    isMeasurementFieldComplete(data.cnRc, data.cnRcPreset)
+  )
+}
+
 export function isTestResultsSectionComplete(data: RatmFormData) {
   return (
     isFilled(data.brokenMeter) &&
