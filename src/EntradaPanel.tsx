@@ -564,10 +564,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     void loadData()
   }
 
-  const closeMetersBase = () => {
-    setView('overview')
-  }
-
   const loadCsdPendencias = useCallback(async () => {
     setCsdPendenciasLoading(true)
     try {
@@ -590,10 +586,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     setView('csdPendencias')
     setFeedback(null)
     void loadCsdPendencias()
-  }
-
-  const closeCsdPendencias = () => {
-    setView('overview')
   }
 
   const loadDemmHistorico = useCallback(async () => {
@@ -621,10 +613,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     void loadDemmHistorico()
   }
 
-  const closeDemmHistorico = () => {
-    setView('overview')
-  }
-
   const loadInspectionPendencias = useCallback(async () => {
     setInspectionPendenciasLoading(true)
     try {
@@ -647,10 +635,6 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     setView('inspectionPendencias')
     setFeedback(null)
     void loadInspectionPendencias()
-  }
-
-  const closeInspectionPendencias = () => {
-    setView('overview')
   }
 
   const handleUploadInspectionDocument = async (
@@ -730,9 +714,76 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     void loadWeekMeters()
   }
 
-  const closeWeekMeters = () => {
+  const openOverview = () => {
     setView('overview')
+    setFeedback(null)
+    void loadData()
   }
+
+  const renderEntradaTabBar = () => (
+    <div className="entrada-panel-header">
+      <div
+        className="panel-switch entrada-demm-switch"
+        role="tablist"
+        aria-label="Ações DEMM"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'overview'}
+          className={view === 'overview' ? 'active' : ''}
+          onClick={() => openOverview()}
+        >
+          DEMMs cadastradas
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'metersBase'}
+          className={view === 'metersBase' ? 'active' : ''}
+          onClick={() => openMetersBase()}
+        >
+          Ver base de medidores
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'csdPendencias'}
+          className={view === 'csdPendencias' ? 'active' : ''}
+          onClick={() => openCsdPendencias()}
+        >
+          CSDs pendentes
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'inspectionPendencias'}
+          className={view === 'inspectionPendencias' ? 'active' : ''}
+          onClick={() => openInspectionPendencias()}
+        >
+          Documentos de inspeção pendentes
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'weekMeters'}
+          className={view === 'weekMeters' ? 'active' : ''}
+          onClick={() => openWeekMeters()}
+        >
+          Medidores da semana
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'demmHistorico'}
+          className={view === 'demmHistorico' ? 'active' : ''}
+          onClick={() => openDemmHistorico()}
+        >
+          Histórico de DEMM
+        </button>
+      </div>
+    </div>
+  )
 
   const closeQuickSchedule = () => {
     setQuickScheduleMeter(null)
@@ -997,40 +1048,23 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     return (
       <>
         <div className="entrada-panel">
-          <section className="entrada-dedicated-screen" aria-label="Medidores agendados">
-            <div className="entrada-dedicated-header">
-              <div>
-                <h3 className="entrada-section-title">Medidores agendados</h3>
-                <p className="demm-analysis-summary">
-                  {loading && schedules.length === 0
-                    ? 'Carregando medidores...'
-                    : `${schedules.length} medidor(es) aguardando entrada`}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="icon-button entrada-dedicated-close"
-                onClick={closeMetersBase}
-                aria-label="Fechar"
-                title="Fechar"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M6 6l12 12M18 6L6 18"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            </div>
+          {renderEntradaTabBar()}
 
-            {feedback ? (
-              <div className={`login-feedback ${feedback.type}`} role="status">
-                {feedback.message}
-              </div>
-            ) : null}
+          {feedback ? (
+            <div className={`login-feedback ${feedback.type}`} role="status">
+              {feedback.message}
+            </div>
+          ) : null}
+
+          <section className="entrada-section" aria-label="Medidores agendados">
+            <div className="entrada-section-heading">
+              <h3 className="entrada-section-title">Medidores agendados</h3>
+              <p className="demm-analysis-summary">
+                {loading && schedules.length === 0
+                  ? 'Carregando medidores...'
+                  : `${schedules.length} medidor(es) aguardando entrada`}
+              </p>
+            </div>
 
             {loading && schedules.length === 0 ? (
               <p className="entrada-panel-empty">Carregando medidores...</p>
@@ -1097,40 +1131,23 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     return (
       <>
         <div className="entrada-panel">
-          <section className="entrada-dedicated-screen" aria-label="CSDs pendentes de DEMM">
-            <div className="entrada-dedicated-header">
-              <div>
-                <h3 className="entrada-section-title">CSDs pendentes de DEMM (semana atual)</h3>
-                <p className="demm-analysis-summary">
-                  {csdPendenciasLoading
-                    ? 'Carregando pendências...'
-                    : `${pendingCsds.length} de ${csdPendencias.length} CSD(s) sem DEMM entregue nesta semana`}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="icon-button entrada-dedicated-close"
-                onClick={closeCsdPendencias}
-                aria-label="Fechar"
-                title="Fechar"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M6 6l12 12M18 6L6 18"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            </div>
+          {renderEntradaTabBar()}
 
-            {feedback ? (
-              <div className={`login-feedback ${feedback.type}`} role="status">
-                {feedback.message}
-              </div>
-            ) : null}
+          {feedback ? (
+            <div className={`login-feedback ${feedback.type}`} role="status">
+              {feedback.message}
+            </div>
+          ) : null}
+
+          <section className="entrada-section" aria-label="CSDs pendentes de DEMM">
+            <div className="entrada-section-heading">
+              <h3 className="entrada-section-title">CSDs pendentes de DEMM (semana atual)</h3>
+              <p className="demm-analysis-summary">
+                {csdPendenciasLoading
+                  ? 'Carregando pendências...'
+                  : `${pendingCsds.length} de ${csdPendencias.length} CSD(s) sem DEMM entregue nesta semana`}
+              </p>
+            </div>
 
             <p className="field-hint">
               Prazo de entrega: sexta-feira da semana. Depois do prazo a semana fica marcada
@@ -1209,45 +1226,28 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     return (
       <>
         <div className="entrada-panel">
+          {renderEntradaTabBar()}
+
+          {feedback ? (
+            <div className={`login-feedback ${feedback.type}`} role="status">
+              {feedback.message}
+            </div>
+          ) : null}
+
           <section
-            className="entrada-dedicated-screen"
+            className="entrada-section"
             aria-label="Medidores pendentes de documento de inspeção"
           >
-            <div className="entrada-dedicated-header">
-              <div>
-                <h3 className="entrada-section-title">
-                  Medidores pendentes de documento de inspeção
-                </h3>
-                <p className="demm-analysis-summary">
-                  {inspectionPendenciasLoading
-                    ? 'Carregando pendências...'
-                    : `${inspectionPendencias.length} medidor(es) sem documento anexado`}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="icon-button entrada-dedicated-close"
-                onClick={closeInspectionPendencias}
-                aria-label="Fechar"
-                title="Fechar"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M6 6l12 12M18 6L6 18"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
+            <div className="entrada-section-heading">
+              <h3 className="entrada-section-title">
+                Medidores pendentes de documento de inspeção
+              </h3>
+              <p className="demm-analysis-summary">
+                {inspectionPendenciasLoading
+                  ? 'Carregando pendências...'
+                  : `${inspectionPendencias.length} medidor(es) sem documento anexado`}
+              </p>
             </div>
-
-            {feedback ? (
-              <div className={`login-feedback ${feedback.type}`} role="status">
-                {feedback.message}
-              </div>
-            ) : null}
 
             {inspectionPendenciasLoading && inspectionPendencias.length === 0 ? (
               <p className="entrada-panel-empty">Carregando pendências...</p>
@@ -1333,40 +1333,23 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     return (
       <>
         <div className="entrada-panel">
-          <section className="entrada-dedicated-screen" aria-label="Medidores da semana">
-            <div className="entrada-dedicated-header">
-              <div>
-                <h3 className="entrada-section-title">Medidores da semana</h3>
-                <p className="demm-analysis-summary">
-                  {weekMetersLoading
-                    ? 'Carregando medidores...'
-                    : `${filteredWeekMeters.length} de ${weekMeters.length} medidor(es) da DEMM`}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="icon-button entrada-dedicated-close"
-                onClick={closeWeekMeters}
-                aria-label="Fechar"
-                title="Fechar"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M6 6l12 12M18 6L6 18"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            </div>
+          {renderEntradaTabBar()}
 
-            {feedback ? (
-              <div className={`login-feedback ${feedback.type}`} role="status">
-                {feedback.message}
-              </div>
-            ) : null}
+          {feedback ? (
+            <div className={`login-feedback ${feedback.type}`} role="status">
+              {feedback.message}
+            </div>
+          ) : null}
+
+          <section className="entrada-section" aria-label="Medidores da semana">
+            <div className="entrada-section-heading">
+              <h3 className="entrada-section-title">Medidores da semana</h3>
+              <p className="demm-analysis-summary">
+                {weekMetersLoading
+                  ? 'Carregando medidores...'
+                  : `${filteredWeekMeters.length} de ${weekMeters.length} medidor(es) da DEMM`}
+              </p>
+            </div>
 
             <label className="week-meters-filter">
               Filtrar por status
@@ -1485,40 +1468,23 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
     return (
       <>
         <div className="entrada-panel">
-          <section className="entrada-dedicated-screen" aria-label="Histórico de DEMM por CSD">
-            <div className="entrada-dedicated-header">
-              <div>
-                <h3 className="entrada-section-title">Histórico de DEMM por CSD</h3>
-                <p className="demm-analysis-summary">
-                  {demmHistoricoLoading
-                    ? 'Carregando histórico...'
-                    : `Últimas ${demmHistoricoWeeks.length} semanas · segunda a sexta`}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="icon-button entrada-dedicated-close"
-                onClick={closeDemmHistorico}
-                aria-label="Fechar"
-                title="Fechar"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M6 6l12 12M18 6L6 18"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            </div>
+          {renderEntradaTabBar()}
 
-            {feedback ? (
-              <div className={`login-feedback ${feedback.type}`} role="status">
-                {feedback.message}
-              </div>
-            ) : null}
+          {feedback ? (
+            <div className={`login-feedback ${feedback.type}`} role="status">
+              {feedback.message}
+            </div>
+          ) : null}
+
+          <section className="entrada-section" aria-label="Histórico de DEMM por CSD">
+            <div className="entrada-section-heading">
+              <h3 className="entrada-section-title">Histórico de DEMM por CSD</h3>
+              <p className="demm-analysis-summary">
+                {demmHistoricoLoading
+                  ? 'Carregando histórico...'
+                  : `Últimas ${demmHistoricoWeeks.length} semanas · segunda a sexta`}
+              </p>
+            </div>
 
             {!readOnly ? (
               <p className="field-hint">
@@ -1595,46 +1561,7 @@ export function EntradaPanel({ onTrailCountsChange, readOnly = false }: EntradaP
   return (
     <>
       <div className="entrada-panel">
-        <div className="entrada-panel-header">
-          <div
-            className="panel-switch entrada-demm-switch"
-            role="toolbar"
-            aria-label="Ações DEMM"
-          >
-            <button
-              type="button"
-              className="active"
-              onClick={() => openMetersBase()}
-              disabled={loading}
-            >
-              Ver base de medidores
-            </button>
-            <button
-              type="button"
-              onClick={() => openCsdPendencias()}
-              disabled={loading}
-            >
-              CSDs pendentes
-            </button>
-            <button
-              type="button"
-              onClick={() => openInspectionPendencias()}
-              disabled={loading}
-            >
-              Documentos de inspeção pendentes
-            </button>
-            <button type="button" onClick={() => openWeekMeters()} disabled={loading}>
-              Medidores da semana
-            </button>
-            <button
-              type="button"
-              onClick={() => openDemmHistorico()}
-              disabled={loading}
-            >
-              Histórico de DEMM
-            </button>
-          </div>
-        </div>
+        {renderEntradaTabBar()}
 
         {feedback ? (
           <div className={`login-feedback ${feedback.type}`} role="status">
