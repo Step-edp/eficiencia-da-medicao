@@ -552,8 +552,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
           <div className={`full-width partner-search${fieldErrors.partner ? ' has-field-error' : ''}`}>
             <RequiredLabel>Parceiro</RequiredLabel>
             <p id="field-team-partner-hint" className="field-hint">
-              Selecione um parceiro com perfil Lavratura de TOI. Se ainda não possuir cadastro,
-              é necessário que ele faça isso antes.
+              Se ainda não possuir cadastro, é necessário que ele faça isso antes.
             </p>
             <div className="partner-search-control">
               <input
