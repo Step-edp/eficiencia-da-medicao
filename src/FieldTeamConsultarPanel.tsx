@@ -73,7 +73,6 @@ type ScheduleDetailModalProps = {
 
 function ScheduleDetailModal({ schedule, onClose, onPreviewEnvelope }: ScheduleDetailModalProps) {
   const deliveryStatus = deliveryStatusLabel(schedule)
-  const partnerLabel = formatSchedulePartnerLabel(schedule)
   const collaborator1 = formatScheduleCollaborator1Label(schedule)
   const collaborator2 = formatScheduleCollaborator2Label(schedule)
   const scheduledBy = formatScheduleCreatedByLabel(schedule)
@@ -133,10 +132,6 @@ function ScheduleDetailModal({ schedule, onClose, onPreviewEnvelope }: ScheduleD
           <div>
             <dt>Cliente presente</dt>
             <dd>{schedule.clientPresent === 'sim' ? 'Sim' : 'Não'}</dd>
-          </div>
-          <div>
-            <dt>Parceiro</dt>
-            <dd>{displayValue(partnerLabel)}</dd>
           </div>
           <div>
             <dt>Agendado por</dt>
@@ -355,7 +350,7 @@ export function FieldTeamConsultarPanel({
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Pesquisar por medidor, nota, CSD, parceiro, colaborador, usuário, carimbo, status…"
+              placeholder="Pesquisar por medidor, nota, CSD, colaborador, usuário, carimbo, status…"
               autoComplete="off"
               spellCheck={false}
             />
@@ -387,7 +382,6 @@ export function FieldTeamConsultarPanel({
                 <th>Invólucro</th>
                 <th>Nota</th>
                 <th>CSD</th>
-                <th>Parceiro</th>
                 <th>Agendado por</th>
                 <th>Colaborador 1</th>
                 <th>Colaborador 2</th>
@@ -444,7 +438,6 @@ export function FieldTeamConsultarPanel({
                   </td>
                   <td>{item.note || '—'}</td>
                   <td>{item.csd || '—'}</td>
-                  <td>{formatSchedulePartnerLabel(item) || '—'}</td>
                   <td>{formatScheduleCreatedByLabel(item) || '—'}</td>
                   <td>{formatScheduleCollaborator1Label(item) || '—'}</td>
                   <td>{formatScheduleCollaborator2Label(item) || '—'}</td>

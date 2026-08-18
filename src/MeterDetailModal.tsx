@@ -12,7 +12,6 @@ import {
   formatScheduleCollaborator2Label,
   formatScheduleCreatedAtLabel,
   formatScheduleCreatedByLabel,
-  formatSchedulePartnerLabel,
 } from './schedulePartnerLabel'
 
 type MeterDetailModalProps = {
@@ -217,10 +216,6 @@ export function MeterDetailModal({ meter, onClose }: MeterDetailModalProps) {
                   <div>
                     <dt>CSD</dt>
                     <dd>{displayValue(latestSchedule.csd)}</dd>
-                  </div>
-                  <div>
-                    <dt>Parceiro</dt>
-                    <dd>{displayValue(formatSchedulePartnerLabel(latestSchedule))}</dd>
                   </div>
                   <div>
                     <dt>Agendado por</dt>
