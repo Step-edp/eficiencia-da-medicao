@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, ApiError, type MeterScheduleRecord } from './api'
+import { api, ApiError, type MeterInspectionPendenciaRecord, type MeterScheduleRecord } from './api'
+import { readFileAsBase64 } from './fileUtils'
+import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
 import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, scheduleAuditSearchText } from './schedulePartnerLabel'
 
 type FieldTeamSchedulesPanelProps = {
@@ -64,6 +66,14 @@ function scheduleSourceLabel(source: string) {
   if (source === 'passivo') return 'Passivo (Lab)'
   if (source === 'field_team') return 'Equipe de campo'
   return source || '—'
+}
+
+function inspectionStatusLabel(pendencia: MeterInspectionPendenciaRecord | undefined) {
+  if (!pendencia) return 'Completo'
+  if (pendencia.missingToi && pendencia.missingComunicado) return 'Pendente'
+  if (pendencia.missingToi) return 'Falta TOI'
+  if (pendencia.missingComunicado) return 'Falta CSM'
+  return 'Pendente'
 }
 
 type ScheduleDetailModalProps = {
@@ -252,7 +262,32 @@ export function FieldTeamConsultarPanel({
   )
   const [envelopePreview, setEnvelopePreview] = useState<EnvelopePreview | null>(null)
   const [selectedSchedule, setSelectedSchedule] = useState<MeterScheduleRecord | null>(null)
+  const [uploadingInspectionId, setUploadingInspectionId] = useState<string | null>(null)
+  const [inspectionDocumentTarget, setInspectionDocumentTarget] = useState<{
+    meter: string
+    scheduleId: string
+  } | null>(null)
+  const [inspectionPendencias, setInspectionPendencias] = useState<MeterInspectionPendenciaRecord[]>(
+    [],
+  )
   const isMine = mode === 'mine'
+
+  const loadInspectionPendencias = useCallback(async () => {
+    try {
+      const response = await api.listInspectionPendencias()
+      setInspectionPendencias(response.pendencias)
+    } catch {
+      // Não bloqueia a listagem principal se a consulta de pendências falhar.
+    }
+  }, [])
+
+  const pendenciaByScheduleId = useMemo(() => {
+    const map = new Map<string, MeterInspectionPendenciaRecord>()
+    for (const pendencia of inspectionPendencias) {
+      map.set(pendencia.id, pendencia)
+    }
+    return map
+  }, [inspectionPendencias])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -284,12 +319,73 @@ export function FieldTeamConsultarPanel({
   }, [load])
 
   useEffect(() => {
-    if (!envelopePreview && !selectedSchedule) return
+    void loadInspectionPendencias()
+  }, [loadInspectionPendencias])
+
+  const handleUploadInspectionDocument = async (
+    target: { id: string; meter: string },
+    file: File,
+  ) => {
+    setUploadingInspectionId(target.id)
+    setFeedback(null)
+
+    try {
+      const fileBase64 = await readFileAsBase64(file)
+      const { document } = await api.uploadInspectionDocument(target.id, {
+        fileName: file.name,
+        fileBase64,
+      })
+
+      const docTypeLabel =
+        document.docType === 'toi'
+          ? 'TOI'
+          : document.docType === 'comunicado'
+            ? 'CSM'
+            : 'TOI + CSM'
+
+      if (!document.complete) {
+        const missing = !document.hasToi ? 'TOI' : 'CSM'
+        setFeedback({
+          type: 'success',
+          message: `${docTypeLabel} anexado ao medidor ${target.meter}. Ainda falta anexar o ${missing}.`,
+        })
+      } else if (document.blocked) {
+        setFeedback({
+          type: 'error',
+          message: `Documento anexado, mas o medidor ${target.meter} ficou bloqueado: ${document.blockReason}`,
+        })
+      } else {
+        setFeedback({
+          type: 'success',
+          message: `Documento de inspeção anexado ao medidor ${target.meter}.`,
+        })
+      }
+
+      void loadInspectionPendencias()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível anexar o documento de inspeção.',
+      })
+    } finally {
+      setUploadingInspectionId(null)
+    }
+  }
+
+  useEffect(() => {
+    if (!envelopePreview && !selectedSchedule && !inspectionDocumentTarget) return
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         if (envelopePreview) {
           setEnvelopePreview(null)
+          return
+        }
+        if (inspectionDocumentTarget) {
+          setInspectionDocumentTarget(null)
           return
         }
         setSelectedSchedule(null)
@@ -298,7 +394,7 @@ export function FieldTeamConsultarPanel({
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [envelopePreview, selectedSchedule])
+  }, [envelopePreview, selectedSchedule, inspectionDocumentTarget])
 
   const filteredSchedules = useMemo(() => {
     const query = normalizeSearch(searchQuery)
@@ -390,10 +486,15 @@ export function FieldTeamConsultarPanel({
                 <th>Data de ensaio</th>
                 <th>Prazo entrega</th>
                 <th>Status entrega</th>
+                <th>Documento de inspeção</th>
               </tr>
             </thead>
             <tbody>
-              {filteredSchedules.map((item) => (
+              {filteredSchedules.map((item) => {
+                const pendencia = pendenciaByScheduleId.get(item.id)
+                const inspectionStatus = inspectionStatusLabel(pendencia)
+
+                return (
                 <tr
                   key={item.id}
                   className={item.isLate ? 'schedule-row-late' : undefined}
@@ -454,8 +555,53 @@ export function FieldTeamConsultarPanel({
                       'Entregue'
                     )}
                   </td>
+                  <td>
+                    <div className="week-meter-actions">
+                      {pendencia ? (
+                        <span className="schedule-late-badge" title={inspectionStatus}>
+                          {inspectionStatus}
+                        </span>
+                      ) : (
+                        <span className="schedule-ok-badge" title={inspectionStatus}>
+                          {inspectionStatus}
+                        </span>
+                      )}
+                      <input
+                        id={`consultar-inspection-${item.id}`}
+                        type="file"
+                        className="file-picker-input"
+                        disabled={uploadingInspectionId === item.id}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0]
+                          event.target.value = ''
+                          if (file) {
+                            void handleUploadInspectionDocument({ id: item.id, meter: item.meter }, file)
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`consultar-inspection-${item.id}`}
+                        className="file-picker-button"
+                      >
+                        {uploadingInspectionId === item.id ? 'Enviando...' : 'Importar documento'}
+                      </label>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() =>
+                          setInspectionDocumentTarget({
+                            meter: item.meter,
+                            scheduleId: item.id,
+                          })
+                        }
+                      >
+                        Ver documento
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -509,6 +655,14 @@ export function FieldTeamConsultarPanel({
             />
           </div>
         </div>
+      ) : null}
+
+      {inspectionDocumentTarget ? (
+        <InspectionDocumentAnalysisModal
+          meter={inspectionDocumentTarget.meter}
+          scheduleId={inspectionDocumentTarget.scheduleId}
+          onClose={() => setInspectionDocumentTarget(null)}
+        />
       ) : null}
     </div>
   )
