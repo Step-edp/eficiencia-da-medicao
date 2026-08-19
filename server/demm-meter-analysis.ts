@@ -4,14 +4,14 @@ import { normalizeScheduleMeter } from './numeric-field-validation.js'
 
 const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 
+export const NORMALIZED_METER_SQL = `LPAD(RIGHT(REGEXP_REPLACE(meter, '[^0-9]', '', 'g'), 8), 8, '0')`
+
 export type DemmMeterAnalysis = {
   meter: string
   scheduled: boolean
   scheduleId: string | null
   scheduledAtLabel: string | null
 }
-
-const NORMALIZED_METER_SQL = `LPAD(RIGHT(REGEXP_REPLACE(meter, '[^0-9]', '', 'g'), 8), 8, '0')`
 
 export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnalysis[]> {
   if (!meters.length) return []
@@ -23,10 +23,11 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
     meter: string
     scheduled_at: Date
   }>(
-    `SELECT id, meter, scheduled_at
+    `SELECT DISTINCT ON (${NORMALIZED_METER_SQL}) id, meter, scheduled_at
      FROM meter_schedules
      WHERE trail_step = $2
-       AND ${NORMALIZED_METER_SQL} = ANY($1::text[])`,
+       AND ${NORMALIZED_METER_SQL} = ANY($1::text[])
+     ORDER BY ${NORMALIZED_METER_SQL}, created_at DESC`,
     [normalizedMeters, ENTRADA_TRAIL_STEP],
   )
 

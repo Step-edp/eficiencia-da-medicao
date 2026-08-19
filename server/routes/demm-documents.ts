@@ -2,7 +2,8 @@ import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 import { parseDemmPdf } from '../demm-pdf-parser.js'
-import { analyzeDemmMeters, type DemmMeterAnalysis } from '../demm-meter-analysis.js'
+import { analyzeDemmMeters, NORMALIZED_METER_SQL, type DemmMeterAnalysis } from '../demm-meter-analysis.js'
+import { normalizeScheduleMeter } from '../numeric-field-validation.js'
 import { validateDemmUploadMeters } from '../demm-upload-validation.js'
 import {
   ENTRADA_TRAIL_STEP,
@@ -811,40 +812,51 @@ export async function listWeekMeters(_req: Request, res: Response) {
     : { rows: [] as Array<{ meter: string; trail_step: string }> }
   const scheduleTrailByMeter = new Map(scheduleTrailRows.rows.map((row) => [row.meter, row.trail_step]))
 
-  const scheduleIds = analyzed
-    .filter((item): item is typeof item & { scheduleId: string } => Boolean(item.scheduleId))
-    .map((item) => item.scheduleId)
+  const normalizedMeters = uniqueMeters.map((meter) => normalizeScheduleMeter(meter))
+  const entradaScheduleRows = normalizedMeters.length
+    ? await query<{ id: string; norm: string }>(
+        `SELECT id, ${NORMALIZED_METER_SQL} AS norm
+         FROM meter_schedules
+         WHERE trail_step = $2
+           AND ${NORMALIZED_METER_SQL} = ANY($1::text[])`,
+        [normalizedMeters, ENTRADA_TRAIL_STEP],
+      )
+    : { rows: [] as Array<{ id: string; norm: string }> }
+  const allEntradaScheduleIds = entradaScheduleRows.rows.map((row) => row.id)
 
-  const inspectionRows = scheduleIds.length
+  const inspectionRows = allEntradaScheduleIds.length
     ? await query<{
-        meter_schedule_id: string
+        norm: string
         has_toi: boolean
         has_comunicado: boolean
         any_blocked: boolean
         block_reasons: string | null
       }>(
-        `SELECT meter_schedule_id,
-                bool_or(doc_type IN ('toi', 'ambos')) AS has_toi,
-                bool_or(doc_type IN ('comunicado', 'ambos')) AS has_comunicado,
-                bool_or(blocked) AS any_blocked,
-                string_agg(DISTINCT block_reason, ' | ') FILTER (WHERE block_reason IS NOT NULL) AS block_reasons
-         FROM meter_inspection_documents
-         WHERE meter_schedule_id = ANY($1::text[])
-         GROUP BY meter_schedule_id`,
-        [scheduleIds],
+        `SELECT ms_norm.norm,
+                bool_or(d.doc_type IN ('toi', 'ambos')) AS has_toi,
+                bool_or(d.doc_type IN ('comunicado', 'ambos')) AS has_comunicado,
+                bool_or(d.blocked) AS any_blocked,
+                string_agg(DISTINCT d.block_reason, ' | ') FILTER (WHERE d.block_reason IS NOT NULL) AS block_reasons
+         FROM meter_schedules ms
+         JOIN (
+           SELECT id, ${NORMALIZED_METER_SQL} AS norm
+           FROM meter_schedules
+         ) ms_norm ON ms_norm.id = ms.id
+         LEFT JOIN meter_inspection_documents d ON d.meter_schedule_id = ms.id
+         WHERE ms.id = ANY($1::text[])
+         GROUP BY ms_norm.norm`,
+        [allEntradaScheduleIds],
       )
     : {
         rows: [] as Array<{
-          meter_schedule_id: string
+          norm: string
           has_toi: boolean
           has_comunicado: boolean
           any_blocked: boolean
           block_reasons: string | null
         }>,
       }
-  const inspectionByScheduleId = new Map(
-    inspectionRows.rows.map((row) => [row.meter_schedule_id, row]),
-  )
+  const inspectionByNorm = new Map(inspectionRows.rows.map((row) => [row.norm, row]))
 
   const meters = analyzed
     .filter((item) => {
@@ -854,7 +866,7 @@ export async function listWeekMeters(_req: Request, res: Response) {
     })
     .map((item) => {
     const info = meterInfo.get(item.meter)
-    const inspection = item.scheduleId ? inspectionByScheduleId.get(item.scheduleId) : undefined
+    const inspection = inspectionByNorm.get(normalizeScheduleMeter(item.meter))
     const status = computeWeekMeterStatus(item.scheduled, inspection)
     return {
       meter: item.meter,
@@ -865,6 +877,8 @@ export async function listWeekMeters(_req: Request, res: Response) {
       scheduledAtLabel: item.scheduledAtLabel,
       sourceFiles: info?.sourceFiles ?? [],
       status,
+      hasToi: Boolean(inspection?.has_toi),
+      hasComunicado: Boolean(inspection?.has_comunicado),
       blockReason: inspection?.block_reasons ?? null,
     }
   })
@@ -897,7 +911,7 @@ async function resolveWeekMeterSchedule(
       )
 
   const schedule = scheduleResult.rows[0]
-  if (!schedule || schedule.meter !== meter) {
+  if (!schedule || normalizeScheduleMeter(schedule.meter) !== normalizeScheduleMeter(meter)) {
     return null
   }
   return schedule

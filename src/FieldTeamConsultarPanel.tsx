@@ -569,6 +569,7 @@ export function FieldTeamConsultarPanel({
                       <input
                         id={`consultar-inspection-${item.id}`}
                         type="file"
+                        accept="application/pdf,.pdf"
                         className="file-picker-input"
                         disabled={uploadingInspectionId === item.id}
                         onChange={(event) => {

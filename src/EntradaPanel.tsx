@@ -118,19 +118,14 @@ function formatWeekLabel(dateKey: string) {
   return `${day}/${month}`
 }
 
-function weekMeterStatusLabel(status: WeekMeterStatus) {
-  switch (status) {
-    case 'nao_agendado':
-      return 'Não agendado'
-    case 'sem_documento_inspecao':
-      return 'Sem documento de inspeção'
-    case 'bloqueado':
-      return 'Bloqueado'
-    case 'liberado':
-      return 'Liberado'
-    default:
-      return status
-  }
+function weekMeterInspectionLabel(item: WeekMeterRecord) {
+  if (item.status === 'bloqueado') return 'Bloqueado'
+  if (item.status === 'liberado') return 'Liberado'
+  if (item.status === 'nao_agendado') return 'Não agendado'
+  if (item.hasToi && item.hasComunicado) return 'Sem documento de inspeção'
+  if (item.hasToi && !item.hasComunicado) return 'Falta CSM'
+  if (!item.hasToi && item.hasComunicado) return 'Falta TOI'
+  return 'Sem documento de inspeção'
 }
 
 function MeterLink({
@@ -917,6 +912,28 @@ export function EntradaPanel({
         })
       }
 
+      setWeekMeters((prev) =>
+        prev.map((row) => {
+          if (row.scheduleId !== target.id) return row
+          const hasToi = document.hasToi
+          const hasComunicado = document.hasComunicado
+          const status: WeekMeterStatus = document.blocked
+            ? 'bloqueado'
+            : hasToi && hasComunicado
+              ? 'liberado'
+              : row.status === 'nao_agendado'
+                ? 'nao_agendado'
+                : 'sem_documento_inspecao'
+          return {
+            ...row,
+            hasToi,
+            hasComunicado,
+            status,
+            blockReason: document.blockReason ?? row.blockReason,
+          }
+        }),
+      )
+
       void loadInspectionPendencias()
       void loadWeekMeters()
       void loadData()
@@ -1154,6 +1171,8 @@ export function EntradaPanel({
                 status: 'sem_documento_inspecao',
                 scheduleId: schedule.id,
                 scheduledAtLabel: schedule.scheduledAtLabel,
+                hasToi: false,
+                hasComunicado: false,
               }
             : item,
         ),
@@ -1884,7 +1903,7 @@ export function EntradaPanel({
                             className={`week-meter-status-badge is-${item.status}`}
                             title={item.status === 'bloqueado' ? item.blockReason ?? undefined : undefined}
                           >
-                            {weekMeterStatusLabel(item.status)}
+                            {weekMeterInspectionLabel(item)}
                           </span>
                         </td>
                         <td>{item.scheduledAtLabel ?? '—'}</td>
@@ -1906,6 +1925,7 @@ export function EntradaPanel({
                                 <input
                                   id={`week-meter-inspection-${item.scheduleId}`}
                                   type="file"
+                                  accept="application/pdf,.pdf"
                                   className="file-picker-input"
                                   disabled={uploadingInspectionId === item.scheduleId}
                                   onChange={(event) => {

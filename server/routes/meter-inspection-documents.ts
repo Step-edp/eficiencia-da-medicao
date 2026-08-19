@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
+import { NORMALIZED_METER_SQL } from '../demm-meter-analysis.js'
+import { ENTRADA_TRAIL_STEP } from '../lab-trail-status.js'
 import {
   classifyInspectionDocument,
   extractInspectionPdfText,
@@ -274,10 +276,39 @@ function evaluateInspectionDocument(
   return { blocked: false, reason: null }
 }
 
+async function resolveCanonicalEntradaScheduleId(meterScheduleId: string): Promise<string | null> {
+  const result = await query<{ id: string }>(
+    `SELECT DISTINCT ON (${NORMALIZED_METER_SQL}) id
+     FROM meter_schedules
+     WHERE trail_step = $2
+       AND ${NORMALIZED_METER_SQL} = (
+         SELECT ${NORMALIZED_METER_SQL} FROM meter_schedules WHERE id = $1
+       )
+     ORDER BY ${NORMALIZED_METER_SQL}, created_at DESC`,
+    [meterScheduleId, ENTRADA_TRAIL_STEP],
+  )
+  return result.rows[0]?.id ?? null
+}
+
+async function listEntradaScheduleIdsForSchedule(meterScheduleId: string): Promise<string[]> {
+  const result = await query<{ id: string }>(
+    `SELECT id
+     FROM meter_schedules
+     WHERE trail_step = $2
+       AND ${NORMALIZED_METER_SQL} = (
+         SELECT ${NORMALIZED_METER_SQL} FROM meter_schedules WHERE id = $1
+       )`,
+    [meterScheduleId, ENTRADA_TRAIL_STEP],
+  )
+  return result.rows.map((row) => row.id)
+}
+
 async function loadDocTypePresence(meterScheduleId: string) {
+  const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
+  const ids = scheduleIds.length ? scheduleIds : [meterScheduleId]
   const result = await query<{ doc_type: InspectionDocumentType }>(
-    `SELECT doc_type FROM meter_inspection_documents WHERE meter_schedule_id = $1`,
-    [meterScheduleId],
+    `SELECT doc_type FROM meter_inspection_documents WHERE meter_schedule_id = ANY($1::text[])`,
+    [ids],
   )
   const types = new Set(result.rows.map((row) => row.doc_type))
   const hasToi = types.has('toi') || types.has('ambos')
@@ -286,13 +317,16 @@ async function loadDocTypePresence(meterScheduleId: string) {
 }
 
 export async function uploadInspectionDocument(req: Request, res: Response) {
-  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+  const requestedScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
   const { fileName, fileBase64 } = req.body as { fileName?: string; fileBase64?: string }
 
   if (!fileName?.trim() || !fileBase64?.trim()) {
     res.status(400).json({ error: 'Envie o documento de inspeção.' })
     return
   }
+
+  const canonicalScheduleId = await resolveCanonicalEntradaScheduleId(requestedScheduleId)
+  const meterScheduleId = canonicalScheduleId ?? requestedScheduleId
 
   const schedule = await query<{ id: string; meter: string; envelope_seal: string }>(
     `SELECT id, meter, envelope_seal FROM meter_schedules WHERE id = $1`,
@@ -472,15 +506,18 @@ export async function listInspectionDocuments(req: Request, res: Response) {
 
   const registeredMeter = schedule.rows[0].meter
   const registeredLacre = schedule.rows[0].envelope_seal || null
+  const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
+  const documentScheduleIds = scheduleIds.length ? scheduleIds : [meterScheduleId]
 
   const result = await query<Omit<InspectionDocumentRow, 'file_data'>>(
-    `SELECT id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_lacre,
+    `SELECT DISTINCT ON (doc_type)
+            id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_lacre,
             extracted_installation, extracted_toi, extracted_note,
             blocked, block_reason, created_at, created_by_user_id
      FROM meter_inspection_documents
-     WHERE meter_schedule_id = $1
-     ORDER BY created_at DESC`,
-    [meterScheduleId],
+     WHERE meter_schedule_id = ANY($1::text[])
+     ORDER BY doc_type, created_at DESC`,
+    [documentScheduleIds],
   )
 
   const presence = await loadDocTypePresence(meterScheduleId)

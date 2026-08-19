@@ -726,6 +726,8 @@ export type WeekMeterRecord = {
   scheduledAtLabel: string | null
   sourceFiles: string[]
   status: WeekMeterStatus
+  hasToi: boolean
+  hasComunicado: boolean
   blockReason: string | null
 }
 
