@@ -627,6 +627,9 @@ export function EntradaPanel({
   const [weekMetersStatusFilter, setWeekMetersStatusFilter] = useState<'todos' | WeekMeterStatus>(
     'todos',
   )
+  const [weekMetersMeterFilter, setWeekMetersMeterFilter] = useState('')
+  const [weekMetersCsdFilter, setWeekMetersCsdFilter] = useState('')
+  const [weekMetersDemmFilter, setWeekMetersDemmFilter] = useState('')
   const [quickScheduleMeter, setQuickScheduleMeter] = useState<WeekMeterRecord | null>(null)
   const [submittingQuickSchedule, setSubmittingQuickSchedule] = useState(false)
   const [quickScheduleFeedback, setQuickScheduleFeedback] = useState<string | null>(null)
@@ -1733,10 +1736,35 @@ export function EntradaPanel({
   }
 
   if (view === 'weekMeters') {
-    const filteredWeekMeters =
-      weekMetersStatusFilter === 'todos'
-        ? weekMeters
-        : weekMeters.filter((item) => item.status === weekMetersStatusFilter)
+    const meterQuery = weekMetersMeterFilter.replace(/\D/g, '')
+    const csdQuery = weekMetersCsdFilter.trim().toLowerCase()
+    const demmQuery = weekMetersDemmFilter.replace(/\D/g, '')
+
+    const filteredWeekMeters = weekMeters.filter((item) => {
+      if (weekMetersStatusFilter !== 'todos' && item.status !== weekMetersStatusFilter) {
+        return false
+      }
+      if (meterQuery && !item.meter.replace(/\D/g, '').includes(meterQuery)) {
+        return false
+      }
+      if (csdQuery && !(item.csdName ?? '').toLowerCase().includes(csdQuery)) {
+        return false
+      }
+      if (
+        demmQuery &&
+        !(item.demmDocumentNumber ?? '').replace(/\D/g, '').includes(demmQuery)
+      ) {
+        return false
+      }
+      return true
+    })
+
+    const hasActiveWeekMeterFilters = Boolean(
+      weekMetersStatusFilter !== 'todos' ||
+        weekMetersMeterFilter.trim() ||
+        weekMetersCsdFilter.trim() ||
+        weekMetersDemmFilter.trim(),
+    )
 
     return (
       <>
@@ -1759,21 +1787,66 @@ export function EntradaPanel({
               </p>
             </div>
 
-            <label className="week-meters-filter">
-              Filtrar por status
-              <select
-                value={weekMetersStatusFilter}
-                onChange={(event) =>
-                  setWeekMetersStatusFilter(event.target.value as 'todos' | WeekMeterStatus)
-                }
-              >
-                <option value="todos">Todos</option>
-                <option value="nao_agendado">Não agendado</option>
-                <option value="sem_documento_inspecao">Sem documento de inspeção</option>
-                <option value="bloqueado">Bloqueado</option>
-                <option value="liberado">Liberado</option>
-              </select>
-            </label>
+            <div className="week-meters-filters" aria-label="Filtros de medidores da semana">
+              <label className="week-meters-filter">
+                Medidor
+                <input
+                  type="search"
+                  inputMode="numeric"
+                  value={weekMetersMeterFilter}
+                  placeholder="Ex.: 12543386"
+                  onChange={(event) => setWeekMetersMeterFilter(event.target.value)}
+                />
+              </label>
+              <label className="week-meters-filter">
+                CSD
+                <input
+                  type="search"
+                  value={weekMetersCsdFilter}
+                  placeholder="Ex.: Taubaté"
+                  onChange={(event) => setWeekMetersCsdFilter(event.target.value)}
+                />
+              </label>
+              <label className="week-meters-filter">
+                Nº DEMM
+                <input
+                  type="search"
+                  inputMode="numeric"
+                  value={weekMetersDemmFilter}
+                  placeholder="Ex.: 00051024"
+                  onChange={(event) => setWeekMetersDemmFilter(event.target.value)}
+                />
+              </label>
+              <label className="week-meters-filter">
+                Status
+                <select
+                  value={weekMetersStatusFilter}
+                  onChange={(event) =>
+                    setWeekMetersStatusFilter(event.target.value as 'todos' | WeekMeterStatus)
+                  }
+                >
+                  <option value="todos">Todos</option>
+                  <option value="nao_agendado">Não agendado</option>
+                  <option value="sem_documento_inspecao">Sem documento de inspeção</option>
+                  <option value="bloqueado">Bloqueado</option>
+                  <option value="liberado">Liberado</option>
+                </select>
+              </label>
+              {hasActiveWeekMeterFilters ? (
+                <button
+                  type="button"
+                  className="secondary-button week-meters-clear-filters"
+                  onClick={() => {
+                    setWeekMetersStatusFilter('todos')
+                    setWeekMetersMeterFilter('')
+                    setWeekMetersCsdFilter('')
+                    setWeekMetersDemmFilter('')
+                  }}
+                >
+                  Limpar filtros
+                </button>
+              ) : null}
+            </div>
 
             {weekMetersLoading && weekMeters.length === 0 ? (
               <p className="entrada-panel-empty">Carregando medidores...</p>
@@ -1781,7 +1854,9 @@ export function EntradaPanel({
               <p className="entrada-panel-empty">
                 {weekMeters.length === 0
                   ? 'Nenhum medidor aguardando entrada.'
-                  : 'Nenhum medidor encontrado para esse filtro.'}
+                  : hasActiveWeekMeterFilters
+                    ? 'Nenhum medidor encontrado para os filtros informados.'
+                    : 'Nenhum medidor encontrado para esse filtro.'}
               </p>
             ) : (
               <div className="entrada-table-wrap">
