@@ -654,6 +654,13 @@ export type MeterInspectionPendenciaRecord = {
   missingComunicado: boolean
 }
 
+export type MeterInspectionSummary = {
+  hasToi: boolean
+  hasComunicado: boolean
+  anyBlocked: boolean
+  blockReasons: string | null
+}
+
 export type DemmWeekStatus = 'entregue' | 'pendente' | 'nao_entregue' | 'retroativo'
 
 export type CsdDemmPendenciaRecord = {
@@ -1565,9 +1572,11 @@ export const api = {
       `/api/meter-schedules/${meterScheduleId}/entry-comparisons`,
     ),
   listInspectionPendencias: () =>
-    request<{ pendencias: MeterInspectionPendenciaRecord[]; pendingCount: number }>(
-      '/api/meter-schedules/inspection-pendencias',
-    ),
+    request<{
+      pendencias: MeterInspectionPendenciaRecord[]
+      pendingCount: number
+      byScheduleId: Record<string, MeterInspectionSummary>
+    }>('/api/meter-schedules/inspection-pendencias'),
   getDemmMetersBase: () =>
     request<{ meters: DemmMeterAnalysisRecord[]; total: number; scheduledCount: number }>(
       '/api/demm-documents/meters-base',

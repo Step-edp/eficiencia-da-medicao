@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, ApiError, type MeterInspectionPendenciaRecord, type MeterScheduleRecord } from './api'
+import { api, ApiError, type MeterInspectionSummary, type MeterScheduleRecord } from './api'
 import { readFileAsBase64 } from './fileUtils'
 import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
 import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, scheduleAuditSearchText } from './schedulePartnerLabel'
@@ -68,12 +68,20 @@ function scheduleSourceLabel(source: string) {
   return source || '—'
 }
 
-function inspectionStatusLabel(pendencia: MeterInspectionPendenciaRecord | undefined) {
-  if (!pendencia) return 'Completo'
-  if (pendencia.missingToi && pendencia.missingComunicado) return 'Pendente'
-  if (pendencia.missingToi) return 'Falta TOI'
-  if (pendencia.missingComunicado) return 'Falta CSM'
-  return 'Pendente'
+function inspectionStatusLabel(summary: MeterInspectionSummary | undefined) {
+  if (!summary?.hasToi && !summary?.hasComunicado) return 'Sem documento de inspeção'
+  if (summary.hasToi && !summary.hasComunicado) return 'Falta CSM'
+  if (!summary.hasToi && summary.hasComunicado) return 'Falta TOI'
+  if (summary.anyBlocked) return 'Bloqueado'
+  if (summary.hasToi && summary.hasComunicado) return 'Liberado'
+  return 'Sem documento de inspeção'
+}
+
+function inspectionStatusBadgeClass(summary: MeterInspectionSummary | undefined) {
+  if (summary?.hasToi && summary?.hasComunicado && !summary.anyBlocked) {
+    return 'schedule-ok-badge'
+  }
+  return 'schedule-late-badge'
 }
 
 type ScheduleDetailModalProps = {
@@ -267,27 +275,19 @@ export function FieldTeamConsultarPanel({
     meter: string
     scheduleId: string
   } | null>(null)
-  const [inspectionPendencias, setInspectionPendencias] = useState<MeterInspectionPendenciaRecord[]>(
-    [],
-  )
+  const [inspectionSummaryByScheduleId, setInspectionSummaryByScheduleId] = useState<
+    Record<string, MeterInspectionSummary>
+  >({})
   const isMine = mode === 'mine'
 
   const loadInspectionPendencias = useCallback(async () => {
     try {
       const response = await api.listInspectionPendencias()
-      setInspectionPendencias(response.pendencias)
+      setInspectionSummaryByScheduleId(response.byScheduleId)
     } catch {
       // Não bloqueia a listagem principal se a consulta de pendências falhar.
     }
   }, [])
-
-  const pendenciaByScheduleId = useMemo(() => {
-    const map = new Map<string, MeterInspectionPendenciaRecord>()
-    for (const pendencia of inspectionPendencias) {
-      map.set(pendencia.id, pendencia)
-    }
-    return map
-  }, [inspectionPendencias])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -491,8 +491,9 @@ export function FieldTeamConsultarPanel({
             </thead>
             <tbody>
               {filteredSchedules.map((item) => {
-                const pendencia = pendenciaByScheduleId.get(item.id)
-                const inspectionStatus = inspectionStatusLabel(pendencia)
+                const summary = inspectionSummaryByScheduleId[item.id]
+                const inspectionStatus = inspectionStatusLabel(summary)
+                const inspectionBadgeClass = inspectionStatusBadgeClass(summary)
 
                 return (
                 <tr
@@ -557,15 +558,12 @@ export function FieldTeamConsultarPanel({
                   </td>
                   <td>
                     <div className="week-meter-actions">
-                      {pendencia ? (
-                        <span className="schedule-late-badge" title={inspectionStatus}>
-                          {inspectionStatus}
-                        </span>
-                      ) : (
-                        <span className="schedule-ok-badge" title={inspectionStatus}>
-                          {inspectionStatus}
-                        </span>
-                      )}
+                      <span
+                        className={inspectionBadgeClass}
+                        title={summary?.blockReasons ?? inspectionStatus}
+                      >
+                        {inspectionStatus}
+                      </span>
                       <input
                         id={`consultar-inspection-${item.id}`}
                         type="file"

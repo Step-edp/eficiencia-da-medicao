@@ -122,7 +122,6 @@ function weekMeterInspectionLabel(item: WeekMeterRecord) {
   if (item.status === 'bloqueado') return 'Bloqueado'
   if (item.status === 'liberado') return 'Liberado'
   if (item.status === 'nao_agendado') return 'Não agendado'
-  if (item.hasToi && item.hasComunicado) return 'Sem documento de inspeção'
   if (item.hasToi && !item.hasComunicado) return 'Falta CSM'
   if (!item.hasToi && item.hasComunicado) return 'Falta TOI'
   return 'Sem documento de inspeção'

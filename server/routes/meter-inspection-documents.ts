@@ -196,6 +196,189 @@ function pickToiExtractionRow(
   )
 }
 
+export type InspectionSummary = {
+  hasToi: boolean
+  hasComunicado: boolean
+  anyBlocked: boolean
+  blockReasons: string | null
+}
+
+type ScheduleForInspectionAggregate = {
+  meter: string
+  envelope_seal: string | null
+  installation: string
+  toi: string
+  note: string
+  source: string
+}
+
+type DocumentForInspectionAggregate = Pick<
+  InspectionDocumentRow,
+  | 'doc_type'
+  | 'extracted_meter'
+  | 'extracted_lacre'
+  | 'extracted_installation'
+  | 'extracted_toi'
+  | 'extracted_note'
+>
+
+export function aggregateInspectionForSchedule(
+  schedule: ScheduleForInspectionAggregate,
+  documents: DocumentForInspectionAggregate[],
+): InspectionSummary {
+  const types = new Set(documents.map((doc) => doc.doc_type))
+  const hasToi = types.has('toi') || types.has('ambos')
+  const hasComunicado = types.has('comunicado') || types.has('ambos')
+  const reasons: string[] = []
+
+  for (const doc of documents) {
+    if (doc.doc_type !== 'toi' && doc.doc_type !== 'ambos') continue
+    const evaluation = evaluateInspectionDocument(
+      doc.extracted_lacre,
+      doc.extracted_meter,
+      schedule.meter,
+      schedule.envelope_seal,
+    )
+    if (evaluation.blocked && evaluation.reason) {
+      reasons.push(evaluation.reason)
+    }
+  }
+
+  const extraction = pickToiExtractionRow(documents)
+  if (extraction) {
+    const comparisons = buildScheduleEntryComparisons(
+      {
+        source: schedule.source,
+        scheduled_at: new Date(),
+        installation: schedule.installation,
+        toi: schedule.toi,
+        note: schedule.note,
+        csd: '',
+        partner_name: '',
+        partner_registration: '',
+        toi_collaborator1_name: '',
+        toi_collaborator1_registration: '',
+        toi_collaborator2_name: '',
+        toi_collaborator2_registration: '',
+        client_present: '',
+        scheduling_notes: '',
+      },
+      extraction,
+    )
+    const fieldLabels: Array<[string, EntryFieldMatch]> = [
+      ['Instalação', comparisons.installation],
+      ['TOI', comparisons.toi],
+      ['Nota', comparisons.note],
+    ]
+    for (const [label, field] of fieldLabels) {
+      if (field.matches === false) {
+        reasons.push(`${label} no documento diverge do cadastrado.`)
+      }
+    }
+  }
+
+  const uniqueReasons = [...new Set(reasons)]
+  return {
+    hasToi,
+    hasComunicado,
+    anyBlocked: uniqueReasons.length > 0,
+    blockReasons: uniqueReasons.length ? uniqueReasons.join(' | ') : null,
+  }
+}
+
+export async function loadInspectionSummariesByNorm(
+  normalizedMeters: string[],
+): Promise<Map<string, InspectionSummary>> {
+  const summariesByNorm = new Map<string, InspectionSummary>()
+  if (!normalizedMeters.length) {
+    return summariesByNorm
+  }
+
+  const rows = await query<{
+    norm: string
+    id: string
+    meter: string
+    envelope_seal: string | null
+    installation: string
+    toi: string
+    note: string
+    source: string
+    created_at: Date
+    doc_type: InspectionDocumentType | null
+    extracted_meter: string | null
+    extracted_lacre: string | null
+    extracted_installation: string | null
+    extracted_toi: string | null
+    extracted_note: string | null
+  }>(
+    `SELECT ms_norm.norm,
+            ms.id,
+            ms.meter,
+            ms.envelope_seal,
+            ms.installation,
+            ms.toi,
+            ms.note,
+            ms.source,
+            ms.created_at,
+            d.doc_type,
+            d.extracted_meter,
+            d.extracted_lacre,
+            d.extracted_installation,
+            d.extracted_toi,
+            d.extracted_note
+     FROM meter_schedules ms
+     JOIN (
+       SELECT id, ${NORMALIZED_METER_SQL} AS norm
+       FROM meter_schedules
+     ) ms_norm ON ms_norm.id = ms.id
+     LEFT JOIN meter_inspection_documents d ON d.meter_schedule_id = ms.id
+     WHERE ms.trail_step = $2
+       AND ms_norm.norm = ANY($1::text[])`,
+    [normalizedMeters, ENTRADA_TRAIL_STEP],
+  )
+
+  type NormGroup = {
+    schedule: ScheduleForInspectionAggregate
+    documents: DocumentForInspectionAggregate[]
+  }
+  const groups = new Map<string, NormGroup>()
+
+  for (const row of rows.rows) {
+    let group = groups.get(row.norm)
+    if (!group) {
+      group = {
+        schedule: {
+          meter: row.meter,
+          envelope_seal: row.envelope_seal,
+          installation: row.installation,
+          toi: row.toi,
+          note: row.note,
+          source: row.source,
+        },
+        documents: [],
+      }
+      groups.set(row.norm, group)
+    }
+
+    if (row.doc_type) {
+      group.documents.push({
+        doc_type: row.doc_type,
+        extracted_meter: row.extracted_meter,
+        extracted_lacre: row.extracted_lacre,
+        extracted_installation: row.extracted_installation,
+        extracted_toi: row.extracted_toi,
+        extracted_note: row.extracted_note,
+      })
+    }
+  }
+
+  for (const [norm, group] of groups) {
+    summariesByNorm.set(norm, aggregateInspectionForSchedule(group.schedule, group.documents))
+  }
+
+  return summariesByNorm
+}
+
 function formatPersonLabel(name: string, registration: string) {
   const normalizedName = name?.trim()
   const normalizedRegistration = registration?.trim()
@@ -427,8 +610,16 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   const canonicalScheduleId = await resolveCanonicalEntradaScheduleId(requestedScheduleId)
   const meterScheduleId = canonicalScheduleId ?? requestedScheduleId
 
-  const schedule = await query<{ id: string; meter: string; envelope_seal: string }>(
-    `SELECT id, meter, envelope_seal FROM meter_schedules WHERE id = $1`,
+  const schedule = await query<{
+    id: string
+    meter: string
+    envelope_seal: string
+    installation: string
+    toi: string
+    note: string
+    source: string
+  }>(
+    `SELECT id, meter, envelope_seal, installation, toi, note, source FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
   if (!schedule.rows[0]) {
@@ -538,6 +729,16 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
 
   const presence = await loadDocTypePresence(meterScheduleId)
 
+  const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
+  const documentScheduleIds = scheduleIds.length ? scheduleIds : [meterScheduleId]
+  const allDocuments = await query<DocumentForInspectionAggregate>(
+    `SELECT doc_type, extracted_meter, extracted_lacre, extracted_installation, extracted_toi, extracted_note
+     FROM meter_inspection_documents
+     WHERE meter_schedule_id = ANY($1::text[])`,
+    [documentScheduleIds],
+  )
+  const aggregate = aggregateInspectionForSchedule(schedule.rows[0], allDocuments.rows)
+
   const registeredMeter = schedule.rows[0].meter
   const registeredLacre = schedule.rows[0].envelope_seal || null
 
@@ -552,8 +753,8 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     registeredLacre,
     meterMatches: compareMeter(insert.rows[0].extracted_meter, registeredMeter),
     lacreMatches: compareSeal(insert.rows[0].extracted_lacre, registeredLacre),
-    blocked: insert.rows[0].blocked,
-    blockReason: insert.rows[0].block_reason,
+    blocked: aggregate.anyBlocked,
+    blockReason: aggregate.blockReasons,
     createdAt: insert.rows[0].created_at.toISOString(),
     createdByUserId: insert.rows[0].created_by_user_id,
     createdByRegistration: req.user?.registration ?? null,
@@ -781,59 +982,95 @@ export async function deleteInspectionDocument(req: Request, res: Response) {
   res.json({ ok: true, meterScheduleId: existing.meter_schedule_id })
 }
 
-type InspectionPendenciaRow = {
-  id: string
-  meter: string
-  installation: string
-  csd: string
-  scheduled_at: Date
-  trail_step: string
-  responsible_user_id: string | null
-  responsible_name: string | null
-  responsible_registration: string | null
-  responsible_work_subtype: string | null
-  has_toi: boolean
-  has_comunicado: boolean
-}
-
 export async function listInspectionPendencias(_req: Request, res: Response) {
-  const result = await query<InspectionPendenciaRow>(
-    `SELECT * FROM (
-       SELECT ms.id, ms.meter, ms.installation, ms.csd, ms.scheduled_at, ms.trail_step,
-              c.responsible_user_id,
-              u.name AS responsible_name,
-              u.registration AS responsible_registration,
-              u.work_subtype AS responsible_work_subtype,
-              EXISTS (
-                SELECT 1 FROM meter_inspection_documents d
-                WHERE d.meter_schedule_id = ms.id AND d.doc_type IN ('toi', 'ambos')
-              ) AS has_toi,
-              EXISTS (
-                SELECT 1 FROM meter_inspection_documents d
-                WHERE d.meter_schedule_id = ms.id AND d.doc_type IN ('comunicado', 'ambos')
-              ) AS has_comunicado
-       FROM meter_schedules ms
-       LEFT JOIN csds c ON c.name = ms.csd
-       LEFT JOIN users u ON u.id = c.responsible_user_id
-     ) t
-     WHERE NOT (has_toi AND has_comunicado)
-     ORDER BY scheduled_at ASC`,
+  const schedules = await query<{
+    id: string
+    meter: string
+    installation: string
+    csd: string
+    scheduled_at: Date
+    trail_step: string
+    envelope_seal: string | null
+    toi: string
+    note: string
+    source: string
+    responsible_user_id: string | null
+    responsible_name: string | null
+    responsible_registration: string | null
+    responsible_work_subtype: string | null
+  }>(
+    `SELECT ms.id,
+            ms.meter,
+            ms.installation,
+            ms.csd,
+            ms.scheduled_at,
+            ms.trail_step,
+            ms.envelope_seal,
+            ms.toi,
+            ms.note,
+            ms.source,
+            c.responsible_user_id,
+            u.name AS responsible_name,
+            u.registration AS responsible_registration,
+            u.work_subtype AS responsible_work_subtype
+     FROM meter_schedules ms
+     LEFT JOIN csds c ON c.name = ms.csd
+     LEFT JOIN users u ON u.id = c.responsible_user_id
+     WHERE ms.trail_step = $1
+        OR EXISTS (
+          SELECT 1 FROM meter_inspection_documents d
+          WHERE d.meter_schedule_id = ms.id
+        )
+     ORDER BY ms.scheduled_at ASC`,
+    [ENTRADA_TRAIL_STEP],
   )
 
-  const pendencias = result.rows.map((row) => ({
-    id: row.id,
-    meter: row.meter,
-    installation: row.installation,
-    csd: row.csd,
-    scheduledAt: row.scheduled_at.toISOString(),
-    trailStep: row.trail_step,
-    responsibleUserId: row.responsible_user_id,
-    responsibleName: row.responsible_name,
-    responsibleRegistration: row.responsible_registration,
-    responsibleWorkSubtype: row.responsible_work_subtype,
-    missingToi: !row.has_toi,
-    missingComunicado: !row.has_comunicado,
-  }))
+  const scheduleIds = schedules.rows.map((row) => row.id)
+  const documents = scheduleIds.length
+    ? await query<
+        DocumentForInspectionAggregate & {
+          meter_schedule_id: string
+        }
+      >(
+        `SELECT meter_schedule_id, doc_type, extracted_meter, extracted_lacre,
+                extracted_installation, extracted_toi, extracted_note
+         FROM meter_inspection_documents
+         WHERE meter_schedule_id = ANY($1::text[])`,
+        [scheduleIds],
+      )
+    : { rows: [] as Array<DocumentForInspectionAggregate & { meter_schedule_id: string }> }
 
-  res.json({ pendencias, pendingCount: pendencias.length })
+  const docsByScheduleId = new Map<string, DocumentForInspectionAggregate[]>()
+  for (const doc of documents.rows) {
+    const list = docsByScheduleId.get(doc.meter_schedule_id) ?? []
+    list.push(doc)
+    docsByScheduleId.set(doc.meter_schedule_id, list)
+  }
+
+  const byScheduleId: Record<string, InspectionSummary> = {}
+  const pendencias = []
+
+  for (const row of schedules.rows) {
+    const summary = aggregateInspectionForSchedule(row, docsByScheduleId.get(row.id) ?? [])
+    byScheduleId[row.id] = summary
+
+    if (!(summary.hasToi && summary.hasComunicado)) {
+      pendencias.push({
+        id: row.id,
+        meter: row.meter,
+        installation: row.installation,
+        csd: row.csd,
+        scheduledAt: row.scheduled_at.toISOString(),
+        trailStep: row.trail_step,
+        responsibleUserId: row.responsible_user_id,
+        responsibleName: row.responsible_name,
+        responsibleRegistration: row.responsible_registration,
+        responsibleWorkSubtype: row.responsible_work_subtype,
+        missingToi: !summary.hasToi,
+        missingComunicado: !summary.hasComunicado,
+      })
+    }
+  }
+
+  res.json({ pendencias, pendingCount: pendencias.length, byScheduleId })
 }
