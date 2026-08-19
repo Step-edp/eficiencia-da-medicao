@@ -2408,9 +2408,40 @@ button {
 }
 
 .entrada-table-wrap {
-  overflow-x: auto;
+  overflow: auto;
   max-width: 100%;
   min-width: 0;
+  max-height: min(62vh, 640px);
+  overscroll-behavior: contain;
+  border: 1px solid rgba(24, 216, 240, 0.18);
+  border-radius: 12px;
+  background: rgba(5, 26, 44, 0.35);
+  /* Mantém a barra horizontal sempre na área visível da tabela */
+  scrollbar-gutter: stable;
+}
+
+.entrada-table-wrap .data-table {
+  margin: 0;
+}
+
+.entrada-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(8, 39, 66, 0.98);
+  box-shadow: 0 1px 0 rgba(24, 216, 240, 0.18);
+}
+
+.entrada-table-wrap.meter-detail-history-wrap {
+  max-height: 280px;
+}
+
+.entrada-table-wrap.demm-modal-conflicts-table-wrap {
+  max-height: 220px;
+}
+
+.entrada-table-wrap.executadas-planilha-wrap {
+  max-height: 420px;
 }
 
 .entrada-table td,
