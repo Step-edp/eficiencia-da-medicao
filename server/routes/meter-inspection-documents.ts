@@ -46,9 +46,13 @@ export type ScheduleEntryComparisons = {
   note: EntryFieldMatch
   csd: EntryFieldMatch
   partner: EntryFieldMatch
+  collaborator1: EntryFieldMatch
+  collaborator2: EntryFieldMatch
   clientPresent: EntryFieldMatch
   deliveryDeadline: EntryFieldMatch
   schedulingNotes: EntryFieldMatch
+  scheduleSource: string
+  excludeCollaboratorChecks: boolean
 }
 
 function decodeFileBase64(fileBase64: string): Buffer | null {
@@ -157,8 +161,19 @@ function pickToiExtractionRow(
   )
 }
 
+function formatPersonLabel(name: string, registration: string) {
+  const normalizedName = name?.trim()
+  const normalizedRegistration = registration?.trim()
+  if (!normalizedName && !normalizedRegistration) return null
+  if (normalizedName && normalizedRegistration) {
+    return `${normalizedName} (${normalizedRegistration})`
+  }
+  return normalizedName || normalizedRegistration || null
+}
+
 function buildScheduleEntryComparisons(
   schedule: {
+    source: string
     scheduled_at: Date
     installation: string
     toi: string
@@ -167,7 +182,9 @@ function buildScheduleEntryComparisons(
     partner_name: string
     partner_registration: string
     toi_collaborator1_name: string
+    toi_collaborator1_registration: string
     toi_collaborator2_name: string
+    toi_collaborator2_registration: string
     client_present: string
     scheduling_notes: string
   },
@@ -176,13 +193,19 @@ function buildScheduleEntryComparisons(
     'extracted_installation' | 'extracted_toi' | 'extracted_note'
   > | null,
 ): ScheduleEntryComparisons {
-  const partnerRegistered = [schedule.partner_name, schedule.partner_registration]
-    .filter(Boolean)
-    .join(' — ')
-  const teamRegistered = [schedule.toi_collaborator1_name, schedule.toi_collaborator2_name]
-    .filter(Boolean)
-    .join(', ')
-  const partnerLabel = partnerRegistered || teamRegistered || null
+  const partnerRegistered = formatPersonLabel(
+    schedule.partner_name,
+    schedule.partner_registration,
+  )
+  const collaborator1Registered = formatPersonLabel(
+    schedule.toi_collaborator1_name,
+    schedule.toi_collaborator1_registration,
+  )
+  const collaborator2Registered = formatPersonLabel(
+    schedule.toi_collaborator2_name,
+    schedule.toi_collaborator2_registration,
+  )
+  const excludeCollaboratorChecks = schedule.source === 'bulk_import'
   const clientPresent =
     schedule.client_present === 'sim'
       ? 'Sim'
@@ -202,10 +225,14 @@ function buildScheduleEntryComparisons(
     toi: buildEntryFieldMatch(schedule.toi, extraction?.extracted_toi ?? null),
     note: buildEntryFieldMatch(schedule.note, extraction?.extracted_note ?? null),
     csd: buildEntryFieldMatch(schedule.csd, null),
-    partner: buildEntryFieldMatch(partnerLabel, null),
+    partner: buildEntryFieldMatch(partnerRegistered, null),
+    collaborator1: buildEntryFieldMatch(collaborator1Registered, null),
+    collaborator2: buildEntryFieldMatch(collaborator2Registered, null),
     clientPresent: buildEntryFieldMatch(clientPresent, null),
     deliveryDeadline: buildEntryFieldMatch(deliveryDeadlineLabel, null),
     schedulingNotes: buildEntryFieldMatch(schedule.scheduling_notes, null),
+    scheduleSource: schedule.source,
+    excludeCollaboratorChecks,
   }
 }
 
@@ -476,6 +503,7 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
 
   const schedule = await query<{
     id: string
+    source: string
     scheduled_at: Date
     installation: string
     toi: string
@@ -484,13 +512,16 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
     partner_name: string
     partner_registration: string
     toi_collaborator1_name: string
+    toi_collaborator1_registration: string
     toi_collaborator2_name: string
+    toi_collaborator2_registration: string
     client_present: string
     scheduling_notes: string
   }>(
-    `SELECT id, scheduled_at, installation, toi, note, csd,
+    `SELECT id, source, scheduled_at, installation, toi, note, csd,
             partner_name, partner_registration,
-            toi_collaborator1_name, toi_collaborator2_name,
+            toi_collaborator1_name, toi_collaborator1_registration,
+            toi_collaborator2_name, toi_collaborator2_registration,
             client_present, scheduling_notes
      FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],

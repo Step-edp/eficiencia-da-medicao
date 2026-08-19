@@ -630,9 +630,13 @@ export type ScheduleEntryComparisons = {
   note: EntryFieldMatch
   csd: EntryFieldMatch
   partner: EntryFieldMatch
+  collaborator1: EntryFieldMatch
+  collaborator2: EntryFieldMatch
   clientPresent: EntryFieldMatch
   deliveryDeadline: EntryFieldMatch
   schedulingNotes: EntryFieldMatch
+  scheduleSource: string
+  excludeCollaboratorChecks: boolean
 }
 
 export type MeterInspectionPendenciaRecord = {

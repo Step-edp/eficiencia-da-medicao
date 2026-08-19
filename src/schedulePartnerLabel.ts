@@ -25,7 +25,7 @@ function isToiTeamSchedule(
   )
 }
 
-function isBulkImportedSchedule(item: { source?: string | null }) {
+export function isBulkImportedSchedule(item: { source?: string | null }) {
   return item.source === 'bulk_import'
 }
 

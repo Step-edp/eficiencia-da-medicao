@@ -9,6 +9,8 @@ export type EntryFieldChecks = {
   note: EntryFieldCheck
   csd: EntryFieldCheck
   partner: EntryFieldCheck
+  collaborator1: EntryFieldCheck
+  collaborator2: EntryFieldCheck
   clientPresent: EntryFieldCheck
   deliveryDeadline: EntryFieldCheck
   schedulingNotes: EntryFieldCheck
@@ -21,6 +23,8 @@ export const ENTRY_FIELD_CHECK_KEYS = [
   'note',
   'csd',
   'partner',
+  'collaborator1',
+  'collaborator2',
   'clientPresent',
   'deliveryDeadline',
   'schedulingNotes',
@@ -34,6 +38,8 @@ export function createEmptyEntryFieldChecks(): EntryFieldChecks {
     note: '',
     csd: '',
     partner: '',
+    collaborator1: '',
+    collaborator2: '',
     clientPresent: '',
     deliveryDeadline: '',
     schedulingNotes: '',
@@ -59,6 +65,8 @@ export function entryFieldChecksFromComparisons(
     note: entryCheckFromMatch(comparisons.note.matches),
     csd: entryCheckFromMatch(comparisons.csd.matches),
     partner: entryCheckFromMatch(comparisons.partner.matches),
+    collaborator1: entryCheckFromMatch(comparisons.collaborator1.matches),
+    collaborator2: entryCheckFromMatch(comparisons.collaborator2.matches),
     clientPresent: entryCheckFromMatch(comparisons.clientPresent.matches),
     deliveryDeadline: entryCheckFromMatch(comparisons.deliveryDeadline.matches),
     schedulingNotes: entryCheckFromMatch(comparisons.schedulingNotes.matches),
@@ -72,6 +80,7 @@ export type RatmFormData = {
   demmDocumentId: string | null
   registryStatus: string
   scheduleId: string
+  scheduleSource: string
   entryComparisons: ScheduleEntryComparisons | null
   entryFieldChecks: EntryFieldChecks
   scheduleDate: string
@@ -159,6 +168,7 @@ export function createEmptyRatmForm(): RatmFormData {
     demmDocumentId: null,
     registryStatus: '',
     scheduleId: '',
+    scheduleSource: '',
     entryComparisons: null,
     entryFieldChecks: createEmptyEntryFieldChecks(),
     scheduleDate: '',

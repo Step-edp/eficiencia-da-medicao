@@ -2,6 +2,10 @@ import { useState, type ChangeEvent, type ReactNode } from 'react'
 import { api, ApiError, type EntryFieldMatch } from '../api'
 import { formatSchedulePartnerAndTeamLabel } from '../schedulePartnerLabel'
 import {
+  excludesCollaboratorChecks,
+  getVisibleSchedulingTeamFieldKeys,
+} from './entryFieldIndicators'
+import {
   isMeterReadyForEnsaio,
   METER_NOT_RECEIVED_MESSAGE,
 } from './meterEnsaioEligibility'
@@ -177,6 +181,7 @@ function emptyScheduleFields(): Partial<RatmFormData> {
     demmDocumentId: null,
     registryStatus: '',
     scheduleId: '',
+    scheduleSource: '',
     entryComparisons: null,
     entryFieldChecks: createEmptyEntryFieldChecks(),
     scheduleDate: '',
@@ -449,6 +454,17 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const seal2Complete = isSeal2SectionComplete(data)
   const measurementsComplete = isMeasurementsSectionComplete(data)
   const testResultsComplete = isTestResultsSectionComplete(data)
+  const skipCollaboratorChecks = excludesCollaboratorChecks(data)
+  const visibleSchedulingTeamFields = getVisibleSchedulingTeamFieldKeys(data)
+
+  const schedulingTeamFieldLabels: Record<
+    (typeof visibleSchedulingTeamFields)[number],
+    string
+  > = {
+    partner: 'Parceiro',
+    collaborator1: 'Colaborador 1',
+    collaborator2: 'Colaborador 2',
+  }
 
   const updateEntryFieldCheck = (
     key: keyof EntryFieldChecks,
@@ -509,6 +525,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         demmDocumentId: schedule.demmDocumentId,
         registryStatus: schedule.registryStatus || '',
         scheduleId: schedule.id,
+        scheduleSource: schedule.source || '',
         entryComparisons,
         entryFieldChecks: entryFieldChecksFromComparisons(entryComparisons),
         scheduleLabel: schedule.scheduledAtLabel || '',
@@ -640,12 +657,25 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               check={data.entryFieldChecks.csd}
               onCheckChange={(value) => updateEntryFieldCheck('csd', value)}
             />
-            <EntryComparisonField
-              label="Parceiro"
-              match={data.entryComparisons?.partner}
-              check={data.entryFieldChecks.partner}
-              onCheckChange={(value) => updateEntryFieldCheck('partner', value)}
-            />
+            {skipCollaboratorChecks ? (
+              <div className="ratm-readonly-field full-width">
+                <span className="ratm-readonly-label">Parceiro / Colaboradores</span>
+                <p className="ratm-readonly-value ratm-entry-exempt-note">
+                  Importação em massa — verificação de colaboradores não se aplica e não
+                  entra nos indicadores de erro.
+                </p>
+              </div>
+            ) : (
+              visibleSchedulingTeamFields.map((fieldKey) => (
+                <EntryComparisonField
+                  key={fieldKey}
+                  label={schedulingTeamFieldLabels[fieldKey]}
+                  match={data.entryComparisons?.[fieldKey]}
+                  check={data.entryFieldChecks[fieldKey]}
+                  onCheckChange={(value) => updateEntryFieldCheck(fieldKey, value)}
+                />
+              ))
+            )}
             <EntryComparisonField
               label="Cliente presente"
               match={data.entryComparisons?.clientPresent}
