@@ -9,7 +9,7 @@ type LabAgendarPanelProps = {
 }
 
 export function LabAgendarPanel({ readOnly = false }: LabAgendarPanelProps) {
-  const [tab, setTab] = useState<LabAgendarTab>(readOnly ? 'lista' : 'novo')
+  const [tab, setTab] = useState<LabAgendarTab>('lista')
 
   if (readOnly) {
     return (
@@ -28,15 +28,6 @@ export function LabAgendarPanel({ readOnly = false }: LabAgendarPanelProps) {
         aria-label="Agendamento"
       >
         <button
-          className={tab === 'novo' ? 'active' : ''}
-          type="button"
-          role="tab"
-          aria-selected={tab === 'novo'}
-          onClick={() => setTab('novo')}
-        >
-          Novo agendamento
-        </button>
-        <button
           className={tab === 'lista' ? 'active' : ''}
           type="button"
           role="tab"
@@ -44,6 +35,15 @@ export function LabAgendarPanel({ readOnly = false }: LabAgendarPanelProps) {
           onClick={() => setTab('lista')}
         >
           Medidores agendados
+        </button>
+        <button
+          className={tab === 'novo' ? 'active' : ''}
+          type="button"
+          role="tab"
+          aria-selected={tab === 'novo'}
+          onClick={() => setTab('novo')}
+        >
+          Novo agendamento
         </button>
       </div>
 
