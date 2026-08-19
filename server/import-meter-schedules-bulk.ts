@@ -507,7 +507,7 @@ export async function fixBulkScheduleNotesFromCsv(content: string): Promise<FixN
       continue
     }
 
-    const targetNote = normalizeScheduleNote(schedule.note)
+    const targetNote = row.note
     if (schedule.note === targetNote) {
       result.unchanged += 1
       continue
