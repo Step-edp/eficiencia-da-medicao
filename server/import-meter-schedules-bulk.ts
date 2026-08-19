@@ -133,17 +133,33 @@ function normalizeCsdKey(value: string): string {
   return normalizeLookupKey(value).replace(/\s+/g, '')
 }
 
-function resolveCsdName(raw: string, csdNames: string[]): string | null {
+function stripCsdPrefix(name: string): string {
+  return name.replace(/^csd\s*[-–]\s*/i, '').trim()
+}
+
+type CsdRecord = {
+  name: string
+  cities: string[]
+}
+
+function resolveCsdName(raw: string, csds: CsdRecord[]): string | null {
   const key = normalizeCsdKey(raw)
   if (!key) return null
 
-  for (const name of csdNames) {
-    if (normalizeCsdKey(name) === key) return name
+  for (const csd of csds) {
+    for (const city of csd.cities) {
+      if (normalizeCsdKey(city) === key) return csd.name
+    }
   }
 
-  for (const name of csdNames) {
-    const csdKey = normalizeCsdKey(name)
-    if (csdKey.startsWith(key) || key.startsWith(csdKey)) return name
+  for (const csd of csds) {
+    const candidates = [csd.name, stripCsdPrefix(csd.name)]
+    if (candidates.some((name) => normalizeCsdKey(name) === key)) return csd.name
+  }
+
+  for (const csd of csds) {
+    const csdKey = normalizeCsdKey(stripCsdPrefix(csd.name))
+    if (csdKey.startsWith(key) || key.startsWith(csdKey)) return csd.name
   }
 
   const aliasMap: Record<string, string> = {
@@ -152,13 +168,21 @@ function resolveCsdName(raw: string, csdNames: string[]): string | null {
     jacare: 'Jacareí',
     guaratinguet: 'Guaratinguetá',
     litoral: 'Litoral',
+    guarulhos: 'Guarulhos',
+    suzano: 'Suzano',
+    mogi: 'Mogi das Cruzes',
   }
 
   for (const [prefix, canonical] of Object.entries(aliasMap)) {
-    if (key.startsWith(prefix)) {
-      const match = csdNames.find((name) => normalizeCsdKey(name) === normalizeCsdKey(canonical))
-      if (match) return match
-      return canonical
+    if (!key.startsWith(prefix)) continue
+
+    for (const csd of csds) {
+      if (csd.cities.some((city) => normalizeCsdKey(city) === normalizeCsdKey(canonical))) {
+        return csd.name
+      }
+      if (normalizeCsdKey(stripCsdPrefix(csd.name)) === normalizeCsdKey(canonical)) {
+        return csd.name
+      }
     }
   }
 
@@ -239,7 +263,9 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
       `SELECT meter FROM meter_registry WHERE meter = ANY($1::text[])`,
       [rows.map((row) => row.meter)],
     ),
-    query<{ name: string }>(`SELECT name FROM csds ORDER BY name ASC`),
+    query<{ name: string; cities: string[] | null }>(
+      `SELECT name, cities FROM csds ORDER BY name ASC`,
+    ),
     query<{ id: string; name: string }>(
       `SELECT id, name FROM users WHERE approval_status = 'approved' ORDER BY name ASC`,
     ),
@@ -249,7 +275,10 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
     ...scheduleExisting.rows.map((row) => row.meter),
     ...registryExisting.rows.map((row) => row.meter),
   ])
-  const csdNames = csdResult.rows.map((row) => row.name)
+  const csds = csdResult.rows.map((row) => ({
+    name: row.name,
+    cities: Array.isArray(row.cities) ? row.cities.map(String) : [],
+  }))
   const users = userResult.rows
 
   const result: ImportResult = {
@@ -267,7 +296,7 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
       continue
     }
 
-    const csd = resolveCsdName(row.csdRaw, csdNames)
+    const csd = resolveCsdName(row.csdRaw, csds)
     if (!csd) {
       result.skippedInvalid.push({
         meter: row.meter,
