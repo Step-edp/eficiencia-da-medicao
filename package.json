@@ -13,6 +13,7 @@
     "build": "tsc -b && vite build && tsc -p tsconfig.server.json",
     "build:server": "tsc -p tsconfig.server.json",
     "import:meters": "tsx server/import-meter-registry.ts",
+    "import:schedules": "tsx server/import-meter-schedules-bulk.ts",
     "preview": "vite preview",
     "start": "node server/dist/index.js"
   },

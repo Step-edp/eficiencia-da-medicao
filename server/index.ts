@@ -50,6 +50,7 @@ import {
   countMeterSchedules,
   createMeterSchedule,
   createPassiveMeterSchedule,
+  createBulkMeterSchedulesImport,
   getPontoFocalDashboard,
   listFieldPartners,
   listToiCollaborators,
@@ -97,7 +98,7 @@ import {
   listEnsaiosRealizados,
   getEnsaioSessaoMedicoes,
 } from './routes/analisadores-tensao.js'
-import { requireAuth, optionalAuth } from './auth.js'
+import { requireAuth, optionalAuth, requireAdmin } from './auth.js'
 import { mailRoutes } from './routes/mail.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -318,6 +319,12 @@ async function start() {
   app.get('/api/meter-schedules/history', requireAuth, listMeterScheduleHistory)
   app.get('/api/meter-schedules/ponto-focal-dashboard', requireAuth, getPontoFocalDashboard)
   app.post('/api/meter-schedules', requireAuth, createMeterSchedule)
+  app.post(
+    '/api/meter-schedules/bulk-import',
+    requireAuth,
+    requireAdmin,
+    createBulkMeterSchedulesImport,
+  )
   app.post(
     '/api/meter-schedules/passivo',
     requireAuth,
