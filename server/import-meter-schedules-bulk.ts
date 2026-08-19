@@ -37,10 +37,10 @@ function sanitizeDigits(value: unknown, maxLength?: number): string {
 }
 
 export function normalizeScheduleNote(value: unknown): string {
-  const digits = sanitizeDigits(value, 11)
+  const digits = sanitizeDigits(value)
   if (!digits) return ''
-  const trimmed = digits.replace(/^0+/, '')
-  return trimmed || '0'
+  const trimmed = digits.replace(/^0+/, '') || '0'
+  return trimmed.length > 11 ? trimmed.slice(0, 11) : trimmed
 }
 
 function parseText(value: unknown): string {
