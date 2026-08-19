@@ -8,6 +8,10 @@ import {
   normalizeScheduleMeter,
   normalizeScheduleNote,
 } from './numeric-field-validation.js'
+import {
+  loadApprovedScheduleUsers,
+  resolveUserIdFromScheduledByName,
+} from './schedule-user-match.js'
 
 const DEFAULT_CSV = path.resolve(
   process.cwd(),
@@ -267,6 +271,7 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
     name: row.name,
     cities: Array.isArray(row.cities) ? row.cities.map(String) : [],
   }))
+  const users = await loadApprovedScheduleUsers()
 
   const result: ImportResult = {
     created: 0,
@@ -301,7 +306,7 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
       continue
     }
 
-    const createdByUserId = null
+    const createdByUserId = resolveUserIdFromScheduledByName(row.scheduledByName, users)
 
     const id = `schedule-bulk-${row.meter}-${Date.now()}`
     const schedulingDate = row.schedulingAt.toISOString().slice(0, 10)
@@ -331,7 +336,9 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
 
     duplicateSet.add(row.meter)
     result.created += 1
-    if (row.scheduledByName.trim()) {
+    if (createdByUserId) {
+      result.userLinked += 1
+    } else if (row.scheduledByName.trim()) {
       result.userPending += 1
     }
   }
@@ -520,8 +527,16 @@ export async function fixBulkScheduleCollaboratorsFromCsv(
   }
 
   for (const row of rows) {
-    const existing = await query<{ id: string; source: string; created_by_user_id: string | null }>(
-      `SELECT id, source, created_by_user_id
+    const existing = await query<{
+      id: string
+      source: string
+      created_by_user_id: string | null
+      toi_collaborator1_name: string
+      toi_collaborator2_name: string
+      partner_name: string
+    }>(
+      `SELECT id, source, created_by_user_id,
+              toi_collaborator1_name, toi_collaborator2_name, partner_name
        FROM meter_schedules
        WHERE meter = $1
        ORDER BY created_at DESC
@@ -536,7 +551,12 @@ export async function fixBulkScheduleCollaboratorsFromCsv(
 
     const needsUpdate =
       schedule.source !== 'bulk_import' ||
-      schedule.created_by_user_id !== null
+      schedule.created_by_user_id !== null ||
+      Boolean(
+        schedule.toi_collaborator1_name?.trim() ||
+          schedule.toi_collaborator2_name?.trim() ||
+          schedule.partner_name?.trim(),
+      )
 
     if (!needsUpdate) {
       result.unchanged += 1
@@ -546,7 +566,6 @@ export async function fixBulkScheduleCollaboratorsFromCsv(
     await query(
       `UPDATE meter_schedules
        SET source = 'bulk_import',
-           created_by_user_id = NULL,
            toi_collaborator1_name = '',
            toi_collaborator1_registration = '',
            toi_collaborator2_name = '',
@@ -682,6 +701,98 @@ export async function fixBulkScheduleDigitsFromCsv(content: string): Promise<Fix
       [
         `Dígitos normalizados em ${result.updated} agendamento(s) importado(s) em massa`,
         JSON.stringify({ bulkDigitsFix: true, updated: result.updated, changes: result.changes }),
+      ],
+    )
+  }
+
+  return result
+}
+
+type FixUsersResult = {
+  updated: number
+  unchanged: number
+  missing: string[]
+  unresolved: string[]
+  changes: Array<{ meter: string; scheduledByName: string; userId: string; userName: string }>
+}
+
+export async function fixBulkScheduleUsersFromCsv(content: string): Promise<FixUsersResult> {
+  const rows = parseCsvRows(content)
+  const users = await loadApprovedScheduleUsers()
+  const result: FixUsersResult = {
+    updated: 0,
+    unchanged: 0,
+    missing: [],
+    unresolved: [],
+    changes: [],
+  }
+
+  for (const row of rows) {
+    const existing = await query<{
+      id: string
+      source: string
+      created_by_user_id: string | null
+      scheduled_by_name: string
+    }>(
+      `SELECT id, source, created_by_user_id, scheduled_by_name
+       FROM meter_schedules
+       WHERE LPAD(RIGHT(REGEXP_REPLACE(meter, '[^0-9]', '', 'g'), 8), 8, '0') = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [normalizeScheduleMeter(row.meter)],
+    )
+    const schedule = existing.rows[0]
+    if (!schedule) {
+      result.missing.push(row.meter)
+      continue
+    }
+
+    if (schedule.source !== 'bulk_import') {
+      result.unchanged += 1
+      continue
+    }
+
+    if (schedule.created_by_user_id) {
+      result.unchanged += 1
+      continue
+    }
+
+    const scheduledByName = row.scheduledByName.trim() || schedule.scheduled_by_name.trim()
+    const userId = resolveUserIdFromScheduledByName(scheduledByName, users)
+    if (!userId) {
+      result.unresolved.push(row.meter)
+      continue
+    }
+
+    const matchedUser = users.find((user) => user.id === userId)
+    if (!matchedUser) {
+      result.unresolved.push(row.meter)
+      continue
+    }
+
+    await query(`UPDATE meter_schedules SET created_by_user_id = $1 WHERE id = $2`, [
+      userId,
+      schedule.id,
+    ])
+
+    result.changes.push({
+      meter: row.meter,
+      scheduledByName,
+      userId,
+      userName: matchedUser.name,
+    })
+    result.updated += 1
+  }
+
+  if (result.updated > 0) {
+    await query(
+      `INSERT INTO audit_logs (
+         user_id, user_registration, user_role, action, entity_type, entity_id,
+         summary, metadata
+       ) VALUES (NULL, NULL, NULL, 'update', 'meter_schedule', NULL, $1, $2::jsonb)`,
+      [
+        `Usuário vinculado em ${result.updated} agendamento(s) importado(s) em massa`,
+        JSON.stringify({ bulkUserFix: true, updated: result.updated, changes: result.changes }),
       ],
     )
   }

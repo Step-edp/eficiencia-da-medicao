@@ -2,7 +2,7 @@ import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 import { validateScheduleNumericField } from '../numeric-field-validation.js'
-import { fixBulkScheduleCollaboratorsFromCsv, fixBulkScheduleCsdFromCsv, fixBulkScheduleDigitsFromCsv, fixBulkScheduleNotesFromCsv, importMeterSchedulesFromCsv } from '../import-meter-schedules-bulk.js'
+import { fixBulkScheduleCollaboratorsFromCsv, fixBulkScheduleCsdFromCsv, fixBulkScheduleDigitsFromCsv, fixBulkScheduleNotesFromCsv, fixBulkScheduleUsersFromCsv, importMeterSchedulesFromCsv } from '../import-meter-schedules-bulk.js'
 import {
   findNextAvailableSlot,
   formatAvailableSlot,
@@ -1201,6 +1201,23 @@ export async function fixBulkMeterSchedulesDigits(req: Request, res: Response) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Falha ao normalizar dígitos dos agendamentos.'
+    res.status(400).json({ error: message })
+  }
+}
+
+export async function fixBulkMeterSchedulesUsers(req: Request, res: Response) {
+  const csvContent = typeof req.body?.csvContent === 'string' ? req.body.csvContent : ''
+  if (!csvContent.trim()) {
+    res.status(400).json({ error: 'Envie o conteúdo do CSV em csvContent.' })
+    return
+  }
+
+  try {
+    const result = await fixBulkScheduleUsersFromCsv(csvContent)
+    res.json(result)
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Falha ao vincular usuários dos agendamentos.'
     res.status(400).json({ error: message })
   }
 }

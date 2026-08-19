@@ -37,11 +37,11 @@ type ScheduleAuthorFields = {
 }
 
 export function formatScheduleCreatedByLabel(item: ScheduleAuthorFields) {
-  if (isBulkImportedSchedule(item)) {
-    return item.scheduledByName?.trim() ?? ''
-  }
   if (item.createdByName?.trim() || item.createdByRegistration?.trim()) {
     return formatPerson(item.createdByName, item.createdByRegistration)
+  }
+  if (isBulkImportedSchedule(item)) {
+    return item.scheduledByName?.trim() ?? ''
   }
   if (item.scheduledByName?.trim()) {
     return item.scheduledByName.trim()

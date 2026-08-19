@@ -118,6 +118,25 @@ async function fixDigitsViaApi(token: string, csvContent: string) {
   }
 }
 
+async function fixUsersViaApi(token: string, csvContent: string) {
+  const response = await fetch(`${BASE}/api/meter-schedules/bulk-fix-users`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ csvContent }),
+  })
+  const text = await response.text()
+  if (!response.ok) throw new Error(`Fix usuários falhou: ${response.status} ${text}`)
+  return JSON.parse(text) as {
+    updated: number
+    unchanged: number
+    unresolved: string[]
+    changes: Array<{ meter: string; scheduledByName: string; userName: string }>
+  }
+}
+
 async function createPassiveSchedule(
   token: string,
   row: ReturnType<typeof parseMeterSchedulesCsv>[number],
@@ -153,6 +172,7 @@ async function main() {
   const fixNote = process.argv.includes('--fix-note')
   const fixDigits = process.argv.includes('--fix-digits')
   const fixCollaborators = process.argv.includes('--fix-collaborators')
+  const fixUsers = process.argv.includes('--fix-users')
   const csvContent = readFileSync(CSV_PATH, 'latin1')
   const rows = parseMeterSchedulesCsv(csvContent)
   const token = await login()
@@ -165,6 +185,20 @@ async function main() {
       console.log(
         `${change.to.meter}: medidor ${change.from.meter} -> ${change.to.meter}, instalação ${change.from.installation} -> ${change.to.installation}, toi ${change.from.toi} -> ${change.to.toi}`,
       )
+    }
+    return
+  }
+
+  if (fixUsers) {
+    const result = await fixUsersViaApi(token, csvContent)
+    console.log(
+      `Usuários vinculados: ${result.updated}; sem alteração: ${result.unchanged}; sem match: ${result.unresolved.length}`,
+    )
+    for (const change of result.changes) {
+      console.log(`${change.meter}: "${change.scheduledByName}" -> ${change.userName}`)
+    }
+    if (result.unresolved.length) {
+      console.log(`Sem correspondência: ${result.unresolved.join(', ')}`)
     }
     return
   }
