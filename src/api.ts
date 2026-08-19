@@ -1557,6 +1557,8 @@ export const api = {
       complete: boolean
       hasToi: boolean
       hasComunicado: boolean
+      canDelete: boolean
+      deleteBlockedReason: string | null
     }>(`/api/meter-schedules/${meterScheduleId}/inspection-documents`),
   getScheduleEntryComparisons: (meterScheduleId: string) =>
     request<{ meterScheduleId: string; comparisons: ScheduleEntryComparisons }>(

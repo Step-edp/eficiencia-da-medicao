@@ -2,7 +2,7 @@ import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 import { NORMALIZED_METER_SQL } from '../demm-meter-analysis.js'
-import { ENTRADA_TRAIL_STEP } from '../lab-trail-status.js'
+import { ENTRADA_TRAIL_STEP, hasMeterEntradaGiven } from '../lab-trail-status.js'
 import {
   classifyInspectionDocument,
   extractInspectionPdfText,
@@ -276,6 +276,71 @@ function evaluateInspectionDocument(
   return { blocked: false, reason: null }
 }
 
+const VALID_INSPECTION_DOC_TYPES = new Set<InspectionDocumentType>(['toi', 'comunicado', 'ambos'])
+
+async function canManageInspectionDocuments(req: Request): Promise<boolean> {
+  if (req.user?.role === 'admin') return true
+
+  const userId = req.user?.id
+  if (!userId) return false
+
+  const result = await query<{ work_area: string; work_subtype: string }>(
+    `SELECT work_area, work_subtype FROM users WHERE id = $1`,
+    [userId],
+  )
+  const row = result.rows[0]
+  if (!row) return false
+
+  const area = row.work_area?.trim() ?? ''
+  const subtype = row.work_subtype?.trim().replace(/–/g, '-') ?? ''
+  return area === 'Medição' && subtype === 'Laboratório de Medição'
+}
+
+async function assertInspectionDocumentDeletable(
+  meterScheduleId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const schedule = await query<{ meter: string; trail_step: string }>(
+    `SELECT meter, trail_step FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  if (!schedule.rows[0]) {
+    return { ok: false, error: 'Agendamento não encontrado.' }
+  }
+
+  const { meter, trail_step } = schedule.rows[0]
+  if (trail_step.trim() !== ENTRADA_TRAIL_STEP) {
+    return {
+      ok: false,
+      error: 'Não é possível excluir: o medidor já teve entrada no laboratório.',
+    }
+  }
+
+  const registry = await query<{ status: string }>(
+    `SELECT status FROM meter_registry WHERE meter = $1`,
+    [meter],
+  )
+  if (registry.rows[0] && hasMeterEntradaGiven(registry.rows[0].status)) {
+    return {
+      ok: false,
+      error: 'Não é possível excluir: o medidor já teve entrada no laboratório.',
+    }
+  }
+
+  return { ok: true }
+}
+
+async function findInspectionDocumentForDeletion(meterScheduleId: string, docType: string) {
+  const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
+  const ids = scheduleIds.length ? scheduleIds : [meterScheduleId]
+  const result = await query<{ id: string; file_name: string; meter_schedule_id: string }>(
+    `SELECT id, file_name, meter_schedule_id
+     FROM meter_inspection_documents
+     WHERE meter_schedule_id = ANY($1::text[]) AND doc_type = $2`,
+    [ids, docType],
+  )
+  return result.rows[0] ?? null
+}
+
 async function resolveCanonicalEntradaScheduleId(meterScheduleId: string): Promise<string | null> {
   const result = await query<{ id: string }>(
     `SELECT DISTINCT ON (${NORMALIZED_METER_SQL}) id
@@ -529,6 +594,11 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   )
 
   const presence = await loadDocTypePresence(meterScheduleId)
+  const userCanManage = await canManageInspectionDocuments(req)
+  const deletable = await assertInspectionDocumentDeletable(meterScheduleId)
+  const canDelete = userCanManage && deletable.ok
+  const deleteBlockedReason =
+    userCanManage && !deletable.ok ? deletable.error : null
 
   res.json({
     meter: registeredMeter,
@@ -540,6 +610,8 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     complete: presence.complete,
     hasToi: presence.hasToi,
     hasComunicado: presence.hasComunicado,
+    canDelete,
+    deleteBlockedReason,
   })
 }
 
@@ -627,31 +699,42 @@ export async function deleteInspectionDocument(req: Request, res: Response) {
   const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
   const docType = typeof req.params.docType === 'string' ? req.params.docType : ''
 
-  const existing = await query<{ id: string; file_name: string }>(
-    `SELECT id, file_name FROM meter_inspection_documents
-     WHERE meter_schedule_id = $1 AND doc_type = $2`,
-    [meterScheduleId, docType],
-  )
+  if (!VALID_INSPECTION_DOC_TYPES.has(docType as InspectionDocumentType)) {
+    res.status(400).json({ error: 'Tipo de documento inválido.' })
+    return
+  }
 
-  if (!existing.rows[0]) {
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error: 'Somente administradores e usuários do Laboratório de Medição podem excluir documentos.',
+    })
+    return
+  }
+
+  const deletable = await assertInspectionDocumentDeletable(meterScheduleId)
+  if (!deletable.ok) {
+    res.status(409).json({ error: deletable.error })
+    return
+  }
+
+  const existing = await findInspectionDocumentForDeletion(meterScheduleId, docType)
+
+  if (!existing) {
     res.status(404).json({ error: 'Documento de inspeção não encontrado.' })
     return
   }
 
-  await query(`DELETE FROM meter_inspection_documents WHERE meter_schedule_id = $1 AND doc_type = $2`, [
-    meterScheduleId,
-    docType,
-  ])
+  await query(`DELETE FROM meter_inspection_documents WHERE id = $1`, [existing.id])
 
   await writeAuditLog(req, {
     action: 'delete',
     entityType: 'meter_inspection_document',
-    entityId: existing.rows[0].id,
-    summary: `Documento de inspeção (${docType}) removido do agendamento ${meterScheduleId}`,
-    metadata: { meterScheduleId },
+    entityId: existing.id,
+    summary: `Documento de inspeção (${docType}) removido do agendamento ${existing.meter_schedule_id}`,
+    metadata: { meterScheduleId: existing.meter_schedule_id, docType },
   })
 
-  res.json({ ok: true, meterScheduleId })
+  res.json({ ok: true, meterScheduleId: existing.meter_schedule_id })
 }
 
 type InspectionPendenciaRow = {

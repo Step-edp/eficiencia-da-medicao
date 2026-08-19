@@ -2021,6 +2021,12 @@ export function EntradaPanel({
             meter={inspectionDocumentTarget.meter}
             scheduleId={inspectionDocumentTarget.scheduleId}
             onClose={() => setInspectionDocumentTarget(null)}
+            onDocumentsChanged={() => {
+              void loadInspectionPendencias()
+              void loadWeekMeters()
+              void loadData()
+              refreshTrailCounts()
+            }}
           />
         ) : null}
         {userProfileModal}

@@ -663,6 +663,10 @@ export function FieldTeamConsultarPanel({
           meter={inspectionDocumentTarget.meter}
           scheduleId={inspectionDocumentTarget.scheduleId}
           onClose={() => setInspectionDocumentTarget(null)}
+          onDocumentsChanged={() => {
+            void loadInspectionPendencias()
+            void load()
+          }}
         />
       ) : null}
     </div>

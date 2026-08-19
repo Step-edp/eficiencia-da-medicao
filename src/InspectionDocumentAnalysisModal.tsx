@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, type InspectionDocumentRecord, type InspectionDocumentType } from './api'
+import { api, ApiError, type InspectionDocumentRecord, type InspectionDocumentType } from './api'
 
 type InspectionDocumentAnalysisModalProps = {
   meter: string
   scheduleId: string
   onClose: () => void
+  onDocumentsChanged?: () => void
 }
 
 function inspectionDocTypeLabel(docType: InspectionDocumentType) {
@@ -87,44 +88,74 @@ export function InspectionDocumentAnalysisModal({
   meter,
   scheduleId,
   onClose,
+  onDocumentsChanged,
 }: InspectionDocumentAnalysisModalProps) {
   const [loading, setLoading] = useState(true)
   const [documents, setDocuments] = useState<InspectionDocumentRecord[]>([])
   const [complete, setComplete] = useState(false)
+  const [canDelete, setCanDelete] = useState(false)
+  const [deleteBlockedReason, setDeleteBlockedReason] = useState<string | null>(null)
   const [registeredMeter, setRegisteredMeter] = useState(meter)
   const [registeredLacre, setRegisteredLacre] = useState<string | null>(null)
+  const [deletingDocType, setDeletingDocType] = useState<InspectionDocumentType | null>(null)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
+    null,
+  )
 
-  useEffect(() => {
-    let cancelled = false
-
-    const load = async () => {
-      setLoading(true)
-      try {
-        const response = await api.listInspectionDocuments(scheduleId)
-        if (cancelled) return
-        setDocuments(response.documents)
-        setComplete(response.complete)
-        setRegisteredMeter(response.meter)
-        setRegisteredLacre(response.registeredLacre)
-      } catch {
-        if (!cancelled) {
-          setDocuments([])
-          setComplete(false)
-          setRegisteredMeter(meter)
-          setRegisteredLacre(null)
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-
-    void load()
-    return () => {
-      cancelled = true
+  const loadDocuments = useCallback(async () => {
+    setLoading(true)
+    setFeedback(null)
+    try {
+      const response = await api.listInspectionDocuments(scheduleId)
+      setDocuments(response.documents)
+      setComplete(response.complete)
+      setCanDelete(response.canDelete)
+      setDeleteBlockedReason(response.deleteBlockedReason)
+      setRegisteredMeter(response.meter)
+      setRegisteredLacre(response.registeredLacre)
+    } catch {
+      setDocuments([])
+      setComplete(false)
+      setCanDelete(false)
+      setDeleteBlockedReason(null)
+      setRegisteredMeter(meter)
+      setRegisteredLacre(null)
+    } finally {
+      setLoading(false)
     }
   }, [meter, scheduleId])
+
+  useEffect(() => {
+    void loadDocuments()
+  }, [loadDocuments])
+
+  const handleDeleteDocument = async (document: InspectionDocumentRecord) => {
+    const label = inspectionDocTypeLabel(document.docType)
+    const confirmed = window.confirm(
+      `Excluir o documento ${label} (${document.fileName}) do medidor ${meter}?`,
+    )
+    if (!confirmed) return
+
+    setDeletingDocType(document.docType)
+    setFeedback(null)
+
+    try {
+      await api.deleteInspectionDocument(document.meterScheduleId, document.docType)
+      setFeedback({ type: 'success', message: `Documento ${label} excluído.` })
+      onDocumentsChanged?.()
+      await loadDocuments()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível excluir o documento de inspeção.',
+      })
+    } finally {
+      setDeletingDocType(null)
+    }
+  }
 
   return createPortal(
     <div className="ensaios-block-modal-overlay" role="presentation" onClick={onClose}>
@@ -159,6 +190,18 @@ export function InspectionDocumentAnalysisModal({
             ? 'TOI e CSM anexados. Confira a análise e baixe o PDF.'
             : 'Análise dos documentos já anexados a este medidor.'}
         </p>
+
+        {feedback ? (
+          <div className={`login-feedback ${feedback.type}`} role="status">
+            {feedback.message}
+          </div>
+        ) : null}
+
+        {deleteBlockedReason ? (
+          <p className="field-hint" role="status">
+            {deleteBlockedReason}
+          </p>
+        ) : null}
 
         {loading ? (
           <p className="entrada-panel-empty">Carregando documentos...</p>
@@ -209,7 +252,10 @@ export function InspectionDocumentAnalysisModal({
                 <div className="inspection-document-card-actions">
                   <a
                     className="secondary-button"
-                    href={api.getInspectionDocumentFileUrl(scheduleId, document.docType)}
+                    href={api.getInspectionDocumentFileUrl(
+                      document.meterScheduleId,
+                      document.docType,
+                    )}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -217,11 +263,24 @@ export function InspectionDocumentAnalysisModal({
                   </a>
                   <a
                     className="primary-button"
-                    href={api.getInspectionDocumentDownloadUrl(scheduleId, document.docType)}
+                    href={api.getInspectionDocumentDownloadUrl(
+                      document.meterScheduleId,
+                      document.docType,
+                    )}
                     download
                   >
                     Baixar PDF
                   </a>
+                  {canDelete ? (
+                    <button
+                      type="button"
+                      className="danger-button"
+                      disabled={deletingDocType === document.docType}
+                      onClick={() => void handleDeleteDocument(document)}
+                    >
+                      {deletingDocType === document.docType ? 'Excluindo...' : 'Excluir'}
+                    </button>
+                  ) : null}
                 </div>
               </article>
             ))}
