@@ -59,7 +59,7 @@ import { LoginFeedback } from './LoginFeedback'
 import { PassivoPanel } from './PassivoPanel'
 import { AuditPanel } from './AuditPanel'
 import { EntradaPanel } from './EntradaPanel'
-import { CONSOLIDACAO_CARGA_TRAIL_STEPS, ENTRADA_TRAIL_STEP, ENSAIOS_CALENDAR_SECTION, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS, MEMORY_MASS_TRAIL_STEPS } from './labTrailSteps'
+import { CONSOLIDACAO_CARGA_TRAIL_STEPS, ENTRADA_TRAIL_STEP, ENSAIAR_TRAIL_STEP, ENSAIOS_CALENDAR_SECTION, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS, MEMORY_MASS_TRAIL_STEPS } from './labTrailSteps'
 import {
   api,
   ApiError,
@@ -5208,6 +5208,10 @@ function HomePanel({
                 }
                 calendarActive={
                   selectedLabMeasurementSection === ENSAIOS_CALENDAR_SECTION
+                }
+                hideTrail={
+                  selectedLabMeasurementSection === ENSAIOS_CALENDAR_SECTION ||
+                  selectedLabMeasurementSection === ENSAIAR_TRAIL_STEP
                 }
                 renderCalendarIcon={() => (
                   <ItemIcon title={ENSAIOS_CALENDAR_SECTION} />

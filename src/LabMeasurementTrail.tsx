@@ -17,17 +17,21 @@ type LabMeasurementTrailProps = {
 type LabTrailNavProps = LabMeasurementTrailProps & {
   onOpenCalendar?: () => void
   calendarActive?: boolean
+  hideTrail?: boolean
   renderCalendarIcon?: () => ReactNode
 }
 
 export function LabTrailNav({
   onOpenCalendar,
   calendarActive = false,
+  hideTrail = false,
   renderCalendarIcon,
   ...trailProps
 }: LabTrailNavProps) {
+  const trailHidden = hideTrail || calendarActive
+
   return (
-    <div className={`lab-trail-nav${calendarActive ? ' is-calendar-only' : ''}`}>
+    <div className={`lab-trail-nav${trailHidden ? ' is-trail-hidden' : ''}`}>
       {onOpenCalendar ? (
         <div className="lab-trail-calendar-slot">
           <button
@@ -41,7 +45,7 @@ export function LabTrailNav({
           </button>
         </div>
       ) : null}
-      {!calendarActive ? <LabMeasurementTrail {...trailProps} /> : null}
+      {!trailHidden ? <LabMeasurementTrail {...trailProps} /> : null}
     </div>
   )
 }
