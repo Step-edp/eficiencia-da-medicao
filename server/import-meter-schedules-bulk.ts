@@ -142,6 +142,8 @@ type CsdRecord = {
   cities: string[]
 }
 
+export type { CsdRecord }
+
 function resolveCsdName(raw: string, csds: CsdRecord[]): string | null {
   const key = normalizeCsdKey(raw)
   if (!key) return null
@@ -245,6 +247,10 @@ function parseCsvRows(content: string): ParsedScheduleRow[] {
 
 export function parseMeterSchedulesCsv(content: string): ParsedScheduleRow[] {
   return parseCsvRows(content)
+}
+
+export function resolveCsdNameForImport(raw: string, csds: CsdRecord[]): string | null {
+  return resolveCsdName(raw, csds)
 }
 
 export async function importMeterSchedulesFromCsv(content: string, sourceLabel = 'bulk'): Promise<ImportResult> {

@@ -1,7 +1,11 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { parseMeterSchedulesCsv } from './import-meter-schedules-bulk.js'
+import {
+  parseMeterSchedulesCsv,
+  resolveCsdNameForImport,
+  type CsdRecord,
+} from './import-meter-schedules-bulk.js'
 
 const BASE =
   process.env.API_BASE_URL ?? 'https://eficiencia-da-medicao-production.up.railway.app'
@@ -21,6 +25,15 @@ async function login(): Promise<string> {
   return data.token
 }
 
+async function fetchCsds(token: string): Promise<CsdRecord[]> {
+  const response = await fetch(`${BASE}/api/csds`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) throw new Error(`CSDs falhou: ${response.status}`)
+  const data = (await response.json()) as { csds: Array<{ name: string; cities: string[] }> }
+  return data.csds.map((csd) => ({ name: csd.name, cities: csd.cities ?? [] }))
+}
+
 async function fetchSchedule(token: string, meter: string) {
   const response = await fetch(
     `${BASE}/api/meter-schedules?meter=${encodeURIComponent(meter)}`,
@@ -31,50 +44,84 @@ async function fetchSchedule(token: string, meter: string) {
   return data.schedules?.some((item) => item.meter === meter) ?? false
 }
 
-async function bulkImport(token: string, csvContent: string) {
-  const response = await fetch(`${BASE}/api/meter-schedules/bulk-import`, {
+async function createPassiveSchedule(
+  token: string,
+  row: ReturnType<typeof parseMeterSchedulesCsv>[number],
+  csd: string,
+) {
+  const response = await fetch(`${BASE}/api/meter-schedules/passivo`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ csvContent }),
+    body: JSON.stringify({
+      meter: row.meter,
+      installation: row.installation,
+      toi: row.toi,
+      note: row.note,
+      csd,
+      schedulingNotes: row.schedulingNotes,
+      scheduledByName: row.scheduledByName,
+      schedulingDate: row.schedulingAt.toISOString().slice(0, 10),
+      scheduledAt: row.scheduledAt.toISOString(),
+    }),
   })
   const text = await response.text()
-  if (!response.ok) throw new Error(`Bulk import falhou: ${response.status} ${text}`)
-  return JSON.parse(text) as {
-    created: number
-    skippedDuplicates: string[]
-    skippedInvalid: Array<{ meter: string; reason: string }>
+  if (!response.ok) {
+    throw new Error(`Passivo ${row.meter}: ${response.status} ${text}`)
   }
 }
 
 async function main() {
-  const importMissingOnly = process.argv.includes('--import-missing')
+  const importPassivo = process.argv.includes('--import-passivo')
   const csvContent = readFileSync(CSV_PATH, 'latin1')
   const rows = parseMeterSchedulesCsv(csvContent)
   const token = await login()
+  const csds = await fetchCsds(token)
 
-  const missing: string[] = []
+  const pending: typeof rows = []
   for (const row of rows) {
-    const exists = await fetchSchedule(token, row.meter)
-    if (!exists) missing.push(row.meter)
+    if (!(await fetchSchedule(token, row.meter))) pending.push(row)
   }
 
-  console.log(`Pendentes: ${missing.length}/${rows.length}`)
-  if (missing.length) console.log(missing.join(', '))
+  console.log(`Pendentes: ${pending.length}/${rows.length}`)
+  if (pending.length) console.log(pending.map((row) => row.meter).join(', '))
 
-  if (!importMissingOnly || !missing.length) return
+  if (!importPassivo || !pending.length) return
 
-  const result = await bulkImport(token, csvContent)
-  console.log('Resultado reimportação:', JSON.stringify(result, null, 2))
+  let created = 0
+  const failed: Array<{ meter: string; reason: string }> = []
+
+  for (const row of pending) {
+    const csd = resolveCsdNameForImport(row.csdRaw, csds)
+    if (!csd) {
+      failed.push({ meter: row.meter, reason: `CSD não reconhecido: ${row.csdRaw}` })
+      continue
+    }
+    try {
+      await createPassiveSchedule(token, row, csd)
+      created += 1
+      console.log(`OK ${row.meter} -> ${csd}`)
+    } catch (error) {
+      failed.push({
+        meter: row.meter,
+        reason: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  console.log(`Criados: ${created}`)
+  if (failed.length) {
+    console.log('Falhas:')
+    for (const item of failed) console.log(`- ${item.meter}: ${item.reason}`)
+  }
 
   const stillMissing: string[] = []
-  for (const meter of missing) {
-    const exists = await fetchSchedule(token, meter)
-    if (!exists) stillMissing.push(meter)
+  for (const row of pending) {
+    if (!(await fetchSchedule(token, row.meter))) stillMissing.push(row.meter)
   }
-  console.log(`Após reimportação, ainda pendentes: ${stillMissing.length}`)
+  console.log(`Ainda pendentes: ${stillMissing.length}`)
   if (stillMissing.length) console.log(stillMissing.join(', '))
 }
 
