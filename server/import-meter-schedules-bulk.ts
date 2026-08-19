@@ -36,6 +36,13 @@ function sanitizeDigits(value: unknown, maxLength?: number): string {
   return maxLength ? digits.slice(0, maxLength) : digits
 }
 
+export function normalizeScheduleNote(value: unknown): string {
+  const digits = sanitizeDigits(value, 11)
+  if (!digits) return ''
+  const trimmed = digits.replace(/^0+/, '')
+  return trimmed || '0'
+}
+
 function parseText(value: unknown): string {
   if (value == null) return ''
   return String(value).trim()
@@ -241,7 +248,7 @@ function parseCsvRows(content: string): ParsedScheduleRow[] {
       scheduledAt,
       installation: sanitizeDigits(cells[2]),
       toi: sanitizeDigits(cells[3]),
-      note: sanitizeDigits(cells[4]),
+      note: normalizeScheduleNote(cells[4]),
       schedulingNotes: parseText(cells[5]),
       csdRaw: parseText(cells[6]),
       scheduledByName: parseText(cells[7]),
@@ -462,6 +469,68 @@ export async function fixBulkScheduleCsdFromCsv(content: string): Promise<FixCsd
       [
         `Correção de CSD em ${result.updated} agendamento(s) importado(s) em massa`,
         JSON.stringify({ bulkCsdFix: true, updated: result.updated, changes: result.changes }),
+      ],
+    )
+  }
+
+  return result
+}
+
+type FixNoteResult = {
+  updated: number
+  unchanged: number
+  missing: string[]
+  changes: Array<{ meter: string; from: string; to: string }>
+}
+
+export async function fixBulkScheduleNotesFromCsv(content: string): Promise<FixNoteResult> {
+  const rows = parseCsvRows(content)
+  const result: FixNoteResult = {
+    updated: 0,
+    unchanged: 0,
+    missing: [],
+    changes: [],
+  }
+
+  for (const row of rows) {
+    const existing = await query<{ id: string; note: string }>(
+      `SELECT id, note
+       FROM meter_schedules
+       WHERE meter = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [row.meter],
+    )
+    const schedule = existing.rows[0]
+    if (!schedule) {
+      result.missing.push(row.meter)
+      continue
+    }
+
+    const targetNote = normalizeScheduleNote(schedule.note)
+    if (schedule.note === targetNote) {
+      result.unchanged += 1
+      continue
+    }
+
+    await query(`UPDATE meter_schedules SET note = $1 WHERE id = $2`, [
+      targetNote,
+      schedule.id,
+    ])
+
+    result.changes.push({ meter: row.meter, from: schedule.note, to: targetNote })
+    result.updated += 1
+  }
+
+  if (result.updated > 0) {
+    await query(
+      `INSERT INTO audit_logs (
+         user_id, user_registration, user_role, action, entity_type, entity_id,
+         summary, metadata
+       ) VALUES (NULL, NULL, NULL, 'update', 'meter_schedule', NULL, $1, $2::jsonb)`,
+      [
+        `Nota sem zero à esquerda em ${result.updated} agendamento(s) importado(s) em massa`,
+        JSON.stringify({ bulkNoteFix: true, updated: result.updated, changes: result.changes }),
       ],
     )
   }

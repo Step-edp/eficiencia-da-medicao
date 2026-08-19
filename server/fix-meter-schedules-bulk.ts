@@ -64,6 +64,24 @@ async function fixCsdViaApi(token: string, csvContent: string) {
   }
 }
 
+async function fixNoteViaApi(token: string, csvContent: string) {
+  const response = await fetch(`${BASE}/api/meter-schedules/bulk-fix-note`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ csvContent }),
+  })
+  const text = await response.text()
+  if (!response.ok) throw new Error(`Fix nota falhou: ${response.status} ${text}`)
+  return JSON.parse(text) as {
+    updated: number
+    unchanged: number
+    changes: Array<{ meter: string; from: string; to: string }>
+  }
+}
+
 async function createPassiveSchedule(
   token: string,
   row: ReturnType<typeof parseMeterSchedulesCsv>[number],
@@ -96,10 +114,20 @@ async function createPassiveSchedule(
 async function main() {
   const importPassivo = process.argv.includes('--import-passivo')
   const fixCsd = process.argv.includes('--fix-csd')
+  const fixNote = process.argv.includes('--fix-note')
   const csvContent = readFileSync(CSV_PATH, 'latin1')
   const rows = parseMeterSchedulesCsv(csvContent)
   const token = await login()
   const csds = await fetchCsds(token)
+
+  if (fixNote) {
+    const result = await fixNoteViaApi(token, csvContent)
+    console.log(`Notas corrigidas: ${result.updated}; sem alteração: ${result.unchanged}`)
+    for (const change of result.changes) {
+      console.log(`${change.meter}: "${change.from}" -> "${change.to}"`)
+    }
+    return
+  }
 
   if (fixCsd) {
     const result = await fixCsdViaApi(token, csvContent)
