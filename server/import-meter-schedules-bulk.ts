@@ -3,6 +3,11 @@ import { pathToFileURL } from 'node:url'
 import { existsSync, readFileSync } from 'node:fs'
 import { query } from './db.js'
 import { ENTRADA_TRAIL_STEP } from './routes/meter-schedules.js'
+import {
+  formatScheduleNumericField,
+  normalizeScheduleMeter,
+  normalizeScheduleNote,
+} from './numeric-field-validation.js'
 
 const DEFAULT_CSV = path.resolve(
   process.cwd(),
@@ -36,12 +41,7 @@ function sanitizeDigits(value: unknown, maxLength?: number): string {
   return maxLength ? digits.slice(0, maxLength) : digits
 }
 
-export function normalizeScheduleNote(value: unknown): string {
-  const digits = sanitizeDigits(value)
-  if (!digits) return ''
-  const trimmed = digits.replace(/^0+/, '') || '0'
-  return trimmed.length > 11 ? trimmed.slice(0, 11) : trimmed
-}
+export { normalizeScheduleNote } from './numeric-field-validation.js'
 
 function parseText(value: unknown): string {
   if (value == null) return ''
@@ -215,10 +215,10 @@ function parseCsvRows(content: string): ParsedScheduleRow[] {
     if (!scheduledAt || !schedulingAt) continue
 
     parsed.push({
-      meter,
+      meter: formatScheduleNumericField(cells[0], 'medidor'),
       scheduledAt,
-      installation: sanitizeDigits(cells[2]),
-      toi: sanitizeDigits(cells[3]),
+      installation: formatScheduleNumericField(cells[2], 'instalacao'),
+      toi: formatScheduleNumericField(cells[3], 'toi'),
       note: normalizeScheduleNote(cells[4]),
       schedulingNotes: parseText(cells[5]),
       csdRaw: parseText(cells[6]),
@@ -571,6 +571,117 @@ export async function fixBulkScheduleCollaboratorsFromCsv(
       [
         `Colaboradores em branco em ${result.updated} agendamento(s) importado(s) em massa`,
         JSON.stringify({ bulkCollaboratorFix: true, updated: result.updated }),
+      ],
+    )
+  }
+
+  return result
+}
+
+type FixDigitsResult = {
+  updated: number
+  unchanged: number
+  missing: string[]
+  changes: Array<{
+    meter: string
+    from: { meter: string; installation: string; toi: string }
+    to: { meter: string; installation: string; toi: string }
+  }>
+}
+
+export async function fixBulkScheduleDigitsFromCsv(content: string): Promise<FixDigitsResult> {
+  const rows = parseCsvRows(content)
+  const normalizedTargets = new Set(rows.map((row) => normalizeScheduleMeter(row.meter)))
+  const allSchedules = await query<{
+    id: string
+    meter: string
+    installation: string
+    toi: string
+  }>(`SELECT id, meter, installation, toi FROM meter_schedules`)
+
+  const scheduleByNormalizedMeter = new Map<
+    string,
+    { id: string; meter: string; installation: string; toi: string }
+  >()
+  for (const schedule of allSchedules.rows) {
+    const key = normalizeScheduleMeter(schedule.meter)
+    if (normalizedTargets.has(key)) {
+      scheduleByNormalizedMeter.set(key, schedule)
+    }
+  }
+
+  const result: FixDigitsResult = {
+    updated: 0,
+    unchanged: 0,
+    missing: [],
+    changes: [],
+  }
+
+  for (const row of rows) {
+    const schedule = scheduleByNormalizedMeter.get(normalizeScheduleMeter(row.meter))
+    if (!schedule) {
+      result.missing.push(row.meter)
+      continue
+    }
+
+    const target = {
+      meter: row.meter,
+      installation: row.installation,
+      toi: row.toi,
+    }
+
+    if (
+      schedule.meter === target.meter &&
+      schedule.installation === target.installation &&
+      schedule.toi === target.toi
+    ) {
+      result.unchanged += 1
+      continue
+    }
+
+    const duplicate = await query<{ id: string }>(
+      `SELECT id FROM meter_schedules
+       WHERE meter = $1 AND id <> $2
+       LIMIT 1`,
+      [target.meter, schedule.id],
+    )
+    if (duplicate.rows[0]) {
+      result.missing.push(row.meter)
+      continue
+    }
+
+    await query(
+      `UPDATE meter_schedules
+       SET meter = $1, installation = $2, toi = $3
+       WHERE id = $4`,
+      [target.meter, target.installation, target.toi, schedule.id],
+    )
+
+    result.changes.push({
+      meter: target.meter,
+      from: {
+        meter: schedule.meter,
+        installation: schedule.installation,
+        toi: schedule.toi,
+      },
+      to: target,
+    })
+    result.updated += 1
+    scheduleByNormalizedMeter.set(normalizeScheduleMeter(target.meter), {
+      ...schedule,
+      ...target,
+    })
+  }
+
+  if (result.updated > 0) {
+    await query(
+      `INSERT INTO audit_logs (
+         user_id, user_registration, user_role, action, entity_type, entity_id,
+         summary, metadata
+       ) VALUES (NULL, NULL, NULL, 'update', 'meter_schedule', NULL, $1, $2::jsonb)`,
+      [
+        `Dígitos normalizados em ${result.updated} agendamento(s) importado(s) em massa`,
+        JSON.stringify({ bulkDigitsFix: true, updated: result.updated, changes: result.changes }),
       ],
     )
   }

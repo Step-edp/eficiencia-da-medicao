@@ -56,3 +56,25 @@ export function validateScheduleNumericField(
 
   return null
 }
+
+export function formatScheduleNumericField(
+  value: unknown,
+  field: keyof typeof LIMITS,
+): string {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  if (!digits) return ''
+  const width = LIMITS[field]
+  const trimmed = digits.length > width ? digits.slice(0, width) : digits
+  return trimmed.padStart(width, '0')
+}
+
+export function normalizeScheduleMeter(value: unknown): string {
+  return formatScheduleNumericField(value, 'medidor')
+}
+
+export function normalizeScheduleNote(value: unknown): string {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  if (!digits) return ''
+  const trimmed = digits.replace(/^0+/, '') || '0'
+  return trimmed.length > LIMITS.nota ? trimmed.slice(0, LIMITS.nota) : trimmed
+}

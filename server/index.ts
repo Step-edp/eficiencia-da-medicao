@@ -54,6 +54,7 @@ import {
   fixBulkMeterSchedulesCsd,
   fixBulkMeterSchedulesNote,
   fixBulkMeterSchedulesCollaborators,
+  fixBulkMeterSchedulesDigits,
   getPontoFocalDashboard,
   listFieldPartners,
   listToiCollaborators,
@@ -345,6 +346,12 @@ async function start() {
     requireAuth,
     requireAdmin,
     fixBulkMeterSchedulesCollaborators,
+  )
+  app.post(
+    '/api/meter-schedules/bulk-fix-digits',
+    requireAuth,
+    requireAdmin,
+    fixBulkMeterSchedulesDigits,
   )
   app.post(
     '/api/meter-schedules/passivo',

@@ -96,6 +96,28 @@ async function fixCollaboratorsViaApi(token: string, csvContent: string) {
   return JSON.parse(text) as { updated: number; unchanged: number }
 }
 
+async function fixDigitsViaApi(token: string, csvContent: string) {
+  const response = await fetch(`${BASE}/api/meter-schedules/bulk-fix-digits`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ csvContent }),
+  })
+  const text = await response.text()
+  if (!response.ok) throw new Error(`Fix dígitos falhou: ${response.status} ${text}`)
+  return JSON.parse(text) as {
+    updated: number
+    unchanged: number
+    changes: Array<{
+      meter: string
+      from: { meter: string; installation: string; toi: string }
+      to: { meter: string; installation: string; toi: string }
+    }>
+  }
+}
+
 async function createPassiveSchedule(
   token: string,
   row: ReturnType<typeof parseMeterSchedulesCsv>[number],
@@ -129,11 +151,23 @@ async function main() {
   const importPassivo = process.argv.includes('--import-passivo')
   const fixCsd = process.argv.includes('--fix-csd')
   const fixNote = process.argv.includes('--fix-note')
+  const fixDigits = process.argv.includes('--fix-digits')
   const fixCollaborators = process.argv.includes('--fix-collaborators')
   const csvContent = readFileSync(CSV_PATH, 'latin1')
   const rows = parseMeterSchedulesCsv(csvContent)
   const token = await login()
   const csds = await fetchCsds(token)
+
+  if (fixDigits) {
+    const result = await fixDigitsViaApi(token, csvContent)
+    console.log(`Dígitos normalizados: ${result.updated}; sem alteração: ${result.unchanged}`)
+    for (const change of result.changes) {
+      console.log(
+        `${change.to.meter}: medidor ${change.from.meter} -> ${change.to.meter}, instalação ${change.from.installation} -> ${change.to.installation}, toi ${change.from.toi} -> ${change.to.toi}`,
+      )
+    }
+    return
+  }
 
   if (fixCollaborators) {
     const result = await fixCollaboratorsViaApi(token, csvContent)
