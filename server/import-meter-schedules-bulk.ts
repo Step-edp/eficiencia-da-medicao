@@ -129,13 +129,6 @@ function normalizeLookupKey(value: string): string {
     .toLowerCase()
 }
 
-function normalizePersonKey(value: string): string {
-  return normalizeLookupKey(value)
-    .replace(/\b(engeserv|externo|enge serv)\b/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
 function normalizeCsdKey(value: string): string {
   return normalizeLookupKey(value).replace(/\s+/g, '')
 }
@@ -205,28 +198,6 @@ function resolveCsdName(raw: string, csds: CsdRecord[]): string | null {
   return null
 }
 
-function resolveUserId(
-  scheduledByName: string,
-  users: Array<{ id: string; name: string }>,
-): string | null {
-  const key = normalizePersonKey(scheduledByName)
-  if (!key) return null
-
-  const exact = users.find((user) => normalizePersonKey(user.name) === key)
-  if (exact) return exact.id
-
-  const parts = key.split(' ').filter((part) => part.length > 2)
-  if (parts.length < 2) return null
-
-  const candidates = users.filter((user) => {
-    const userKey = normalizePersonKey(user.name)
-    return parts.every((part) => userKey.includes(part))
-  })
-
-  if (candidates.length === 1) return candidates[0].id
-  return null
-}
-
 function parseCsvRows(content: string): ParsedScheduleRow[] {
   const rows = parseSemicolonCsv(content)
   if (rows.length < 2) return []
@@ -274,7 +245,7 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
     throw new Error('Nenhuma linha válida encontrada no CSV.')
   }
 
-  const [scheduleExisting, registryExisting, csdResult, userResult] = await Promise.all([
+  const [scheduleExisting, registryExisting, csdResult] = await Promise.all([
     query<{ meter: string }>(
       `SELECT DISTINCT meter FROM meter_schedules WHERE meter = ANY($1::text[])`,
       [rows.map((row) => row.meter)],
@@ -286,9 +257,6 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
     query<{ name: string; cities: string[] | null }>(
       `SELECT name, cities FROM csds ORDER BY name ASC`,
     ),
-    query<{ id: string; name: string }>(
-      `SELECT id, name FROM users WHERE approval_status = 'approved' ORDER BY name ASC`,
-    ),
   ])
 
   const duplicateSet = new Set([
@@ -299,7 +267,6 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
     name: row.name,
     cities: Array.isArray(row.cities) ? row.cities.map(String) : [],
   }))
-  const users = userResult.rows
 
   const result: ImportResult = {
     created: 0,
@@ -334,12 +301,7 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
       continue
     }
 
-    const createdByUserId = resolveUserId(row.scheduledByName, users)
-    if (createdByUserId) {
-      result.userLinked += 1
-    } else {
-      result.userPending += 1
-    }
+    const createdByUserId = null
 
     const id = `schedule-bulk-${row.meter}-${Date.now()}`
     const schedulingDate = row.schedulingAt.toISOString().slice(0, 10)
@@ -349,7 +311,7 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
         id, meter, installation, toi, note, csd, client_present,
         scheduling_notes, scheduled_by_name, scheduling_date,
         scheduled_at, trail_step, source, created_by_user_id, created_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,'nao',$7,$8,$9,$10,$11,'passivo',$12,$13)`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,'nao',$7,$8,$9,$10,$11,'bulk_import',$12,$13)`,
       [
         id,
         row.meter,
@@ -369,6 +331,9 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
 
     duplicateSet.add(row.meter)
     result.created += 1
+    if (row.scheduledByName.trim()) {
+      result.userPending += 1
+    }
   }
 
   await query(
@@ -531,6 +496,81 @@ export async function fixBulkScheduleNotesFromCsv(content: string): Promise<FixN
       [
         `Nota sem zero à esquerda em ${result.updated} agendamento(s) importado(s) em massa`,
         JSON.stringify({ bulkNoteFix: true, updated: result.updated, changes: result.changes }),
+      ],
+    )
+  }
+
+  return result
+}
+
+type FixCollaboratorsResult = {
+  updated: number
+  unchanged: number
+  missing: string[]
+}
+
+export async function fixBulkScheduleCollaboratorsFromCsv(
+  content: string,
+): Promise<FixCollaboratorsResult> {
+  const rows = parseCsvRows(content)
+  const result: FixCollaboratorsResult = {
+    updated: 0,
+    unchanged: 0,
+    missing: [],
+  }
+
+  for (const row of rows) {
+    const existing = await query<{ id: string; source: string; created_by_user_id: string | null }>(
+      `SELECT id, source, created_by_user_id
+       FROM meter_schedules
+       WHERE meter = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [row.meter],
+    )
+    const schedule = existing.rows[0]
+    if (!schedule) {
+      result.missing.push(row.meter)
+      continue
+    }
+
+    const needsUpdate =
+      schedule.source !== 'bulk_import' ||
+      schedule.created_by_user_id !== null
+
+    if (!needsUpdate) {
+      result.unchanged += 1
+      continue
+    }
+
+    await query(
+      `UPDATE meter_schedules
+       SET source = 'bulk_import',
+           created_by_user_id = NULL,
+           toi_collaborator1_name = '',
+           toi_collaborator1_registration = '',
+           toi_collaborator2_name = '',
+           toi_collaborator2_registration = '',
+           toi_team_reason = '',
+           partner_user_id = NULL,
+           partner_name = '',
+           partner_registration = ''
+       WHERE id = $1`,
+      [schedule.id],
+    )
+
+    result.updated += 1
+  }
+
+  if (result.updated > 0) {
+    await query(
+      `INSERT INTO audit_logs (
+         user_id, user_registration, user_role, action, entity_type, entity_id,
+         summary, metadata
+       ) VALUES (NULL, NULL, NULL, 'update', 'meter_schedule', NULL, $1, $2::jsonb)`,
+      [
+        `Colaboradores em branco em ${result.updated} agendamento(s) importado(s) em massa`,
+        JSON.stringify({ bulkCollaboratorFix: true, updated: result.updated }),
       ],
     )
   }

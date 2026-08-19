@@ -2,7 +2,7 @@ import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 import { validateScheduleNumericField } from '../numeric-field-validation.js'
-import { fixBulkScheduleCsdFromCsv, fixBulkScheduleNotesFromCsv, importMeterSchedulesFromCsv } from '../import-meter-schedules-bulk.js'
+import { fixBulkScheduleCollaboratorsFromCsv, fixBulkScheduleCsdFromCsv, fixBulkScheduleNotesFromCsv, importMeterSchedulesFromCsv } from '../import-meter-schedules-bulk.js'
 import {
   findNextAvailableSlot,
   formatAvailableSlot,
@@ -1167,6 +1167,23 @@ export async function fixBulkMeterSchedulesNote(req: Request, res: Response) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Falha ao corrigir nota dos agendamentos.'
+    res.status(400).json({ error: message })
+  }
+}
+
+export async function fixBulkMeterSchedulesCollaborators(req: Request, res: Response) {
+  const csvContent = typeof req.body?.csvContent === 'string' ? req.body.csvContent : ''
+  if (!csvContent.trim()) {
+    res.status(400).json({ error: 'Envie o conteúdo do CSV em csvContent.' })
+    return
+  }
+
+  try {
+    const result = await fixBulkScheduleCollaboratorsFromCsv(csvContent)
+    res.json(result)
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Falha ao corrigir colaboradores dos agendamentos.'
     res.status(400).json({ error: message })
   }
 }

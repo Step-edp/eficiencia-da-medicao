@@ -25,12 +25,21 @@ function isToiTeamSchedule(
   )
 }
 
-export function formatScheduleCreatedByLabel(
-  item: Pick<
-    MeterScheduleRecord,
-    'createdByName' | 'createdByRegistration' | 'scheduledByName'
-  >,
-) {
+function isBulkImportedSchedule(item: { source?: string | null }) {
+  return item.source === 'bulk_import'
+}
+
+type ScheduleAuthorFields = {
+  source?: string | null
+  createdByName?: string | null
+  createdByRegistration?: string | null
+  scheduledByName?: string | null
+}
+
+export function formatScheduleCreatedByLabel(item: ScheduleAuthorFields) {
+  if (isBulkImportedSchedule(item)) {
+    return item.scheduledByName?.trim() ?? ''
+  }
   if (item.createdByName?.trim() || item.createdByRegistration?.trim()) {
     return formatPerson(item.createdByName, item.createdByRegistration)
   }
@@ -63,8 +72,10 @@ export function formatScheduleCollaborator1Label(
     | 'createdByName'
     | 'createdByRegistration'
     | 'scheduledByName'
-  >,
+  > &
+    ScheduleAuthorFields,
 ) {
+  if (isBulkImportedSchedule(item)) return ''
   if (isToiTeamSchedule(item)) {
     return formatPerson(item.toiCollaborator1Name, item.toiCollaborator1Registration)
   }
@@ -80,8 +91,10 @@ export function formatScheduleCollaborator2Label(
     | 'toiTeamReason'
     | 'partnerName'
     | 'partnerRegistration'
-  >,
+  > &
+    ScheduleAuthorFields,
 ) {
+  if (isBulkImportedSchedule(item)) return ''
   if (isToiTeamSchedule(item)) {
     return formatPerson(item.toiCollaborator2Name, item.toiCollaborator2Registration)
   }
@@ -117,7 +130,8 @@ export function formatSchedulePartnerAndTeamLabel(
     | 'toiCollaborator2Name'
     | 'toiCollaborator2Registration'
     | 'toiTeamReason'
-  >,
+  > &
+    ScheduleAuthorFields,
 ) {
   if (isToiTeamSchedule(item)) {
     return [formatScheduleCollaborator1Label(item), formatScheduleCollaborator2Label(item)]

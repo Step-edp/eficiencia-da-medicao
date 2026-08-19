@@ -44,6 +44,7 @@ function formatHistoryActor(entry: MeterScheduleHistoryRecord) {
 }
 
 function scheduleSourceLabel(source: string) {
+  if (source === 'bulk_import') return 'Importação em massa'
   if (source === 'passivo') return 'Passivo'
   if (source === 'field_team') return 'Equipe de campo'
   return source || '—'

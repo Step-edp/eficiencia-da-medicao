@@ -60,6 +60,7 @@ function displayValue(value?: string | null) {
 }
 
 function scheduleSourceLabel(source: string) {
+  if (source === 'bulk_import') return 'Importação em massa'
   if (source === 'passivo') return 'Passivo (Lab)'
   if (source === 'field_team') return 'Equipe de campo'
   return source || '—'
@@ -171,7 +172,7 @@ function ScheduleDetailModal({ schedule, onClose, onPreviewEnvelope }: ScheduleD
             <dt>Origem</dt>
             <dd>{scheduleSourceLabel(schedule.source)}</dd>
           </div>
-          {schedule.scheduledByName?.trim() ? (
+          {schedule.scheduledByName?.trim() && schedule.source !== 'bulk_import' ? (
             <div>
               <dt>Agendamento feito por</dt>
               <dd>{schedule.scheduledByName.trim()}</dd>

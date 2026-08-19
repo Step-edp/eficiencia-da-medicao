@@ -82,6 +82,20 @@ async function fixNoteViaApi(token: string, csvContent: string) {
   }
 }
 
+async function fixCollaboratorsViaApi(token: string, csvContent: string) {
+  const response = await fetch(`${BASE}/api/meter-schedules/bulk-fix-collaborators`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ csvContent }),
+  })
+  const text = await response.text()
+  if (!response.ok) throw new Error(`Fix colaboradores falhou: ${response.status} ${text}`)
+  return JSON.parse(text) as { updated: number; unchanged: number }
+}
+
 async function createPassiveSchedule(
   token: string,
   row: ReturnType<typeof parseMeterSchedulesCsv>[number],
@@ -115,10 +129,17 @@ async function main() {
   const importPassivo = process.argv.includes('--import-passivo')
   const fixCsd = process.argv.includes('--fix-csd')
   const fixNote = process.argv.includes('--fix-note')
+  const fixCollaborators = process.argv.includes('--fix-collaborators')
   const csvContent = readFileSync(CSV_PATH, 'latin1')
   const rows = parseMeterSchedulesCsv(csvContent)
   const token = await login()
   const csds = await fetchCsds(token)
+
+  if (fixCollaborators) {
+    const result = await fixCollaboratorsViaApi(token, csvContent)
+    console.log(`Colaboradores ajustados: ${result.updated}; sem alteração: ${result.unchanged}`)
+    return
+  }
 
   if (fixNote) {
     const result = await fixNoteViaApi(token, csvContent)
