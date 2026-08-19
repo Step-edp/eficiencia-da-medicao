@@ -20,6 +20,7 @@ import { UserDetailModal } from './UserDetailModal'
 import { EntradaCsdDashboard } from './EntradaCsdDashboard'
 import { MeterDetailModal } from './MeterDetailModal'
 import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
+import { LoginFeedback } from './LoginFeedback'
 
 const TERCEIRA_OPTIONS = ['BMB', 'Cosampa', 'Engeserv', 'ROTARY', 'TIVIT']
 
@@ -1061,6 +1062,16 @@ export function EntradaPanel({
     void loadWeekMeters()
   }, [loadData, loadCsdPendencias, loadInspectionPendencias, loadWeekMeters])
 
+  const renderFixedFeedback = () =>
+    feedback ? (
+      <LoginFeedback
+        fixed
+        type={feedback.type}
+        message={feedback.message}
+        onClose={() => setFeedback(null)}
+      />
+    ) : null
+
   const renderEntradaTabBar = () => (
     <div className="entrada-panel-header">
       <div
@@ -1437,11 +1448,7 @@ export function EntradaPanel({
         <div className="entrada-panel">
           {renderEntradaTabBar()}
 
-          {feedback ? (
-            <div className={`login-feedback ${feedback.type}`} role="status">
-              {feedback.message}
-            </div>
-          ) : null}
+          {renderFixedFeedback()}
 
           <section className="entrada-section users-dashboard" aria-label="Dash de entrada">
             <div className="entrada-section-heading">
@@ -1463,11 +1470,7 @@ export function EntradaPanel({
         <div className="entrada-panel">
           {renderEntradaTabBar()}
 
-          {feedback ? (
-            <div className={`login-feedback ${feedback.type}`} role="status">
-              {feedback.message}
-            </div>
-          ) : null}
+          {renderFixedFeedback()}
 
           <section className="entrada-section" aria-label="Medidores agendados">
             <div className="entrada-section-heading">
@@ -1550,11 +1553,7 @@ export function EntradaPanel({
         <div className="entrada-panel">
           {renderEntradaTabBar()}
 
-          {feedback ? (
-            <div className={`login-feedback ${feedback.type}`} role="status">
-              {feedback.message}
-            </div>
-          ) : null}
+          {renderFixedFeedback()}
 
           <section className="entrada-section" aria-label="CSDs pendentes de DEMM">
             <div className="entrada-section-heading">
@@ -1650,11 +1649,7 @@ export function EntradaPanel({
         <div className="entrada-panel">
           {renderEntradaTabBar()}
 
-          {feedback ? (
-            <div className={`login-feedback ${feedback.type}`} role="status">
-              {feedback.message}
-            </div>
-          ) : null}
+          {renderFixedFeedback()}
 
           <section
             className="entrada-section"
@@ -1789,11 +1784,7 @@ export function EntradaPanel({
         <div className="entrada-panel">
           {renderEntradaTabBar()}
 
-          {feedback ? (
-            <div className={`login-feedback ${feedback.type}`} role="status">
-              {feedback.message}
-            </div>
-          ) : null}
+          {renderFixedFeedback()}
 
           <section className="entrada-section" aria-label="Medidores da semana">
             <div className="entrada-section-heading">
@@ -2040,11 +2031,7 @@ export function EntradaPanel({
         <div className="entrada-panel">
           {renderEntradaTabBar()}
 
-          {feedback ? (
-            <div className={`login-feedback ${feedback.type}`} role="status">
-              {feedback.message}
-            </div>
-          ) : null}
+          {renderFixedFeedback()}
 
           <section className="entrada-section" aria-label="Histórico de DEMM por CSD">
             <div className="entrada-section-heading">
@@ -2137,11 +2124,7 @@ export function EntradaPanel({
       <div className="entrada-panel">
         {renderEntradaTabBar()}
 
-        {feedback ? (
-          <div className={`login-feedback ${feedback.type}`} role="status">
-            {feedback.message}
-          </div>
-        ) : null}
+        {renderFixedFeedback()}
 
         <section className="entrada-section">
           <div className="entrada-section-heading">

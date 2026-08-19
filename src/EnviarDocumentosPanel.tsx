@@ -8,6 +8,7 @@ import {
 import { useCsdsOptions } from './useCsdsOptions'
 import { readFileAsBase64 } from './fileUtils'
 import { DemmUploadConflicts } from './EntradaPanel'
+import { LoginFeedback } from './LoginFeedback'
 
 function formatDateTime(isoDate: string) {
   return new Intl.DateTimeFormat('pt-BR', {
@@ -156,9 +157,12 @@ export function EnviarDocumentosPanel() {
         <h3 className="entrada-section-title">Nova DEMM</h3>
 
         {demmFeedback ? (
-          <div className={`login-feedback ${demmFeedback.type}`} role="status">
-            {demmFeedback.message}
-          </div>
+          <LoginFeedback
+            fixed
+            type={demmFeedback.type}
+            message={demmFeedback.message}
+            onClose={() => setDemmFeedback(null)}
+          />
         ) : null}
         {demmConflicts?.length ? <DemmUploadConflicts conflicts={demmConflicts} /> : null}
 
@@ -222,9 +226,12 @@ export function EnviarDocumentosPanel() {
         </div>
 
         {inspectionFeedback ? (
-          <div className={`login-feedback ${inspectionFeedback.type}`} role="status">
-            {inspectionFeedback.message}
-          </div>
+          <LoginFeedback
+            fixed
+            type={inspectionFeedback.type}
+            message={inspectionFeedback.message}
+            onClose={() => setInspectionFeedback(null)}
+          />
         ) : null}
 
         {inspectionLoading && inspectionPendencias.length === 0 ? (

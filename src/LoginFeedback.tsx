@@ -1,17 +1,23 @@
+import { createPortal } from 'react-dom'
+
 type LoginFeedbackProps = {
   type: 'success' | 'error'
   message: string
-  /** Só avisos de sucesso mostram o botão fechar. */
+  /** Exibe o aviso fixo na área visível da tela (toast). */
+  fixed?: boolean
+  /** Botão fechar. Em avisos fixos, sucesso e erro podem ser fechados. */
   onClose?: () => void
 }
 
-export function LoginFeedback({ type, message, onClose }: LoginFeedbackProps) {
-  const canDismiss = type === 'success' && typeof onClose === 'function'
+export function LoginFeedback({ type, message, onClose, fixed = true }: LoginFeedbackProps) {
+  const canDismiss =
+    typeof onClose === 'function' && (fixed || type === 'success')
 
-  return (
+  const content = (
     <div
-      className={`login-feedback ${type}${canDismiss ? ' has-dismiss' : ''}`}
+      className={`login-feedback ${type}${canDismiss ? ' has-dismiss' : ''}${fixed ? ' is-fixed' : ''}`}
       role={type === 'error' ? 'alert' : 'status'}
+      aria-live={type === 'error' ? 'assertive' : 'polite'}
     >
       <span className="login-feedback-message">{message}</span>
       {canDismiss ? (
@@ -26,4 +32,10 @@ export function LoginFeedback({ type, message, onClose }: LoginFeedbackProps) {
       ) : null}
     </div>
   )
+
+  if (fixed) {
+    return createPortal(content, document.body)
+  }
+
+  return content
 }

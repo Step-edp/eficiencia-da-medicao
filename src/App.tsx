@@ -570,6 +570,7 @@ function LoginPanel({ onLoginSuccess, bannerFeedback = null }: LoginPanelProps) 
     <section className="auth-panel">
       {feedback ? (
         <LoginFeedback
+          fixed={false}
           type={feedback.type}
           message={feedback.message}
           onClose={() => setFeedback(null)}
@@ -6830,6 +6831,7 @@ function RegisterPanel({ activeRoute, onRegister, onRegistered }: RegisterPanelP
 
       {feedback ? (
         <LoginFeedback
+          fixed={false}
           type={feedback.type}
           message={feedback.message}
           onClose={() => setFeedback(null)}

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { api, ApiError, type MeterInspectionSummary, type MeterScheduleRecord } from './api'
 import { readFileAsBase64 } from './fileUtils'
 import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
+import { LoginFeedback } from './LoginFeedback'
 import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, scheduleAuditSearchText } from './schedulePartnerLabel'
 
 type FieldTeamSchedulesPanelProps = {
@@ -415,9 +416,12 @@ export function FieldTeamConsultarPanel({
   return (
     <div className="entrada-panel">
       {feedback ? (
-        <div className={`login-feedback ${feedback.type}`} role="status">
-          {feedback.message}
-        </div>
+        <LoginFeedback
+          fixed
+          type={feedback.type}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
       ) : null}
 
       {!loading && totalCount > 0 ? (

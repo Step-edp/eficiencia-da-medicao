@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, ApiError, type InspectionDocumentRecord, type InspectionDocumentType } from './api'
+import { LoginFeedback } from './LoginFeedback'
 
 type InspectionDocumentAnalysisModalProps = {
   meter: string
@@ -192,9 +193,12 @@ export function InspectionDocumentAnalysisModal({
         </p>
 
         {feedback ? (
-          <div className={`login-feedback ${feedback.type}`} role="status">
-            {feedback.message}
-          </div>
+          <LoginFeedback
+            fixed
+            type={feedback.type}
+            message={feedback.message}
+            onClose={() => setFeedback(null)}
+          />
         ) : null}
 
         {deleteBlockedReason ? (
