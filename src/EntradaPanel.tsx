@@ -2148,7 +2148,6 @@ export function EntradaPanel({
                     <th>Nº documento</th>
                     <th>CSD</th>
                     <th>Data emissão</th>
-                    <th>Arquivo</th>
                     <th>Medidores</th>
                     <th>Agendados</th>
                     <th>Status</th>
@@ -2166,7 +2165,6 @@ export function EntradaPanel({
                       <td>{document.documentNumber ?? '—'}</td>
                       <td>{document.csdName ?? '—'}</td>
                       <td>{document.emissionDate ?? '—'}</td>
-                      <td>{document.fileName}</td>
                       <td>{document.meterCount}</td>
                       <td>{document.scheduledCount}</td>
                       <td>
