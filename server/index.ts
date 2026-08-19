@@ -51,6 +51,7 @@ import {
   createMeterSchedule,
   createPassiveMeterSchedule,
   createBulkMeterSchedulesImport,
+  fixBulkMeterSchedulesCsd,
   getPontoFocalDashboard,
   listFieldPartners,
   listToiCollaborators,
@@ -324,6 +325,12 @@ async function start() {
     requireAuth,
     requireAdmin,
     createBulkMeterSchedulesImport,
+  )
+  app.post(
+    '/api/meter-schedules/bulk-fix-csd',
+    requireAuth,
+    requireAdmin,
+    fixBulkMeterSchedulesCsd,
   )
   app.post(
     '/api/meter-schedules/passivo',

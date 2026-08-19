@@ -188,6 +188,13 @@ function resolveCsdName(raw: string, csds: CsdRecord[]): string | null {
     }
   }
 
+  if (key === 'litoral') {
+    const coastal = csds.find(
+      (csd) => normalizeCsdKey(stripCsdPrefix(csd.name)) === 'caraguatatuba',
+    )
+    if (coastal) return coastal.name
+  }
+
   return null
 }
 
@@ -383,6 +390,83 @@ export async function importMeterSchedulesBulk(csvPath = DEFAULT_CSV): Promise<I
   const absolutePath = path.resolve(csvPath)
   const content = readFileSync(absolutePath, 'latin1')
   return importMeterSchedulesFromCsv(content, absolutePath)
+}
+
+type FixCsdResult = {
+  updated: number
+  unchanged: number
+  missing: string[]
+  unresolved: Array<{ meter: string; csdRaw: string }>
+  changes: Array<{ meter: string; from: string; to: string }>
+}
+
+export async function fixBulkScheduleCsdFromCsv(content: string): Promise<FixCsdResult> {
+  const rows = parseCsvRows(content)
+  const csdResult = await query<{ name: string; cities: string[] | null }>(
+    `SELECT name, cities FROM csds ORDER BY name ASC`,
+  )
+  const csds = csdResult.rows.map((row) => ({
+    name: row.name,
+    cities: Array.isArray(row.cities) ? row.cities.map(String) : [],
+  }))
+
+  const result: FixCsdResult = {
+    updated: 0,
+    unchanged: 0,
+    missing: [],
+    unresolved: [],
+    changes: [],
+  }
+
+  for (const row of rows) {
+    const targetCsd = resolveCsdName(row.csdRaw, csds)
+    if (!targetCsd) {
+      result.unresolved.push({ meter: row.meter, csdRaw: row.csdRaw })
+      continue
+    }
+
+    const existing = await query<{ id: string; csd: string }>(
+      `SELECT id, csd
+       FROM meter_schedules
+       WHERE meter = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [row.meter],
+    )
+    const schedule = existing.rows[0]
+    if (!schedule) {
+      result.missing.push(row.meter)
+      continue
+    }
+
+    if (schedule.csd === targetCsd) {
+      result.unchanged += 1
+      continue
+    }
+
+    await query(`UPDATE meter_schedules SET csd = $1 WHERE id = $2`, [
+      targetCsd,
+      schedule.id,
+    ])
+
+    result.changes.push({ meter: row.meter, from: schedule.csd, to: targetCsd })
+    result.updated += 1
+  }
+
+  if (result.updated > 0) {
+    await query(
+      `INSERT INTO audit_logs (
+         user_id, user_registration, user_role, action, entity_type, entity_id,
+         summary, metadata
+       ) VALUES (NULL, NULL, NULL, 'update', 'meter_schedule', NULL, $1, $2::jsonb)`,
+      [
+        `Correção de CSD em ${result.updated} agendamento(s) importado(s) em massa`,
+        JSON.stringify({ bulkCsdFix: true, updated: result.updated, changes: result.changes }),
+      ],
+    )
+  }
+
+  return result
 }
 
 const BULK_IMPORT_FLAG = 'meter_schedules_bulk_import_v1'

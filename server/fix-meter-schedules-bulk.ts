@@ -34,14 +34,34 @@ async function fetchCsds(token: string): Promise<CsdRecord[]> {
   return data.csds.map((csd) => ({ name: csd.name, cities: csd.cities ?? [] }))
 }
 
-async function fetchSchedule(token: string, meter: string) {
+async function fetchScheduleDetail(token: string, meter: string) {
   const response = await fetch(
     `${BASE}/api/meter-schedules?meter=${encodeURIComponent(meter)}`,
     { headers: { Authorization: `Bearer ${token}` } },
   )
   if (!response.ok) throw new Error(`Consulta falhou: ${response.status}`)
-  const data = (await response.json()) as { schedules?: Array<{ meter: string }> }
-  return data.schedules?.some((item) => item.meter === meter) ?? false
+  const data = (await response.json()) as {
+    schedules?: Array<{ meter: string; csd?: string }>
+  }
+  return data.schedules?.find((item) => item.meter === meter) ?? null
+}
+
+async function fixCsdViaApi(token: string, csvContent: string) {
+  const response = await fetch(`${BASE}/api/meter-schedules/bulk-fix-csd`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ csvContent }),
+  })
+  const text = await response.text()
+  if (!response.ok) throw new Error(`Fix CSD falhou: ${response.status} ${text}`)
+  return JSON.parse(text) as {
+    updated: number
+    unchanged: number
+    changes: Array<{ meter: string; from: string; to: string }>
+  }
 }
 
 async function createPassiveSchedule(
@@ -75,14 +95,24 @@ async function createPassiveSchedule(
 
 async function main() {
   const importPassivo = process.argv.includes('--import-passivo')
+  const fixCsd = process.argv.includes('--fix-csd')
   const csvContent = readFileSync(CSV_PATH, 'latin1')
   const rows = parseMeterSchedulesCsv(csvContent)
   const token = await login()
   const csds = await fetchCsds(token)
 
+  if (fixCsd) {
+    const result = await fixCsdViaApi(token, csvContent)
+    console.log(`CSD corrigidos: ${result.updated}; sem alteração: ${result.unchanged}`)
+    for (const change of result.changes) {
+      console.log(`${change.meter}: "${change.from}" -> "${change.to}"`)
+    }
+    return
+  }
+
   const pending: typeof rows = []
   for (const row of rows) {
-    if (!(await fetchSchedule(token, row.meter))) pending.push(row)
+    if (!(await fetchScheduleDetail(token, row.meter))) pending.push(row)
   }
 
   console.log(`Pendentes: ${pending.length}/${rows.length}`)
@@ -119,7 +149,7 @@ async function main() {
 
   const stillMissing: string[] = []
   for (const row of pending) {
-    if (!(await fetchSchedule(token, row.meter))) stillMissing.push(row.meter)
+    if (!(await fetchScheduleDetail(token, row.meter))) stillMissing.push(row.meter)
   }
   console.log(`Ainda pendentes: ${stillMissing.length}`)
   if (stillMissing.length) console.log(stillMissing.join(', '))
