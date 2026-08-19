@@ -14,6 +14,11 @@ import {
   formatDeliveryDeadlineLabel,
   lastFridayBeforeAssay,
 } from '../delivery-deadline.js'
+import {
+  formatScheduleNumericField,
+  normalizeScheduleMeter,
+  normalizeScheduleNote,
+} from '../numeric-field-validation.js'
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024
 
@@ -87,8 +92,33 @@ function isSequentialDigits(value: string): boolean {
 type InspectionEvaluation = { blocked: boolean; reason: string | null }
 
 function normalizeMeter(value: string | null | undefined): string | null {
-  const trimmed = value?.trim()
-  return trimmed || null
+  const normalized = normalizeScheduleMeter(value)
+  return normalized || null
+}
+
+function normalizeNumericEntryField(
+  value: string | null | undefined,
+  field: 'instalacao' | 'toi' | 'nota',
+): string | null {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  if (!digits) return null
+  if (field === 'nota') {
+    const normalized = normalizeScheduleNote(digits)
+    return normalized || null
+  }
+  const normalized = formatScheduleNumericField(digits, field)
+  return normalized || null
+}
+
+function compareNumericEntryField(
+  extracted: string | null | undefined,
+  registered: string | null | undefined,
+  field: 'instalacao' | 'toi' | 'nota',
+): boolean | null {
+  const documentValue = normalizeNumericEntryField(extracted, field)
+  const registeredValue = normalizeNumericEntryField(registered, field)
+  if (!documentValue || !registeredValue) return null
+  return documentValue === registeredValue
 }
 
 function normalizeSeal(value: string | null | undefined): string | null {
@@ -135,13 +165,16 @@ function compareEntryField(
 function buildEntryFieldMatch(
   registered: string | null | undefined,
   document: string | null | undefined,
+  numericField?: 'instalacao' | 'toi' | 'nota',
 ): EntryFieldMatch {
   const registeredValue = registered?.trim() || null
   const documentValue = document?.trim() || null
   return {
     registered: registeredValue,
     document: documentValue,
-    matches: compareEntryField(documentValue, registeredValue),
+    matches: numericField
+      ? compareNumericEntryField(documentValue, registeredValue, numericField)
+      : compareEntryField(documentValue, registeredValue),
   }
 }
 
@@ -223,9 +256,10 @@ function buildScheduleEntryComparisons(
     installation: buildEntryFieldMatch(
       schedule.installation,
       extraction?.extracted_installation ?? null,
+      'instalacao',
     ),
-    toi: buildEntryFieldMatch(schedule.toi, extraction?.extracted_toi ?? null),
-    note: buildEntryFieldMatch(schedule.note, extraction?.extracted_note ?? null),
+    toi: buildEntryFieldMatch(schedule.toi, extraction?.extracted_toi ?? null, 'toi'),
+    note: buildEntryFieldMatch(schedule.note, extraction?.extracted_note ?? null, 'nota'),
     csd: buildEntryFieldMatch(schedule.csd, null),
     partner: buildEntryFieldMatch(partnerRegistered, null),
     collaborator1: buildEntryFieldMatch(collaborator1Registered, null),
@@ -259,7 +293,7 @@ function evaluateInspectionDocument(
       reason: 'Número do medidor encontrado não informado no documento.',
     }
   }
-  if (meterEncontrado !== expectedMeter) {
+  if (normalizeMeter(meterEncontrado) !== normalizeMeter(expectedMeter)) {
     return {
       blocked: true,
       reason: `Medidor encontrado no documento (${meterEncontrado}) diverge do medidor agendado (${expectedMeter}).`,
@@ -546,6 +580,16 @@ function mapInspectionDocumentRow(
   registeredMeter: string | null = null,
   registeredLacre: string | null = null,
 ) {
+  const evaluation =
+    (row.doc_type === 'toi' || row.doc_type === 'ambos') && registeredMeter
+      ? evaluateInspectionDocument(
+          row.extracted_lacre,
+          row.extracted_meter,
+          registeredMeter,
+          registeredLacre,
+        )
+      : { blocked: row.blocked, reason: row.block_reason }
+
   return {
     id: row.id,
     meterScheduleId: row.meter_schedule_id,
@@ -557,8 +601,8 @@ function mapInspectionDocumentRow(
     registeredLacre,
     meterMatches: compareMeter(row.extracted_meter, registeredMeter),
     lacreMatches: compareSeal(row.extracted_lacre, registeredLacre),
-    blocked: row.blocked,
-    blockReason: row.block_reason,
+    blocked: evaluation.blocked,
+    blockReason: evaluation.reason,
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
     createdByRegistration: registration,
