@@ -359,9 +359,17 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
 
   const docType = classifyInspectionDocument(text)
   if (docType === 'desconhecido') {
+    if (!text.trim()) {
+      res.status(400).json({
+        error:
+          'Não foi possível ler texto no PDF. Se o arquivo for um scan ou foto, exporte novamente o documento original com texto selecionável.',
+      })
+      return
+    }
+
     res.status(400).json({
       error:
-        'Documento não reconhecido. Anexe o Termo de Ocorrência e Inspeção (TOI) e/ou o CSM.',
+        'O conteúdo do PDF não foi reconhecido como TOI ou CSM. A validação usa apenas o texto interno do documento, não o nome do arquivo.',
     })
     return
   }

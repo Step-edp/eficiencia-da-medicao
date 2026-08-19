@@ -24,6 +24,61 @@ const NOTA_VALUE_PATTERN = /\b\d{8,12}\b/
 
 const TOI_MARKER = /termo\s+de\s+ocorr[eê]ncia\s+e\s+inspe[cç][aã]o/i
 const COMUNICADO_MARKER = /comunicado\s+de\s+substitui[cç][aã]o\s+de\s+medidor/i
+const TOI_PARTIAL_MARKER = /termo\s+de\s+ocorr[eê]ncia/i
+const INSPECAO_MARKER = /inspe[cç][aã]o/i
+const MEDIDOR_ENCONTRADO_MARKER = /medidor\s+encontrado/i
+const SUBSTITUICAO_MEDIDOR_MARKER = /substitui[cç][aã]o\s+de\s+medidor/i
+const COMUNICADO_GENERIC_MARKER = /comunicado/i
+
+function normalizeInspectionText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
+function compactInspectionText(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+}
+
+function hasToiStructure(text: string, compact: string): boolean {
+  if (TOI_MARKER.test(text)) return true
+  if (TOI_PARTIAL_MARKER.test(text) && INSPECAO_MARKER.test(text)) return true
+
+  if (DADOS_MEDICAO_START.test(text) && DADOS_MEDICAO_END.test(text)) return true
+  if (MEDIDOR_ENCONTRADO_MARKER.test(text) && /selagem/i.test(text)) return true
+  if (TOI_LABEL_PATTERN.test(text) && DADOS_MEDICAO_START.test(text)) return true
+
+  if (compact.includes('termodeocorrencia') && compact.includes('inspecao')) return true
+  if (compact.includes('dadosdamedicao') && compact.includes('selagem')) return true
+  if (compact.includes('medidorencontrado') && compact.includes('selagem')) return true
+  if (compact.includes('numerodotoi') || compact.includes('numerotoi')) return true
+
+  const parsed = parseInspectionText(text)
+  return Boolean(parsed.meterEncontrado || parsed.toi || parsed.lacre)
+}
+
+function hasComunicadoStructure(text: string, compact: string): boolean {
+  if (COMUNICADO_MARKER.test(text)) return true
+  if (
+    COMUNICADO_GENERIC_MARKER.test(text) &&
+    SUBSTITUICAO_MEDIDOR_MARKER.test(text)
+  ) {
+    return true
+  }
+  if (SUBSTITUICAO_MEDIDOR_MARKER.test(text)) return true
+
+  if (compact.includes('comunicadodesubstituicaodemedidor')) return true
+  if (compact.includes('substituicaodemedidor') && compact.includes('comunicado')) {
+    return true
+  }
+  if (compact.includes('substituicaodemedidor') && compact.includes('medidor')) {
+    return true
+  }
+
+  return false
+}
 
 type TextItem = {
   str?: string
@@ -46,8 +101,12 @@ export type InspectionDocumentType = 'toi' | 'comunicado' | 'ambos' | 'desconhec
  * classificamos pelo conteúdo em vez de exigir um único arquivo.
  */
 export function classifyInspectionDocument(text: string): InspectionDocumentType {
-  const hasToi = TOI_MARKER.test(text)
-  const hasComunicado = COMUNICADO_MARKER.test(text)
+  const normalized = normalizeInspectionText(text)
+  if (!normalized) return 'desconhecido'
+
+  const compact = compactInspectionText(normalized)
+  const hasToi = hasToiStructure(normalized, compact)
+  const hasComunicado = hasComunicadoStructure(normalized, compact)
   if (hasToi && hasComunicado) return 'ambos'
   if (hasToi) return 'toi'
   if (hasComunicado) return 'comunicado'
@@ -114,10 +173,16 @@ export async function extractInspectionPdfText(buffer: Buffer): Promise<string> 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber)
     const content = await page.getTextContent()
-    const pageText = content.items.map((item) => (item as TextItem).str ?? '').join(' ')
+    const pageText = content.items
+      .map((item) => {
+        const textItem = item as TextItem & { hasEOL?: boolean }
+        const chunk = textItem.str ?? ''
+        return textItem.hasEOL ? `${chunk}\n` : chunk
+      })
+      .join(' ')
     parts.push(pageText)
   }
 
-  return parts.join('\n')
+  return normalizeInspectionText(parts.join('\n'))
 }
 
