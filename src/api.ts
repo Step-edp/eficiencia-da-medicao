@@ -1454,7 +1454,7 @@ export const api = {
     toi: string
     note: string
     csd: string
-    clientPresent: 'sim' | 'nao'
+    clientPresent?: 'sim' | 'nao'
     schedulingNotes?: string
     partnerUserId?: string
     envelopePhoto: string

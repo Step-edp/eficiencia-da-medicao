@@ -677,12 +677,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               ))
             )}
             <EntryComparisonField
-              label="Cliente presente"
-              match={data.entryComparisons?.clientPresent}
-              check={data.entryFieldChecks.clientPresent}
-              onCheckChange={(value) => updateEntryFieldCheck('clientPresent', value)}
-            />
-            <EntryComparisonField
               label="Prazo de entrega"
               match={data.entryComparisons?.deliveryDeadline}
               check={data.entryFieldChecks.deliveryDeadline}

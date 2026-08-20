@@ -28,7 +28,6 @@ export function isEntryInfoSectionComplete(data: RatmFormData) {
     isFilled(data.toi) &&
     isFilled(data.note) &&
     isFilled(data.csd) &&
-    isFilled(data.clientPresent) &&
     isFilled(data.deliveryDeadlineLabel) &&
     getRequiredEntryFieldCheckKeys(data).every((key) => isEntryFieldChecked(checks[key]))
   )

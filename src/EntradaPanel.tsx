@@ -1594,7 +1594,6 @@ export function EntradaPanel({
                       <th>TOI</th>
                       <th>Nota</th>
                       <th>CSD</th>
-                      <th>Cliente presente</th>
                       <th>Data agendada</th>
                       <th>Prazo entrega</th>
                       <th>Status entrega</th>
@@ -1615,7 +1614,6 @@ export function EntradaPanel({
                         <td>{schedule.toi}</td>
                         <td>{schedule.note}</td>
                         <td>{schedule.csd}</td>
-                        <td>{schedule.clientPresent === 'sim' ? 'Sim' : 'Não'}</td>
                         <td>{schedule.scheduledAtLabel}</td>
                         <td>{schedule.deliveryDeadlineLabel || '—'}</td>
                         <td>

@@ -41,7 +41,7 @@ function buildItems(
       toi: item.toi || '',
       installation: item.installation || '',
       note: item.note || '',
-      client: item.clientPresent === 'sim' ? 'Cliente presente' : '',
+      client: '',
       user:
         item.createdByRegistration ||
         item.partnerRegistration ||

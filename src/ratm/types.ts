@@ -25,7 +25,6 @@ export const ENTRY_FIELD_CHECK_KEYS = [
   'partner',
   'collaborator1',
   'collaborator2',
-  'clientPresent',
   'deliveryDeadline',
   'schedulingNotes',
 ] as const satisfies ReadonlyArray<keyof EntryFieldChecks>

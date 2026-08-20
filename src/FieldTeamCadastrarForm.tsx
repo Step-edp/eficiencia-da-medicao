@@ -305,7 +305,6 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
         toi,
         note,
         csd,
-        clientPresent: 'nao',
         schedulingNotes,
         ...(requireToiTeam
           ? {

@@ -161,10 +161,6 @@ function ScheduleDetailModal({ schedule, onClose, onPreviewEnvelope }: ScheduleD
             <dd>{displayValue(schedule.csd)}</dd>
           </div>
           <div>
-            <dt>Cliente presente</dt>
-            <dd>{schedule.clientPresent === 'sim' ? 'Sim' : 'Não'}</dd>
-          </div>
-          <div>
             <dt>Agendado por</dt>
             <dd>{displayValue(scheduledBy)}</dd>
           </div>
