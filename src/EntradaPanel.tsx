@@ -1190,7 +1190,7 @@ export function EntradaPanel({
           className={view === 'metersBase' ? 'active' : ''}
           onClick={() => openMetersBase()}
         >
-          Ver base de medidores
+          Análise WPA
         </button>
         <button
           type="button"
