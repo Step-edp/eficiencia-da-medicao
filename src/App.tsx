@@ -1127,6 +1127,19 @@ function ItemIcon({ title }: { title: string }) {
   )
 }
 
+function LateMetersCountBadge({ count }: { count: number }) {
+  if (count <= 0) return null
+
+  return (
+    <span
+      className="support-alert-badge"
+      aria-label={`${count} medidor(es) atrasado(s)`}
+    >
+      {count}
+    </span>
+  )
+}
+
 type ApproveUserPayload = {
   thirdPartyCompany?: string
   workSubtype?: string
@@ -1856,6 +1869,7 @@ function HomePanel({
   )
   const [selectedFieldTeamSection, setSelectedFieldTeamSection] = useState<string | null>(null)
   const [csdResponsible, setCsdResponsible] = useState(false)
+  const [lateMetersCount, setLateMetersCount] = useState(0)
   const [selectedHomologationSection, setSelectedHomologationSection] = useState<string | null>(
     () => savedNav?.selectedHomologationSection ?? null,
   )
@@ -2149,6 +2163,42 @@ function HomePanel({
       cancelled = true
     }
   }, [previewUser?.id, isAdmin, currentUser.id])
+
+  useEffect(() => {
+    const userId = previewUser?.id ?? (isAdmin ? null : currentUser.id)
+    const showLateMetersCard =
+      Boolean(userId) &&
+      (csdResponsible ||
+        isLavraturaPontoFocalScope(previewUser?.workSubtype ?? currentUser.workSubtype))
+
+    if (!userId || !showLateMetersCard) {
+      setLateMetersCount(0)
+      return
+    }
+
+    let cancelled = false
+    void api
+      .getPontoFocalDashboard(isAdmin && previewUser ? previewUser.id : undefined)
+      .then((data) => {
+        if (cancelled) return
+        setLateMetersCount(data.lateMeters?.length ?? data.current?.late ?? 0)
+      })
+      .catch(() => {
+        if (!cancelled) setLateMetersCount(0)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    csdResponsible,
+    previewUser,
+    isAdmin,
+    currentUser.id,
+    currentUser.workSubtype,
+    selectedArea,
+    selectedFieldTeamSection,
+  ])
   const isAdminFullPreview =
     isAdmin &&
     ((previewMode === 'profile' &&
@@ -5911,9 +5961,12 @@ function HomePanel({
                   type="button"
                   onClick={() => setSelectedFieldTeamSection(section)}
                 >
-                  <span className="item-with-icon">
+                  <span className="item-with-icon measurement-item-row">
                     <ItemIcon title={section} />
                     <span>{section}</span>
+                    {section === 'Medidores atrasados' ? (
+                      <LateMetersCountBadge count={lateMetersCount} />
+                    ) : null}
                   </span>
                 </button>
               ))}
@@ -6127,6 +6180,9 @@ function HomePanel({
                   <span className="area-card-title">
                     <ItemIcon title={section} />
                     <span>{section}</span>
+                    {section === 'Medidores atrasados' ? (
+                      <LateMetersCountBadge count={lateMetersCount} />
+                    ) : null}
                   </span>
                 </button>
               ))
@@ -6158,6 +6214,7 @@ function HomePanel({
               <span className="area-card-title">
                 <ItemIcon title="Medidores atrasados" />
                 <span>Medidores atrasados</span>
+                <LateMetersCountBadge count={lateMetersCount} />
               </span>
             </button>
           ) : null}
