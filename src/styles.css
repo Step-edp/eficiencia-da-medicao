@@ -4918,11 +4918,6 @@ button {
   resize: vertical;
 }
 
-.ponto-focal-justified-badge {
-  display: inline-flex;
-  margin-top: 8px;
-}
-
 .ponto-focal-row-actions {
   display: inline-flex;
   align-items: center;
@@ -4954,6 +4949,18 @@ button {
 .ponto-focal-save-button:focus-visible:not(:disabled) {
   border-color: rgba(24, 216, 240, 0.75);
   background: rgba(24, 216, 240, 0.22);
+}
+
+.ponto-focal-save-button.is-justified {
+  border-color: rgba(72, 201, 120, 0.7);
+  background: rgba(46, 160, 90, 0.28);
+  color: #b8f5c8;
+}
+
+.ponto-focal-save-button.is-justified:hover:not(:disabled),
+.ponto-focal-save-button.is-justified:focus-visible:not(:disabled) {
+  border-color: rgba(90, 220, 130, 0.9);
+  background: rgba(46, 160, 90, 0.4);
 }
 
 .ponto-focal-save-button:disabled {

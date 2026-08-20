@@ -294,17 +294,12 @@ export function PontoFocalDashboard({
                           rows={2}
                           disabled={savingId === item.id}
                         />
-                        {justified ? (
-                          <span className="schedule-ok-badge ponto-focal-justified-badge">
-                            Justificado
-                          </span>
-                        ) : null}
                       </td>
                       <td>
                         <div className="ponto-focal-row-actions">
                           <button
                             type="button"
-                            className="ponto-focal-save-button"
+                            className={`ponto-focal-save-button${justified ? ' is-justified' : ''}`}
                             disabled={
                               savingId === item.id ||
                               deletingId === item.id ||
@@ -316,7 +311,7 @@ export function PontoFocalDashboard({
                                 ? `Salvando justificativa do medidor ${item.meter}`
                                 : `Salvar justificativa do medidor ${item.meter}`
                             }
-                            title="Salvar"
+                            title={justified ? 'Justificado' : 'Salvar'}
                           >
                             <svg viewBox="0 0 24 24" aria-hidden="true">
                               <path
