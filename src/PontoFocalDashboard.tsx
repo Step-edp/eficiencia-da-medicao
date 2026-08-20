@@ -261,11 +261,7 @@ export function PontoFocalDashboard({
                           <span className="schedule-ok-badge ponto-focal-justified-badge">
                             Justificado
                           </span>
-                        ) : (
-                          <span className="schedule-late-badge ponto-focal-justified-badge">
-                            Pendente
-                          </span>
-                        )}
+                        ) : null}
                       </td>
                       <td>
                         <button
