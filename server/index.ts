@@ -46,6 +46,7 @@ import { orgCellRoutes } from './routes/org-cells.js'
 import { vacationRoutes } from './routes/vacation.js'
 import { listAuditLogs } from './routes/audit-logs.js'
 import { rejectLabMedicaoViewOnlyMutations } from './lab-view-only.js'
+import { warmupInspectionOcr } from './inspection-pdf-ocr.js'
 import {
   countMeterSchedules,
   createMeterSchedule,
@@ -123,6 +124,10 @@ async function start() {
 
   await migrate()
   await seed()
+
+  void warmupInspectionOcr()
+    .then(() => console.info('OCR de documentos de inspeção pronto.'))
+    .catch((error) => console.warn('OCR de inspeção indisponível na inicialização:', error))
 
   const app = express()
 
@@ -390,6 +395,11 @@ async function start() {
     '/api/meter-schedules/:id/inspection-document',
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
+    (req, res, next) => {
+      req.setTimeout(300_000)
+      res.setTimeout(300_000)
+      next()
+    },
     uploadInspectionDocument,
   )
   app.get(

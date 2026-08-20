@@ -652,7 +652,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     if (!text.trim()) {
       res.status(400).json({
         error:
-          'Não foi possível ler texto no PDF. Se o arquivo for um scan ou foto, exporte novamente o documento original com texto selecionável.',
+          'Não foi possível ler o PDF (texto ilegível ou documento exportado como imagem). Aguarde alguns segundos e tente novamente; se persistir, exporte o TOI/CSM novamente pelo sistema da EDP com texto selecionável.',
       })
       return
     }
