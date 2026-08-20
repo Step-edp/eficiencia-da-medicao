@@ -1109,7 +1109,7 @@ export async function listInspectionPendencias(req: Request, res: Response) {
   }
 
   if (csdNames !== null && csdNames.length === 0) {
-    res.json({ pendencias: [], pendingCount: 0, byScheduleId: {} })
+    res.json({ pendencias: [], pendingCount: 0, documentados: [], byScheduleId: {} })
     return
   }
 
@@ -1192,28 +1192,45 @@ export async function listInspectionPendencias(req: Request, res: Response) {
 
   const byScheduleId: Record<string, InspectionSummary> = {}
   const pendencias = []
+  const documentados = []
 
   for (const row of schedules.rows) {
     const summary = aggregateInspectionForSchedule(row, docsByScheduleId.get(row.id) ?? [])
     byScheduleId[row.id] = summary
 
+    const base = {
+      id: row.id,
+      meter: row.meter,
+      installation: row.installation,
+      toi: row.toi,
+      note: row.note,
+      csd: row.csd,
+      scheduledAt: row.scheduled_at.toISOString(),
+      trailStep: row.trail_step,
+      responsibleUserId: row.responsible_user_id,
+      responsibleName: row.responsible_name,
+      responsibleRegistration: row.responsible_registration,
+      responsibleWorkSubtype: row.responsible_work_subtype,
+      missingToi: !summary.hasToi,
+      missingComunicado: !summary.hasComunicado,
+      hasToi: summary.hasToi,
+      hasComunicado: summary.hasComunicado,
+      anyBlocked: summary.anyBlocked,
+      blockReasons: summary.blockReasons,
+    }
+
     if (!(summary.hasToi && summary.hasComunicado)) {
-      pendencias.push({
-        id: row.id,
-        meter: row.meter,
-        installation: row.installation,
-        csd: row.csd,
-        scheduledAt: row.scheduled_at.toISOString(),
-        trailStep: row.trail_step,
-        responsibleUserId: row.responsible_user_id,
-        responsibleName: row.responsible_name,
-        responsibleRegistration: row.responsible_registration,
-        responsibleWorkSubtype: row.responsible_work_subtype,
-        missingToi: !summary.hasToi,
-        missingComunicado: !summary.hasComunicado,
-      })
+      pendencias.push(base)
+    }
+    if (summary.hasToi || summary.hasComunicado) {
+      documentados.push(base)
     }
   }
 
-  res.json({ pendencias, pendingCount: pendencias.length, byScheduleId })
+  res.json({
+    pendencias,
+    pendingCount: pendencias.length,
+    documentados,
+    byScheduleId,
+  })
 }

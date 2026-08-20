@@ -9,6 +9,7 @@ import {
   type DemmDocumentRecord,
   type DemmMeterAnalysisRecord,
   type DemmUploadConflictRecord,
+  type MeterInspectionDocumentadoRecord,
   type MeterInspectionPendenciaRecord,
   type WeekMeterRecord,
   type WeekMeterStatus,
@@ -117,6 +118,14 @@ function formatDateTime(isoDate: string) {
 function formatWeekLabel(dateKey: string) {
   const [, month, day] = dateKey.split('-')
   return `${day}/${month}`
+}
+
+function wpaDocumentationLabel(item: MeterInspectionDocumentadoRecord) {
+  if (item.anyBlocked) return item.blockReasons || 'Bloqueado'
+  if (item.hasToi && item.hasComunicado) return 'TOI + CSM'
+  if (item.hasToi) return 'TOI'
+  if (item.hasComunicado) return 'CSM'
+  return '—'
 }
 
 function weekMeterInspectionLabel(item: WeekMeterRecord) {
@@ -689,6 +698,7 @@ export function EntradaPanel({
   const [inspectionPendencias, setInspectionPendencias] = useState<
     MeterInspectionPendenciaRecord[]
   >([])
+  const [wpaMeters, setWpaMeters] = useState<MeterInspectionDocumentadoRecord[]>([])
   const [inspectionPendenciasLoading, setInspectionPendenciasLoading] = useState(false)
   const [uploadingInspectionId, setUploadingInspectionId] = useState<string | null>(null)
   const [receivingMeter, setReceivingMeter] = useState<string | null>(null)
@@ -892,7 +902,7 @@ export function EntradaPanel({
   const openMetersBase = () => {
     setView('metersBase')
     setFeedback(null)
-    void loadData()
+    void loadInspectionPendencias()
   }
 
   const loadCsdPendencias = useCallback(async () => {
@@ -949,6 +959,7 @@ export function EntradaPanel({
     try {
       const response = await api.listInspectionPendencias()
       setInspectionPendencias(response.pendencias)
+      setWpaMeters(response.documentados ?? [])
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -1568,21 +1579,21 @@ export function EntradaPanel({
 
           {renderFixedFeedback()}
 
-          <section className="entrada-section" aria-label="Medidores agendados">
+          <section className="entrada-section" aria-label="Análise WPA">
             <div className="entrada-section-heading">
-              <h3 className="entrada-section-title">Medidores agendados</h3>
+              <h3 className="entrada-section-title">Análise WPA</h3>
               <p className="demm-analysis-summary">
-                {loading && schedules.length === 0
+                {inspectionPendenciasLoading && wpaMeters.length === 0
                   ? 'Carregando medidores...'
-                  : `${schedules.length} medidor(es) aguardando entrada`}
+                  : `${wpaMeters.length} medidor(es) com documentação para análise`}
               </p>
             </div>
 
-            {loading && schedules.length === 0 ? (
+            {inspectionPendenciasLoading && wpaMeters.length === 0 ? (
               <p className="entrada-panel-empty">Carregando medidores...</p>
-            ) : schedules.length === 0 ? (
+            ) : wpaMeters.length === 0 ? (
               <p className="entrada-panel-empty">
-                Nenhum medidor agendado aguardando entrada.
+                Nenhum medidor com documento de inspeção anexado.
               </p>
             ) : (
               <div className="entrada-table-wrap">
@@ -1594,37 +1605,50 @@ export function EntradaPanel({
                       <th>TOI</th>
                       <th>Nota</th>
                       <th>CSD</th>
+                      <th>Etapa</th>
                       <th>Data agendada</th>
-                      <th>Prazo entrega</th>
-                      <th>Status entrega</th>
-                      <th>Agendado por</th>
-                      <th>Registrado em</th>
+                      <th>Documentação</th>
+                      <th>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {schedules.map((schedule) => (
-                      <tr
-                        key={schedule.id}
-                        className={schedule.isLate ? 'schedule-row-late' : undefined}
-                      >
+                    {wpaMeters.map((item) => (
+                      <tr key={item.id}>
                         <td>
-                          <MeterLink meter={schedule.meter} onOpen={openMeterDetail} />
+                          <MeterLink meter={item.meter} onOpen={openMeterDetail} />
                         </td>
-                        <td>{schedule.installation}</td>
-                        <td>{schedule.toi}</td>
-                        <td>{schedule.note}</td>
-                        <td>{schedule.csd}</td>
-                        <td>{schedule.scheduledAtLabel}</td>
-                        <td>{schedule.deliveryDeadlineLabel || '—'}</td>
+                        <td>{item.installation}</td>
+                        <td>{item.toi || '—'}</td>
+                        <td>{item.note || '—'}</td>
+                        <td>{item.csd}</td>
+                        <td>{item.trailStep}</td>
+                        <td>{formatDateTime(item.scheduledAt)}</td>
                         <td>
-                          {schedule.isLate ? (
-                            <span className="schedule-late-badge">Atrasado</span>
-                          ) : (
-                            <span className="schedule-ok-badge">No prazo</span>
-                          )}
+                          <span
+                            className={
+                              item.anyBlocked
+                                ? 'schedule-late-badge'
+                                : 'schedule-ok-badge'
+                            }
+                            title={item.blockReasons ?? undefined}
+                          >
+                            {wpaDocumentationLabel(item)}
+                          </span>
                         </td>
-                        <td>{schedule.createdByRegistration ?? '—'}</td>
-                        <td>{formatDateTime(schedule.createdAt)}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            onClick={() =>
+                              setInspectionDocumentTarget({
+                                meter: item.meter,
+                                scheduleId: item.id,
+                              })
+                            }
+                          >
+                            Analisar
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1633,6 +1657,19 @@ export function EntradaPanel({
             )}
           </section>
         </div>
+        {inspectionDocumentTarget ? (
+          <InspectionDocumentAnalysisModal
+            meter={inspectionDocumentTarget.meter}
+            scheduleId={inspectionDocumentTarget.scheduleId}
+            onClose={() => setInspectionDocumentTarget(null)}
+            onDocumentsChanged={() => {
+              void loadInspectionPendencias()
+              void loadWeekMeters()
+              void loadData()
+              refreshTrailCounts()
+            }}
+          />
+        ) : null}
         {userProfileModal}
         {meterDetailModal}
       </>

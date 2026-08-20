@@ -649,6 +649,8 @@ export type MeterInspectionPendenciaRecord = {
   id: string
   meter: string
   installation: string
+  toi?: string
+  note?: string
   csd: string
   scheduledAt: string
   trailStep: string
@@ -658,6 +660,17 @@ export type MeterInspectionPendenciaRecord = {
   responsibleWorkSubtype: string | null
   missingToi: boolean
   missingComunicado: boolean
+  hasToi?: boolean
+  hasComunicado?: boolean
+  anyBlocked?: boolean
+  blockReasons?: string | null
+}
+
+export type MeterInspectionDocumentadoRecord = MeterInspectionPendenciaRecord & {
+  hasToi: boolean
+  hasComunicado: boolean
+  anyBlocked: boolean
+  blockReasons: string | null
 }
 
 export type MeterInspectionSummary = {
@@ -1586,6 +1599,7 @@ export const api = {
     return request<{
       pendencias: MeterInspectionPendenciaRecord[]
       pendingCount: number
+      documentados: MeterInspectionDocumentadoRecord[]
       byScheduleId: Record<string, MeterInspectionSummary>
     }>(`/api/meter-schedules/inspection-pendencias${queryString ? `?${queryString}` : ''}`)
   },
