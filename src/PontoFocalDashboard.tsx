@@ -202,15 +202,15 @@ export function PontoFocalDashboard({
       <section className="entrada-section ponto-focal-late-section" aria-label="Medidores atrasados">
         <div className="entrada-section-heading">
           <h3 className="entrada-section-title">Medidores atrasados</h3>
-          <p className="demm-analysis-summary">
-            {lateMeters.length === 0
-              ? 'Nenhum medidor atrasado neste momento.'
-              : `${lateMeters.length} atrasado(s)${
-                  pendingJustification
-                    ? ` · ${pendingJustification} sem justificativa`
-                    : ''
-                }`}
-          </p>
+          {lateMeters.length > 0 ? (
+            <p className="demm-analysis-summary">
+              {`${lateMeters.length} atrasado(s)${
+                pendingJustification
+                  ? ` · ${pendingJustification} sem justificativa`
+                  : ''
+              }`}
+            </p>
+          ) : null}
         </div>
 
         {lateMeters.length === 0 ? (
