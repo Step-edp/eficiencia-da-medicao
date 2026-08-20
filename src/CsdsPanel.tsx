@@ -46,6 +46,7 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingCsd, setEditingCsd] = useState<CsdRecord | null>(null)
   const [editCities, setEditCities] = useState<string[]>([])
+  const [editResponsibleUserId, setEditResponsibleUserId] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
@@ -100,6 +101,7 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
   const openEdit = (csd: CsdRecord) => {
     setEditingCsd(csd)
     setEditCities([...csd.cities])
+    setEditResponsibleUserId(csd.responsibleUserId ?? '')
     setFeedback(null)
     setShowForm(false)
   }
@@ -108,6 +110,24 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
     if (savingEdit) return
     setEditingCsd(null)
     setEditCities([])
+    setEditResponsibleUserId('')
+  }
+
+  const responsibleOptionsFor = (csd: CsdRecord): FieldTeamUserOption[] => {
+    if (
+      csd.responsibleUserId &&
+      !inspectors.some((user) => user.id === csd.responsibleUserId)
+    ) {
+      return [
+        {
+          id: csd.responsibleUserId,
+          name: csd.responsibleName?.trim() || 'Responsável atual',
+          registration: csd.responsibleRegistration ?? '',
+        },
+        ...inspectors,
+      ]
+    }
+    return inspectors
   }
 
   const toggleCreateCity = (city: string) => {
@@ -194,6 +214,7 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
     try {
       const { csd: updated } = await api.updateCsd(editingCsd.id, {
         cities: editCities,
+        responsibleUserId: editResponsibleUserId || null,
       })
       setCsds((prev) =>
         prev
@@ -202,17 +223,18 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
       )
       setFeedback({
         type: 'success',
-        message: `Cidades do CSD "${updated.name}" atualizadas.`,
+        message: `CSD "${updated.name}" atualizado.`,
       })
       setEditingCsd(null)
       setEditCities([])
+      setEditResponsibleUserId('')
     } catch (error) {
       setFeedback({
         type: 'error',
         message:
           error instanceof ApiError
             ? error.message
-            : 'Não foi possível atualizar as cidades.',
+            : 'Não foi possível atualizar o CSD.',
       })
     } finally {
       setSavingEdit(false)
@@ -220,14 +242,15 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
   }
 
   const handleAssignResponsible = async (csd: CsdRecord, nextUserId: string) => {
-    if (!nextUserId) return
+    const nextId = nextUserId.trim() || null
+    if (nextId === (csd.responsibleUserId ?? null)) return
 
     setUpdatingId(csd.id)
     setFeedback(null)
 
     try {
       const { csd: updated } = await api.updateCsd(csd.id, {
-        responsibleUserId: nextUserId,
+        responsibleUserId: nextId,
       })
       setCsds((prev) =>
         prev
@@ -236,7 +259,9 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
       )
       setFeedback({
         type: 'success',
-        message: `Responsável do CSD "${updated.name}" definido.`,
+        message: nextId
+          ? `Responsável do CSD "${updated.name}" atualizado.`
+          : `Responsável do CSD "${updated.name}" removido. O CSD ficou pendente.`,
       })
     } catch (error) {
       setFeedback({
@@ -261,6 +286,7 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
       if (editingCsd?.id === csd.id) {
         setEditingCsd(null)
         setEditCities([])
+        setEditResponsibleUserId('')
       }
       setFeedback({ type: 'success', message: `CSD "${csd.name}" excluído.` })
     } catch (error) {
@@ -339,6 +365,7 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
               setShowForm((open) => !open)
               setEditingCsd(null)
               setEditCities([])
+              setEditResponsibleUserId('')
               setFeedback(null)
             }}
           >
@@ -452,16 +479,33 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
               </svg>
             </button>
 
-            <h3 id="csds-edit-title">Editar cidades</h3>
+            <h3 id="csds-edit-title">Editar CSD</h3>
             <p className="csds-form-hint">
-              {editingCsd.name}. Marque ou desmarque cidades. Cidades já vinculadas a
-              outro CSD não podem ser atribuídas.
+              {editingCsd.name}. Altere o responsável e as cidades. Cidades já
+              vinculadas a outro CSD não podem ser atribuídas.
             </p>
 
             <form
-              className="csds-edit-form"
+              className="form-grid csds-edit-form"
               onSubmit={(event) => void handleSaveEdit(event)}
             >
+              <label className="full-width">
+                Responsável
+                <select
+                  value={editResponsibleUserId}
+                  onChange={(event) => setEditResponsibleUserId(event.target.value)}
+                  disabled={savingEdit}
+                >
+                  <option value="">Sem responsável — pendente</option>
+                  {responsibleOptionsFor(editingCsd).map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                      {user.registration ? ` (${user.registration})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <fieldset className="csds-cities-fieldset">
                 <legend>Cidades</legend>
                 {renderCitiesGrid(editCities, toggleEditCity, {
@@ -483,7 +527,7 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
                   className="primary-button"
                   disabled={savingEdit}
                 >
-                  {savingEdit ? 'Salvando...' : 'Salvar cidades'}
+                  {savingEdit ? 'Salvando...' : 'Salvar alterações'}
                 </button>
               </div>
             </form>
@@ -528,37 +572,45 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
                     <td>{csd.address}</td>
                     <td>{csd.cities.length > 0 ? csd.cities.join(', ') : '—'}</td>
                     <td>
-                      {isPending && !readOnly ? (
+                      {readOnly ? (
+                        csd.responsibleName ? (
+                          <>
+                            {csd.responsibleName}
+                            <span className="csds-responsible-registration">
+                              {' '}
+                              ({csd.responsibleRegistration})
+                            </span>
+                          </>
+                        ) : (
+                          '—'
+                        )
+                      ) : (
                         <select
                           className="csds-assign-select"
-                          value=""
-                          disabled={updatingId === csd.id || inspectors.length === 0}
+                          value={csd.responsibleUserId ?? ''}
+                          disabled={
+                            updatingId === csd.id ||
+                            (inspectors.length === 0 && !csd.responsibleUserId)
+                          }
                           onChange={(event) =>
                             void handleAssignResponsible(csd, event.target.value)
                           }
-                          aria-label={`Definir responsável do ${csd.name}`}
+                          aria-label={`Trocar responsável do ${csd.name}`}
                         >
                           <option value="">
                             {updatingId === csd.id
                               ? 'Salvando...'
-                              : 'Definir responsável...'}
+                              : isPending
+                                ? 'Definir responsável...'
+                                : 'Sem responsável — pendente'}
                           </option>
-                          {inspectors.map((user) => (
+                          {responsibleOptionsFor(csd).map((user) => (
                             <option key={user.id} value={user.id}>
-                              {user.name} ({user.registration})
+                              {user.name}
+                              {user.registration ? ` (${user.registration})` : ''}
                             </option>
                           ))}
                         </select>
-                      ) : csd.responsibleName ? (
-                        <>
-                          {csd.responsibleName}
-                          <span className="csds-responsible-registration">
-                            {' '}
-                            ({csd.responsibleRegistration})
-                          </span>
-                        </>
-                      ) : (
-                        '—'
                       )}
                     </td>
                     <td>
@@ -569,8 +621,8 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
                         <button
                           type="button"
                           className="csds-icon-button"
-                          aria-label={`Editar cidades do ${csd.name}`}
-                          title="Editar cidades"
+                          aria-label={`Editar ${csd.name}`}
+                          title="Editar CSD"
                           onClick={() => openEdit(csd)}
                         >
                           <PencilIcon />
