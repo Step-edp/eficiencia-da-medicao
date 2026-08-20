@@ -927,6 +927,7 @@ export async function migrate() {
   await query(`
     ALTER TABLE meter_schedules
       ADD COLUMN IF NOT EXISTS delay_dismissed_at TIMESTAMPTZ,
-      ADD COLUMN IF NOT EXISTS delay_dismissed_by TEXT;
+      ADD COLUMN IF NOT EXISTS delay_dismissed_by TEXT,
+      ADD COLUMN IF NOT EXISTS delay_dismissed_days INTEGER;
   `)
 }

@@ -59,6 +59,7 @@ type MeterScheduleRow = {
   delay_justification?: string | null
   delay_dismissed_at?: Date | null
   delay_dismissed_by?: string | null
+  delay_dismissed_days?: number | null
 }
 
 function mapMeterSchedule(row: MeterScheduleRow) {
@@ -1061,13 +1062,17 @@ export async function dismissDelayMeter(req: Request, res: Response) {
     }
   }
 
+  const deadline = lastFridayBeforeAssay(row.scheduled_at)
+  const frozenDaysLate = calendarDaysBetween(deadline, new Date())
+
   const updated = await query<MeterScheduleRow>(
     `UPDATE meter_schedules
      SET delay_dismissed_at = NOW(),
-         delay_dismissed_by = $2
+         delay_dismissed_by = $2,
+         delay_dismissed_days = $3
      WHERE id = $1
      RETURNING *, scheduling_date::text AS scheduling_date`,
-    [id, req.user?.id ?? null],
+    [id, req.user?.id ?? null, frozenDaysLate],
   )
 
   const schedule = mapMeterSchedule({
@@ -1150,11 +1155,13 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
     entry_at: Date | null
     delay_justification: string | null
     delay_dismissed_at: Date | null
+    delay_dismissed_days: number | null
   }>(
     `SELECT ms.id, ms.meter, ms.installation, ms.toi, ms.note, ms.csd,
             ms.scheduled_at, ms.trail_step, ms.created_at,
             COALESCE(ms.delay_justification, '') AS delay_justification,
             ms.delay_dismissed_at,
+            ms.delay_dismissed_days,
             d.created_at AS entry_at
      FROM meter_schedules ms
      LEFT JOIN LATERAL (
@@ -1240,10 +1247,13 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
       now,
     })
     if (currentlyLate) {
-      late += 1
-      const daysLate = calendarDaysBetween(deadline, now)
-      delayDaysSamples.push(daysLate)
-      bumpMonth(monthKey, 'late')
+      const frozenDays =
+        row.delay_dismissed_days != null
+          ? Number(row.delay_dismissed_days)
+          : row.delay_dismissed_at
+            ? calendarDaysBetween(deadline, row.delay_dismissed_at)
+            : null
+      const daysLate = frozenDays ?? calendarDaysBetween(deadline, now)
       const lateRecord = {
         id: row.id,
         meter: row.meter,
@@ -1261,6 +1271,9 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
       if (row.delay_dismissed_at) {
         dismissedLateMeters.push(lateRecord)
       } else {
+        late += 1
+        delayDaysSamples.push(daysLate)
+        bumpMonth(monthKey, 'late')
         lateMeters.push(lateRecord)
       }
     } else {
