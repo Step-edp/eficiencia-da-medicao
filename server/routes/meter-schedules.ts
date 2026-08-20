@@ -1021,9 +1021,9 @@ export async function dismissDelayMeter(req: Request, res: Response) {
     return
   }
 
-  if ((row.delay_justification ?? '').trim()) {
+  if (!(row.delay_justification ?? '').trim()) {
     res.status(400).json({
-      error: 'Não é possível excluir um medidor atrasado que já tem justificativa.',
+      error: 'Informe a justificativa antes de excluir o medidor da lista.',
     })
     return
   }

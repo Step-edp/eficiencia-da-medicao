@@ -105,7 +105,7 @@ export function PontoFocalDashboard({
   }
 
   const handleDismissMeter = async (meter: PontoFocalLateMeter) => {
-    if (meter.delayJustification) return
+    if (!meter.delayJustification) return
     setDeletingId(meter.id)
     setFeedback(null)
     try {
@@ -332,17 +332,17 @@ export function PontoFocalDashboard({
                           <button
                             type="button"
                             className="entrada-demm-delete-button"
-                            disabled={justified || deletingId === item.id || savingId === item.id}
+                            disabled={!justified || deletingId === item.id || savingId === item.id}
                             onClick={() => void handleDismissMeter(item)}
                             aria-label={
                               justified
-                                ? `Não é possível excluir o medidor ${item.meter} com justificativa`
-                                : `Excluir medidor ${item.meter} da lista de atrasos`
+                                ? `Excluir medidor ${item.meter} da lista de atrasos`
+                                : `Informe a justificativa antes de excluir o medidor ${item.meter}`
                             }
                             title={
                               justified
-                                ? 'Não é possível excluir com justificativa'
-                                : 'Excluir'
+                                ? 'Excluir'
+                                : 'Informe a justificativa antes de excluir'
                             }
                           >
                             <svg viewBox="0 0 24 24" aria-hidden="true">
