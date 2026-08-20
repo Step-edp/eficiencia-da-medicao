@@ -5149,6 +5149,7 @@ function HomePanel({
               />
             ) : (
               <FieldTeamConsultarPanel
+                hideInspectionImport={isLavraturaPontoFocalScope(activeFieldTeamSubtype)}
                 scopeUserId={
                   isAdmin && previewUser && isLavraturaPontoFocalScope(previewUser.workSubtype)
                     ? previewUser.id

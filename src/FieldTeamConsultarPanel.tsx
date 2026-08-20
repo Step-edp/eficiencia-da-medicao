@@ -10,6 +10,8 @@ type FieldTeamSchedulesPanelProps = {
   mode?: 'all' | 'mine'
   /** Admin "Ver como": aplica o escopo CSD deste usuário no Consultar. */
   scopeUserId?: string
+  /** Ponto Focal importa documentos só em Enviar documentos. */
+  hideInspectionImport?: boolean
 }
 
 type EnvelopePreview = {
@@ -271,6 +273,7 @@ function ScheduleDetailModal({ schedule, onClose, onPreviewEnvelope }: ScheduleD
 export function FieldTeamConsultarPanel({
   mode = 'all',
   scopeUserId,
+  hideInspectionImport = false,
 }: FieldTeamSchedulesPanelProps) {
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -577,27 +580,34 @@ export function FieldTeamConsultarPanel({
                         {inspectionStatusShortLabel(summary)}
                       </span>
                       <div className="table-inspection-actions__buttons">
-                        <input
-                          id={`consultar-inspection-${item.id}`}
-                          type="file"
-                          accept="application/pdf,.pdf"
-                          className="file-picker-input"
-                          disabled={uploadingInspectionId === item.id}
-                          onChange={(event) => {
-                            const file = event.target.files?.[0]
-                            event.target.value = ''
-                            if (file) {
-                              void handleUploadInspectionDocument({ id: item.id, meter: item.meter }, file)
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={`consultar-inspection-${item.id}`}
-                          className="file-picker-button"
-                          title="Importar documento de inspeção"
-                        >
-                          {uploadingInspectionId === item.id ? 'Enviando...' : 'Importar'}
-                        </label>
+                        {hideInspectionImport ? null : (
+                          <>
+                            <input
+                              id={`consultar-inspection-${item.id}`}
+                              type="file"
+                              accept="application/pdf,.pdf"
+                              className="file-picker-input"
+                              disabled={uploadingInspectionId === item.id}
+                              onChange={(event) => {
+                                const file = event.target.files?.[0]
+                                event.target.value = ''
+                                if (file) {
+                                  void handleUploadInspectionDocument(
+                                    { id: item.id, meter: item.meter },
+                                    file,
+                                  )
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor={`consultar-inspection-${item.id}`}
+                              className="file-picker-button"
+                              title="Importar documento de inspeção"
+                            >
+                              {uploadingInspectionId === item.id ? 'Enviando...' : 'Importar'}
+                            </label>
+                          </>
+                        )}
                         {summary?.hasToi || summary?.hasComunicado ? (
                           <button
                             type="button"
