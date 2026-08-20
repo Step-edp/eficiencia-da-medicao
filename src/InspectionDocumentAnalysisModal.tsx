@@ -98,6 +98,8 @@ export function InspectionDocumentAnalysisModal({
   const [deleteBlockedReason, setDeleteBlockedReason] = useState<string | null>(null)
   const [registeredMeter, setRegisteredMeter] = useState(meter)
   const [registeredLacre, setRegisteredLacre] = useState<string | null>(null)
+  const [registeredCoverSeal, setRegisteredCoverSeal] = useState<string | null>(null)
+  const [registeredReading, setRegisteredReading] = useState<string | null>(null)
   const [deletingDocType, setDeletingDocType] = useState<InspectionDocumentType | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
@@ -114,6 +116,8 @@ export function InspectionDocumentAnalysisModal({
       setDeleteBlockedReason(response.deleteBlockedReason)
       setRegisteredMeter(response.meter)
       setRegisteredLacre(response.registeredLacre)
+      setRegisteredCoverSeal(response.registeredCoverSeal)
+      setRegisteredReading(response.registeredReading)
     } catch {
       setDocuments([])
       setComplete(false)
@@ -121,6 +125,8 @@ export function InspectionDocumentAnalysisModal({
       setDeleteBlockedReason(null)
       setRegisteredMeter(meter)
       setRegisteredLacre(null)
+      setRegisteredCoverSeal(null)
+      setRegisteredReading(null)
     } finally {
       setLoading(false)
     }
@@ -244,6 +250,18 @@ export function InspectionDocumentAnalysisModal({
                     documentValue={document.extractedLacre}
                     registeredValue={document.registeredLacre ?? registeredLacre}
                     matches={document.lacreMatches}
+                  />
+                  <ComparisonField
+                    label="Lacre da tampa"
+                    documentValue={document.extractedCoverSeal}
+                    registeredValue={document.registeredCoverSeal ?? registeredCoverSeal}
+                    matches={document.coverSealMatches}
+                  />
+                  <ComparisonField
+                    label="Leitura"
+                    documentValue={document.extractedReading}
+                    registeredValue={document.registeredReading ?? registeredReading}
+                    matches={document.readingMatches}
                   />
                   {document.blockReason ? (
                     <div className="user-detail-full">

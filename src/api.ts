@@ -603,10 +603,16 @@ export type InspectionDocumentRecord = {
   fileName: string
   extractedMeter: string | null
   extractedLacre: string | null
+  extractedCoverSeal?: string | null
+  extractedReading?: string | null
   registeredMeter?: string | null
   registeredLacre?: string | null
+  registeredCoverSeal?: string | null
+  registeredReading?: string | null
   meterMatches?: boolean | null
   lacreMatches?: boolean | null
+  coverSealMatches?: boolean | null
+  readingMatches?: boolean | null
   blocked: boolean
   blockReason: string | null
   createdAt: string
@@ -1559,6 +1565,8 @@ export const api = {
     request<{
       meter: string
       registeredLacre: string | null
+      registeredCoverSeal: string | null
+      registeredReading: string | null
       meterScheduleId: string
       documents: InspectionDocumentRecord[]
       complete: boolean

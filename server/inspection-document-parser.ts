@@ -43,6 +43,8 @@ const CSM_LACRE_PATTERN = /lacre(?:\(s\))?\s*n[^0-9]{0,4}\(?s?\)?\s*:?\s*(\d{6,1
 const CSM_TOI_REF_PATTERN = /toi\s*n[^0-9]{0,4}(\d{6,12})/i
 const CSM_COMUNICADO_START = /comunicado\s+de\s+substitui/i
 const CSM_MEDIDOR_NUMBER = /do\s*medidor\s*:?\s*(\d{7,9})/gi
+const READING_LABEL_PATTERN = /leitura(?:\s+kwh)?/i
+const READING_VALUE_PATTERN = /\b\d{1,10}\b/
 
 function normalizeInspectionText(text: string): string {
   return text.replace(/\s+/g, ' ').trim()
@@ -109,6 +111,8 @@ type TextItem = {
 export type InspectionDocumentParseResult = {
   meterEncontrado: string | null
   lacre: string | null
+  coverSeal: string | null
+  reading: string | null
   installation: string | null
   toi: string | null
   note: string | null
@@ -192,6 +196,49 @@ function extractComunicadoToiRef(text: string): string | null {
   return text.match(CSM_TOI_REF_PATTERN)?.[1] ?? null
 }
 
+function extractSelagemSection(text: string): string | null {
+  const startMatch = text.match(DADOS_MEDICAO_END)
+  if (startMatch?.index === undefined) return null
+  const from = startMatch.index + startMatch[0].length
+  const endMatch = text.slice(from).match(/7\s*\.|observa[cç]/i)
+  const to = endMatch?.index !== undefined ? from + endMatch.index : from + 1200
+  return text.slice(from, to)
+}
+
+function extractCoverSeal(text: string): string | null {
+  const section = extractSelagemSection(text)
+  if (!section) return null
+
+  const labeled = section.match(
+    /lacre(?:\(s\))?\s*(?:da\s+)?tampa[\s\S]{0,100}?(\d{4,12})/i,
+  )?.[1]
+  if (labeled) return labeled
+
+  const reverse = section.match(/tampa[\s\S]{0,100}?lacre[\s\S]{0,60}?(\d{4,12})/i)?.[1]
+  return reverse ?? null
+}
+
+function extractReading(text: string): string | null {
+  const startMatch = text.match(DADOS_MEDICAO_START)
+  if (startMatch?.index !== undefined) {
+    const from = startMatch.index + startMatch[0].length
+    const endMatch = text.slice(from).match(DADOS_MEDICAO_END)
+    const to = endMatch?.index !== undefined ? from + endMatch.index : from + 1200
+    const section = text.slice(from, to)
+    const labeled = extractAfterLabel(section, READING_LABEL_PATTERN, null, READING_VALUE_PATTERN)
+    if (labeled) return labeled
+  }
+
+  const comunicadoStart = text.search(CSM_COMUNICADO_START)
+  if (comunicadoStart >= 0) {
+    const section = text.slice(comunicadoStart, comunicadoStart + 2500)
+    const leituras = [...section.matchAll(/leitura(?:\s+kwh)?\s*:?\s*(\d{1,10})/gi)]
+    if (leituras[0]?.[1]) return leituras[0][1]
+  }
+
+  return null
+}
+
 function extractToiNumber(text: string): string | null {
   return (
     extractAfterLabel(normalizedSlice(text), TOI_LABEL_PATTERN, DADOS_MEDICAO_START, TOI_VALUE_PATTERN) ??
@@ -237,6 +284,8 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
   return {
     meterEncontrado,
     lacre,
+    coverSeal: extractCoverSeal(normalized),
+    reading: extractReading(normalized),
     installation: extractAfterLabel(
       normalized,
       INSTALLATION_LABEL_PATTERN,

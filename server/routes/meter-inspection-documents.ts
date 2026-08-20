@@ -30,6 +30,8 @@ type InspectionDocumentRow = {
   file_data: Buffer
   extracted_meter: string | null
   extracted_lacre: string | null
+  extracted_cover_seal: string | null
+  extracted_reading: string | null
   extracted_installation: string | null
   extracted_toi: string | null
   extracted_note: string | null
@@ -144,6 +146,19 @@ function compareSeal(extracted: string | null, registered: string | null): boole
   return documentValue === registeredValue
 }
 
+function normalizeReading(value: string | null | undefined): string | null {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  if (!digits) return null
+  return digits.replace(/^0+/, '') || '0'
+}
+
+function compareReading(extracted: string | null, registered: string | null): boolean | null {
+  const documentValue = normalizeReading(extracted)
+  const registeredValue = normalizeReading(registered)
+  if (!documentValue || !registeredValue) return null
+  return documentValue === registeredValue
+}
+
 function normalizeEntryValue(value: string | null | undefined): string | null {
   const trimmed = value?.trim()
   if (!trimmed) return null
@@ -183,6 +198,8 @@ function pickToiExtractionRow(
     Pick<
       InspectionDocumentRow,
       | 'doc_type'
+      | 'extracted_cover_seal'
+      | 'extracted_reading'
       | 'extracted_installation'
       | 'extracted_toi'
       | 'extracted_note'
@@ -206,6 +223,8 @@ export type InspectionSummary = {
 type ScheduleForInspectionAggregate = {
   meter: string
   envelope_seal: string | null
+  cover_seal: string | null
+  meter_reading: string | null
   installation: string
   toi: string
   note: string
@@ -217,6 +236,8 @@ type DocumentForInspectionAggregate = Pick<
   | 'doc_type'
   | 'extracted_meter'
   | 'extracted_lacre'
+  | 'extracted_cover_seal'
+  | 'extracted_reading'
   | 'extracted_installation'
   | 'extracted_toi'
   | 'extracted_note'
@@ -275,6 +296,19 @@ export function aggregateInspectionForSchedule(
         reasons.push(`${label} no documento diverge do cadastrado.`)
       }
     }
+
+    if (
+      schedule.cover_seal?.trim() &&
+      compareSeal(extraction.extracted_cover_seal, schedule.cover_seal) === false
+    ) {
+      reasons.push('Lacre da tampa no documento diverge do cadastrado.')
+    }
+    if (
+      schedule.meter_reading?.trim() &&
+      compareReading(extraction.extracted_reading, schedule.meter_reading) === false
+    ) {
+      reasons.push('Leitura no documento diverge do cadastrada.')
+    }
   }
 
   const uniqueReasons = [...new Set(reasons)]
@@ -299,6 +333,8 @@ export async function loadInspectionSummariesByNorm(
     id: string
     meter: string
     envelope_seal: string | null
+    cover_seal: string | null
+    meter_reading: string | null
     installation: string
     toi: string
     note: string
@@ -307,6 +343,8 @@ export async function loadInspectionSummariesByNorm(
     doc_type: InspectionDocumentType | null
     extracted_meter: string | null
     extracted_lacre: string | null
+    extracted_cover_seal: string | null
+    extracted_reading: string | null
     extracted_installation: string | null
     extracted_toi: string | null
     extracted_note: string | null
@@ -315,6 +353,8 @@ export async function loadInspectionSummariesByNorm(
             ms.id,
             ms.meter,
             ms.envelope_seal,
+            ms.cover_seal,
+            ms.meter_reading,
             ms.installation,
             ms.toi,
             ms.note,
@@ -323,6 +363,8 @@ export async function loadInspectionSummariesByNorm(
             d.doc_type,
             d.extracted_meter,
             d.extracted_lacre,
+            d.extracted_cover_seal,
+            d.extracted_reading,
             d.extracted_installation,
             d.extracted_toi,
             d.extracted_note
@@ -350,6 +392,8 @@ export async function loadInspectionSummariesByNorm(
         schedule: {
           meter: row.meter,
           envelope_seal: row.envelope_seal,
+          cover_seal: row.cover_seal,
+          meter_reading: row.meter_reading,
           installation: row.installation,
           toi: row.toi,
           note: row.note,
@@ -365,6 +409,8 @@ export async function loadInspectionSummariesByNorm(
         doc_type: row.doc_type,
         extracted_meter: row.extracted_meter,
         extracted_lacre: row.extracted_lacre,
+        extracted_cover_seal: row.extracted_cover_seal,
+        extracted_reading: row.extracted_reading,
         extracted_installation: row.extracted_installation,
         extracted_toi: row.extracted_toi,
         extracted_note: row.extracted_note,
@@ -614,12 +660,14 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     id: string
     meter: string
     envelope_seal: string
+    cover_seal: string
+    meter_reading: string
     installation: string
     toi: string
     note: string
     source: string
   }>(
-    `SELECT id, meter, envelope_seal, installation, toi, note, source FROM meter_schedules WHERE id = $1`,
+    `SELECT id, meter, envelope_seal, cover_seal, meter_reading, installation, toi, note, source FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
   if (!schedule.rows[0]) {
@@ -667,6 +715,8 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   let evaluation: InspectionEvaluation = { blocked: false, reason: null }
   let extractedMeter: string | null = null
   let extractedLacre: string | null = null
+  let extractedCoverSeal: string | null = null
+  let extractedReading: string | null = null
   let extractedInstallation: string | null = null
   let extractedToi: string | null = null
   let extractedNote: string | null = null
@@ -675,6 +725,8 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     const parsed = parseInspectionText(text)
     extractedMeter = parsed.meterEncontrado
     extractedLacre = parsed.lacre
+    extractedCoverSeal = parsed.coverSeal
+    extractedReading = parsed.reading
     extractedInstallation = parsed.installation
     extractedToi = parsed.toi
     extractedNote = parsed.note
@@ -691,15 +743,18 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   const insert = await query<Omit<InspectionDocumentRow, 'created_by_registration'>>(
     `INSERT INTO meter_inspection_documents (
       id, meter_schedule_id, doc_type, file_name, file_data,
-      extracted_meter, extracted_lacre, extracted_installation, extracted_toi, extracted_note,
+      extracted_meter, extracted_lacre, extracted_cover_seal, extracted_reading,
+      extracted_installation, extracted_toi, extracted_note,
       blocked, block_reason, created_by_user_id
     )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
      ON CONFLICT (meter_schedule_id, doc_type) DO UPDATE SET
        file_name = EXCLUDED.file_name,
        file_data = EXCLUDED.file_data,
        extracted_meter = EXCLUDED.extracted_meter,
        extracted_lacre = EXCLUDED.extracted_lacre,
+       extracted_cover_seal = EXCLUDED.extracted_cover_seal,
+       extracted_reading = EXCLUDED.extracted_reading,
        extracted_installation = EXCLUDED.extracted_installation,
        extracted_toi = EXCLUDED.extracted_toi,
        extracted_note = EXCLUDED.extracted_note,
@@ -708,6 +763,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
        created_at = NOW(),
        created_by_user_id = EXCLUDED.created_by_user_id
      RETURNING id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_lacre,
+               extracted_cover_seal, extracted_reading,
                extracted_installation, extracted_toi, extracted_note,
                blocked, block_reason, created_at, created_by_user_id`,
     [
@@ -718,6 +774,8 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
       fileBuffer,
       extractedMeter,
       extractedLacre,
+      extractedCoverSeal,
+      extractedReading,
       extractedInstallation,
       extractedToi,
       extractedNote,
@@ -732,7 +790,8 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
   const documentScheduleIds = scheduleIds.length ? scheduleIds : [meterScheduleId]
   const allDocuments = await query<DocumentForInspectionAggregate>(
-    `SELECT doc_type, extracted_meter, extracted_lacre, extracted_installation, extracted_toi, extracted_note
+    `SELECT doc_type, extracted_meter, extracted_lacre, extracted_cover_seal, extracted_reading,
+            extracted_installation, extracted_toi, extracted_note
      FROM meter_inspection_documents
      WHERE meter_schedule_id = ANY($1::text[])`,
     [documentScheduleIds],
@@ -741,6 +800,8 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
 
   const registeredMeter = schedule.rows[0].meter
   const registeredLacre = schedule.rows[0].envelope_seal || null
+  const registeredCoverSeal = schedule.rows[0].cover_seal || null
+  const registeredReading = schedule.rows[0].meter_reading || null
 
   const document = {
     id: insert.rows[0].id,
@@ -749,10 +810,16 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     fileName: insert.rows[0].file_name,
     extractedMeter: insert.rows[0].extracted_meter,
     extractedLacre: insert.rows[0].extracted_lacre,
+    extractedCoverSeal: insert.rows[0].extracted_cover_seal,
+    extractedReading: insert.rows[0].extracted_reading,
     registeredMeter,
     registeredLacre,
+    registeredCoverSeal,
+    registeredReading,
     meterMatches: compareMeter(insert.rows[0].extracted_meter, registeredMeter),
     lacreMatches: compareSeal(insert.rows[0].extracted_lacre, registeredLacre),
+    coverSealMatches: compareSeal(insert.rows[0].extracted_cover_seal, registeredCoverSeal),
+    readingMatches: compareReading(insert.rows[0].extracted_reading, registeredReading),
     blocked: aggregate.anyBlocked,
     blockReason: aggregate.blockReasons,
     createdAt: insert.rows[0].created_at.toISOString(),
@@ -780,6 +847,8 @@ function mapInspectionDocumentRow(
   registration: string | null = null,
   registeredMeter: string | null = null,
   registeredLacre: string | null = null,
+  registeredCoverSeal: string | null = null,
+  registeredReading: string | null = null,
 ) {
   const evaluation =
     (row.doc_type === 'toi' || row.doc_type === 'ambos') && registeredMeter
@@ -798,10 +867,16 @@ function mapInspectionDocumentRow(
     fileName: row.file_name,
     extractedMeter: row.extracted_meter,
     extractedLacre: row.extracted_lacre,
+    extractedCoverSeal: row.extracted_cover_seal,
+    extractedReading: row.extracted_reading,
     registeredMeter,
     registeredLacre,
+    registeredCoverSeal,
+    registeredReading,
     meterMatches: compareMeter(row.extracted_meter, registeredMeter),
     lacreMatches: compareSeal(row.extracted_lacre, registeredLacre),
+    coverSealMatches: compareSeal(row.extracted_cover_seal, registeredCoverSeal),
+    readingMatches: compareReading(row.extracted_reading, registeredReading),
     blocked: evaluation.blocked,
     blockReason: evaluation.reason,
     createdAt: row.created_at.toISOString(),
@@ -813,8 +888,14 @@ function mapInspectionDocumentRow(
 export async function listInspectionDocuments(req: Request, res: Response) {
   const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
 
-  const schedule = await query<{ id: string; meter: string; envelope_seal: string }>(
-    `SELECT id, meter, envelope_seal FROM meter_schedules WHERE id = $1`,
+  const schedule = await query<{
+    id: string
+    meter: string
+    envelope_seal: string
+    cover_seal: string
+    meter_reading: string
+  }>(
+    `SELECT id, meter, envelope_seal, cover_seal, meter_reading FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
   if (!schedule.rows[0]) {
@@ -824,12 +905,15 @@ export async function listInspectionDocuments(req: Request, res: Response) {
 
   const registeredMeter = schedule.rows[0].meter
   const registeredLacre = schedule.rows[0].envelope_seal || null
+  const registeredCoverSeal = schedule.rows[0].cover_seal || null
+  const registeredReading = schedule.rows[0].meter_reading || null
   const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
   const documentScheduleIds = scheduleIds.length ? scheduleIds : [meterScheduleId]
 
   const result = await query<Omit<InspectionDocumentRow, 'file_data'>>(
     `SELECT DISTINCT ON (doc_type)
             id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_lacre,
+            extracted_cover_seal, extracted_reading,
             extracted_installation, extracted_toi, extracted_note,
             blocked, block_reason, created_at, created_by_user_id
      FROM meter_inspection_documents
@@ -848,9 +932,18 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   res.json({
     meter: registeredMeter,
     registeredLacre,
+    registeredCoverSeal,
+    registeredReading,
     meterScheduleId,
     documents: result.rows.map((row) =>
-      mapInspectionDocumentRow(row, null, registeredMeter, registeredLacre),
+      mapInspectionDocumentRow(
+        row,
+        null,
+        registeredMeter,
+        registeredLacre,
+        registeredCoverSeal,
+        registeredReading,
+      ),
     ),
     complete: presence.complete,
     hasToi: presence.hasToi,
@@ -896,10 +989,16 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
   const documents = await query<
     Pick<
       InspectionDocumentRow,
-      'doc_type' | 'extracted_installation' | 'extracted_toi' | 'extracted_note'
+      | 'doc_type'
+      | 'extracted_cover_seal'
+      | 'extracted_reading'
+      | 'extracted_installation'
+      | 'extracted_toi'
+      | 'extracted_note'
     >
   >(
-    `SELECT doc_type, extracted_installation, extracted_toi, extracted_note
+    `SELECT doc_type, extracted_cover_seal, extracted_reading,
+            extracted_installation, extracted_toi, extracted_note
      FROM meter_inspection_documents
      WHERE meter_schedule_id = $1`,
     [meterScheduleId],
@@ -991,6 +1090,8 @@ export async function listInspectionPendencias(_req: Request, res: Response) {
     scheduled_at: Date
     trail_step: string
     envelope_seal: string | null
+    cover_seal: string | null
+    meter_reading: string | null
     toi: string
     note: string
     source: string
@@ -1006,6 +1107,8 @@ export async function listInspectionPendencias(_req: Request, res: Response) {
             ms.scheduled_at,
             ms.trail_step,
             ms.envelope_seal,
+            ms.cover_seal,
+            ms.meter_reading,
             ms.toi,
             ms.note,
             ms.source,
@@ -1033,6 +1136,7 @@ export async function listInspectionPendencias(_req: Request, res: Response) {
         }
       >(
         `SELECT meter_schedule_id, doc_type, extracted_meter, extracted_lacre,
+                extracted_cover_seal, extracted_reading,
                 extracted_installation, extracted_toi, extracted_note
          FROM meter_inspection_documents
          WHERE meter_schedule_id = ANY($1::text[])`,

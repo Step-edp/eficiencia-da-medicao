@@ -895,4 +895,16 @@ export async function migrate() {
     ALTER TABLE meter_schedules
       ADD COLUMN IF NOT EXISTS received_at TIMESTAMPTZ;
   `)
+
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS cover_seal TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS meter_reading TEXT NOT NULL DEFAULT '';
+  `)
+
+  await query(`
+    ALTER TABLE meter_inspection_documents
+      ADD COLUMN IF NOT EXISTS extracted_cover_seal TEXT,
+      ADD COLUMN IF NOT EXISTS extracted_reading TEXT;
+  `)
 }
