@@ -120,6 +120,10 @@ function formatWeekLabel(dateKey: string) {
   return `${day}/${month}`
 }
 
+function hasWpaDocument(item: MeterInspectionDocumentadoRecord) {
+  return Boolean(item.hasToi || item.hasComunicado)
+}
+
 function wpaDocumentationLabel(item: MeterInspectionDocumentadoRecord) {
   if (item.anyBlocked) return item.blockReasons || 'Bloqueado'
   if (item.hasToi && item.hasComunicado) return 'TOI + CSM'
@@ -699,6 +703,7 @@ export function EntradaPanel({
     MeterInspectionPendenciaRecord[]
   >([])
   const [wpaMeters, setWpaMeters] = useState<MeterInspectionDocumentadoRecord[]>([])
+  const [wpaMetersLoading, setWpaMetersLoading] = useState(false)
   const [inspectionPendenciasLoading, setInspectionPendenciasLoading] = useState(false)
   const [uploadingInspectionId, setUploadingInspectionId] = useState<string | null>(null)
   const [receivingMeter, setReceivingMeter] = useState<string | null>(null)
@@ -899,12 +904,6 @@ export function EntradaPanel({
     }
   }
 
-  const openMetersBase = () => {
-    setView('metersBase')
-    setFeedback(null)
-    void loadInspectionPendencias()
-  }
-
   const loadCsdPendencias = useCallback(async () => {
     setCsdPendenciasLoading(true)
     try {
@@ -959,7 +958,6 @@ export function EntradaPanel({
     try {
       const response = await api.listInspectionPendencias()
       setInspectionPendencias(response.pendencias)
-      setWpaMeters(response.documentados ?? [])
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -972,6 +970,30 @@ export function EntradaPanel({
       setInspectionPendenciasLoading(false)
     }
   }, [])
+
+  const loadWpaMeters = useCallback(async () => {
+    setWpaMetersLoading(true)
+    try {
+      const response = await api.listWpaAnalysisMeters()
+      setWpaMeters((response.meters ?? []).filter(hasWpaDocument))
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar os medidores com documento para análise WPA.',
+      })
+    } finally {
+      setWpaMetersLoading(false)
+    }
+  }, [])
+
+  const openMetersBase = () => {
+    setView('metersBase')
+    setFeedback(null)
+    void loadWpaMeters()
+  }
 
   const openInspectionPendencias = () => {
     setView('inspectionPendencias')
@@ -1041,6 +1063,7 @@ export function EntradaPanel({
       )
 
       void loadInspectionPendencias()
+      void loadWpaMeters()
       void loadWeekMeters()
       void loadData()
       refreshTrailCounts()
@@ -1157,6 +1180,7 @@ export function EntradaPanel({
       loadData(),
       loadCsdPendencias(),
       loadInspectionPendencias(),
+      loadWpaMeters(),
       loadWeekMeters(),
     ])
   }
@@ -1165,8 +1189,9 @@ export function EntradaPanel({
     void loadData()
     void loadCsdPendencias()
     void loadInspectionPendencias()
+    void loadWpaMeters()
     void loadWeekMeters()
-  }, [loadData, loadCsdPendencias, loadInspectionPendencias, loadWeekMeters])
+  }, [loadData, loadCsdPendencias, loadInspectionPendencias, loadWpaMeters, loadWeekMeters])
 
   const renderFixedFeedback = () =>
     feedback ? (
@@ -1572,6 +1597,8 @@ export function EntradaPanel({
   }
 
   if (view === 'metersBase') {
+    const documentedMeters = wpaMeters.filter(hasWpaDocument)
+
     return (
       <>
         <div className="entrada-panel">
@@ -1583,15 +1610,15 @@ export function EntradaPanel({
             <div className="entrada-section-heading">
               <h3 className="entrada-section-title">Análise WPA</h3>
               <p className="demm-analysis-summary">
-                {inspectionPendenciasLoading && wpaMeters.length === 0
+                {wpaMetersLoading && documentedMeters.length === 0
                   ? 'Carregando medidores...'
-                  : `${wpaMeters.length} medidor(es) com documentação para análise`}
+                  : `${documentedMeters.length} medidor(es) com documento anexado`}
               </p>
             </div>
 
-            {inspectionPendenciasLoading && wpaMeters.length === 0 ? (
+            {wpaMetersLoading && documentedMeters.length === 0 ? (
               <p className="entrada-panel-empty">Carregando medidores...</p>
-            ) : wpaMeters.length === 0 ? (
+            ) : documentedMeters.length === 0 ? (
               <p className="entrada-panel-empty">
                 Nenhum medidor com documento de inspeção anexado.
               </p>
@@ -1612,7 +1639,7 @@ export function EntradaPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {wpaMeters.map((item) => (
+                    {documentedMeters.map((item) => (
                       <tr key={item.id}>
                         <td>
                           <MeterLink meter={item.meter} onOpen={openMeterDetail} />
@@ -1664,6 +1691,7 @@ export function EntradaPanel({
             onClose={() => setInspectionDocumentTarget(null)}
             onDocumentsChanged={() => {
               void loadInspectionPendencias()
+              void loadWpaMeters()
               void loadWeekMeters()
               void loadData()
               refreshTrailCounts()
@@ -2145,6 +2173,7 @@ export function EntradaPanel({
             onClose={() => setInspectionDocumentTarget(null)}
             onDocumentsChanged={() => {
               void loadInspectionPendencias()
+              void loadWpaMeters()
               void loadWeekMeters()
               void loadData()
               refreshTrailCounts()

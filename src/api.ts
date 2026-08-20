@@ -1624,6 +1624,14 @@ export const api = {
       byScheduleId: Record<string, MeterInspectionSummary>
     }>(`/api/meter-schedules/inspection-pendencias${queryString ? `?${queryString}` : ''}`)
   },
+  listWpaAnalysisMeters: (forUserId?: string) => {
+    const search = new URLSearchParams()
+    if (forUserId) search.set('forUserId', forUserId)
+    const queryString = search.toString()
+    return request<{ meters: MeterInspectionDocumentadoRecord[] }>(
+      `/api/meter-schedules/wpa-analysis${queryString ? `?${queryString}` : ''}`,
+    )
+  },
   getDemmMetersBase: () =>
     request<{ meters: DemmMeterAnalysisRecord[]; total: number; scheduledCount: number }>(
       '/api/demm-documents/meters-base',

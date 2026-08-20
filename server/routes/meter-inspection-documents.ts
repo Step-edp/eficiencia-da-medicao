@@ -1234,3 +1234,126 @@ export async function listInspectionPendencias(req: Request, res: Response) {
     byScheduleId,
   })
 }
+
+export async function listWpaAnalysisMeters(req: Request, res: Response) {
+  const forUserId =
+    typeof req.query.forUserId === 'string' && req.query.forUserId.trim()
+      ? req.query.forUserId.trim()
+      : ''
+  const scopeUserId = pontoFocalScopeUserId(req.user?.role, req.user?.id, forUserId)
+
+  let csdNames: string[] | null = null
+  if (scopeUserId) {
+    csdNames = await resolvePontoFocalCsdNames(scopeUserId)
+  }
+
+  if (csdNames !== null && csdNames.length === 0) {
+    res.json({ meters: [] })
+    return
+  }
+
+  const params: unknown[] = []
+  let csdFilter = ''
+  if (csdNames !== null) {
+    params.push(csdNames.map((name) => name.toUpperCase()))
+    csdFilter = `AND UPPER(TRIM(ms.csd)) = ANY($${params.length}::text[])`
+  }
+
+  const schedules = await query<{
+    id: string
+    meter: string
+    installation: string
+    csd: string
+    scheduled_at: Date
+    trail_step: string
+    envelope_seal: string | null
+    cover_seal: string | null
+    meter_reading: string | null
+    toi: string
+    note: string
+    source: string
+    responsible_user_id: string | null
+    responsible_name: string | null
+    responsible_registration: string | null
+    responsible_work_subtype: string | null
+  }>(
+    `SELECT ms.id,
+            ms.meter,
+            ms.installation,
+            ms.csd,
+            ms.scheduled_at,
+            ms.trail_step,
+            ms.envelope_seal,
+            ms.cover_seal,
+            ms.meter_reading,
+            ms.toi,
+            ms.note,
+            ms.source,
+            c.responsible_user_id,
+            u.name AS responsible_name,
+            u.registration AS responsible_registration,
+            u.work_subtype AS responsible_work_subtype
+     FROM meter_schedules ms
+     LEFT JOIN csds c ON c.name = ms.csd
+     LEFT JOIN users u ON u.id = c.responsible_user_id
+     WHERE EXISTS (
+       SELECT 1 FROM meter_inspection_documents d
+       WHERE d.meter_schedule_id = ms.id
+     )
+     ${csdFilter}
+     ORDER BY ms.scheduled_at ASC`,
+    params,
+  )
+
+  const scheduleIds = schedules.rows.map((row) => row.id)
+  const documents = scheduleIds.length
+    ? await query<
+        DocumentForInspectionAggregate & {
+          meter_schedule_id: string
+        }
+      >(
+        `SELECT meter_schedule_id, doc_type, extracted_meter, extracted_lacre,
+                extracted_cover_seal, extracted_reading,
+                extracted_installation, extracted_toi, extracted_note
+         FROM meter_inspection_documents
+         WHERE meter_schedule_id = ANY($1::text[])`,
+        [scheduleIds],
+      )
+    : { rows: [] as Array<DocumentForInspectionAggregate & { meter_schedule_id: string }> }
+
+  const docsByScheduleId = new Map<string, DocumentForInspectionAggregate[]>()
+  for (const doc of documents.rows) {
+    const list = docsByScheduleId.get(doc.meter_schedule_id) ?? []
+    list.push(doc)
+    docsByScheduleId.set(doc.meter_schedule_id, list)
+  }
+
+  const meters = []
+  for (const row of schedules.rows) {
+    const summary = aggregateInspectionForSchedule(row, docsByScheduleId.get(row.id) ?? [])
+    if (!summary.hasToi && !summary.hasComunicado) continue
+
+    meters.push({
+      id: row.id,
+      meter: row.meter,
+      installation: row.installation,
+      toi: row.toi,
+      note: row.note,
+      csd: row.csd,
+      scheduledAt: row.scheduled_at.toISOString(),
+      trailStep: row.trail_step,
+      responsibleUserId: row.responsible_user_id,
+      responsibleName: row.responsible_name,
+      responsibleRegistration: row.responsible_registration,
+      responsibleWorkSubtype: row.responsible_work_subtype,
+      missingToi: !summary.hasToi,
+      missingComunicado: !summary.hasComunicado,
+      hasToi: summary.hasToi,
+      hasComunicado: summary.hasComunicado,
+      anyBlocked: summary.anyBlocked,
+      blockReasons: summary.blockReasons,
+    })
+  }
+
+  res.json({ meters })
+}

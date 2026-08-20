@@ -90,6 +90,7 @@ import {
   listInspectionDocuments,
   getScheduleEntryComparisons,
   listInspectionPendencias,
+  listWpaAnalysisMeters,
 } from './routes/meter-inspection-documents.js'
 import {
   createSupportTicket,
@@ -388,6 +389,7 @@ async function start() {
   app.get('/api/meter-registry', requireAuth, getMeterRegistry)
 
   app.get('/api/meter-schedules/inspection-pendencias', requireAuth, listInspectionPendencias)
+  app.get('/api/meter-schedules/wpa-analysis', requireAuth, listWpaAnalysisMeters)
   app.get(
     '/api/meter-schedules/:id/entry-comparisons',
     requireAuth,
