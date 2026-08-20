@@ -138,7 +138,7 @@ export function PontoFocalDashboard({
             ({csdNames.join(', ')})
           </>
         ) : null}
-        . A entrega deve ocorrer até a última sexta antes da data de ensaio.
+        .
       </p>
 
       {feedback ? (
