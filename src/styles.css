@@ -3898,7 +3898,7 @@ button {
   margin: 0;
   padding: 6px;
   list-style: none;
-  max-height: 220px;
+  max-height: 320px;
   overflow: auto;
   border-radius: 12px;
   border: 1px solid var(--border);

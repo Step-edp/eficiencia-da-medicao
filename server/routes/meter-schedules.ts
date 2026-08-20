@@ -23,6 +23,7 @@ import {
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 const BACKOFFICE_SCOPE = 'Lavratura de TOI - Backoffice'
+const LAVRATURA_SUBTYPE_SQL = `REPLACE(REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-'), '—', '-')`
 
 type MeterScheduleRow = {
   id: string
@@ -245,7 +246,7 @@ export async function listFieldPartners(req: Request, res: Response) {
      FROM users
      WHERE approval_status = 'approved'
        AND role <> 'admin'
-       AND REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-') ILIKE 'Lavratura de TOI%'
+       AND ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'
        AND ($1::text IS NULL OR id <> $1)
      ORDER BY registration ASC, name ASC`,
     [req.user?.id ?? null],
@@ -261,8 +262,8 @@ export async function listFieldPartners(req: Request, res: Response) {
   })
 }
 
-/** Colaboradores da equipe que lavrou o TOI: qualquer perfil de Lavratura de TOI. */
-export async function listToiCollaborators(req: Request, res: Response) {
+/** Colaboradores da equipe que lavrou o TOI: todos os perfis de Lavratura de TOI. */
+export async function listToiCollaborators(_req: Request, res: Response) {
   const result = await query<{
     id: string
     name: string
@@ -272,10 +273,8 @@ export async function listToiCollaborators(req: Request, res: Response) {
      FROM users
      WHERE approval_status = 'approved'
        AND role <> 'admin'
-       AND REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-') ILIKE 'Lavratura de TOI%'
-       AND ($1::text IS NULL OR id <> $1)
+       AND ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'
      ORDER BY registration ASC, name ASC`,
-    [req.user?.id ?? null],
   )
 
   res.json({
@@ -434,7 +433,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
        FROM users
        WHERE approval_status = 'approved'
          AND role <> 'admin'
-         AND REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-') ILIKE 'Lavratura de TOI%'
+         AND ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'
          AND UPPER(TRIM(registration)) = ANY($1::text[])`,
       [
         [
@@ -493,7 +492,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
        WHERE id = $1
          AND approval_status = 'approved'
          AND role <> 'admin'
-         AND REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-') ILIKE 'Lavratura de TOI%'`,
+         AND ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'`,
       [normalized.partnerUserId],
     )
     partner = partnerResult.rows[0] ?? null

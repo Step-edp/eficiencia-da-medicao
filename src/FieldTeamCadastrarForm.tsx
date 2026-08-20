@@ -148,11 +148,18 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
   ) => {
     const query = queryValue.trim().toUpperCase()
     if (!query) {
-      return options?.showAllWhenEmpty ? source : source.slice(0, 8)
+      return options?.showAllWhenEmpty === false ? source.slice(0, 8) : source
     }
-    return source
-      .filter((partner) => partner.registration.toUpperCase().includes(query))
-      .slice(0, 12)
+    return source.filter((partner) => {
+      const registration = partner.registration.toUpperCase()
+      const name = partner.name.toUpperCase()
+      const label = partner.label.toUpperCase()
+      return (
+        registration.includes(query) ||
+        name.includes(query) ||
+        label.includes(query)
+      )
+    })
   }
 
   const partnerMatches = matchUsersByRegistration(partnerQuery, partners, {
@@ -161,10 +168,12 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
   const collaborator1Matches = matchUsersByRegistration(
     collaborator1Query,
     toiCollaborators,
+    { showAllWhenEmpty: true },
   ).filter((user) => user.id !== collaborator2UserId)
   const collaborator2Matches = matchUsersByRegistration(
     collaborator2Query,
     toiCollaborators,
+    { showAllWhenEmpty: true },
   ).filter((user) => user.id !== collaborator1UserId)
 
   const selectPartner = (partner: FieldPartnerOption) => {
