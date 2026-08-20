@@ -542,12 +542,13 @@ export function isLavraturaBackofficeScope(workSubtype?: string | null) {
   return normalizeWorkSubtype(workSubtype) === 'Lavratura de TOI - Backoffice'
 }
 
-/** Equipe de Campo e Backoffice não usam Agenda de férias. */
+/** Equipe de Campo, Ponto Focal e Backoffice não usam Agenda de férias. */
 export function skipsVacationAgenda(workSubtype?: string | null) {
   const normalized = normalizeWorkSubtype(workSubtype)
   return (
     normalized === 'Lavratura de TOI - Equipe de Campo' ||
     normalized === 'Lavratura de TOI' || // legado
+    normalized === 'Lavratura de TOI - Ponto Focal' ||
     normalized === 'Lavratura de TOI - Backoffice'
   )
 }

@@ -428,12 +428,13 @@ export async function migrate() {
       AND value = 'Lavratura de TOI';
   `)
 
-  // Equipe de Campo e Backoffice não usam Agenda de férias.
+  // Equipe de Campo, Ponto Focal e Backoffice não usam Agenda de férias.
   await query(`
     UPDATE users
     SET vacation_required_since = NULL
     WHERE work_subtype IN (
       'Lavratura de TOI - Equipe de Campo',
+      'Lavratura de TOI - Ponto Focal',
       'Lavratura de TOI - Backoffice',
       'Lavratura de TOI'
     );
@@ -906,5 +907,15 @@ export async function migrate() {
     ALTER TABLE meter_inspection_documents
       ADD COLUMN IF NOT EXISTS extracted_cover_seal TEXT,
       ADD COLUMN IF NOT EXISTS extracted_reading TEXT;
+  `)
+
+  // Ponto Focal e Backoffice não usam Agenda de férias obrigatória.
+  await query(`
+    UPDATE users
+    SET vacation_required_since = NULL
+    WHERE REPLACE(REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-'), '—', '-') IN (
+      'Lavratura de TOI - Ponto Focal',
+      'Lavratura de TOI - Backoffice'
+    );
   `)
 }
