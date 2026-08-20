@@ -231,7 +231,7 @@ export function MeterDetailModal({ meter, onClose }: MeterDetailModalProps) {
                     <dd>{displayValue(formatScheduleCollaborator2Label(latestSchedule))}</dd>
                   </div>
                   <div>
-                    <dt>Carimbo</dt>
+                    <dt>Data de agendamento</dt>
                     <dd>{displayValue(formatScheduleCreatedAtLabel(latestSchedule.createdAt))}</dd>
                   </div>
                   <div>

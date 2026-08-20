@@ -179,7 +179,7 @@ function ScheduleDetailModal({ schedule, onClose, onPreviewEnvelope }: ScheduleD
             </div>
           ) : null}
           <div>
-            <dt>Carimbo</dt>
+            <dt>Data de agendamento</dt>
             <dd>{displayValue(createdAtLabel)}</dd>
           </div>
           <div>
@@ -459,7 +459,7 @@ export function FieldTeamConsultarPanel({
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Pesquisar por medidor, nota, CSD, colaborador, usuário, carimbo, status…"
+              placeholder="Pesquisar por medidor, nota, CSD, colaborador, usuário, data de agendamento, status…"
               autoComplete="off"
               spellCheck={false}
             />
@@ -494,7 +494,7 @@ export function FieldTeamConsultarPanel({
                 <th>Agendado por</th>
                 <th>Colaborador 1</th>
                 <th>Colaborador 2</th>
-                <th>Carimbo</th>
+                <th>Data de agendamento</th>
                 <th>Data de ensaio</th>
                 <th>Prazo entrega</th>
                 <th>Status entrega</th>
