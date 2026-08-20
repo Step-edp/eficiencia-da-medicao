@@ -923,4 +923,10 @@ export async function migrate() {
     ALTER TABLE meter_schedules
       ADD COLUMN IF NOT EXISTS delay_justification TEXT NOT NULL DEFAULT '';
   `)
+
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS delay_dismissed_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS delay_dismissed_by TEXT;
+  `)
 }

@@ -4923,6 +4923,44 @@ button {
   margin-top: 8px;
 }
 
+.ponto-focal-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ponto-focal-save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid rgba(24, 216, 240, 0.45);
+  border-radius: 10px;
+  background: rgba(24, 216, 240, 0.14);
+  color: #c8f4ff;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.ponto-focal-save-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ponto-focal-save-button:hover:not(:disabled),
+.ponto-focal-save-button:focus-visible:not(:disabled) {
+  border-color: rgba(24, 216, 240, 0.75);
+  background: rgba(24, 216, 240, 0.22);
+}
+
+.ponto-focal-save-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 @media (max-width: 1100px) {
   .ponto-focal-dashboard .users-dashboard-grid {
     grid-template-columns: 1fr;

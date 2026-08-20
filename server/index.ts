@@ -64,6 +64,7 @@ import {
   listMeterSchedules,
   rescheduleMeterSchedule,
   saveDelayJustification,
+  dismissDelayMeter,
 } from './routes/meter-schedules.js'
 import {
   createDemmDocument,
@@ -384,6 +385,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     saveDelayJustification,
+  )
+  app.put(
+    '/api/meter-schedules/:id/delay-dismissal',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    dismissDelayMeter,
   )
   app.get('/api/meter-registry/trail-counts', requireAuth, getMeterRegistryTrailCounts)
   app.get('/api/meter-registry', requireAuth, getMeterRegistry)

@@ -25,6 +25,7 @@ export function PontoFocalDashboard({
   const [error, setError] = useState('')
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
@@ -103,6 +104,41 @@ export function PontoFocalDashboard({
     }
   }
 
+  const handleDismissMeter = async (meter: PontoFocalLateMeter) => {
+    if (meter.delayJustification) return
+    setDeletingId(meter.id)
+    setFeedback(null)
+    try {
+      await api.dismissDelayMeter(meter.id)
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              lateMeters: current.lateMeters.filter((item) => item.id !== meter.id),
+              dismissedLateMeters: [
+                { ...meter, dismissedAt: new Date().toISOString() },
+                ...(current.dismissedLateMeters ?? []),
+              ],
+            }
+          : current,
+      )
+      setFeedback({
+        type: 'success',
+        message: `Medidor ${meter.meter} excluído da lista. O registro foi mantido.`,
+      })
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        message:
+          err instanceof ApiError
+            ? err.message
+            : 'Não foi possível excluir o medidor da lista de atrasos.',
+      })
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   if (loading) {
     return (
       <p className="generated-password-empty">
@@ -123,6 +159,7 @@ export function PontoFocalDashboard({
 
   const { current, delay, monthly, csdNames } = data
   const lateMeters = data.lateMeters ?? []
+  const dismissedLateMeters = data.dismissedLateMeters ?? []
   const maxMonthTotal = Math.max(1, ...monthly.map((item) => item.total))
   const pendingJustification = lateMeters.filter((item) => !item.delayJustification).length
 
@@ -264,17 +301,61 @@ export function PontoFocalDashboard({
                         ) : null}
                       </td>
                       <td>
-                        <button
-                          type="button"
-                          className="primary-button"
-                          disabled={
-                            savingId === item.id ||
-                            (drafts[item.id] ?? '').trim().length < 5
-                          }
-                          onClick={() => void handleSaveJustification(item)}
-                        >
-                          {savingId === item.id ? 'Salvando...' : 'Salvar'}
-                        </button>
+                        <div className="ponto-focal-row-actions">
+                          <button
+                            type="button"
+                            className="ponto-focal-save-button"
+                            disabled={
+                              savingId === item.id ||
+                              deletingId === item.id ||
+                              (drafts[item.id] ?? '').trim().length < 5
+                            }
+                            onClick={() => void handleSaveJustification(item)}
+                            aria-label={
+                              savingId === item.id
+                                ? `Salvando justificativa do medidor ${item.meter}`
+                                : `Salvar justificativa do medidor ${item.meter}`
+                            }
+                            title="Salvar"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path
+                                d="M5 12.5l4.5 4.5L19 7.5"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.4"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            className="entrada-demm-delete-button"
+                            disabled={justified || deletingId === item.id || savingId === item.id}
+                            onClick={() => void handleDismissMeter(item)}
+                            aria-label={
+                              justified
+                                ? `Não é possível excluir o medidor ${item.meter} com justificativa`
+                                : `Excluir medidor ${item.meter} da lista de atrasos`
+                            }
+                            title={
+                              justified
+                                ? 'Não é possível excluir com justificativa'
+                                : 'Excluir'
+                            }
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path
+                                d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -284,6 +365,45 @@ export function PontoFocalDashboard({
           </div>
         )}
       </section>
+
+      {dismissedLateMeters.length > 0 ? (
+        <section className="entrada-section ponto-focal-late-section" aria-label="Registros excluídos">
+          <div className="entrada-section-heading">
+            <h3 className="entrada-section-title">Registros excluídos</h3>
+            <p className="demm-analysis-summary">
+              {`${dismissedLateMeters.length} registro(s) mantido(s)`}
+            </p>
+          </div>
+          <div className="entrada-table-wrap">
+            <table className="data-table entrada-table">
+              <thead>
+                <tr>
+                  <th>Medidor</th>
+                  <th>Instalação</th>
+                  <th>CSD</th>
+                  <th>Data de ensaio</th>
+                  <th>Prazo entrega</th>
+                  <th>Dias de atraso</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dismissedLateMeters.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.meter}</td>
+                    <td>{item.installation || '—'}</td>
+                    <td>{item.csd || '—'}</td>
+                    <td>{item.scheduledAtLabel}</td>
+                    <td>{item.deliveryDeadlineLabel}</td>
+                    <td>
+                      <span className="schedule-late-badge">{item.daysLate} dia(s)</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       {mode === 'full' ? (
       <div className="users-dashboard-grid">

@@ -441,6 +441,7 @@ export type PontoFocalLateMeter = {
   deliveryDeadlineLabel: string
   daysLate: number
   delayJustification: string
+  dismissedAt?: string | null
 }
 
 export type PontoFocalDashboardData = {
@@ -475,6 +476,7 @@ export type PontoFocalDashboardData = {
     onTimeProportion: number
   }>
   lateMeters: PontoFocalLateMeter[]
+  dismissedLateMeters?: PontoFocalLateMeter[]
 }
 
 export type MeterScheduleRecord = {
@@ -1465,6 +1467,10 @@ export const api = {
     request<{ schedule: MeterScheduleRecord }>(`/api/meter-schedules/${id}/delay-justification`, {
       method: 'PUT',
       body: JSON.stringify({ justification }),
+    }),
+  dismissDelayMeter: (id: string) =>
+    request<{ schedule: MeterScheduleRecord }>(`/api/meter-schedules/${id}/delay-dismissal`, {
+      method: 'PUT',
     }),
   countMeterSchedules: (trailStep?: string) => {
     const search = new URLSearchParams()
