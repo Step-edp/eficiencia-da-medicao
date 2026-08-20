@@ -6,31 +6,27 @@ function normalizeWorkSubtype(value?: string | null) {
   return (value?.trim() ?? '').replace(/[–—]/g, '-')
 }
 
-/** `null` = não é Ponto Focal; lista = CSDs em que é responsável (pode ser vazia). */
+/** `null` = sem escopo de CSD; lista = CSDs em que é responsável (pode ser vazia no perfil Ponto Focal). */
 export async function resolvePontoFocalCsdNames(userId: string): Promise<string[] | null> {
+  const csdsResult = await query<{ name: string }>(
+    `SELECT name FROM csds WHERE responsible_user_id = $1 ORDER BY name ASC`,
+    [userId],
+  )
+  const names = csdsResult.rows.map((row) => row.name.trim()).filter(Boolean)
+  if (names.length > 0) {
+    return names
+  }
+
   const userResult = await query<{ work_area: string; work_subtype: string }>(
     `SELECT work_area, work_subtype FROM users WHERE id = $1`,
     [userId],
   )
   const user = userResult.rows[0]
-  if (!user) {
-    return []
-  }
-
   const isPontoFocal =
-    user.work_area?.trim() === 'CSD' &&
+    user?.work_area?.trim() === 'CSD' &&
     normalizeWorkSubtype(user.work_subtype) === PONTO_FOCAL_SCOPE
 
-  if (!isPontoFocal) {
-    return null
-  }
-
-  const csdsResult = await query<{ name: string }>(
-    `SELECT name FROM csds WHERE responsible_user_id = $1 ORDER BY name ASC`,
-    [userId],
-  )
-
-  return csdsResult.rows.map((row) => row.name.trim()).filter(Boolean)
+  return isPontoFocal ? [] : null
 }
 
 export function pontoFocalScopeUserId(

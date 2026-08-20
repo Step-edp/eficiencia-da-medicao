@@ -952,7 +952,7 @@ export async function saveDelayJustification(req: Request, res: Response) {
     const allowedCsdNames = userId ? await resolvePontoFocalCsdNames(userId) : []
     if (allowedCsdNames === null) {
       res.status(403).json({
-        error: 'Apenas o Ponto Focal pode justificar o atraso da entrega.',
+        error: 'Apenas o responsável do CSD pode justificar o atraso da entrega.',
       })
       return
     }
@@ -1007,7 +1007,7 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
   const csdNames = await resolvePontoFocalCsdNames(scopeUserId)
   if (csdNames === null) {
     res.status(403).json({
-      error: 'Dashboard disponível apenas para o perfil Ponto Focal.',
+      error: 'Disponível apenas para o responsável do CSD.',
     })
     return
   }

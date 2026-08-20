@@ -1855,6 +1855,7 @@ function HomePanel({
     () => activeRoute === 'compras-homologacao',
   )
   const [selectedFieldTeamSection, setSelectedFieldTeamSection] = useState<string | null>(null)
+  const [csdResponsible, setCsdResponsible] = useState(false)
   const [selectedHomologationSection, setSelectedHomologationSection] = useState<string | null>(
     () => savedNav?.selectedHomologationSection ?? null,
   )
@@ -2125,6 +2126,29 @@ function HomePanel({
     isAdmin && previewMode === 'user' && previewUserId
       ? (previewUserOptions.find((user) => user.id === previewUserId) ?? null)
       : null
+
+  useEffect(() => {
+    const userId = previewUser?.id ?? (isAdmin ? null : currentUser.id)
+    if (!userId) {
+      setCsdResponsible(false)
+      return
+    }
+
+    let cancelled = false
+    void api
+      .listCsds()
+      .then(({ csds }) => {
+        if (cancelled) return
+        setCsdResponsible(csds.some((csd) => csd.responsibleUserId === userId))
+      })
+      .catch(() => {
+        if (!cancelled) setCsdResponsible(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [previewUser?.id, isAdmin, currentUser.id])
   const isAdminFullPreview =
     isAdmin &&
     ((previewMode === 'profile' &&
@@ -2296,26 +2320,24 @@ function HomePanel({
       isFieldTeamCsdScope(previewProfile?.match.workSubtype) ||
       isAdminFullPreview
 
+    let sections: string[]
     if (!hasLavraturaAccess) {
-      return ['Agendar', 'Consultar']
+      sections = ['Agendar', 'Consultar']
+    } else if (isLavraturaEquipeCampoScope(activeFieldTeamSubtype)) {
+      sections = ['Agendar', 'Meus TOIs']
+    } else if (isLavraturaPontoFocalScope(activeFieldTeamSubtype)) {
+      sections = ['Agendar', 'Consultar', 'Dashboard', 'Enviar documentos', 'Medidores atrasados']
+    } else if (isLavraturaBackofficeScope(activeFieldTeamSubtype)) {
+      sections = ['Agendar', 'Consultar', 'Meus TOIs', 'Enviar documentos']
+    } else {
+      sections = ['Agendar', 'Consultar', 'Meus TOIs']
     }
 
-    // Equipe de Campo: só Agendar e Meus TOIs (sem Consultar geral).
-    if (isLavraturaEquipeCampoScope(activeFieldTeamSubtype)) {
-      return ['Agendar', 'Meus TOIs']
+    if (csdResponsible && !sections.includes('Medidores atrasados')) {
+      sections = [...sections, 'Medidores atrasados']
     }
 
-    // Ponto Focal: Agendar, Consultar, Dashboard, justificativa de atrasos e envio de documentos.
-    if (isLavraturaPontoFocalScope(activeFieldTeamSubtype)) {
-      return ['Agendar', 'Consultar', 'Dashboard', 'Enviar documentos', 'Medidores atrasados']
-    }
-
-    // Backoffice: também envia DEMM/documento de inspeção.
-    if (isLavraturaBackofficeScope(activeFieldTeamSubtype)) {
-      return ['Agendar', 'Consultar', 'Meus TOIs', 'Enviar documentos']
-    }
-
-    return ['Agendar', 'Consultar', 'Meus TOIs']
+    return sections
   })()
 
   /** Perfis de Lavratura: home mostra as opções direto, sem o card Equipe de campo. */
@@ -5142,23 +5164,18 @@ function HomePanel({
                 }
               />
             ) : selectedFieldTeamSection === 'Meus TOIs' ? (
-              <FieldTeamConsultarPanel mode="mine" />
+              <FieldTeamConsultarPanel
+                mode="mine"
+                allowDelayJustification={csdResponsible}
+              />
             ) : selectedFieldTeamSection === 'Dashboard' ? (
               <PontoFocalDashboard
-                forUserId={
-                  isAdmin && previewUser && isLavraturaPontoFocalScope(previewUser.workSubtype)
-                    ? previewUser.id
-                    : undefined
-                }
+                forUserId={isAdmin && previewUser ? previewUser.id : undefined}
               />
             ) : selectedFieldTeamSection === 'Medidores atrasados' ? (
               <PontoFocalDashboard
                 mode="late-meters"
-                forUserId={
-                  isAdmin && previewUser && isLavraturaPontoFocalScope(previewUser.workSubtype)
-                    ? previewUser.id
-                    : undefined
-                }
+                forUserId={isAdmin && previewUser ? previewUser.id : undefined}
               />
             ) : selectedFieldTeamSection === 'Enviar documentos' ? (
               <EnviarDocumentosPanel
@@ -5173,12 +5190,10 @@ function HomePanel({
             ) : (
               <FieldTeamConsultarPanel
                 hideInspectionImport={isLavraturaPontoFocalScope(activeFieldTeamSubtype)}
-                allowDelayJustification={isLavraturaPontoFocalScope(activeFieldTeamSubtype)}
-                scopeUserId={
-                  isAdmin && previewUser && isLavraturaPontoFocalScope(previewUser.workSubtype)
-                    ? previewUser.id
-                    : undefined
+                allowDelayJustification={
+                  isLavraturaPontoFocalScope(activeFieldTeamSubtype) || csdResponsible
                 }
+                scopeUserId={isAdmin && previewUser ? previewUser.id : undefined}
               />
             )}
           </section>
@@ -6125,6 +6140,24 @@ function HomePanel({
               <span className="area-card-title">
                 <ItemIcon title="Consultar senhas" />
                 <span>Consultar senhas</span>
+              </span>
+            </button>
+          ) : null}
+          {csdResponsible && !flattenFieldTeamHome ? (
+            <button
+              className={`area-card ${getAreaCardClassName('Medidores atrasados')}`}
+              type="button"
+              onClick={() => {
+                if (!fieldTeamArea) return
+                setSelectedOrgCell(null)
+                setSelectedOrgSubcell(null)
+                setSelectedArea(fieldTeamArea)
+                setSelectedFieldTeamSection('Medidores atrasados')
+              }}
+            >
+              <span className="area-card-title">
+                <ItemIcon title="Medidores atrasados" />
+                <span>Medidores atrasados</span>
               </span>
             </button>
           ) : null}
