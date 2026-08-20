@@ -14,7 +14,6 @@ import {
   type WeekMeterRecord,
   type WeekMeterStatus,
 } from './api'
-import { ENTRADA_TRAIL_STEP } from './labTrailSteps'
 import { useCsdsOptions } from './useCsdsOptions'
 import { readFileAsBase64 } from './fileUtils'
 import { UserDetailModal } from './UserDetailModal'
@@ -691,7 +690,6 @@ export function EntradaPanel({
     | 'demmHistorico'
   >('dash')
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
-  const [schedules, setSchedules] = useState<Awaited<ReturnType<typeof api.listMeterSchedules>>['schedules']>([])
   const [csdPendencias, setCsdPendencias] = useState<CsdDemmPendenciaRecord[]>([])
   const [csdPendenciasLoading, setCsdPendenciasLoading] = useState(false)
   const [demmHistoricoWeeks, setDemmHistoricoWeeks] = useState<
@@ -767,12 +765,8 @@ export function EntradaPanel({
     setLoading(true)
 
     try {
-      const [demmResponse, scheduleResponse] = await Promise.all([
-        api.listDemmDocuments(),
-        api.listMeterSchedules(ENTRADA_TRAIL_STEP),
-      ])
+      const demmResponse = await api.listDemmDocuments()
       setDemmDocuments(demmResponse.documents)
-      setSchedules(scheduleResponse.schedules)
     } catch (error) {
       setFeedback({
         type: 'error',
