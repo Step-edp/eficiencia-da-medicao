@@ -65,15 +65,22 @@ export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProp
   }, [loadInspectionPendencias])
 
   useEffect(() => {
-    if (!scopeUserId || demmCsdId || csdOptions.length !== 1) return
-    setDemmCsdId(csdOptions[0].id)
+    if (!scopeUserId || csdOptions.length !== 1) return
+    if (demmCsdId !== csdOptions[0].id) {
+      setDemmCsdId(csdOptions[0].id)
+    }
   }, [scopeUserId, demmCsdId, csdOptions])
 
   const handleDemmSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     if (!demmCsdId) {
-      setDemmFeedback({ type: 'error', message: 'Selecione o CSD dessa DEMM.' })
+      setDemmFeedback({
+        type: 'error',
+        message: scopeUserId
+          ? 'Não foi possível identificar o CSD de responsabilidade.'
+          : 'Selecione o CSD dessa DEMM.',
+      })
       return
     }
     if (!demmFile) {
@@ -97,7 +104,9 @@ export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProp
         message: `DEMM registrada. ${response.analysis.total} medidor(es) identificado(s).`,
       })
       setDemmFile(null)
-      setDemmCsdId('')
+      if (!scopeUserId || csdOptions.length !== 1) {
+        setDemmCsdId('')
+      }
       void loadInspectionPendencias()
     } catch (error) {
       if (error instanceof ApiError) {
@@ -178,27 +187,64 @@ export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProp
         {demmConflicts?.length ? <DemmUploadConflicts conflicts={demmConflicts} /> : null}
 
         <form className="form-grid demm-form-grid" onSubmit={(event) => void handleDemmSubmit(event)}>
-          <label className="full-width">
-            CSD
-            <select
-              value={demmCsdId}
-              onChange={(event) => setDemmCsdId(event.target.value)}
-              disabled={submittingDemm}
-              required
-            >
-              <option value="">{csdOptionsLoading ? 'Carregando CSDs...' : 'Selecione o CSD'}</option>
-              {csdOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            {csdOptionsError ? (
-              <span className="field-error" role="alert">
-                {csdOptionsError}
-              </span>
-            ) : null}
-          </label>
+          {scopeUserId ? (
+            <p className="demm-csd-notice full-width" role="status">
+              {csdOptionsLoading
+                ? 'Identificando o CSD de responsabilidade...'
+                : csdOptions.length === 0
+                  ? 'Você não está definido como responsável de nenhum CSD.'
+                  : csdOptions.length === 1
+                    ? `A DEMM que você está importando é do ${csdOptions[0].label}.`
+                    : 'A DEMM que você está importando é de um dos CSDs em que você é responsável.'}
+            </p>
+          ) : (
+            <label className="full-width">
+              CSD
+              <select
+                value={demmCsdId}
+                onChange={(event) => setDemmCsdId(event.target.value)}
+                disabled={submittingDemm}
+                required
+              >
+                <option value="">{csdOptionsLoading ? 'Carregando CSDs...' : 'Selecione o CSD'}</option>
+                {csdOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {csdOptionsError ? (
+                <span className="field-error" role="alert">
+                  {csdOptionsError}
+                </span>
+              ) : null}
+            </label>
+          )}
+
+          {scopeUserId && csdOptions.length > 1 ? (
+            <label className="full-width">
+              CSD desta DEMM
+              <select
+                value={demmCsdId}
+                onChange={(event) => setDemmCsdId(event.target.value)}
+                disabled={submittingDemm}
+                required
+              >
+                <option value="">Selecione o CSD</option>
+                {csdOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          {scopeUserId && csdOptionsError ? (
+            <span className="field-error full-width" role="alert">
+              {csdOptionsError}
+            </span>
+          ) : null}
 
           <label className="full-width photo-upload-field">
             PDF da DEMM
@@ -219,7 +265,14 @@ export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProp
           </label>
 
           <div className="ensaios-block-modal-actions full-width">
-            <button type="submit" className="primary-button" disabled={submittingDemm}>
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={
+                submittingDemm ||
+                Boolean(scopeUserId && !csdOptionsLoading && csdOptions.length === 0)
+              }
+            >
               {submittingDemm ? 'Lendo PDF...' : 'Enviar DEMM'}
             </button>
           </div>

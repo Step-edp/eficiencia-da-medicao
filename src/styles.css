@@ -2193,6 +2193,15 @@ button {
   gap: 14px;
 }
 
+.demm-csd-notice {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(24, 216, 240, 0.28);
+  background: rgba(8, 39, 66, 0.55);
+  color: var(--text-main);
+}
+
 .demm-upload-area {
   min-height: 110px;
 }
