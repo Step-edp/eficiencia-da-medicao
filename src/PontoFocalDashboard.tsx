@@ -29,6 +29,7 @@ export function PontoFocalDashboard({
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
+  const [lateListTab, setLateListTab] = useState<'pending' | 'dismissed'>('pending')
 
   useEffect(() => {
     let cancelled = false
@@ -126,6 +127,7 @@ export function PontoFocalDashboard({
         type: 'success',
         message: `Medidor ${meter.meter} excluído da lista. O registro foi mantido.`,
       })
+      setLateListTab('dismissed')
     } catch (err) {
       setFeedback({
         type: 'error',
@@ -238,8 +240,10 @@ export function PontoFocalDashboard({
 
       <section className="entrada-section ponto-focal-late-section" aria-label="Medidores atrasados">
         <div className="entrada-section-heading">
-          <h3 className="entrada-section-title">Medidores atrasados</h3>
-          {lateMeters.length > 0 ? (
+          <h3 className="entrada-section-title">
+            {lateListTab === 'dismissed' ? 'Medidores excluídos' : 'Medidores atrasados'}
+          </h3>
+          {lateListTab === 'pending' && lateMeters.length > 0 ? (
             <p className="demm-analysis-summary">
               {`${lateMeters.length} atrasado(s)${
                 pendingJustification
@@ -248,11 +252,44 @@ export function PontoFocalDashboard({
               }`}
             </p>
           ) : null}
+          {lateListTab === 'dismissed' && dismissedLateMeters.length > 0 ? (
+            <p className="demm-analysis-summary">
+              {`${dismissedLateMeters.length} registro(s) excluído(s)`}
+            </p>
+          ) : null}
         </div>
 
-        {lateMeters.length === 0 ? (
-          <p className="entrada-panel-empty">Não há medidores atrasados para justificar.</p>
-        ) : (
+        <div
+          className="panel-switch users-view-switch"
+          role="tablist"
+          aria-label="Lista de medidores atrasados"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={lateListTab === 'pending'}
+            className={lateListTab === 'pending' ? 'active' : ''}
+            onClick={() => setLateListTab('pending')}
+          >
+            Atrasados
+            {lateMeters.length > 0 ? ` (${lateMeters.length})` : ''}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={lateListTab === 'dismissed'}
+            className={lateListTab === 'dismissed' ? 'active' : ''}
+            onClick={() => setLateListTab('dismissed')}
+          >
+            Excluídos
+            {dismissedLateMeters.length > 0 ? ` (${dismissedLateMeters.length})` : ''}
+          </button>
+        </div>
+
+        {lateListTab === 'pending' ? (
+          lateMeters.length === 0 ? (
+            <p className="entrada-panel-empty">Não há medidores atrasados para justificar.</p>
+          ) : (
           <div className="entrada-table-wrap">
             <table className="data-table entrada-table">
               <thead>
@@ -358,17 +395,10 @@ export function PontoFocalDashboard({
               </tbody>
             </table>
           </div>
-        )}
-      </section>
-
-      {dismissedLateMeters.length > 0 ? (
-        <section className="entrada-section ponto-focal-late-section" aria-label="Registros excluídos">
-          <div className="entrada-section-heading">
-            <h3 className="entrada-section-title">Registros excluídos</h3>
-            <p className="demm-analysis-summary">
-              {`${dismissedLateMeters.length} registro(s) mantido(s)`}
-            </p>
-          </div>
+          )
+        ) : dismissedLateMeters.length === 0 ? (
+          <p className="entrada-panel-empty">Nenhum medidor excluído desta lista.</p>
+        ) : (
           <div className="entrada-table-wrap">
             <table className="data-table entrada-table">
               <thead>
@@ -379,6 +409,7 @@ export function PontoFocalDashboard({
                   <th>Data de ensaio</th>
                   <th>Prazo entrega</th>
                   <th>Dias de atraso</th>
+                  <th>Motivo do atraso</th>
                 </tr>
               </thead>
               <tbody>
@@ -392,13 +423,14 @@ export function PontoFocalDashboard({
                     <td>
                       <span className="schedule-late-badge">{item.daysLate} dia(s)</span>
                     </td>
+                    <td>{item.delayJustification || '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </section>
-      ) : null}
+        )}
+      </section>
 
       {mode === 'full' ? (
       <div className="users-dashboard-grid">
