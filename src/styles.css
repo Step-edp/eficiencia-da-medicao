@@ -2457,6 +2457,24 @@ button {
   background: rgba(46, 204, 113, 0.12);
 }
 
+.demm-row-clickable {
+  cursor: pointer;
+}
+
+.demm-row-clickable:hover td,
+.demm-row-clickable:focus-visible td {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.demm-row-clickable.demm-row-bulk-ready:hover td,
+.demm-row-clickable.demm-row-bulk-ready:focus-visible td {
+  background: rgba(46, 204, 113, 0.18);
+}
+
+.demm-analysis-details {
+  margin-bottom: 1rem;
+}
+
 .demm-bulk-ready-badge {
   display: inline-flex;
   align-items: center;

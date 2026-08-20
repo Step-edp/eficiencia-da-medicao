@@ -209,9 +209,22 @@ function DemmMetersTable({
   )
 }
 
+type DemmDocumentDetails = {
+  documentId: string
+  documentNumber: string | null
+  csdName: string | null
+  emissionDate: string | null
+  meterCount: number
+  scheduledCount: number
+  bulkEntryReady?: boolean
+  createdByRegistration: string | null
+  createdAt: string
+}
+
 type DemmAnalysisModalProps = {
   title: string
   fileName?: string
+  details?: DemmDocumentDetails | null
   meters: DemmMeterAnalysisRecord[]
   loading?: boolean
   showSources?: boolean
@@ -222,13 +235,16 @@ type DemmAnalysisModalProps = {
 function DemmAnalysisModal({
   title,
   fileName,
+  details,
   meters,
   loading = false,
   showSources = false,
   onOpenMeter,
   onClose,
 }: DemmAnalysisModalProps) {
-  const scheduledCount = meters.filter((item) => item.scheduled).length
+  const scheduledCount = meters.length
+    ? meters.filter((item) => item.scheduled).length
+    : (details?.scheduledCount ?? 0)
 
   return createPortal(
     <div className="ensaios-block-modal-overlay" role="presentation" onClick={onClose}>
@@ -259,10 +275,69 @@ function DemmAnalysisModal({
 
         <h3 id="demm-analysis-title">{title}</h3>
         {fileName ? <p className="demm-modal-intro">{fileName}</p> : null}
+
+        {details ? (
+          <dl className="user-detail-grid schedule-detail-grid demm-analysis-details">
+            <div>
+              <dt>Nº documento</dt>
+              <dd>{details.documentNumber ?? '—'}</dd>
+            </div>
+            <div>
+              <dt>CSD</dt>
+              <dd>{details.csdName ?? '—'}</dd>
+            </div>
+            <div>
+              <dt>Data emissão</dt>
+              <dd>{details.emissionDate ?? '—'}</dd>
+            </div>
+            <div>
+              <dt>Medidores</dt>
+              <dd>{details.meterCount}</dd>
+            </div>
+            <div>
+              <dt>Agendados</dt>
+              <dd>{details.scheduledCount}</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd>
+                {details.bulkEntryReady ? (
+                  <span className="demm-bulk-ready-badge">
+                    DEMM liberada para entrada em massa
+                  </span>
+                ) : (
+                  '—'
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>Cadastrado por</dt>
+              <dd>{details.createdByRegistration ?? '—'}</dd>
+            </div>
+            <div>
+              <dt>Cadastrado em</dt>
+              <dd>{formatDateTime(details.createdAt)}</dd>
+            </div>
+            <div className="user-detail-full">
+              <dt>PDF</dt>
+              <dd>
+                <a
+                  className="entrada-demm-link"
+                  href={api.getDemmDocumentFileUrl(details.documentId)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Abrir PDF
+                </a>
+              </dd>
+            </div>
+          </dl>
+        ) : null}
+
         <p className="demm-analysis-summary">
           {loading
             ? 'Carregando medidores...'
-            : `${meters.length} medidor(es) · ${scheduledCount} agendado(s) no aplicativo`}
+            : `${details?.meterCount ?? meters.length} medidor(es) · ${scheduledCount} agendado(s) no aplicativo`}
         </p>
 
         <DemmMetersTable
@@ -648,6 +723,7 @@ export function EntradaPanel({
   const [analysisModal, setAnalysisModal] = useState<{
     title: string
     fileName?: string
+    details?: DemmDocumentDetails | null
     meters: DemmMeterAnalysisRecord[]
     loading?: boolean
     showSources?: boolean
@@ -763,20 +839,39 @@ export function EntradaPanel({
     setShowDemmModal(true)
   }
 
-  const openDemmAnalysis = async (demmId: string, fileName?: string) => {
+  const buildDemmDocumentDetails = (document: DemmDocumentRecord): DemmDocumentDetails => ({
+    documentId: document.id,
+    documentNumber: document.documentNumber,
+    csdName: document.csdName,
+    emissionDate: document.emissionDate,
+    meterCount: document.meterCount,
+    scheduledCount: document.scheduledCount,
+    bulkEntryReady: document.bulkEntryReady,
+    createdByRegistration: document.createdByRegistration,
+    createdAt: document.createdAt,
+  })
+
+  const openDemmAnalysis = async (document: DemmDocumentRecord) => {
+    const details = buildDemmDocumentDetails(document)
     setAnalysisModal({
-      title: 'Medidores da DEMM',
-      fileName,
+      title: details.documentNumber ? `DEMM ${details.documentNumber}` : 'DEMM',
+      fileName: document.fileName,
+      details,
       meters: [],
       loading: true,
       showSources: false,
     })
 
     try {
-      const response = await api.getDemmDocumentAnalysis(demmId)
+      const response = await api.getDemmDocumentAnalysis(document.id)
       setAnalysisModal({
-        title: 'Medidores da DEMM',
+        title: details.documentNumber ? `DEMM ${details.documentNumber}` : 'DEMM',
         fileName: response.fileName,
+        details: {
+          ...details,
+          meterCount: response.analysis.meters.length,
+          scheduledCount: response.analysis.meters.filter((item) => item.scheduled).length,
+        },
         meters: response.analysis.meters,
         loading: false,
         showSources: false,
@@ -1244,6 +1339,7 @@ export function EntradaPanel({
       setAnalysisModal({
         title: 'Medidores identificados na DEMM',
         fileName: response.document.fileName,
+        details: buildDemmDocumentDetails(response.document),
         meters: response.analysis.meters,
         loading: false,
         showSources: false,
@@ -1632,6 +1728,7 @@ export function EntradaPanel({
           <DemmAnalysisModal
             title={analysisModal.title}
             fileName={analysisModal.fileName}
+            details={analysisModal.details}
             meters={analysisModal.meters}
             loading={analysisModal.loading}
             showSources={analysisModal.showSources}
@@ -2108,6 +2205,7 @@ export function EntradaPanel({
           <DemmAnalysisModal
             title={analysisModal.title}
             fileName={analysisModal.fileName}
+            details={analysisModal.details}
             meters={analysisModal.meters}
             loading={analysisModal.loading}
             showSources={analysisModal.showSources}
@@ -2150,9 +2248,6 @@ export function EntradaPanel({
                     <th>Data emissão</th>
                     <th>Medidores</th>
                     <th>Agendados</th>
-                    <th>Status</th>
-                    <th>Cadastrado por</th>
-                    <th>Cadastrado em</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
@@ -2160,7 +2255,17 @@ export function EntradaPanel({
                   {demmDocuments.map((document) => (
                     <tr
                       key={document.id}
-                      className={document.bulkEntryReady ? 'demm-row-bulk-ready' : undefined}
+                      className={`demm-row-clickable${document.bulkEntryReady ? ' demm-row-bulk-ready' : ''}`}
+                      onClick={() => void openDemmAnalysis(document)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          void openDemmAnalysis(document)
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`Ver detalhes da DEMM ${document.documentNumber ?? document.fileName}`}
                     >
                       <td>{document.documentNumber ?? '—'}</td>
                       <td>{document.csdName ?? '—'}</td>
@@ -2168,18 +2273,7 @@ export function EntradaPanel({
                       <td>{document.meterCount}</td>
                       <td>{document.scheduledCount}</td>
                       <td>
-                        {document.bulkEntryReady ? (
-                          <span className="demm-bulk-ready-badge">
-                            DEMM liberada para entrada em massa
-                          </span>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td>{document.createdByRegistration ?? '—'}</td>
-                      <td>{formatDateTime(document.createdAt)}</td>
-                      <td>
-                        <div className="entrada-demm-actions">
+                        <div className="entrada-demm-actions" onClick={(event) => event.stopPropagation()}>
                           <a
                             className="entrada-demm-link"
                             href={api.getDemmDocumentFileUrl(document.id)}
@@ -2188,14 +2282,6 @@ export function EntradaPanel({
                           >
                             PDF
                           </a>
-                          <button
-                            type="button"
-                            className="secondary-button entrada-demm-meters-button"
-                            onClick={() => void openDemmAnalysis(document.id, document.fileName)}
-                          >
-                            Medidores
-                            {document.meterCount > 0 ? ` (${document.meterCount})` : ''}
-                          </button>
                           {readOnly ? null : (
                             <button
                               type="button"
@@ -2227,10 +2313,10 @@ export function EntradaPanel({
                 </tbody>
                 <tfoot>
                   <tr className="entrada-table-total-row">
-                    <td colSpan={4}>Total</td>
+                    <td colSpan={3}>Total</td>
                     <td>{totalDemmMeters}</td>
                     <td>{totalDemmScheduled}</td>
-                    <td colSpan={4} />
+                    <td />
                   </tr>
                 </tfoot>
               </table>
@@ -2248,6 +2334,7 @@ export function EntradaPanel({
         <DemmAnalysisModal
           title={analysisModal.title}
           fileName={analysisModal.fileName}
+          details={analysisModal.details}
           meters={analysisModal.meters}
           loading={analysisModal.loading}
           showSources={analysisModal.showSources}
