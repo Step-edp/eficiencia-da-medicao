@@ -1579,12 +1579,16 @@ export const api = {
     request<{ meterScheduleId: string; comparisons: ScheduleEntryComparisons }>(
       `/api/meter-schedules/${meterScheduleId}/entry-comparisons`,
     ),
-  listInspectionPendencias: () =>
-    request<{
+  listInspectionPendencias: (forUserId?: string) => {
+    const search = new URLSearchParams()
+    if (forUserId) search.set('forUserId', forUserId)
+    const queryString = search.toString()
+    return request<{
       pendencias: MeterInspectionPendenciaRecord[]
       pendingCount: number
       byScheduleId: Record<string, MeterInspectionSummary>
-    }>('/api/meter-schedules/inspection-pendencias'),
+    }>(`/api/meter-schedules/inspection-pendencias${queryString ? `?${queryString}` : ''}`)
+  },
   getDemmMetersBase: () =>
     request<{ meters: DemmMeterAnalysisRecord[]; total: number; scheduledCount: number }>(
       '/api/demm-documents/meters-base',

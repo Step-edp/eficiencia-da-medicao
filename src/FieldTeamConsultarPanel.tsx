@@ -292,12 +292,12 @@ export function FieldTeamConsultarPanel({
 
   const loadInspectionPendencias = useCallback(async () => {
     try {
-      const response = await api.listInspectionPendencias()
+      const response = await api.listInspectionPendencias(scopeUserId)
       setInspectionSummaryByScheduleId(response.byScheduleId)
     } catch {
       // Não bloqueia a listagem principal se a consulta de pendências falhar.
     }
-  }, [])
+  }, [scopeUserId])
 
   const load = useCallback(async () => {
     setLoading(true)

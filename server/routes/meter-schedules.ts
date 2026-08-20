@@ -15,10 +15,14 @@ import {
   lastFridayBeforeAssay,
   toCalendarDate,
 } from '../delivery-deadline.js'
+import {
+  PONTO_FOCAL_SCOPE,
+  pontoFocalScopeUserId,
+  resolvePontoFocalCsdNames,
+} from '../ponto-focal-csds.js'
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 const BACKOFFICE_SCOPE = 'Lavratura de TOI - Backoffice'
-const PONTO_FOCAL_SCOPE = 'Lavratura de TOI - Ponto Focal'
 
 type MeterScheduleRow = {
   id: string
@@ -101,33 +105,6 @@ function mapMeterSchedule(row: MeterScheduleRow) {
   }
 }
 
-/** Ponto Focal: restringe Consultar aos CSDs em que o usuário é responsável. */
-async function resolvePontoFocalCsdNames(userId: string): Promise<string[] | null> {
-  const userResult = await query<{ work_area: string; work_subtype: string }>(
-    `SELECT work_area, work_subtype FROM users WHERE id = $1`,
-    [userId],
-  )
-  const user = userResult.rows[0]
-  if (!user) {
-    return []
-  }
-
-  const isPontoFocal =
-    user.work_area?.trim() === 'CSD' &&
-    (user.work_subtype?.trim() ?? '').replace(/[–—]/g, '-') === PONTO_FOCAL_SCOPE
-
-  if (!isPontoFocal) {
-    return null
-  }
-
-  const csdsResult = await query<{ name: string }>(
-    `SELECT name FROM csds WHERE responsible_user_id = $1 ORDER BY name ASC`,
-    [userId],
-  )
-
-  return csdsResult.rows.map((row) => row.name.trim()).filter(Boolean)
-}
-
 export async function listMeterSchedules(req: Request, res: Response) {
   const galleryMode =
     req.query.gallery === '1' ||
@@ -182,8 +159,7 @@ export async function listMeterSchedules(req: Request, res: Response) {
       )`
   } else if (!galleryMode && !meterSearch) {
     // Consultar: Ponto Focal vê só agendamentos dos CSDs atribuídos a ele.
-    const scopeUserId =
-      req.user?.role === 'admin' && forUserId ? forUserId : (req.user?.id ?? '')
+    const scopeUserId = pontoFocalScopeUserId(req.user?.role, req.user?.id, forUserId)
 
     if (scopeUserId) {
       const csdNames = await resolvePontoFocalCsdNames(scopeUserId)
@@ -935,8 +911,7 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
     typeof req.query.forUserId === 'string' && req.query.forUserId.trim()
       ? req.query.forUserId.trim()
       : ''
-  const scopeUserId =
-    req.user?.role === 'admin' && forUserId ? forUserId : (req.user?.id ?? '')
+  const scopeUserId = pontoFocalScopeUserId(req.user?.role, req.user?.id, forUserId)
 
   if (!scopeUserId) {
     res.status(401).json({ error: 'Autenticação necessária.' })

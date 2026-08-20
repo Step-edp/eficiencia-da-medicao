@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from './api'
 
-export function useCsdsOptions() {
+export function useCsdsOptions(filter?: { responsibleUserId?: string }) {
   const [options, setOptions] = useState<Array<{ id: string; label: string }>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const responsibleUserId = filter?.responsibleUserId
 
   useEffect(() => {
     let active = true
@@ -13,7 +14,10 @@ export function useCsdsOptions() {
       .listCsds()
       .then(({ csds }) => {
         if (!active) return
-        setOptions(csds.map((csd) => ({ id: csd.id, label: csd.name })))
+        const rows = responsibleUserId
+          ? csds.filter((csd) => csd.responsibleUserId === responsibleUserId)
+          : csds
+        setOptions(rows.map((csd) => ({ id: csd.id, label: csd.name })))
         setError(null)
       })
       .catch((err) => {
@@ -28,7 +32,7 @@ export function useCsdsOptions() {
     return () => {
       active = false
     }
-  }, [])
+  }, [responsibleUserId])
 
   return { options, loading, error }
 }

@@ -19,6 +19,7 @@ import {
   normalizeScheduleMeter,
   normalizeScheduleNote,
 } from '../numeric-field-validation.js'
+import { pontoFocalScopeUserId, resolvePontoFocalCsdNames } from '../ponto-focal-csds.js'
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024
 
@@ -659,6 +660,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   const schedule = await query<{
     id: string
     meter: string
+    csd: string
     envelope_seal: string
     cover_seal: string
     meter_reading: string
@@ -667,12 +669,25 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     note: string
     source: string
   }>(
-    `SELECT id, meter, envelope_seal, cover_seal, meter_reading, installation, toi, note, source FROM meter_schedules WHERE id = $1`,
+    `SELECT id, meter, csd, envelope_seal, cover_seal, meter_reading, installation, toi, note, source FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
   if (!schedule.rows[0]) {
     res.status(404).json({ error: 'Agendamento não encontrado.' })
     return
+  }
+
+  if (req.user?.id && req.user.role !== 'admin') {
+    const allowedCsdNames = await resolvePontoFocalCsdNames(req.user.id)
+    if (allowedCsdNames !== null) {
+      const scheduleCsd = schedule.rows[0].csd.trim().toUpperCase()
+      if (!allowedCsdNames.some((name) => name.toUpperCase() === scheduleCsd)) {
+        res.status(403).json({
+          error: 'Você só pode anexar documentos dos CSDs em que é responsável.',
+        })
+        return
+      }
+    }
   }
 
   const fileBuffer = decodeFileBase64(fileBase64.trim())
@@ -1081,7 +1096,30 @@ export async function deleteInspectionDocument(req: Request, res: Response) {
   res.json({ ok: true, meterScheduleId: existing.meter_schedule_id })
 }
 
-export async function listInspectionPendencias(_req: Request, res: Response) {
+export async function listInspectionPendencias(req: Request, res: Response) {
+  const forUserId =
+    typeof req.query.forUserId === 'string' && req.query.forUserId.trim()
+      ? req.query.forUserId.trim()
+      : ''
+  const scopeUserId = pontoFocalScopeUserId(req.user?.role, req.user?.id, forUserId)
+
+  let csdNames: string[] | null = null
+  if (scopeUserId) {
+    csdNames = await resolvePontoFocalCsdNames(scopeUserId)
+  }
+
+  if (csdNames !== null && csdNames.length === 0) {
+    res.json({ pendencias: [], pendingCount: 0, byScheduleId: {} })
+    return
+  }
+
+  const params: unknown[] = [ENTRADA_TRAIL_STEP]
+  let csdFilter = ''
+  if (csdNames !== null) {
+    params.push(csdNames.map((name) => name.toUpperCase()))
+    csdFilter = `AND UPPER(TRIM(ms.csd)) = ANY($${params.length}::text[])`
+  }
+
   const schedules = await query<{
     id: string
     meter: string
@@ -1119,13 +1157,14 @@ export async function listInspectionPendencias(_req: Request, res: Response) {
      FROM meter_schedules ms
      LEFT JOIN csds c ON c.name = ms.csd
      LEFT JOIN users u ON u.id = c.responsible_user_id
-     WHERE ms.trail_step = $1
+     WHERE (ms.trail_step = $1
         OR EXISTS (
           SELECT 1 FROM meter_inspection_documents d
           WHERE d.meter_schedule_id = ms.id
-        )
+        ))
+     ${csdFilter}
      ORDER BY ms.scheduled_at ASC`,
-    [ENTRADA_TRAIL_STEP],
+    params,
   )
 
   const scheduleIds = schedules.rows.map((row) => row.id)

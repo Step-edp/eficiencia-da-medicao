@@ -6,6 +6,7 @@ import { analyzeDemmMeters, type DemmMeterAnalysis } from '../demm-meter-analysi
 import { loadInspectionSummariesByNorm, type InspectionSummary } from './meter-inspection-documents.js'
 import { normalizeScheduleMeter } from '../numeric-field-validation.js'
 import { validateDemmUploadMeters } from '../demm-upload-validation.js'
+import { resolvePontoFocalCsdNames } from '../ponto-focal-csds.js'
 import {
   ENTRADA_TRAIL_STEP,
   ENSAIAR_TRAIL_STEP,
@@ -191,6 +192,19 @@ export async function createDemmDocument(req: Request, res: Response) {
   if (!csd.rows[0]) {
     res.status(404).json({ error: 'CSD não encontrado.' })
     return
+  }
+
+  if (req.user?.id && req.user.role !== 'admin') {
+    const allowedCsdNames = await resolvePontoFocalCsdNames(req.user.id)
+    if (allowedCsdNames !== null) {
+      const selectedCsd = csd.rows[0].name.trim().toUpperCase()
+      if (!allowedCsdNames.some((name) => name.toUpperCase() === selectedCsd)) {
+        res.status(403).json({
+          error: 'Você só pode enviar DEMM dos CSDs em que é responsável.',
+        })
+        return
+      }
+    }
   }
 
   const normalizedTargetWeekStart = targetWeekStart?.trim() ?? ''

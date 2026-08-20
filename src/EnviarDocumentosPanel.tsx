@@ -19,8 +19,14 @@ function formatDateTime(isoDate: string) {
 
 type Feedback = { type: 'success' | 'error'; message: string }
 
-export function EnviarDocumentosPanel() {
-  const { options: csdOptions, loading: csdOptionsLoading, error: csdOptionsError } = useCsdsOptions()
+type EnviarDocumentosPanelProps = {
+  /** Ponto Focal: restringe DEMM e pendências aos CSDs em que este usuário é responsável. */
+  scopeUserId?: string
+}
+
+export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProps) {
+  const { options: csdOptions, loading: csdOptionsLoading, error: csdOptionsError } =
+    useCsdsOptions(scopeUserId ? { responsibleUserId: scopeUserId } : undefined)
   const [demmCsdId, setDemmCsdId] = useState('')
   const [demmFile, setDemmFile] = useState<File | null>(null)
   const [submittingDemm, setSubmittingDemm] = useState(false)
@@ -39,7 +45,7 @@ export function EnviarDocumentosPanel() {
   const loadInspectionPendencias = useCallback(async () => {
     setInspectionLoading(true)
     try {
-      const response = await api.listInspectionPendencias()
+      const response = await api.listInspectionPendencias(scopeUserId)
       setInspectionPendencias(response.pendencias)
     } catch (error) {
       setInspectionFeedback({
@@ -52,11 +58,16 @@ export function EnviarDocumentosPanel() {
     } finally {
       setInspectionLoading(false)
     }
-  }, [])
+  }, [scopeUserId])
 
   useEffect(() => {
     void loadInspectionPendencias()
   }, [loadInspectionPendencias])
+
+  useEffect(() => {
+    if (!scopeUserId || demmCsdId || csdOptions.length !== 1) return
+    setDemmCsdId(csdOptions[0].id)
+  }, [scopeUserId, demmCsdId, csdOptions])
 
   const handleDemmSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -238,7 +249,11 @@ export function EnviarDocumentosPanel() {
           <p className="entrada-panel-empty">Carregando pendências...</p>
         ) : inspectionPendencias.length === 0 ? (
           <p className="entrada-panel-empty">
-            Todos os medidores agendados têm documento de inspeção anexado.
+            {scopeUserId && !csdOptionsLoading && csdOptions.length === 0
+              ? 'Você não está definido como responsável de nenhum CSD.'
+              : scopeUserId
+                ? 'Não há documentos de inspeção pendentes nos CSDs em que você é responsável.'
+                : 'Todos os medidores agendados têm documento de inspeção anexado.'}
           </p>
         ) : (
           <div className="entrada-table-wrap">

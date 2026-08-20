@@ -5138,7 +5138,15 @@ function HomePanel({
                 }
               />
             ) : selectedFieldTeamSection === 'Enviar documentos' ? (
-              <EnviarDocumentosPanel />
+              <EnviarDocumentosPanel
+                scopeUserId={
+                  isAdmin && previewUser && isLavraturaPontoFocalScope(previewUser.workSubtype)
+                    ? previewUser.id
+                    : isLavraturaPontoFocalScope(currentUser.workSubtype)
+                      ? currentUser.id
+                      : undefined
+                }
+              />
             ) : (
               <FieldTeamConsultarPanel
                 scopeUserId={
