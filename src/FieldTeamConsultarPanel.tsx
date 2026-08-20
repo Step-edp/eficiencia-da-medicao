@@ -78,6 +78,15 @@ function inspectionStatusLabel(summary: MeterInspectionSummary | undefined) {
   return 'Sem documento de inspeção'
 }
 
+function inspectionStatusShortLabel(summary: MeterInspectionSummary | undefined) {
+  if (!summary?.hasToi && !summary?.hasComunicado) return 'Sem doc.'
+  if (summary.hasToi && !summary.hasComunicado) return 'Falta CSM'
+  if (!summary.hasToi && summary.hasComunicado) return 'Falta TOI'
+  if (summary.anyBlocked) return 'Bloqueado'
+  if (summary.hasToi && summary.hasComunicado) return 'Liberado'
+  return 'Sem doc.'
+}
+
 function inspectionStatusBadgeClass(summary: MeterInspectionSummary | undefined) {
   if (summary?.hasToi && summary?.hasComunicado && !summary.anyBlocked) {
     return 'schedule-ok-badge'
@@ -496,7 +505,6 @@ export function FieldTeamConsultarPanel({
             <tbody>
               {filteredSchedules.map((item) => {
                 const summary = inspectionSummaryByScheduleId[item.id]
-                const inspectionStatus = inspectionStatusLabel(summary)
                 const inspectionBadgeClass = inspectionStatusBadgeClass(summary)
 
                 return (
@@ -560,46 +568,52 @@ export function FieldTeamConsultarPanel({
                       'Entregue'
                     )}
                   </td>
-                  <td>
-                    <div className="week-meter-actions">
+                  <td className="table-inspection-cell">
+                    <div className="table-inspection-actions">
                       <span
                         className={inspectionBadgeClass}
-                        title={summary?.blockReasons ?? inspectionStatus}
+                        title={summary?.blockReasons ?? inspectionStatusLabel(summary)}
                       >
-                        {inspectionStatus}
+                        {inspectionStatusShortLabel(summary)}
                       </span>
-                      <input
-                        id={`consultar-inspection-${item.id}`}
-                        type="file"
-                        accept="application/pdf,.pdf"
-                        className="file-picker-input"
-                        disabled={uploadingInspectionId === item.id}
-                        onChange={(event) => {
-                          const file = event.target.files?.[0]
-                          event.target.value = ''
-                          if (file) {
-                            void handleUploadInspectionDocument({ id: item.id, meter: item.meter }, file)
-                          }
-                        }}
-                      />
-                      <label
-                        htmlFor={`consultar-inspection-${item.id}`}
-                        className="file-picker-button"
-                      >
-                        {uploadingInspectionId === item.id ? 'Enviando...' : 'Importar documento'}
-                      </label>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() =>
-                          setInspectionDocumentTarget({
-                            meter: item.meter,
-                            scheduleId: item.id,
-                          })
-                        }
-                      >
-                        Ver documento
-                      </button>
+                      <div className="table-inspection-actions__buttons">
+                        <input
+                          id={`consultar-inspection-${item.id}`}
+                          type="file"
+                          accept="application/pdf,.pdf"
+                          className="file-picker-input"
+                          disabled={uploadingInspectionId === item.id}
+                          onChange={(event) => {
+                            const file = event.target.files?.[0]
+                            event.target.value = ''
+                            if (file) {
+                              void handleUploadInspectionDocument({ id: item.id, meter: item.meter }, file)
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`consultar-inspection-${item.id}`}
+                          className="file-picker-button"
+                          title="Importar documento de inspeção"
+                        >
+                          {uploadingInspectionId === item.id ? 'Enviando...' : 'Importar'}
+                        </label>
+                        {summary?.hasToi || summary?.hasComunicado ? (
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            title="Ver documento de inspeção"
+                            onClick={() =>
+                              setInspectionDocumentTarget({
+                                meter: item.meter,
+                                scheduleId: item.id,
+                              })
+                            }
+                          >
+                            Ver
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   </td>
                 </tr>

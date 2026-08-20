@@ -2424,6 +2424,58 @@ button {
   margin: 0;
 }
 
+.entrada-table-wrap .data-table td,
+.entrada-table-wrap .data-table th {
+  padding: 8px 10px;
+  vertical-align: middle;
+}
+
+.table-inspection-cell {
+  min-width: 9rem;
+}
+
+.table-inspection-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: flex-start;
+}
+
+.table-inspection-actions__buttons {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.entrada-table-wrap .table-inspection-actions .file-picker-button,
+.entrada-table-wrap .table-inspection-actions .secondary-button,
+.entrada-table-wrap .week-meter-actions .file-picker-button,
+.entrada-table-wrap .week-meter-actions .secondary-button,
+.entrada-table-wrap .week-meter-actions .primary-button {
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  border-radius: 8px;
+  line-height: 1.2;
+}
+
+.entrada-table-wrap .table-inspection-actions .schedule-late-badge,
+.entrada-table-wrap .table-inspection-actions .schedule-ok-badge,
+.entrada-table-wrap .week-meter-actions .week-meter-status-badge {
+  padding: 2px 7px;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.entrada-table-wrap .week-meter-actions {
+  gap: 0.35rem;
+}
+
+.entrada-table-wrap .envelope-photo-thumb {
+  width: 36px;
+  height: 36px;
+}
+
 .entrada-table-wrap thead th {
   position: sticky;
   top: 0;
