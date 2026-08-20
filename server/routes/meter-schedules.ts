@@ -56,6 +56,7 @@ type MeterScheduleRow = {
   demm_file_name?: string | null
   demm_meter_count?: number | null
   registry_status?: string | null
+  delay_justification?: string | null
 }
 
 function mapMeterSchedule(row: MeterScheduleRow) {
@@ -102,6 +103,7 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     demmFileName: row.demm_file_name ?? null,
     demmMeterCount: Number(row.demm_meter_count ?? 0),
     registryStatus: row.registry_status || '',
+    delayJustification: (row.delay_justification ?? '').trim(),
   }
 }
 
@@ -905,6 +907,90 @@ function monthLabelFromKey(key: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
+export async function saveDelayJustification(req: Request, res: Response) {
+  const id = typeof req.params.id === 'string' ? req.params.id.trim() : ''
+  if (!id) {
+    res.status(400).json({ error: 'Informe o agendamento.' })
+    return
+  }
+
+  const justification =
+    typeof req.body?.justification === 'string' ? req.body.justification.trim() : ''
+  if (justification.length < MIN_JUSTIFICATION_LENGTH) {
+    res.status(400).json({
+      error: `Informe o motivo do atraso (mínimo ${MIN_JUSTIFICATION_LENGTH} caracteres).`,
+    })
+    return
+  }
+
+  const existing = await query<MeterScheduleRow>(
+    `SELECT ms.*, ms.scheduling_date::text AS scheduling_date,
+            u.name AS created_by_name, u.registration AS created_by_registration
+     FROM meter_schedules ms
+     LEFT JOIN users u ON u.id = ms.created_by_user_id
+     WHERE ms.id = $1`,
+    [id],
+  )
+  const row = existing.rows[0]
+  if (!row) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  const isLate = isMeterDeliveryLate({
+    scheduledAt: row.scheduled_at,
+    trailStep: row.trail_step,
+    entradaTrailStep: ENTRADA_TRAIL_STEP,
+  })
+  if (!isLate) {
+    res.status(400).json({ error: 'Só é possível justificar medidores atrasados.' })
+    return
+  }
+
+  if (req.user?.role !== 'admin') {
+    const userId = req.user?.id ?? ''
+    const allowedCsdNames = userId ? await resolvePontoFocalCsdNames(userId) : []
+    if (allowedCsdNames === null) {
+      res.status(403).json({
+        error: 'Apenas o Ponto Focal pode justificar o atraso da entrega.',
+      })
+      return
+    }
+    const scheduleCsd = row.csd.trim().toUpperCase()
+    if (!allowedCsdNames.some((name) => name.toUpperCase() === scheduleCsd)) {
+      res.status(403).json({
+        error: 'Você só pode justificar atrasos dos CSDs em que é responsável.',
+      })
+      return
+    }
+  }
+
+  const updated = await query<MeterScheduleRow>(
+    `UPDATE meter_schedules
+     SET delay_justification = $2
+     WHERE id = $1
+     RETURNING *, scheduling_date::text AS scheduling_date`,
+    [id, justification],
+  )
+
+  const schedule = mapMeterSchedule({
+    ...updated.rows[0],
+    created_by_name: row.created_by_name,
+    created_by_registration: row.created_by_registration,
+  })
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: schedule.id,
+    summary: `Justificativa de atraso do medidor ${schedule.meter}`,
+    oldData: { delayJustification: (row.delay_justification ?? '').trim() },
+    newData: { delayJustification: justification },
+  })
+
+  res.json({ schedule })
+}
+
 /** Dashboard de atraso de entrega para Ponto Focal (CSDs sob responsabilidade). */
 export async function getPontoFocalDashboard(req: Request, res: Response) {
   const forUserId =
@@ -948,6 +1034,7 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
         delayedCount: 0,
       },
       monthly: [],
+      lateMeters: [],
     })
     return
   }
@@ -955,12 +1042,19 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
   const result = await query<{
     id: string
     meter: string
+    installation: string
+    toi: string
+    note: string
+    csd: string
     scheduled_at: Date
     trail_step: string
     created_at: Date
     entry_at: Date | null
+    delay_justification: string | null
   }>(
-    `SELECT ms.id, ms.meter, ms.scheduled_at, ms.trail_step, ms.created_at,
+    `SELECT ms.id, ms.meter, ms.installation, ms.toi, ms.note, ms.csd,
+            ms.scheduled_at, ms.trail_step, ms.created_at,
+            COALESCE(ms.delay_justification, '') AS delay_justification,
             d.created_at AS entry_at
      FROM meter_schedules ms
      LEFT JOIN LATERAL (
@@ -981,6 +1075,19 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
   let deliveredOnTime = 0
   let deliveredLate = 0
   const delayDaysSamples: number[] = []
+  const lateMeters: Array<{
+    id: string
+    meter: string
+    installation: string
+    toi: string
+    note: string
+    csd: string
+    scheduledAt: string
+    scheduledAtLabel: string
+    deliveryDeadlineLabel: string
+    daysLate: number
+    delayJustification: string
+  }> = []
   const monthlyMap = new Map<
     string,
     { late: number; deliveredOnTime: number; onTimePending: number; deliveredLate: number }
@@ -1035,6 +1142,19 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
       const daysLate = calendarDaysBetween(deadline, now)
       delayDaysSamples.push(daysLate)
       bumpMonth(monthKey, 'late')
+      lateMeters.push({
+        id: row.id,
+        meter: row.meter,
+        installation: row.installation,
+        toi: row.toi,
+        note: row.note,
+        csd: row.csd,
+        scheduledAt: row.scheduled_at.toISOString(),
+        scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
+        deliveryDeadlineLabel: formatDeliveryDeadlineLabel(deadline),
+        daysLate,
+        delayJustification: (row.delay_justification ?? '').trim(),
+      })
     } else {
       onTimePending += 1
       bumpMonth(monthKey, 'onTimePending')
@@ -1094,6 +1214,7 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
       delayedCount: delayDaysSamples.length,
     },
     monthly,
+    lateMeters: lateMeters.sort((a, b) => b.daysLate - a.daysLate || a.meter.localeCompare(b.meter)),
   })
 }
 

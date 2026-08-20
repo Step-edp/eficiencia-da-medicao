@@ -918,4 +918,9 @@ export async function migrate() {
       'Lavratura de TOI - Backoffice'
     );
   `)
+
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS delay_justification TEXT NOT NULL DEFAULT '';
+  `)
 }

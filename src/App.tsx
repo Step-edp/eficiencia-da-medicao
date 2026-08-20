@@ -5150,6 +5150,7 @@ function HomePanel({
             ) : (
               <FieldTeamConsultarPanel
                 hideInspectionImport={isLavraturaPontoFocalScope(activeFieldTeamSubtype)}
+                allowDelayJustification={isLavraturaPontoFocalScope(activeFieldTeamSubtype)}
                 scopeUserId={
                   isAdmin && previewUser && isLavraturaPontoFocalScope(previewUser.workSubtype)
                     ? previewUser.id

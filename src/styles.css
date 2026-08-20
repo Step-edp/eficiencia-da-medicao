@@ -4907,6 +4907,21 @@ button {
   border-radius: 3px;
 }
 
+.ponto-focal-late-section {
+  margin: 8px 0 24px;
+}
+
+.ponto-focal-delay-input {
+  width: min(280px, 100%);
+  min-height: 64px;
+  resize: vertical;
+}
+
+.ponto-focal-justified-badge {
+  display: inline-flex;
+  margin-top: 8px;
+}
+
 @media (max-width: 1100px) {
   .ponto-focal-dashboard .users-dashboard-grid {
     grid-template-columns: 1fr;

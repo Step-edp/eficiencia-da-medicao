@@ -429,6 +429,20 @@ export type MeterScheduleHistoryRecord = {
   metadata: Record<string, unknown>
 }
 
+export type PontoFocalLateMeter = {
+  id: string
+  meter: string
+  installation: string
+  toi: string
+  note: string
+  csd: string
+  scheduledAt: string
+  scheduledAtLabel: string
+  deliveryDeadlineLabel: string
+  daysLate: number
+  delayJustification: string
+}
+
 export type PontoFocalDashboardData = {
   csdNames: string[]
   current: {
@@ -460,6 +474,7 @@ export type PontoFocalDashboardData = {
     lateProportion: number
     onTimeProportion: number
   }>
+  lateMeters: PontoFocalLateMeter[]
 }
 
 export type MeterScheduleRecord = {
@@ -488,6 +503,7 @@ export type MeterScheduleRecord = {
   deliveryDeadlineAt?: string
   deliveryDeadlineLabel?: string
   isLate?: boolean
+  delayJustification?: string
   trailStep: string
   source: string
   createdAt: string
@@ -1444,6 +1460,11 @@ export const api = {
     request<{ schedule: MeterScheduleRecord }>(`/api/meter-schedules/${id}/reschedule`, {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+  saveDelayJustification: (id: string, justification: string) =>
+    request<{ schedule: MeterScheduleRecord }>(`/api/meter-schedules/${id}/delay-justification`, {
+      method: 'PUT',
+      body: JSON.stringify({ justification }),
     }),
   countMeterSchedules: (trailStep?: string) => {
     const search = new URLSearchParams()

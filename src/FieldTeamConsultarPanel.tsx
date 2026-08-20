@@ -12,6 +12,8 @@ type FieldTeamSchedulesPanelProps = {
   scopeUserId?: string
   /** Ponto Focal importa documentos só em Enviar documentos. */
   hideInspectionImport?: boolean
+  /** Ponto Focal justifica atraso de entrega. */
+  allowDelayJustification?: boolean
 }
 
 type EnvelopePreview = {
@@ -194,6 +196,12 @@ function ScheduleDetailModal({ schedule, onClose, onPreviewEnvelope }: ScheduleD
             <dt>Status entrega</dt>
             <dd>{deliveryStatus}</dd>
           </div>
+          {schedule.delayJustification?.trim() ? (
+            <div className="user-detail-full">
+              <dt>Motivo do atraso</dt>
+              <dd>{schedule.delayJustification.trim()}</dd>
+            </div>
+          ) : null}
           <div>
             <dt>Origem</dt>
             <dd>{scheduleSourceLabel(schedule.source)}</dd>
@@ -270,6 +278,7 @@ export function FieldTeamConsultarPanel({
   mode = 'all',
   scopeUserId,
   hideInspectionImport = false,
+  allowDelayJustification = false,
 }: FieldTeamSchedulesPanelProps) {
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -287,6 +296,9 @@ export function FieldTeamConsultarPanel({
   const [inspectionSummaryByScheduleId, setInspectionSummaryByScheduleId] = useState<
     Record<string, MeterInspectionSummary>
   >({})
+  const [delayTarget, setDelayTarget] = useState<MeterScheduleRecord | null>(null)
+  const [delayDraft, setDelayDraft] = useState('')
+  const [savingDelay, setSavingDelay] = useState(false)
   const isMine = mode === 'mine'
 
   const loadInspectionPendencias = useCallback(async () => {
@@ -384,8 +396,37 @@ export function FieldTeamConsultarPanel({
     }
   }
 
+  const handleSaveDelayJustification = async () => {
+    if (!delayTarget) return
+    const justification = delayDraft.trim()
+    setSavingDelay(true)
+    setFeedback(null)
+    try {
+      const { schedule } = await api.saveDelayJustification(delayTarget.id, justification)
+      setSchedules((current) =>
+        current.map((item) => (item.id === schedule.id ? { ...item, ...schedule } : item)),
+      )
+      setDelayTarget(null)
+      setDelayDraft('')
+      setFeedback({
+        type: 'success',
+        message: `Justificativa do medidor ${schedule.meter} salva.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível salvar a justificativa do atraso.',
+      })
+    } finally {
+      setSavingDelay(false)
+    }
+  }
+
   useEffect(() => {
-    if (!envelopePreview && !selectedSchedule && !inspectionDocumentTarget) return
+    if (!envelopePreview && !selectedSchedule && !inspectionDocumentTarget && !delayTarget) return
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -397,13 +438,17 @@ export function FieldTeamConsultarPanel({
           setInspectionDocumentTarget(null)
           return
         }
+        if (delayTarget) {
+          setDelayTarget(null)
+          return
+        }
         setSelectedSchedule(null)
       }
     }
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [envelopePreview, selectedSchedule, inspectionDocumentTarget])
+  }, [envelopePreview, selectedSchedule, inspectionDocumentTarget, delayTarget])
 
   const filteredSchedules = useMemo(() => {
     const query = normalizeSearch(searchQuery)
@@ -560,7 +605,26 @@ export function FieldTeamConsultarPanel({
                   <td>{item.deliveryDeadlineLabel || '—'}</td>
                   <td>
                     {item.isLate ? (
-                      <span className="schedule-late-badge">Atrasado</span>
+                      <div className="table-inspection-actions">
+                        <span className="schedule-late-badge">Atrasado</span>
+                        {item.delayJustification?.trim() ? (
+                          <span className="schedule-ok-badge">Justificado</span>
+                        ) : allowDelayJustification ? (
+                          <span className="schedule-late-badge">Pendente</span>
+                        ) : null}
+                        {allowDelayJustification ? (
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            onClick={() => {
+                              setDelayTarget(item)
+                              setDelayDraft(item.delayJustification ?? '')
+                            }}
+                          >
+                            Justificar
+                          </button>
+                        ) : null}
+                      </div>
                     ) : item.trailStep === 'Entrada de medidores' ? (
                       <span className="schedule-ok-badge">No prazo</span>
                     ) : (
@@ -691,6 +755,62 @@ export function FieldTeamConsultarPanel({
           }}
         />
       ) : null}
+
+      {delayTarget
+        ? createPortal(
+            <div
+              className="ensaios-block-modal-overlay"
+              role="presentation"
+              onClick={() => {
+                if (!savingDelay) setDelayTarget(null)
+              }}
+            >
+              <div
+                className="ensaios-block-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="delay-justification-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="delay-justification-title">Justificar atraso</h3>
+                <p className="csds-form-hint">
+                  Medidor {delayTarget.meter} · prazo {delayTarget.deliveryDeadlineLabel || '—'}.
+                  Informe o motivo do atraso na entrega.
+                </p>
+                <label>
+                  Motivo do atraso
+                  <textarea
+                    value={delayDraft}
+                    onChange={(event) => setDelayDraft(event.target.value)}
+                    rows={4}
+                    placeholder="Descreva o motivo do atraso"
+                    disabled={savingDelay}
+                    required
+                  />
+                </label>
+                <div className="ensaios-block-modal-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setDelayTarget(null)}
+                    disabled={savingDelay}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={savingDelay || delayDraft.trim().length < 5}
+                    onClick={() => void handleSaveDelayJustification()}
+                  >
+                    {savingDelay ? 'Salvando...' : 'Salvar justificativa'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

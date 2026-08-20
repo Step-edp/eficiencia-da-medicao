@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { LoginFeedback } from './LoginFeedback'
-import { api, ApiError, type PontoFocalDashboardData } from './api'
+import {
+  api,
+  ApiError,
+  type PontoFocalDashboardData,
+  type PontoFocalLateMeter,
+} from './api'
 
 type PontoFocalDashboardProps = {
   forUserId?: string
@@ -14,6 +19,11 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
   const [data, setData] = useState<PontoFocalDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
+    null,
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -23,7 +33,13 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
     api
       .getPontoFocalDashboard(forUserId)
       .then((response) => {
-        if (!cancelled) setData(response)
+        if (cancelled) return
+        setData(response)
+        const next: Record<string, string> = {}
+        for (const meter of response.lateMeters ?? []) {
+          next[meter.id] = meter.delayJustification
+        }
+        setDrafts(next)
       })
       .catch((err) => {
         if (cancelled) return
@@ -42,6 +58,45 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
     }
   }, [forUserId])
 
+  const handleSaveJustification = async (meter: PontoFocalLateMeter) => {
+    const justification = (drafts[meter.id] ?? '').trim()
+    setSavingId(meter.id)
+    setFeedback(null)
+    try {
+      const { schedule } = await api.saveDelayJustification(meter.id, justification)
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              lateMeters: current.lateMeters.map((item) =>
+                item.id === meter.id
+                  ? { ...item, delayJustification: schedule.delayJustification ?? justification }
+                  : item,
+              ),
+            }
+          : current,
+      )
+      setDrafts((current) => ({
+        ...current,
+        [meter.id]: schedule.delayJustification ?? justification,
+      }))
+      setFeedback({
+        type: 'success',
+        message: `Justificativa do medidor ${meter.meter} salva.`,
+      })
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        message:
+          err instanceof ApiError
+            ? err.message
+            : 'Não foi possível salvar a justificativa do atraso.',
+      })
+    } finally {
+      setSavingId(null)
+    }
+  }
+
   if (loading) {
     return <p className="generated-password-empty">Carregando dashboard…</p>
   }
@@ -55,7 +110,9 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
   }
 
   const { current, delay, monthly, csdNames } = data
+  const lateMeters = data.lateMeters ?? []
   const maxMonthTotal = Math.max(1, ...monthly.map((item) => item.total))
+  const pendingJustification = lateMeters.filter((item) => !item.delayJustification).length
 
   return (
     <div className="users-dashboard ponto-focal-dashboard">
@@ -70,6 +127,14 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
         ) : null}
         . A entrega deve ocorrer até a última sexta antes da data de ensaio.
       </p>
+
+      {feedback ? (
+        <LoginFeedback
+          type={feedback.type}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
+      ) : null}
 
       <div className="users-dashboard-kpis" aria-label="Indicadores atuais">
         <article className="users-dashboard-kpi">
@@ -118,6 +183,96 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
           </p>
         </article>
       </div>
+
+      <section className="entrada-section ponto-focal-late-section" aria-label="Medidores atrasados">
+        <div className="entrada-section-heading">
+          <h3 className="entrada-section-title">Medidores atrasados</h3>
+          <p className="demm-analysis-summary">
+            {lateMeters.length === 0
+              ? 'Nenhum medidor atrasado neste momento.'
+              : `${lateMeters.length} atrasado(s)${
+                  pendingJustification
+                    ? ` · ${pendingJustification} sem justificativa`
+                    : ''
+                }`}
+          </p>
+        </div>
+
+        {lateMeters.length === 0 ? (
+          <p className="entrada-panel-empty">Não há medidores atrasados para justificar.</p>
+        ) : (
+          <div className="entrada-table-wrap">
+            <table className="data-table entrada-table">
+              <thead>
+                <tr>
+                  <th>Medidor</th>
+                  <th>Instalação</th>
+                  <th>CSD</th>
+                  <th>Data de ensaio</th>
+                  <th>Prazo entrega</th>
+                  <th>Dias de atraso</th>
+                  <th>Motivo do atraso</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lateMeters.map((item) => {
+                  const justified = Boolean(item.delayJustification)
+                  return (
+                    <tr key={item.id} className="schedule-row-late">
+                      <td>{item.meter}</td>
+                      <td>{item.installation || '—'}</td>
+                      <td>{item.csd || '—'}</td>
+                      <td>{item.scheduledAtLabel}</td>
+                      <td>{item.deliveryDeadlineLabel}</td>
+                      <td>
+                        <span className="schedule-late-badge">{item.daysLate} dia(s)</span>
+                      </td>
+                      <td>
+                        <textarea
+                          className="ponto-focal-delay-input"
+                          value={drafts[item.id] ?? ''}
+                          onChange={(event) =>
+                            setDrafts((current) => ({
+                              ...current,
+                              [item.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Informe o motivo do atraso"
+                          rows={2}
+                          disabled={savingId === item.id}
+                        />
+                        {justified ? (
+                          <span className="schedule-ok-badge ponto-focal-justified-badge">
+                            Justificado
+                          </span>
+                        ) : (
+                          <span className="schedule-late-badge ponto-focal-justified-badge">
+                            Pendente
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="primary-button"
+                          disabled={
+                            savingId === item.id ||
+                            (drafts[item.id] ?? '').trim().length < 5
+                          }
+                          onClick={() => void handleSaveJustification(item)}
+                        >
+                          {savingId === item.id ? 'Salvando...' : 'Salvar'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <div className="users-dashboard-grid">
         <div className="users-dashboard-card">
