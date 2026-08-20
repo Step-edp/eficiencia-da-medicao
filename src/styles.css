@@ -3939,8 +3939,13 @@ button {
   font-size: 0.88rem;
 }
 
+.envelope-photo-field {
+  display: grid;
+  gap: 8px;
+}
+
 .envelope-photo-field .file-picker {
-  margin-top: 0;
+  margin-top: 8px;
 }
 
 .envelope-photo-preview {
