@@ -120,7 +120,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-tecnico-ponto-focal',
     name: profileName('CSD', 'Técnico', 'Lavratura de TOI – Ponto Focal'),
     description:
-      'Agendar, consultar e acompanhar o Dashboard de atrasos na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
+      'Agendar, consultar, acompanhar o Dashboard e justificar medidores atrasados na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -132,7 +132,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-analista-ponto-focal',
     name: profileName('CSD', 'Analista', 'Lavratura de TOI – Ponto Focal'),
     description:
-      'Agendar, consultar e acompanhar o Dashboard de atrasos na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
+      'Agendar, consultar, acompanhar o Dashboard e justificar medidores atrasados na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -180,7 +180,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-engenheiro-ponto-focal',
     name: profileName('CSD', 'Engenheiro', 'Lavratura de TOI – Ponto Focal'),
     description:
-      'Agendar, consultar e acompanhar o Dashboard de atrasos na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
+      'Agendar, consultar, acompanhar o Dashboard e justificar medidores atrasados na Equipe de campo, informando a equipe que executou o TOI, com acesso a Suporte e Agenda.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',

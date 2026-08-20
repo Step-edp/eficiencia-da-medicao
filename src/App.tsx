@@ -962,7 +962,7 @@ function TopActionBar({ onBack, onHome, onLogout }: TopActionBarProps) {
 }
 
 function ItemIcon({ title }: { title: string }) {
-  const iconByTitle: Record<string, 'chart' | 'flask' | 'calendar' | 'search' | 'inbox' | 'cube' | 'check' | 'image' | 'bolt' | 'ruler' | 'smile' | 'shield' | 'archive' | 'trash' | 'presentation' | 'truck' | 'book' | 'code' | 'lock' | 'key' | 'database' | 'repeat' | 'building' | 'layer' | 'monitor' | 'star' | 'users' | 'headset'> = {
+  const iconByTitle: Record<string, 'chart' | 'flask' | 'calendar' | 'search' | 'inbox' | 'cube' | 'check' | 'image' | 'bolt' | 'ruler' | 'smile' | 'shield' | 'archive' | 'trash' | 'presentation' | 'truck' | 'book' | 'code' | 'lock' | 'key' | 'database' | 'repeat' | 'building' | 'layer' | 'monitor' | 'star' | 'users' | 'headset' | 'clock'> = {
     Dashboard: 'chart',
     Ensaiar: 'flask',
     Agendar: 'calendar',
@@ -1024,6 +1024,7 @@ function ItemIcon({ title }: { title: string }) {
     Consultar: 'search',
     'Meus TOIs': 'inbox',
     'Enviar documentos': 'archive',
+    'Medidores atrasados': 'clock',
   }
 
   const icon = iconByTitle[title] ?? 'star'
@@ -1104,6 +1105,19 @@ function ItemIcon({ title }: { title: string }) {
               stroke="currentColor"
               strokeWidth="2"
               strokeLinecap="round"
+            />
+          </>
+        ) : null}
+        {icon === 'clock' ? (
+          <>
+            <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="2" />
+            <path
+              d="M12 8v5l3.5 2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
           </>
         ) : null}
@@ -2291,9 +2305,9 @@ function HomePanel({
       return ['Agendar', 'Meus TOIs']
     }
 
-    // Ponto Focal: Agendar, Consultar, Dashboard de atrasos e envio de DEMM/documento de inspeção.
+    // Ponto Focal: Agendar, Consultar, Dashboard, justificativa de atrasos e envio de documentos.
     if (isLavraturaPontoFocalScope(activeFieldTeamSubtype)) {
-      return ['Agendar', 'Consultar', 'Dashboard', 'Enviar documentos']
+      return ['Agendar', 'Consultar', 'Dashboard', 'Enviar documentos', 'Medidores atrasados']
     }
 
     // Backoffice: também envia DEMM/documento de inspeção.
@@ -5137,6 +5151,15 @@ function HomePanel({
                     : undefined
                 }
               />
+            ) : selectedFieldTeamSection === 'Medidores atrasados' ? (
+              <PontoFocalDashboard
+                mode="late-meters"
+                forUserId={
+                  isAdmin && previewUser && isLavraturaPontoFocalScope(previewUser.workSubtype)
+                    ? previewUser.id
+                    : undefined
+                }
+              />
             ) : selectedFieldTeamSection === 'Enviar documentos' ? (
               <EnviarDocumentosPanel
                 scopeUserId={
@@ -6611,7 +6634,8 @@ function getAreaCardClassName(title: string) {
     title === 'Consultar' ||
     title === 'Meus TOIs' ||
     title === 'Dashboard' ||
-    title === 'Enviar documentos'
+    title === 'Enviar documentos' ||
+    title === 'Medidores atrasados'
   ) {
     return 'area-card-equipe-campo'
   }

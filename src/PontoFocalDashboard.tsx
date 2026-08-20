@@ -9,13 +9,17 @@ import {
 
 type PontoFocalDashboardProps = {
   forUserId?: string
+  mode?: 'full' | 'late-meters'
 }
 
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`
 }
 
-export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
+export function PontoFocalDashboard({
+  forUserId,
+  mode = 'full',
+}: PontoFocalDashboardProps) {
   const [data, setData] = useState<PontoFocalDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -46,7 +50,9 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
         setError(
           err instanceof ApiError
             ? err.message
-            : 'Não foi possível carregar o dashboard.',
+            : mode === 'late-meters'
+              ? 'Não foi possível carregar os medidores atrasados.'
+              : 'Não foi possível carregar o dashboard.',
         )
       })
       .finally(() => {
@@ -56,7 +62,7 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
     return () => {
       cancelled = true
     }
-  }, [forUserId])
+  }, [forUserId, mode])
 
   const handleSaveJustification = async (meter: PontoFocalLateMeter) => {
     const justification = (drafts[meter.id] ?? '').trim()
@@ -98,7 +104,13 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
   }
 
   if (loading) {
-    return <p className="generated-password-empty">Carregando dashboard…</p>
+    return (
+      <p className="generated-password-empty">
+        {mode === 'late-meters'
+          ? 'Carregando medidores atrasados…'
+          : 'Carregando dashboard…'}
+      </p>
+    )
   }
 
   if (error) {
@@ -117,8 +129,9 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
   return (
     <div className="users-dashboard ponto-focal-dashboard">
       <p className="produtividade-intro">
-        Indicadores de atraso na entrega dos medidores dos CSDs sob sua
-        responsabilidade
+        {mode === 'late-meters'
+          ? 'Justifique o motivo do atraso dos medidores dos CSDs sob sua responsabilidade'
+          : 'Indicadores de atraso na entrega dos medidores dos CSDs sob sua responsabilidade'}
         {csdNames.length ? (
           <>
             {' '}
@@ -136,6 +149,7 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
         />
       ) : null}
 
+      {mode === 'full' ? (
       <div className="users-dashboard-kpis" aria-label="Indicadores atuais">
         <article className="users-dashboard-kpi">
           <p className="users-dashboard-kpi-label">Medidores no CSD</p>
@@ -183,6 +197,7 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
           </p>
         </article>
       </div>
+      ) : null}
 
       <section className="entrada-section ponto-focal-late-section" aria-label="Medidores atrasados">
         <div className="entrada-section-heading">
@@ -274,6 +289,7 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
         )}
       </section>
 
+      {mode === 'full' ? (
       <div className="users-dashboard-grid">
         <div className="users-dashboard-card">
           <h4>Situação atual</h4>
@@ -381,6 +397,7 @@ export function PontoFocalDashboard({ forUserId }: PontoFocalDashboardProps) {
           </div>
         </div>
       </div>
+      ) : null}
     </div>
   )
 }
