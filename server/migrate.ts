@@ -985,6 +985,11 @@ export async function migrate() {
   `)
 
   await query(`
+    ALTER TABLE meter_inspection_documents
+      ADD COLUMN IF NOT EXISTS extracted_fields_manual BOOLEAN NOT NULL DEFAULT FALSE;
+  `)
+
+  await query(`
     CREATE TABLE IF NOT EXISTS toi_schedule_deviations (
       id TEXT PRIMARY KEY,
       meter_schedule_id TEXT NOT NULL REFERENCES meter_schedules(id) ON DELETE CASCADE,

@@ -39,6 +39,7 @@ type InspectionDocumentRow = {
   extracted_installation: string | null
   extracted_toi: string | null
   extracted_note: string | null
+  extracted_fields_manual?: boolean
   blocked: boolean
   block_reason: string | null
   created_at: Date
@@ -992,6 +993,7 @@ async function backfillMissingExtractions(
   rows: Array<Omit<InspectionDocumentRow, 'file_data'>>,
 ) {
   for (const row of rows) {
+    if (row.extracted_fields_manual) continue
     const needsSchedule = !row.extracted_scheduled_at?.trim()
     const needsRetirado = !row.extracted_meter_retirado?.trim()
     if (!needsSchedule && !needsRetirado) continue
@@ -1040,6 +1042,7 @@ async function repairMeterToiCollisions(
   expectedLacre: string | null,
 ) {
   for (const row of rows) {
+    if (row.extracted_fields_manual) continue
     const meterLooksLikeToi = sameNumericId(row.extracted_meter, row.extracted_toi)
     const retiradoLooksLikeToi = sameNumericId(row.extracted_meter_retirado, row.extracted_toi)
     const blockedByMeter = Boolean(
@@ -1143,7 +1146,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
             d.extracted_lacre,
             d.extracted_cover_seal, d.extracted_reading, d.extracted_scheduled_at,
             d.extracted_installation, d.extracted_toi, d.extracted_note,
-            d.blocked, d.block_reason, d.created_at, d.created_by_user_id,
+            d.extracted_fields_manual, d.blocked, d.block_reason, d.created_at, d.created_by_user_id,
             u.registration AS created_by_registration, u.name AS created_by_name
      FROM meter_inspection_documents d
      LEFT JOIN users u ON u.id = d.created_by_user_id
@@ -1802,6 +1805,117 @@ export async function updateInspectionWpa(req: Request, res: Response) {
       campoLacre: lacre || null,
       campoCoverSeal: coverSeal || null,
       campoReading: reading || null,
+    },
+  })
+}
+
+const MAX_EXTRACTED_FIELD = 80
+
+export async function updateInspectionExtracted(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error:
+        'Somente administradores e usuários do Laboratório de Medição podem editar os campos do documento.',
+    })
+    return
+  }
+
+  const docType = typeof req.body?.docType === 'string' ? req.body.docType.trim() : ''
+  if (!VALID_INSPECTION_DOC_TYPES.has(docType as InspectionDocumentType)) {
+    res.status(400).json({ error: 'Tipo de documento inválido.' })
+    return
+  }
+
+  const document = await findInspectionDocumentForDeletion(meterScheduleId, docType)
+  if (!document) {
+    res.status(404).json({ error: 'Documento de inspeção não encontrado.' })
+    return
+  }
+
+  const schedule = await query<{ meter: string; envelope_seal: string }>(
+    `SELECT meter, envelope_seal FROM meter_schedules WHERE id = $1`,
+    [document.meter_schedule_id],
+  )
+  const currentSchedule = schedule.rows[0]
+  if (!currentSchedule) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  const readField = (value: unknown) =>
+    typeof value === 'string' ? value.trim().slice(0, MAX_EXTRACTED_FIELD) : ''
+
+  const meter = readField(req.body?.meter) || null
+  const lacre = readField(req.body?.lacre) || null
+  const coverSeal = readField(req.body?.coverSeal) || null
+  const reading = readField(req.body?.reading) || null
+  const scheduledAt = readField(req.body?.scheduledAt) || null
+
+  const evaluation = evaluateInspectionDocument(
+    lacre,
+    meter,
+    currentSchedule.meter,
+    currentSchedule.envelope_seal || null,
+  )
+
+  const updated = await query<{
+    extracted_meter: string | null
+    extracted_meter_retirado: string | null
+    extracted_lacre: string | null
+    extracted_cover_seal: string | null
+    extracted_reading: string | null
+    extracted_scheduled_at: string | null
+    blocked: boolean
+    block_reason: string | null
+  }>(
+    `UPDATE meter_inspection_documents
+     SET extracted_meter = $2,
+         extracted_meter_retirado = $3,
+         extracted_lacre = $4,
+         extracted_cover_seal = $5,
+         extracted_reading = $6,
+         extracted_scheduled_at = $7,
+         extracted_fields_manual = TRUE,
+         blocked = $8,
+         block_reason = $9
+     WHERE id = $1
+     RETURNING extracted_meter, extracted_meter_retirado, extracted_lacre, extracted_cover_seal,
+               extracted_reading, extracted_scheduled_at, blocked, block_reason`,
+    [
+      document.id,
+      meter,
+      meter,
+      lacre,
+      coverSeal,
+      reading,
+      scheduledAt,
+      evaluation.blocked,
+      evaluation.reason,
+    ],
+  )
+  const row = updated.rows[0]
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_inspection_document',
+    entityId: document.id,
+    summary: `Campos do documento de inspeção (${docType}) ajustados no agendamento ${meterScheduleId}`,
+    metadata: { meter, lacre, coverSeal, reading, scheduledAt },
+  })
+
+  res.json({
+    ok: true,
+    document: {
+      extractedMeter: row?.extracted_meter ?? meter,
+      extractedMeterRetirado: row?.extracted_meter_retirado ?? meter,
+      extractedLacre: row?.extracted_lacre ?? lacre,
+      extractedCoverSeal: row?.extracted_cover_seal ?? coverSeal,
+      extractedReading: row?.extracted_reading ?? reading,
+      extractedScheduledAt: row?.extracted_scheduled_at ?? scheduledAt,
+      blocked: row?.blocked ?? evaluation.blocked,
+      blockReason: row?.block_reason ?? evaluation.reason,
     },
   })
 }

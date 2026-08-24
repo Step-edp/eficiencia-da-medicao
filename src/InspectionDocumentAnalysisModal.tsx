@@ -18,6 +18,24 @@ type InspectionDocumentAnalysisModalProps = {
   onDocumentsChanged?: () => void
 }
 
+type DocumentFieldsDraft = {
+  meter: string
+  lacre: string
+  coverSeal: string
+  reading: string
+  scheduledAt: string
+}
+
+function draftFromDocument(document: InspectionDocumentRecord): DocumentFieldsDraft {
+  return {
+    meter: document.extractedMeterRetirado ?? document.extractedMeter ?? '',
+    lacre: document.extractedLacre ?? '',
+    coverSeal: document.extractedCoverSeal ?? '',
+    reading: document.extractedReading ?? '',
+    scheduledAt: document.extractedScheduledAt ?? '',
+  }
+}
+
 function inspectionDocTypeLabel(docType: InspectionDocumentType) {
   switch (docType) {
     case 'toi':
@@ -139,10 +157,13 @@ function ComparisonField({
   laboratorio,
   kind = 'digits',
   campoEmpty = 'Pendente',
+  documentoEmpty = '—',
   agendamentoEmpty = '—',
   laboratorioEmpty = '—',
   campoEditable = false,
+  documentoEditable = false,
   onCampoChange,
+  onDocumentoChange,
   showAdjust = false,
   adjusting = false,
   onAdjust,
@@ -156,10 +177,13 @@ function ComparisonField({
   laboratorio?: string | null
   kind?: 'digits' | 'date'
   campoEmpty?: string
+  documentoEmpty?: string
   agendamentoEmpty?: string
   laboratorioEmpty?: string
   campoEditable?: boolean
+  documentoEditable?: boolean
   onCampoChange?: (value: string) => void
+  onDocumentoChange?: (value: string) => void
   showAdjust?: boolean
   adjusting?: boolean
   onAdjust?: () => void
@@ -190,7 +214,19 @@ function ComparisonField({
           </div>
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">Documento</span>
-            <strong>{displayConferenceValue(documento)}</strong>
+            {documentoEditable ? (
+              <input
+                type="text"
+                className="inspection-document-wpa-input"
+                value={documento ?? ''}
+                placeholder={documentoEmpty}
+                inputMode={kind === 'digits' ? 'numeric' : 'text'}
+                aria-label={`${label} no documento`}
+                onChange={(event) => onDocumentoChange?.(event.target.value)}
+              />
+            ) : (
+              <strong>{displayConferenceValue(documento, documentoEmpty)}</strong>
+            )}
           </div>
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">Agendamento</span>
@@ -259,7 +295,9 @@ export function InspectionDocumentAnalysisModal({
     coverSeal: '',
     reading: '',
   })
+  const [documentDrafts, setDocumentDrafts] = useState<Record<string, DocumentFieldsDraft>>({})
   const wpaSaveTimerRef = useRef<number | null>(null)
+  const documentSaveTimerRef = useRef<number | null>(null)
   const observationsTimerRef = useRef<number | null>(null)
   const [observations, setObservations] = useState('')
   const [photos, setPhotos] = useState<InspectionPhotoRecord[]>([])
@@ -309,6 +347,11 @@ export function InspectionDocumentAnalysisModal({
         coverSeal: nextConference.campoCoverSeal ?? '',
         reading: nextConference.campoReading ?? '',
       })
+      setDocumentDrafts(
+        Object.fromEntries(
+          response.documents.map((document) => [document.docType, draftFromDocument(document)]),
+        ),
+      )
       setPhotos(response.photos ?? [])
       setEnvelopePhoto(response.envelopePhoto?.trim() || null)
       setCanManagePhotos(response.canManagePhotos !== false)
@@ -321,6 +364,7 @@ export function InspectionDocumentAnalysisModal({
       setRegisteredMeter(meter)
       setConference(null)
       setWpaDraft({ meter: '', lacre: '', coverSeal: '', reading: '' })
+      setDocumentDrafts({})
       setPhotos([])
       setEnvelopePhoto(null)
       setCanManagePhotos(false)
@@ -364,6 +408,70 @@ export function InspectionDocumentAnalysisModal({
     [persistWpaDraft],
   )
 
+  const persistDocumentDraft = useCallback(
+    async (docType: InspectionDocumentType, next: DocumentFieldsDraft) => {
+      try {
+        const response = await api.updateInspectionExtracted(scheduleId, {
+          docType,
+          ...next,
+        })
+        setDocuments((current) =>
+          current.map((document) =>
+            document.docType === docType
+              ? {
+                  ...document,
+                  extractedMeter: response.document.extractedMeter,
+                  extractedMeterRetirado: response.document.extractedMeterRetirado,
+                  extractedLacre: response.document.extractedLacre,
+                  extractedCoverSeal: response.document.extractedCoverSeal,
+                  extractedReading: response.document.extractedReading,
+                  extractedScheduledAt: response.document.extractedScheduledAt,
+                  blocked: response.document.blocked,
+                  blockReason: response.document.blockReason,
+                }
+              : document,
+          ),
+        )
+      } catch (error) {
+        setFeedback({
+          type: 'error',
+          message:
+            error instanceof ApiError
+              ? error.message
+              : 'Não foi possível salvar os campos do documento.',
+        })
+      }
+    },
+    [scheduleId],
+  )
+
+  const handleDocumentoChange = useCallback(
+    (
+      docType: InspectionDocumentType,
+      field: keyof DocumentFieldsDraft,
+      value: string,
+    ) => {
+      setDocumentDrafts((current) => {
+        const previous = current[docType] ?? {
+          meter: '',
+          lacre: '',
+          coverSeal: '',
+          reading: '',
+          scheduledAt: '',
+        }
+        const next = { ...previous, [field]: value }
+        if (documentSaveTimerRef.current != null) {
+          window.clearTimeout(documentSaveTimerRef.current)
+        }
+        documentSaveTimerRef.current = window.setTimeout(() => {
+          void persistDocumentDraft(docType, next)
+        }, 400)
+        return { ...current, [docType]: next }
+      })
+    },
+    [persistDocumentDraft],
+  )
+
   const persistObservations = useCallback(
     async (next: string) => {
       try {
@@ -399,6 +507,9 @@ export function InspectionDocumentAnalysisModal({
     return () => {
       if (wpaSaveTimerRef.current != null) {
         window.clearTimeout(wpaSaveTimerRef.current)
+      }
+      if (documentSaveTimerRef.current != null) {
+        window.clearTimeout(documentSaveTimerRef.current)
       }
       if (observationsTimerRef.current != null) {
         window.clearTimeout(observationsTimerRef.current)
@@ -602,23 +713,35 @@ export function InspectionDocumentAnalysisModal({
               const campoLacre = canEditWpa ? wpaDraft.lacre : conference?.campoLacre
               const campoCoverSeal = canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal
               const campoReading = canEditWpa ? wpaDraft.reading : conference?.campoReading
+              const documentoDraft = documentDrafts[document.docType] ?? draftFromDocument(document)
+              const documentoMeter = canEditWpa
+                ? documentoDraft.meter
+                : (document.extractedMeterRetirado ?? document.extractedMeter)
+              const documentoLacre = canEditWpa ? documentoDraft.lacre : document.extractedLacre
+              const documentoCoverSeal = canEditWpa
+                ? documentoDraft.coverSeal
+                : document.extractedCoverSeal
+              const documentoReading = canEditWpa ? documentoDraft.reading : document.extractedReading
+              const documentoScheduledAt = canEditWpa
+                ? documentoDraft.scheduledAt
+                : document.extractedScheduledAt
               const analysisComplete = inspectionAnalysisComplete([
                 campoMeter,
-                document.extractedMeterRetirado ?? document.extractedMeter,
+                documentoMeter,
                 conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter,
                 conference?.labMeter,
                 campoLacre,
-                document.extractedLacre,
+                documentoLacre,
                 conference?.scheduleLacre ?? document.registeredLacre,
                 conference?.labLacre,
                 campoCoverSeal,
-                document.extractedCoverSeal,
+                documentoCoverSeal,
                 conference?.scheduleCoverSeal ?? document.registeredCoverSeal,
                 conference?.labCoverSeal,
                 campoReading,
-                document.extractedReading,
+                documentoReading,
                 conference?.labReading,
-                document.extractedScheduledAt,
+                documentoScheduledAt,
                 conference?.scheduleScheduleDate,
               ])
               const status = document.blocked
@@ -652,24 +775,28 @@ export function InspectionDocumentAnalysisModal({
                   <ComparisonField
                     label="Medidor retirado"
                     campo={canEditWpa ? wpaDraft.meter : (conference?.campoMeter ?? registeredMeter)}
-                    documento={document.extractedMeterRetirado ?? document.extractedMeter}
+                    documento={documentoMeter}
                     agendamento={conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter}
                     laboratorio={conference?.labMeter}
                     campoEmpty="Pendente"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
+                    documentoEditable={canEditWpa}
                     onCampoChange={(value) => handleWpaChange('meter', value)}
+                    onDocumentoChange={(value) => handleDocumentoChange(document.docType, 'meter', value)}
                   />
                   <ComparisonField
                     label="Lacre do invólucro"
                     campo={canEditWpa ? wpaDraft.lacre : conference?.campoLacre}
-                    documento={document.extractedLacre}
+                    documento={documentoLacre}
                     agendamento={conference?.scheduleLacre ?? document.registeredLacre}
                     laboratorio={conference?.labLacre}
                     campoEmpty="Pendente"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
+                    documentoEditable={canEditWpa}
                     onCampoChange={(value) => handleWpaChange('lacre', value)}
+                    onDocumentoChange={(value) => handleDocumentoChange(document.docType, 'lacre', value)}
                     agendamentoPhoto={envelopePhoto}
                     onPreviewAgendamentoPhoto={() =>
                       envelopePhoto
@@ -683,33 +810,45 @@ export function InspectionDocumentAnalysisModal({
                   <ComparisonField
                     label="Lacre da tampa"
                     campo={canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal}
-                    documento={document.extractedCoverSeal}
+                    documento={documentoCoverSeal}
                     agendamento={conference?.scheduleCoverSeal ?? document.registeredCoverSeal}
                     laboratorio={conference?.labCoverSeal}
                     campoEmpty="Pendente"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
+                    documentoEditable={canEditWpa}
                     onCampoChange={(value) => handleWpaChange('coverSeal', value)}
+                    onDocumentoChange={(value) =>
+                      handleDocumentoChange(document.docType, 'coverSeal', value)
+                    }
                   />
                   <ComparisonField
                     label="Leitura"
                     campo={canEditWpa ? wpaDraft.reading : conference?.campoReading}
-                    documento={document.extractedReading}
+                    documento={documentoReading}
                     laboratorio={conference?.labReading}
                     agendamentoEmpty="Não aplicável"
                     campoEmpty="Pendente"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
+                    documentoEditable={canEditWpa}
                     onCampoChange={(value) => handleWpaChange('reading', value)}
+                    onDocumentoChange={(value) =>
+                      handleDocumentoChange(document.docType, 'reading', value)
+                    }
                   />
                   <ComparisonField
                     label="Data de agendamento"
                     kind="date"
-                    documento={document.extractedScheduledAt}
+                    documento={documentoScheduledAt}
                     agendamento={conference?.scheduleScheduleDate}
                     laboratorio={conference?.labScheduleDate}
                     campoEmpty="Não aplicável"
                     laboratorioEmpty="Não aplicável"
+                    documentoEditable={canEditWpa}
+                    onDocumentoChange={(value) =>
+                      handleDocumentoChange(document.docType, 'scheduledAt', value)
+                    }
                     showAdjust={canEditWpa}
                     adjusting={adjustingDocType === document.docType}
                     onAdjust={() => void handleAdjustScheduleDate(document)}

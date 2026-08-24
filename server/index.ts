@@ -96,6 +96,7 @@ import {
   listWpaAnalysisMeters,
   updateInspectionWpa,
   updateInspectionObservations,
+  updateInspectionExtracted,
   adjustScheduleDateFromDocument,
   listScheduleDateAdjustments,
 } from './routes/meter-inspection-documents.js'
@@ -453,6 +454,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     updateInspectionWpa,
+  )
+  app.patch(
+    '/api/meter-schedules/:id/inspection-extracted',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    updateInspectionExtracted,
   )
   app.patch(
     '/api/meter-schedules/:id/inspection-observations',

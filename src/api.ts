@@ -1700,6 +1700,33 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+  updateInspectionExtracted: (
+    meterScheduleId: string,
+    payload: {
+      docType: InspectionDocumentType
+      meter: string
+      lacre: string
+      coverSeal: string
+      reading: string
+      scheduledAt: string
+    },
+  ) =>
+    request<{
+      ok: true
+      document: {
+        extractedMeter: string | null
+        extractedMeterRetirado: string | null
+        extractedLacre: string | null
+        extractedCoverSeal: string | null
+        extractedReading: string | null
+        extractedScheduledAt: string | null
+        blocked: boolean
+        blockReason: string | null
+      }
+    }>(`/api/meter-schedules/${meterScheduleId}/inspection-extracted`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
   adjustScheduleDateFromDocument: (meterScheduleId: string, docType?: InspectionDocumentType) =>
     request<{ ok: true; scheduleDateLabel: string }>(
       `/api/meter-schedules/${meterScheduleId}/adjust-schedule-date`,
