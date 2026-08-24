@@ -223,7 +223,7 @@ export function InspectionDocumentAnalysisModal({
         },
       )
       setPhotos(response.photos ?? [])
-      setCanManagePhotos(Boolean(response.canManagePhotos))
+      setCanManagePhotos(response.canManagePhotos !== false)
     } catch {
       setDocuments([])
       setCanDelete(false)
@@ -497,16 +497,14 @@ export function InspectionDocumentAnalysisModal({
                   >
                     Baixar PDF
                   </a>
-                  {canManagePhotos ? (
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      disabled={uploadingPhotos}
-                      onClick={openPhotoPicker}
-                    >
-                      {uploadingPhotos ? 'Enviando...' : 'Enviar fotos'}
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={uploadingPhotos}
+                    onClick={openPhotoPicker}
+                  >
+                    {uploadingPhotos ? 'Enviando...' : 'Enviar fotos'}
+                  </button>
                   {canDelete ? (
                     <button
                       type="button"
@@ -523,10 +521,17 @@ export function InspectionDocumentAnalysisModal({
           </div>
         )}
 
-        {photos.length > 0 || canManagePhotos ? (
-          <section className="inspection-photo-section" aria-label="Fotos da análise">
+        <section className="inspection-photo-section" aria-label="Fotos da análise">
             <div className="inspection-photo-section-header">
               <h4>Fotos</h4>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={uploadingPhotos}
+                onClick={openPhotoPicker}
+              >
+                {uploadingPhotos ? 'Enviando...' : 'Enviar fotos'}
+              </button>
             </div>
             {photos.length === 0 ? (
               <p className="entrada-panel-empty">Nenhuma foto enviada ainda.</p>
@@ -557,7 +562,6 @@ export function InspectionDocumentAnalysisModal({
               </div>
             )}
           </section>
-        ) : null}
 
         <input
           id={photoInputId}
@@ -565,6 +569,7 @@ export function InspectionDocumentAnalysisModal({
           className="file-picker-input"
           type="file"
           accept="image/*"
+          capture="environment"
           multiple
           hidden
           onChange={(event) => void handlePhotoFiles(event.target.files)}
