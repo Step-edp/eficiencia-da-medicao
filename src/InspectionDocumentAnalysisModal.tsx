@@ -38,6 +38,18 @@ function formatDateTime(isoDate: string) {
   }).format(new Date(isoDate))
 }
 
+function formatAttachedBy(
+  name: string | null | undefined,
+  registration: string | null | undefined,
+) {
+  const normalizedName = name?.trim()
+  const normalizedRegistration = registration?.trim()
+  if (normalizedName && normalizedRegistration) {
+    return `${normalizedName} (${normalizedRegistration})`
+  }
+  return normalizedName || normalizedRegistration || '—'
+}
+
 function MatchIndicator({ matches }: { matches: boolean | null | undefined }) {
   if (matches === true) {
     return (
@@ -372,6 +384,12 @@ export function InspectionDocumentAnalysisModal({
                 </div>
 
                 <dl className="user-detail-grid schedule-detail-grid">
+                  <div>
+                    <dt>Anexado por</dt>
+                    <dd>
+                      {formatAttachedBy(document.createdByName, document.createdByRegistration)}
+                    </dd>
+                  </div>
                   <div>
                     <dt>Anexado em</dt>
                     <dd>{formatDateTime(document.createdAt)}</dd>

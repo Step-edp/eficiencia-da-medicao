@@ -659,6 +659,7 @@ export type InspectionDocumentRecord = {
   blockReason: string | null
   createdAt: string
   createdByUserId: string | null
+  createdByName?: string | null
   createdByRegistration: string | null
   complete: boolean
   hasToi: boolean

@@ -41,6 +41,7 @@ type InspectionDocumentRow = {
   created_at: Date
   created_by_user_id: string | null
   created_by_registration: string | null
+  created_by_name?: string | null
 }
 
 export type EntryFieldMatch = {
@@ -867,7 +868,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
 }
 
 function mapInspectionDocumentRow(
-  row: Omit<InspectionDocumentRow, 'file_data' | 'created_by_registration'>,
+  row: Omit<InspectionDocumentRow, 'file_data'>,
   registration: string | null = null,
   registeredMeter: string | null = null,
   registeredLacre: string | null = null,
@@ -905,7 +906,8 @@ function mapInspectionDocumentRow(
     blockReason: evaluation.reason,
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
-    createdByRegistration: registration,
+    createdByName: row.created_by_name ?? null,
+    createdByRegistration: registration ?? row.created_by_registration ?? null,
   }
 }
 
@@ -950,14 +952,16 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   const documentScheduleIds = scheduleIds.length ? scheduleIds : [meterScheduleId]
 
   const result = await query<Omit<InspectionDocumentRow, 'file_data'>>(
-    `SELECT DISTINCT ON (doc_type)
-            id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_lacre,
-            extracted_cover_seal, extracted_reading,
-            extracted_installation, extracted_toi, extracted_note,
-            blocked, block_reason, created_at, created_by_user_id
-     FROM meter_inspection_documents
-     WHERE meter_schedule_id = ANY($1::text[])
-     ORDER BY doc_type, created_at DESC`,
+    `SELECT DISTINCT ON (d.doc_type)
+            d.id, d.meter_schedule_id, d.doc_type, d.file_name, d.extracted_meter, d.extracted_lacre,
+            d.extracted_cover_seal, d.extracted_reading,
+            d.extracted_installation, d.extracted_toi, d.extracted_note,
+            d.blocked, d.block_reason, d.created_at, d.created_by_user_id,
+            u.registration AS created_by_registration, u.name AS created_by_name
+     FROM meter_inspection_documents d
+     LEFT JOIN users u ON u.id = d.created_by_user_id
+     WHERE d.meter_schedule_id = ANY($1::text[])
+     ORDER BY d.doc_type, d.created_at DESC`,
     [documentScheduleIds],
   )
 
@@ -991,7 +995,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     documents: result.rows.map((row) =>
       mapInspectionDocumentRow(
         row,
-        null,
+        row.created_by_registration,
         registeredMeter,
         registeredLacre,
         registeredCoverSeal,
