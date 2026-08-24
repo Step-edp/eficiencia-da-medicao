@@ -1,5 +1,6 @@
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { extractInspectionPdfTextViaOcr, isUnreadablePdfText } from './inspection-pdf-ocr.js'
+import { formatAvailableSlot } from './schedule-slots.js'
 
 // "5.Dados da Medição" até "6. Selagem": única faixa do TOI onde aparecem os números do
 // medidor encontrado/instalado. O texto de um PDF de tabela pode sair fora da ordem visual
@@ -116,6 +117,7 @@ export type InspectionDocumentParseResult = {
   installation: string | null
   toi: string | null
   note: string | null
+  scheduledAt: string | null
 }
 
 export type InspectionDocumentType = 'toi' | 'comunicado' | 'ambos' | 'desconhecido'
@@ -239,6 +241,65 @@ function extractReading(text: string): string | null {
   return null
 }
 
+function formatExtractedScheduleDate(
+  day: number,
+  month: number,
+  year: number,
+  hour: number,
+  minute: number,
+): string | null {
+  if (
+    !Number.isInteger(day) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(year) ||
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute)
+  ) {
+    return null
+  }
+  const date = new Date(year, month - 1, day, hour, minute)
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day ||
+    date.getHours() !== hour ||
+    date.getMinutes() !== minute
+  ) {
+    return null
+  }
+  return formatAvailableSlot(date)
+}
+
+function scheduleDateFromMatch(match: RegExpMatchArray | null): string | null {
+  if (!match) return null
+  return formatExtractedScheduleDate(
+    Number(match[1]),
+    Number(match[2]),
+    Number(match[3]),
+    Number(match[4]),
+    Number(match[5]),
+  )
+}
+
+function extractScheduledAt(text: string): string | null {
+  const comunicadoStart = text.search(CSM_COMUNICADO_START)
+  const searchText = comunicadoStart >= 0 ? text.slice(comunicadoStart) : text
+
+  const labeled = scheduleDateFromMatch(
+    searchText.match(
+      /no\s+dia\s+(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/i,
+    ),
+  )
+  if (labeled) return labeled
+
+  return scheduleDateFromMatch(
+    searchText.match(
+      /laborat[oóô]rio[\s\S]{0,500}?(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/i,
+    ),
+  )
+}
+
 function extractToiNumber(text: string): string | null {
   return (
     extractAfterLabel(normalizedSlice(text), TOI_LABEL_PATTERN, DADOS_MEDICAO_START, TOI_VALUE_PATTERN) ??
@@ -294,6 +355,7 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
     ),
     toi,
     note: extractAfterLabel(normalized, NOTA_LABEL_PATTERN, DADOS_MEDICAO_START, NOTA_VALUE_PATTERN),
+    scheduledAt: extractScheduledAt(normalized),
   }
 }
 

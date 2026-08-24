@@ -906,7 +906,8 @@ export async function migrate() {
   await query(`
     ALTER TABLE meter_inspection_documents
       ADD COLUMN IF NOT EXISTS extracted_cover_seal TEXT,
-      ADD COLUMN IF NOT EXISTS extracted_reading TEXT;
+      ADD COLUMN IF NOT EXISTS extracted_reading TEXT,
+      ADD COLUMN IF NOT EXISTS extracted_scheduled_at TEXT;
   `)
 
   // Ponto Focal e Backoffice não usam Agenda de férias obrigatória.

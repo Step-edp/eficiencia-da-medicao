@@ -83,7 +83,39 @@ function normalizeConferenceDigits(value: string | null | undefined) {
   return digits.replace(/^0+/, '') || '0'
 }
 
-function conferenceMatches(values: Array<string | null | undefined>): boolean | null {
+function normalizeConferenceDate(value: string | null | undefined) {
+  const match = String(value ?? '').match(
+    /(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\D+(\d{1,2}):(\d{2}))?/,
+  )
+  if (!match) return null
+  const day = match[1].padStart(2, '0')
+  const month = match[2].padStart(2, '0')
+  const year = match[3]
+  const hour = match[4]
+  const minute = match[5]
+  if (hour == null || minute == null) return `${year}-${month}-${day}`
+  return `${year}-${month}-${day}T${hour.padStart(2, '0')}:${minute}`
+}
+
+function conferenceMatches(
+  values: Array<string | null | undefined>,
+  kind: 'digits' | 'date' = 'digits',
+): boolean | null {
+  if (kind === 'date') {
+    const normalized = values
+      .map((value) => normalizeConferenceDate(value))
+      .filter((value): value is string => Boolean(value))
+    if (normalized.length < 2) return null
+    const timed = normalized.filter((value) => value.includes('T'))
+    const dates = normalized.map((value) => value.slice(0, 10))
+    const sameDate = dates.every((value) => value === dates[0])
+    if (!sameDate) return false
+    if (timed.length >= 2) {
+      return timed.every((value) => value === timed[0])
+    }
+    return true
+  }
+
   const normalized = values
     .map((value) => normalizeConferenceDigits(value))
     .filter((value): value is string => Boolean(value))
@@ -97,12 +129,14 @@ function ComparisonField({
   documento,
   agendamento,
   laboratorio,
+  kind = 'digits',
 }: {
   label: string
   campo?: string | null
   documento?: string | null
   agendamento?: string | null
   laboratorio?: string | null
+  kind?: 'digits' | 'date'
 }) {
   return (
     <div className="inspection-document-comparison">
@@ -125,7 +159,9 @@ function ComparisonField({
             <span className="inspection-document-comparison-label">Laboratório</span>
             <strong>{displayConferenceValue(laboratorio)}</strong>
           </div>
-          <MatchIndicator matches={conferenceMatches([campo, documento, agendamento, laboratorio])} />
+          <MatchIndicator
+            matches={conferenceMatches([campo, documento, agendamento, laboratorio], kind)}
+          />
         </div>
       </dd>
     </div>
@@ -173,14 +209,17 @@ export function InspectionDocumentAnalysisModal({
           campoLacre: response.registeredLacre,
           campoCoverSeal: response.registeredCoverSeal ?? null,
           campoReading: response.registeredReading ?? null,
+          campoScheduleDate: null,
           scheduleMeter: response.meter,
           scheduleLacre: response.registeredLacre,
           scheduleCoverSeal: response.registeredCoverSeal ?? null,
           scheduleReading: response.registeredReading ?? null,
+          scheduleScheduleDate: null,
           labMeter: null,
           labLacre: null,
           labCoverSeal: null,
           labReading: null,
+          labScheduleDate: null,
         },
       )
       setPhotos(response.photos ?? [])
@@ -421,6 +460,14 @@ export function InspectionDocumentAnalysisModal({
                     documento={document.extractedReading}
                     agendamento={conference?.scheduleReading ?? document.registeredReading}
                     laboratorio={conference?.labReading}
+                  />
+                  <ComparisonField
+                    label="Data de agendamento"
+                    kind="date"
+                    campo={conference?.campoScheduleDate}
+                    documento={document.extractedScheduledAt}
+                    agendamento={conference?.scheduleScheduleDate}
+                    laboratorio={conference?.labScheduleDate}
                   />
                   {document.blockReason ? (
                     <div className="user-detail-full">

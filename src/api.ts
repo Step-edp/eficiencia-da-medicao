@@ -628,14 +628,17 @@ export type InspectionDocumentConference = {
   campoLacre: string | null
   campoCoverSeal: string | null
   campoReading: string | null
+  campoScheduleDate: string | null
   scheduleMeter: string | null
   scheduleLacre: string | null
   scheduleCoverSeal: string | null
   scheduleReading: string | null
+  scheduleScheduleDate: string | null
   labMeter: string | null
   labLacre: string | null
   labCoverSeal: string | null
   labReading: string | null
+  labScheduleDate: string | null
 }
 
 export type InspectionDocumentRecord = {
@@ -647,6 +650,7 @@ export type InspectionDocumentRecord = {
   extractedLacre: string | null
   extractedCoverSeal?: string | null
   extractedReading?: string | null
+  extractedScheduledAt?: string | null
   registeredMeter?: string | null
   registeredLacre?: string | null
   registeredCoverSeal?: string | null
