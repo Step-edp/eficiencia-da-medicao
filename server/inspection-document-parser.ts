@@ -111,6 +111,7 @@ type TextItem = {
 
 export type InspectionDocumentParseResult = {
   meterEncontrado: string | null
+  meterRetirado: string | null
   lacre: string | null
   coverSeal: string | null
   reading: string | null
@@ -344,6 +345,7 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
 
   return {
     meterEncontrado,
+    meterRetirado: meterFromCsm,
     lacre,
     coverSeal: extractCoverSeal(normalized),
     reading: extractReading(normalized),

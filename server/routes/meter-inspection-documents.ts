@@ -30,6 +30,7 @@ type InspectionDocumentRow = {
   file_name: string
   file_data: Buffer
   extracted_meter: string | null
+  extracted_meter_retirado: string | null
   extracted_lacre: string | null
   extracted_cover_seal: string | null
   extracted_reading: string | null
@@ -790,6 +791,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
 
   let evaluation: InspectionEvaluation = { blocked: false, reason: null }
   let extractedMeter: string | null = null
+  let extractedMeterRetirado: string | null = null
   let extractedLacre: string | null = null
   let extractedCoverSeal: string | null = null
   let extractedReading: string | null = null
@@ -800,6 +802,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
 
   const parsed = parseInspectionText(text)
   extractedScheduledAt = parsed.scheduledAt
+  extractedMeterRetirado = parsed.meterRetirado
   if (docType === 'toi' || docType === 'ambos') {
     extractedMeter = parsed.meterEncontrado
     extractedLacre = parsed.lacre
@@ -821,15 +824,16 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   const insert = await query<Omit<InspectionDocumentRow, 'created_by_registration'>>(
     `INSERT INTO meter_inspection_documents (
       id, meter_schedule_id, doc_type, file_name, file_data,
-      extracted_meter, extracted_lacre, extracted_cover_seal, extracted_reading,
+      extracted_meter, extracted_meter_retirado, extracted_lacre, extracted_cover_seal, extracted_reading,
       extracted_scheduled_at, extracted_installation, extracted_toi, extracted_note,
       blocked, block_reason, created_by_user_id
     )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
      ON CONFLICT (meter_schedule_id, doc_type) DO UPDATE SET
        file_name = EXCLUDED.file_name,
        file_data = EXCLUDED.file_data,
        extracted_meter = EXCLUDED.extracted_meter,
+       extracted_meter_retirado = EXCLUDED.extracted_meter_retirado,
        extracted_lacre = EXCLUDED.extracted_lacre,
        extracted_cover_seal = EXCLUDED.extracted_cover_seal,
        extracted_reading = EXCLUDED.extracted_reading,
@@ -841,8 +845,8 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
        block_reason = EXCLUDED.block_reason,
        created_at = NOW(),
        created_by_user_id = EXCLUDED.created_by_user_id
-     RETURNING id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_lacre,
-               extracted_cover_seal, extracted_reading, extracted_scheduled_at,
+     RETURNING id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_meter_retirado,
+               extracted_lacre, extracted_cover_seal, extracted_reading, extracted_scheduled_at,
                extracted_installation, extracted_toi, extracted_note,
                blocked, block_reason, created_at, created_by_user_id`,
     [
@@ -852,6 +856,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
       fileName.trim(),
       fileBuffer,
       extractedMeter,
+      extractedMeterRetirado,
       extractedLacre,
       extractedCoverSeal,
       extractedReading,
@@ -889,6 +894,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     docType: insert.rows[0].doc_type,
     fileName: insert.rows[0].file_name,
     extractedMeter: insert.rows[0].extracted_meter,
+    extractedMeterRetirado: insert.rows[0].extracted_meter_retirado,
     extractedLacre: insert.rows[0].extracted_lacre,
     extractedCoverSeal: insert.rows[0].extracted_cover_seal,
     extractedReading: insert.rows[0].extracted_reading,
@@ -898,6 +904,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     registeredCoverSeal,
     registeredReading,
     meterMatches: compareMeter(insert.rows[0].extracted_meter, registeredMeter),
+    meterRetiradoMatches: compareMeter(insert.rows[0].extracted_meter_retirado, registeredMeter),
     lacreMatches: compareSeal(insert.rows[0].extracted_lacre, registeredLacre),
     coverSealMatches: compareSeal(insert.rows[0].extracted_cover_seal, registeredCoverSeal),
     readingMatches: compareReading(insert.rows[0].extracted_reading, registeredReading),
@@ -947,6 +954,7 @@ function mapInspectionDocumentRow(
     docType: row.doc_type,
     fileName: row.file_name,
     extractedMeter: row.extracted_meter,
+    extractedMeterRetirado: row.extracted_meter_retirado,
     extractedLacre: row.extracted_lacre,
     extractedCoverSeal: row.extracted_cover_seal,
     extractedReading: row.extracted_reading,
@@ -956,6 +964,7 @@ function mapInspectionDocumentRow(
     registeredCoverSeal,
     registeredReading,
     meterMatches: compareMeter(row.extracted_meter, registeredMeter),
+    meterRetiradoMatches: compareMeter(row.extracted_meter_retirado, registeredMeter),
     lacreMatches: compareSeal(row.extracted_lacre, registeredLacre),
     coverSealMatches: compareSeal(row.extracted_cover_seal, registeredCoverSeal),
     readingMatches: compareReading(row.extracted_reading, registeredReading),
@@ -968,27 +977,42 @@ function mapInspectionDocumentRow(
   }
 }
 
-async function backfillExtractedScheduledAt(
+async function backfillMissingExtractions(
   rows: Array<Omit<InspectionDocumentRow, 'file_data'>>,
 ) {
   for (const row of rows) {
-    if (row.extracted_scheduled_at?.trim()) continue
+    const needsSchedule = !row.extracted_scheduled_at?.trim()
+    const needsRetirado = !row.extracted_meter_retirado?.trim()
+    if (!needsSchedule && !needsRetirado) continue
+
     const file = await query<{ file_data: Buffer }>(
       `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
       [row.id],
     )
     if (!file.rows[0]?.file_data) continue
     try {
-      const text = await extractInspectionPdfText(file.rows[0].file_data)
-      const scheduledAt = parseInspectionText(text).scheduledAt
-      if (!scheduledAt) continue
+      const parsed = parseInspectionText(await extractInspectionPdfText(file.rows[0].file_data))
+      const assignments: string[] = []
+      const values: string[] = []
+
+      if (needsSchedule && parsed.scheduledAt) {
+        assignments.push(`extracted_scheduled_at = $${assignments.length + 1}`)
+        values.push(parsed.scheduledAt)
+        row.extracted_scheduled_at = parsed.scheduledAt
+      }
+      if (needsRetirado && parsed.meterRetirado) {
+        assignments.push(`extracted_meter_retirado = $${assignments.length + 1}`)
+        values.push(parsed.meterRetirado)
+        row.extracted_meter_retirado = parsed.meterRetirado
+      }
+      if (!assignments.length) continue
+
       await query(
-        `UPDATE meter_inspection_documents SET extracted_scheduled_at = $1 WHERE id = $2`,
-        [scheduledAt, row.id],
+        `UPDATE meter_inspection_documents SET ${assignments.join(', ')} WHERE id = $${assignments.length + 1}`,
+        [...values, row.id],
       )
-      row.extracted_scheduled_at = scheduledAt
     } catch (error) {
-      console.error('Falha ao extrair data de agendamento do documento de inspeção:', error)
+      console.error('Falha ao extrair campos do documento de inspeção:', error)
     }
   }
 }
@@ -1036,7 +1060,8 @@ export async function listInspectionDocuments(req: Request, res: Response) {
 
   const result = await query<Omit<InspectionDocumentRow, 'file_data'>>(
     `SELECT DISTINCT ON (d.doc_type)
-            d.id, d.meter_schedule_id, d.doc_type, d.file_name, d.extracted_meter, d.extracted_lacre,
+            d.id, d.meter_schedule_id, d.doc_type, d.file_name, d.extracted_meter, d.extracted_meter_retirado,
+            d.extracted_lacre,
             d.extracted_cover_seal, d.extracted_reading, d.extracted_scheduled_at,
             d.extracted_installation, d.extracted_toi, d.extracted_note,
             d.blocked, d.block_reason, d.created_at, d.created_by_user_id,
@@ -1056,7 +1081,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     userCanManage && !deletable.ok ? deletable.error : null
   const scheduleDateLabel = formatAvailableSlot(schedule.rows[0].scheduled_at)
 
-  await backfillExtractedScheduledAt(result.rows)
+  await backfillMissingExtractions(result.rows)
 
   res.json({
     meter: registeredMeter,

@@ -441,6 +441,13 @@ export function InspectionDocumentAnalysisModal({
                     laboratorio={conference?.labMeter}
                   />
                   <ComparisonField
+                    label="Medidor retirado"
+                    campo={conference?.campoMeter ?? registeredMeter}
+                    documento={document.extractedMeterRetirado}
+                    agendamento={conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter}
+                    laboratorio={conference?.labMeter}
+                  />
+                  <ComparisonField
                     label="Lacre do invólucro"
                     campo={conference?.campoLacre}
                     documento={document.extractedLacre}

@@ -647,6 +647,7 @@ export type InspectionDocumentRecord = {
   docType: InspectionDocumentType
   fileName: string
   extractedMeter: string | null
+  extractedMeterRetirado?: string | null
   extractedLacre: string | null
   extractedCoverSeal?: string | null
   extractedReading?: string | null
@@ -656,6 +657,7 @@ export type InspectionDocumentRecord = {
   registeredCoverSeal?: string | null
   registeredReading?: string | null
   meterMatches?: boolean | null
+  meterRetiradoMatches?: boolean | null
   lacreMatches?: boolean | null
   coverSealMatches?: boolean | null
   readingMatches?: boolean | null
