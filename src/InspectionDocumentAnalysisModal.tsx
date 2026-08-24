@@ -426,16 +426,9 @@ export function InspectionDocumentAnalysisModal({
                     <dd>{formatDateTime(document.createdAt)}</dd>
                   </div>
                   <ComparisonField
-                    label="Medidor"
-                    campo={conference?.campoMeter ?? registeredMeter}
-                    documento={document.extractedMeter}
-                    agendamento={conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter}
-                    laboratorio={conference?.labMeter}
-                  />
-                  <ComparisonField
                     label="Medidor retirado"
                     campo={conference?.campoMeter ?? registeredMeter}
-                    documento={document.extractedMeterRetirado}
+                    documento={document.extractedMeterRetirado ?? document.extractedMeter}
                     agendamento={conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter}
                     laboratorio={conference?.labMeter}
                   />
