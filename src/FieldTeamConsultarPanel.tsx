@@ -5,6 +5,7 @@ import { readFileAsBase64 } from './fileUtils'
 import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
 import { LoginFeedback } from './LoginFeedback'
 import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, scheduleAuditSearchText } from './schedulePartnerLabel'
+import { getLabTrailLabel } from './labTrailSteps'
 
 type FieldTeamSchedulesPanelProps = {
   mode?: 'all' | 'mine'
@@ -14,6 +15,8 @@ type FieldTeamSchedulesPanelProps = {
   hideInspectionImport?: boolean
   /** Ponto Focal justifica atraso de entrega. */
   allowDelayJustification?: boolean
+  /** Consultar Medidor: lista todas as etapas da trilha, não só Entrada. */
+  allTrailSteps?: boolean
 }
 
 type EnvelopePreview = {
@@ -35,10 +38,15 @@ function deliveryStatusLabel(item: MeterScheduleRecord) {
   return 'Entregue'
 }
 
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, '')
+}
+
 function scheduleSearchText(item: MeterScheduleRecord) {
   return normalizeSearch(
     [
       item.meter,
+      digitsOnly(item.meter),
       item.installation,
       item.toi,
       item.note,
@@ -50,6 +58,8 @@ function scheduleSearchText(item: MeterScheduleRecord) {
       item.scheduledAtLabel,
       item.deliveryDeadlineLabel,
       deliveryStatusLabel(item),
+      item.trailStep,
+      getLabTrailLabel(item.trailStep),
       item.toiCollaborator1Name,
       item.toiCollaborator1Registration,
       item.toiCollaborator2Name,
@@ -59,6 +69,13 @@ function scheduleSearchText(item: MeterScheduleRecord) {
       .filter(Boolean)
       .join(' '),
   )
+}
+
+function scheduleMatchesQuery(item: MeterScheduleRecord, query: string) {
+  if (scheduleSearchText(item).includes(query)) return true
+  const queryDigits = digitsOnly(query)
+  const meterDigits = digitsOnly(item.meter)
+  return queryDigits.length >= 4 && meterDigits.includes(queryDigits)
 }
 
 function displayValue(value?: string | null) {
@@ -279,6 +296,7 @@ export function FieldTeamConsultarPanel({
   scopeUserId,
   hideInspectionImport = false,
   allowDelayJustification = false,
+  allTrailSteps = false,
 }: FieldTeamSchedulesPanelProps) {
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -317,6 +335,7 @@ export function FieldTeamConsultarPanel({
       const { schedules: rows } = await api.listMeterSchedules(undefined, {
         mine: isMine,
         forUserId: !isMine && scopeUserId ? scopeUserId : undefined,
+        allTrailSteps,
       })
       setSchedules(rows)
     } catch (error) {
@@ -333,7 +352,7 @@ export function FieldTeamConsultarPanel({
     } finally {
       setLoading(false)
     }
-  }, [isMine, scopeUserId])
+  }, [allTrailSteps, isMine, scopeUserId])
 
   useEffect(() => {
     void load()
@@ -453,18 +472,24 @@ export function FieldTeamConsultarPanel({
   const filteredSchedules = useMemo(() => {
     const query = normalizeSearch(searchQuery)
     if (!query) return schedules
-    return schedules.filter((item) => scheduleSearchText(item).includes(query))
+    return schedules.filter((item) => scheduleMatchesQuery(item, query))
   }, [schedules, searchQuery])
 
   const totalCount = schedules.length
   const shownCount = filteredSchedules.length
-  const counterLabel = isMine
-    ? shownCount === totalCount
-      ? `${totalCount} TOI${totalCount === 1 ? '' : 's'}`
-      : `${shownCount} de ${totalCount} TOI${totalCount === 1 ? '' : 's'}`
-    : shownCount === totalCount
-      ? `${totalCount} agendamento${totalCount === 1 ? '' : 's'}`
-      : `${shownCount} de ${totalCount} agendamento${totalCount === 1 ? '' : 's'}`
+  const unitLabel = isMine
+    ? totalCount === 1
+      ? 'TOI'
+      : 'TOIs'
+    : allTrailSteps
+      ? totalCount === 1
+        ? 'medidor'
+        : 'medidores'
+      : totalCount === 1
+        ? 'agendamento'
+        : 'agendamentos'
+  const counterLabel =
+    shownCount === totalCount ? `${totalCount} ${unitLabel}` : `${shownCount} de ${totalCount} ${unitLabel}`
 
   return (
     <div className="entrada-panel">
@@ -475,6 +500,12 @@ export function FieldTeamConsultarPanel({
           message={feedback.message}
           onClose={() => setFeedback(null)}
         />
+      ) : null}
+
+      {allTrailSteps ? (
+        <p className="entrada-panel-intro">
+          Pesquisa todos os medidores do laboratório, em qualquer etapa da trilha.
+        </p>
       ) : null}
 
       {!loading && totalCount > 0 ? (
@@ -517,11 +548,15 @@ export function FieldTeamConsultarPanel({
 
       {loading ? (
         <p className="entrada-panel-empty">
-          {isMine ? 'Carregando seus TOIs...' : 'Carregando agendamentos...'}
+          {isMine ? 'Carregando seus TOIs...' : allTrailSteps ? 'Carregando medidores...' : 'Carregando agendamentos...'}
         </p>
       ) : schedules.length === 0 ? (
         <p className="entrada-panel-empty">
-          {isMine ? 'Nenhum TOI encontrado para o seu usuário.' : 'Nenhum agendamento encontrado.'}
+          {isMine
+            ? 'Nenhum TOI encontrado para o seu usuário.'
+            : allTrailSteps
+              ? 'Nenhum medidor encontrado.'
+              : 'Nenhum agendamento encontrado.'}
         </p>
       ) : filteredSchedules.length === 0 ? (
         <p className="entrada-panel-empty">Nenhum resultado para a pesquisa.</p>
@@ -531,6 +566,7 @@ export function FieldTeamConsultarPanel({
             <thead>
               <tr>
                 <th>Medidor</th>
+                {allTrailSteps ? <th>Etapa</th> : null}
                 <th>Instalação</th>
                 <th>TOI</th>
                 <th>Invólucro</th>
@@ -567,6 +603,7 @@ export function FieldTeamConsultarPanel({
                       {item.meter}
                     </button>
                   </td>
+                  {allTrailSteps ? <td>{getLabTrailLabel(item.trailStep)}</td> : null}
                   <td>{item.installation || '—'}</td>
                   <td>{item.toi || '—'}</td>
                   <td>

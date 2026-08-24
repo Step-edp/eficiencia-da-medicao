@@ -171,14 +171,20 @@ export async function listMeterSchedules(req: Request, res: Response) {
     req.query.gallery === '1' ||
     req.query.gallery === 'true' ||
     req.query.gallery === 'yes'
+  const allTrailSteps =
+    req.query.allTrailSteps === '1' ||
+    req.query.allTrailSteps === 'true' ||
+    req.query.allTrailSteps === 'yes'
   const meterSearch =
     typeof req.query.meter === 'string' && req.query.meter.trim()
       ? req.query.meter.trim()
       : ''
   const trailStep =
-    typeof req.query.trailStep === 'string' && req.query.trailStep.trim()
-      ? req.query.trailStep.trim()
-      : ENTRADA_TRAIL_STEP
+    allTrailSteps || meterSearch || galleryMode
+      ? ''
+      : typeof req.query.trailStep === 'string' && req.query.trailStep.trim()
+        ? req.query.trailStep.trim()
+        : ENTRADA_TRAIL_STEP
   const mineOnly =
     req.query.mine === '1' ||
     req.query.mine === 'true' ||
@@ -197,7 +203,7 @@ export async function listMeterSchedules(req: Request, res: Response) {
   } else if (galleryMode) {
     filters.push(`ms.envelope_photo <> ''`)
     filters.push(`ms.delay_dismissed_at IS NULL`)
-  } else {
+  } else if (!allTrailSteps) {
     params.push(trailStep)
     filters.push(`ms.trail_step = $${params.length}`)
     filters.push(`ms.delay_dismissed_at IS NULL`)
@@ -237,9 +243,10 @@ export async function listMeterSchedules(req: Request, res: Response) {
     }
   }
 
-  const orderBy = meterSearch
-    ? `ORDER BY ms.scheduled_at DESC, ms.created_at DESC`
-    : `ORDER BY ms.scheduled_at ASC, ms.created_at DESC`
+  const orderBy =
+    meterSearch || allTrailSteps
+      ? `ORDER BY ms.scheduled_at DESC, ms.created_at DESC`
+      : `ORDER BY ms.scheduled_at ASC, ms.created_at DESC`
 
   const result = await query<MeterScheduleRow>(
     `SELECT ms.*, ms.scheduling_date::text AS scheduling_date,
@@ -257,7 +264,7 @@ export async function listMeterSchedules(req: Request, res: Response) {
        ORDER BY created_at DESC
        LIMIT 1
      ) d ON true
-     WHERE ${filters.join(' AND ')}
+     WHERE ${filters.length > 0 ? filters.join(' AND ') : 'TRUE'}
      ${mineFilter}
      ${orderBy}`,
     params,
