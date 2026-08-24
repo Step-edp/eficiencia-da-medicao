@@ -31,6 +31,7 @@ const DEFAULT_OPTIONS: Record<CatalogKey, string[]> = {
     'Consumo Irregular',
     'Grandes Clientes',
     'Qualidade',
+    'COI',
   ],
   tipo: ['Própria', 'Terceira'],
   terceira: ['BMB', 'Cosampa', 'Engelmig', 'Engeserv', 'ROTARY', 'TIVIT'],

@@ -152,6 +152,7 @@ export const BUSINESS_AREA_TO_HOME_PORTALS: Record<string, readonly EngineerHome
   'Consumo Irregular': ['Laboratório de Medição'],
   'Grandes Clientes': ['Medição'],
   Qualidade: ['Laboratório de Medição'],
+  COI: [],
 }
 
 /** Processos liberados para a área Consumo Irregular. */
@@ -242,6 +243,7 @@ export const DEFAULT_AREA_OPTIONS = [
   'Consumo Irregular',
   'Grandes Clientes',
   'Qualidade',
+  'COI',
 ] as const
 
 export const DEFAULT_LOCALITIES = [

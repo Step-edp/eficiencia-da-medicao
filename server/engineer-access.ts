@@ -188,6 +188,7 @@ export const BUSINESS_AREA_TO_HOME_PORTALS: Record<string, readonly string[]> = 
   'Consumo Irregular': ['Laboratório de Medição'],
   'Grandes Clientes': ['Medição'],
   Qualidade: ['Laboratório de Medição'],
+  COI: [],
 }
 
 /** Processos liberados para a área Consumo Irregular. */

@@ -349,6 +349,7 @@ export async function register(req: Request, res: Response) {
         'Consumo Irregular',
         'Grandes Clientes',
         'Qualidade',
+        'COI',
       ]
   const allowedCargos = valuesByKey.cargo?.length
     ? valuesByKey.cargo
@@ -1126,6 +1127,7 @@ export async function updateUser(req: Request, res: Response) {
         'Consumo Irregular',
         'Grandes Clientes',
         'Qualidade',
+        'COI',
       ]
   const allowedCargos = valuesByKey.cargo?.length
     ? valuesByKey.cargo
