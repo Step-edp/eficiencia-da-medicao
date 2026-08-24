@@ -77,6 +77,14 @@ function displayConferenceValue(value: string | null | undefined, emptyLabel = '
   return trimmed ? trimmed : emptyLabel
 }
 
+function hasConferenceValue(value: string | null | undefined) {
+  return Boolean(value?.trim())
+}
+
+function inspectionAnalysisComplete(fields: Array<string | null | undefined>) {
+  return fields.every((value) => hasConferenceValue(value))
+}
+
 function normalizeConferenceDigits(value: string | null | undefined) {
   const digits = String(value ?? '').replace(/\D/g, '')
   if (!digits) return null
@@ -559,14 +567,44 @@ export function InspectionDocumentAnalysisModal({
           <p className="entrada-panel-empty">Nenhum documento de inspeção anexado.</p>
         ) : (
           <div className="inspection-document-list">
-            {documents.map((document) => (
+            {documents.map((document) => {
+              const campoMeter = canEditWpa ? wpaDraft.meter : (conference?.campoMeter ?? registeredMeter)
+              const campoLacre = canEditWpa ? wpaDraft.lacre : conference?.campoLacre
+              const campoCoverSeal = canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal
+              const campoReading = canEditWpa ? wpaDraft.reading : conference?.campoReading
+              const analysisComplete = inspectionAnalysisComplete([
+                campoMeter,
+                document.extractedMeterRetirado ?? document.extractedMeter,
+                conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter,
+                conference?.labMeter,
+                campoLacre,
+                document.extractedLacre,
+                conference?.scheduleLacre ?? document.registeredLacre,
+                conference?.labLacre,
+                campoCoverSeal,
+                document.extractedCoverSeal,
+                conference?.scheduleCoverSeal ?? document.registeredCoverSeal,
+                conference?.labCoverSeal,
+                campoReading,
+                document.extractedReading,
+                conference?.labReading,
+                document.extractedScheduledAt,
+                conference?.scheduleScheduleDate,
+              ])
+              const status = document.blocked
+                ? 'blocked'
+                : analysisComplete
+                  ? 'ok'
+                  : 'pending'
+
+              return (
               <article key={document.id} className="inspection-document-card">
                 <div className="inspection-document-card-header">
                   <strong>{inspectionDocTypeLabel(document.docType)}</strong>
                   <span
-                    className={`inspection-document-status ${document.blocked ? 'is-blocked' : 'is-ok'}`}
+                    className={`inspection-document-status is-${status}`}
                   >
-                    {document.blocked ? 'Bloqueado' : 'OK'}
+                    {status === 'blocked' ? 'Bloqueado' : status === 'ok' ? 'OK' : 'Pendente'}
                   </span>
                 </div>
 
@@ -687,7 +725,8 @@ export function InspectionDocumentAnalysisModal({
                   ) : null}
                 </div>
               </article>
-            ))}
+            )
+            })}
           </div>
         )}
 

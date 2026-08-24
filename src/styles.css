@@ -2090,6 +2090,11 @@ button {
   color: #8ef0b8;
 }
 
+.inspection-document-status.is-pending {
+  background: rgba(241, 196, 15, 0.18);
+  color: #f8e08e;
+}
+
 .inspection-document-status.is-blocked {
   background: rgba(231, 76, 60, 0.18);
   color: #ffb3aa;
