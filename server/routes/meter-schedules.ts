@@ -1229,12 +1229,14 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
     entry_at: Date | null
     delay_justification: string | null
     delay_dismissed_at: Date | null
+    delay_dismissed_by: string | null
     delay_dismissed_days: number | null
   }>(
     `SELECT ms.id, ms.meter, ms.installation, ms.toi, ms.note, ms.csd,
             ms.scheduled_at, ms.trail_step, ms.created_at,
             COALESCE(ms.delay_justification, '') AS delay_justification,
             ms.delay_dismissed_at,
+            ms.delay_dismissed_by,
             ms.delay_dismissed_days,
             d.created_at AS entry_at
      FROM meter_schedules ms
@@ -1343,7 +1345,9 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
         dismissedAt: row.delay_dismissed_at ? row.delay_dismissed_at.toISOString() : null,
       }
       if (row.delay_dismissed_at) {
-        dismissedLateMeters.push(lateRecord)
+        if ((row.delay_dismissed_by ?? '').trim() === scopeUserId) {
+          dismissedLateMeters.push(lateRecord)
+        }
       } else {
         late += 1
         delayDaysSamples.push(daysLate)
