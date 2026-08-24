@@ -930,4 +930,31 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS delay_dismissed_by TEXT,
       ADD COLUMN IF NOT EXISTS delay_dismissed_days INTEGER;
   `)
+
+  // Responsável de CSD assume o perfil Ponto Focal.
+  await query(`
+    UPDATE users
+    SET work_subtype = 'Lavratura de TOI - Ponto Focal',
+        access_areas = '["Equipe de campo"]'::jsonb,
+        vacation_required_since = NULL
+    WHERE id IN (
+      SELECT DISTINCT responsible_user_id
+      FROM csds
+      WHERE responsible_user_id IS NOT NULL
+    )
+      AND role <> 'admin'
+      AND approval_status = 'approved'
+      AND TRIM(job_title) <> 'Gestor'
+      AND TRIM(COALESCE(work_subtype, '')) NOT IN (
+        'Responsável por célula',
+        'Responsável por sub-célula',
+        'Responsável de célula',
+        'Responsável de área',
+        'Área',
+        'Sub-área',
+        'Processos específicos'
+      )
+      AND REPLACE(REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-'), '—', '-')
+        <> 'Lavratura de TOI - Ponto Focal'
+  `)
 }

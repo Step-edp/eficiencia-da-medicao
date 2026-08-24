@@ -178,7 +178,7 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
       setFeedback({
         type: 'success',
         message: csd.responsibleUserId
-          ? `CSD "${csd.name}" cadastrado com sucesso.`
+          ? `CSD "${csd.name}" cadastrado. O responsável passou a ter o perfil Ponto Focal.`
           : `CSD "${csd.name}" cadastrado como pendente (sem responsável).`,
       })
       resetForm()
@@ -223,7 +223,9 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
       )
       setFeedback({
         type: 'success',
-        message: `CSD "${updated.name}" atualizado.`,
+        message: updated.responsibleUserId
+          ? `CSD "${updated.name}" atualizado. O responsável passou a ter o perfil Ponto Focal.`
+          : `CSD "${updated.name}" atualizado.`,
       })
       setEditingCsd(null)
       setEditCities([])
@@ -260,7 +262,7 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
       setFeedback({
         type: 'success',
         message: nextId
-          ? `Responsável do CSD "${updated.name}" atualizado.`
+          ? `Responsável do CSD "${updated.name}" atualizado. O perfil passou a ser Ponto Focal.`
           : `Responsável do CSD "${updated.name}" removido. O CSD ficou pendente.`,
       })
     } catch (error) {
@@ -432,6 +434,7 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
 
           <p className="csds-form-hint full-width">
             Opcional. Sem responsável, o CSD fica pendente e pode ser definido depois.
+            Quem for definido como responsável passa a ter o perfil Ponto Focal.
           </p>
 
           {inspectors.length === 0 ? (
@@ -482,7 +485,8 @@ export function CsdsPanel({ readOnly = false }: { readOnly?: boolean }) {
             <h3 id="csds-edit-title">Editar CSD</h3>
             <p className="csds-form-hint">
               {editingCsd.name}. Altere o responsável e as cidades. Cidades já
-              vinculadas a outro CSD não podem ser atribuídas.
+              vinculadas a outro CSD não podem ser atribuídas. O responsável
+              passa a ter o perfil Ponto Focal.
             </p>
 
             <form

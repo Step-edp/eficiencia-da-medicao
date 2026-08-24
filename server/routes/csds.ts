@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { normalizeCsdCities } from '../csd-cities.js'
 import { writeAuditLog } from '../audit.js'
+import { promoteCsdResponsibleToPontoFocal } from '../ponto-focal-csds.js'
 
 type CsdRow = {
   id: string
@@ -133,6 +134,8 @@ export async function createCsd(req: Request, res: Response) {
       newData: csd,
     })
 
+    await promoteCsdResponsibleToPontoFocal(req, responsibleUserId)
+
     res.status(201).json({ csd })
   } catch (error) {
     const pgError = error as { code?: string }
@@ -234,6 +237,10 @@ export async function updateCsd(req: Request, res: Response) {
     oldData: previous,
     newData: csd,
   })
+
+  if (hasResponsible) {
+    await promoteCsdResponsibleToPontoFocal(req, responsibleUserId)
+  }
 
   res.json({ csd })
 }
