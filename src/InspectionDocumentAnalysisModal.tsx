@@ -172,6 +172,7 @@ function ComparisonField({
   onCampoChange,
   onDocumentoChange,
   showAdjust = false,
+  adjusted = false,
   adjusting = false,
   onAdjust,
   agendamentoPhoto,
@@ -192,6 +193,7 @@ function ComparisonField({
   onCampoChange?: (value: string) => void
   onDocumentoChange?: (value: string) => void
   showAdjust?: boolean
+  adjusted?: boolean
   adjusting?: boolean
   onAdjust?: () => void
   agendamentoPhoto?: string | null
@@ -267,6 +269,9 @@ function ComparisonField({
             <strong>{displayConferenceValue(laboratorio, laboratorioEmpty)}</strong>
           </div>
           <MatchIndicator matches={matches} />
+          {adjusted ? (
+            <span className="schedule-ok-badge inspection-document-adjusted-badge">Ajustado</span>
+          ) : null}
           {showAdjust && matches === false ? (
             <button
               type="button"
@@ -346,6 +351,7 @@ export function InspectionDocumentAnalysisModal({
         labCoverSeal: null,
         labReading: null,
         labScheduleDate: null,
+        scheduleDateAdjusted: false,
       }
       setConference(nextConference)
       setWpaDraft({
@@ -853,6 +859,7 @@ export function InspectionDocumentAnalysisModal({
                       handleDocumentoChange(document.docType, 'scheduledAt', value)
                     }
                     showAdjust={canEditWpa}
+                    adjusted={conference?.scheduleDateAdjusted === true}
                     adjusting={adjustingDocType === document.docType}
                     onAdjust={() => void handleAdjustScheduleDate(document)}
                   />

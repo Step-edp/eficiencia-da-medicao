@@ -639,6 +639,7 @@ export type InspectionDocumentConference = {
   labCoverSeal: string | null
   labReading: string | null
   labScheduleDate: string | null
+  scheduleDateAdjusted?: boolean
 }
 
 export type ScheduleDateAdjustmentRecord = {

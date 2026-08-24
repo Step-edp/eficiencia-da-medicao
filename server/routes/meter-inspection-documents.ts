@@ -1165,6 +1165,14 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   const deleteBlockedReason =
     userCanManage && !deletable.ok ? deletable.error : null
   const scheduleDateLabel = formatAvailableSlot(schedule.rows[0].scheduled_at)
+  const scheduleDateAdjustment = await query<{ adjusted: boolean }>(
+    `SELECT EXISTS(
+       SELECT 1 FROM toi_schedule_deviations
+       WHERE meter_schedule_id = ANY($1::text[])
+     ) AS adjusted`,
+    [documentScheduleIds],
+  )
+  const scheduleDateAdjusted = Boolean(scheduleDateAdjustment.rows[0]?.adjusted)
 
   await backfillMissingExtractions(result.rows)
   await repairMeterToiCollisions(
@@ -1195,6 +1203,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
       labCoverSeal: null,
       labReading: null,
       labScheduleDate: null,
+      scheduleDateAdjusted,
     },
     meterScheduleId,
     documents: result.rows.map((row) =>
