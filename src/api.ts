@@ -616,6 +616,21 @@ export type DemmDocumentRecord = {
 
 export type InspectionDocumentType = 'toi' | 'comunicado' | 'ambos'
 
+export type InspectionDocumentConference = {
+  campoMeter: string | null
+  campoLacre: string | null
+  campoCoverSeal: string | null
+  campoReading: string | null
+  scheduleMeter: string | null
+  scheduleLacre: string | null
+  scheduleCoverSeal: string | null
+  scheduleReading: string | null
+  labMeter: string | null
+  labLacre: string | null
+  labCoverSeal: string | null
+  labReading: string | null
+}
+
 export type InspectionDocumentRecord = {
   id: string
   meterScheduleId: string
@@ -1613,6 +1628,7 @@ export const api = {
       registeredLacre: string | null
       registeredCoverSeal: string | null
       registeredReading: string | null
+      conference?: InspectionDocumentConference
       meterScheduleId: string
       documents: InspectionDocumentRecord[]
       complete: boolean

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, ApiError, type InspectionDocumentRecord, type InspectionDocumentType } from './api'
+import { api, ApiError, type InspectionDocumentConference, type InspectionDocumentRecord, type InspectionDocumentType } from './api'
 import { LoginFeedback } from './LoginFeedback'
 
 type InspectionDocumentAnalysisModalProps = {
@@ -52,33 +52,60 @@ function MatchIndicator({ matches }: { matches: boolean | null | undefined }) {
   )
 }
 
-type ComparisonFieldProps = {
-  label: string
-  documentValue: string | null | undefined
-  registeredValue: string | null | undefined
-  matches: boolean | null | undefined
+function displayConferenceValue(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : '—'
+}
+
+function normalizeConferenceDigits(value: string | null | undefined) {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  if (!digits) return null
+  return digits.replace(/^0+/, '') || '0'
+}
+
+function conferenceMatches(values: Array<string | null | undefined>): boolean | null {
+  const normalized = values
+    .map((value) => normalizeConferenceDigits(value))
+    .filter((value): value is string => Boolean(value))
+  if (normalized.length < 2) return null
+  return normalized.every((value) => value === normalized[0])
 }
 
 function ComparisonField({
   label,
-  documentValue,
-  registeredValue,
-  matches,
-}: ComparisonFieldProps) {
+  campo,
+  documento,
+  agendamento,
+  laboratorio,
+}: {
+  label: string
+  campo?: string | null
+  documento?: string | null
+  agendamento?: string | null
+  laboratorio?: string | null
+}) {
   return (
     <div className="inspection-document-comparison">
       <dt>{label}</dt>
       <dd>
-        <div className="inspection-document-comparison-grid">
+        <div className="inspection-document-comparison-grid is-four">
           <div className="inspection-document-comparison-item">
-            <span className="inspection-document-comparison-label">No documento</span>
-            <strong>{documentValue?.trim() || '—'}</strong>
+            <span className="inspection-document-comparison-label">Campo</span>
+            <strong>{displayConferenceValue(campo)}</strong>
           </div>
           <div className="inspection-document-comparison-item">
-            <span className="inspection-document-comparison-label">Cadastrado</span>
-            <strong>{registeredValue?.trim() || '—'}</strong>
+            <span className="inspection-document-comparison-label">Documento</span>
+            <strong>{displayConferenceValue(documento)}</strong>
           </div>
-          <MatchIndicator matches={matches} />
+          <div className="inspection-document-comparison-item">
+            <span className="inspection-document-comparison-label">Agendamento</span>
+            <strong>{displayConferenceValue(agendamento)}</strong>
+          </div>
+          <div className="inspection-document-comparison-item">
+            <span className="inspection-document-comparison-label">Laboratório</span>
+            <strong>{displayConferenceValue(laboratorio)}</strong>
+          </div>
+          <MatchIndicator matches={conferenceMatches([campo, documento, agendamento, laboratorio])} />
         </div>
       </dd>
     </div>
@@ -97,9 +124,7 @@ export function InspectionDocumentAnalysisModal({
   const [canDelete, setCanDelete] = useState(false)
   const [deleteBlockedReason, setDeleteBlockedReason] = useState<string | null>(null)
   const [registeredMeter, setRegisteredMeter] = useState(meter)
-  const [registeredLacre, setRegisteredLacre] = useState<string | null>(null)
-  const [registeredCoverSeal, setRegisteredCoverSeal] = useState<string | null>(null)
-  const [registeredReading, setRegisteredReading] = useState<string | null>(null)
+  const [conference, setConference] = useState<InspectionDocumentConference | null>(null)
   const [deletingDocType, setDeletingDocType] = useState<InspectionDocumentType | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
@@ -115,18 +140,29 @@ export function InspectionDocumentAnalysisModal({
       setCanDelete(response.canDelete)
       setDeleteBlockedReason(response.deleteBlockedReason)
       setRegisteredMeter(response.meter)
-      setRegisteredLacre(response.registeredLacre)
-      setRegisteredCoverSeal(response.registeredCoverSeal)
-      setRegisteredReading(response.registeredReading)
+      setConference(
+        response.conference ?? {
+          campoMeter: response.meter,
+          campoLacre: response.registeredLacre,
+          campoCoverSeal: response.registeredCoverSeal ?? null,
+          campoReading: response.registeredReading ?? null,
+          scheduleMeter: response.meter,
+          scheduleLacre: response.registeredLacre,
+          scheduleCoverSeal: response.registeredCoverSeal ?? null,
+          scheduleReading: response.registeredReading ?? null,
+          labMeter: null,
+          labLacre: null,
+          labCoverSeal: null,
+          labReading: null,
+        },
+      )
     } catch {
       setDocuments([])
       setComplete(false)
       setCanDelete(false)
       setDeleteBlockedReason(null)
       setRegisteredMeter(meter)
-      setRegisteredLacre(null)
-      setRegisteredCoverSeal(null)
-      setRegisteredReading(null)
+      setConference(null)
     } finally {
       setLoading(false)
     }
@@ -263,27 +299,31 @@ export function InspectionDocumentAnalysisModal({
                   </div>
                   <ComparisonField
                     label="Medidor"
-                    documentValue={document.extractedMeter}
-                    registeredValue={document.registeredMeter ?? registeredMeter}
-                    matches={document.meterMatches}
+                    campo={conference?.campoMeter ?? registeredMeter}
+                    documento={document.extractedMeter}
+                    agendamento={conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter}
+                    laboratorio={conference?.labMeter}
                   />
                   <ComparisonField
                     label="Lacre do invólucro"
-                    documentValue={document.extractedLacre}
-                    registeredValue={document.registeredLacre ?? registeredLacre}
-                    matches={document.lacreMatches}
+                    campo={conference?.campoLacre}
+                    documento={document.extractedLacre}
+                    agendamento={conference?.scheduleLacre ?? document.registeredLacre}
+                    laboratorio={conference?.labLacre}
                   />
                   <ComparisonField
                     label="Lacre da tampa"
-                    documentValue={document.extractedCoverSeal}
-                    registeredValue={document.registeredCoverSeal ?? registeredCoverSeal}
-                    matches={document.coverSealMatches}
+                    campo={conference?.campoCoverSeal}
+                    documento={document.extractedCoverSeal}
+                    agendamento={conference?.scheduleCoverSeal ?? document.registeredCoverSeal}
+                    laboratorio={conference?.labCoverSeal}
                   />
                   <ComparisonField
                     label="Leitura"
-                    documentValue={document.extractedReading}
-                    registeredValue={document.registeredReading ?? registeredReading}
-                    matches={document.readingMatches}
+                    campo={conference?.campoReading}
+                    documento={document.extractedReading}
+                    agendamento={conference?.scheduleReading ?? document.registeredReading}
+                    laboratorio={conference?.labReading}
                   />
                   {document.blockReason ? (
                     <div className="user-detail-full">

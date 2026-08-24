@@ -918,8 +918,10 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     envelope_seal: string
     cover_seal: string
     meter_reading: string
+    source: string
   }>(
-    `SELECT id, meter, envelope_seal, cover_seal, meter_reading FROM meter_schedules WHERE id = $1`,
+    `SELECT id, meter, envelope_seal, cover_seal, meter_reading, source
+     FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
   if (!schedule.rows[0]) {
@@ -931,6 +933,19 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   const registeredLacre = schedule.rows[0].envelope_seal || null
   const registeredCoverSeal = schedule.rows[0].cover_seal || null
   const registeredReading = schedule.rows[0].meter_reading || null
+  const scheduleSource = schedule.rows[0].source || ''
+  const isFieldSchedule = scheduleSource !== 'passivo' && scheduleSource !== 'bulk_import'
+  const registry = await query<{ meter: string; status: string; received_at: Date | null }>(
+    `SELECT meter, status, received_at
+     FROM meter_registry
+     WHERE ${NORMALIZED_METER_SQL} = $1
+     LIMIT 1`,
+    [normalizeScheduleMeter(registeredMeter)],
+  )
+  const labRow = registry.rows[0]
+  const labEntradaGiven = Boolean(
+    labRow && (hasMeterEntradaGiven(labRow.status) || labRow.received_at),
+  )
   const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
   const documentScheduleIds = scheduleIds.length ? scheduleIds : [meterScheduleId]
 
@@ -958,6 +973,20 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     registeredLacre,
     registeredCoverSeal,
     registeredReading,
+    conference: {
+      campoMeter: isFieldSchedule ? registeredMeter : null,
+      campoLacre: isFieldSchedule ? registeredLacre : null,
+      campoCoverSeal: isFieldSchedule ? registeredCoverSeal : null,
+      campoReading: isFieldSchedule ? registeredReading : null,
+      scheduleMeter: registeredMeter,
+      scheduleLacre: registeredLacre,
+      scheduleCoverSeal: registeredCoverSeal,
+      scheduleReading: registeredReading,
+      labMeter: labEntradaGiven ? labRow?.meter ?? null : null,
+      labLacre: null,
+      labCoverSeal: null,
+      labReading: null,
+    },
     meterScheduleId,
     documents: result.rows.map((row) =>
       mapInspectionDocumentRow(
