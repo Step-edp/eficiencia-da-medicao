@@ -131,11 +131,8 @@ function hasWpaDocument(item: MeterInspectionDocumentadoRecord) {
 }
 
 function wpaDocumentationLabel(item: MeterInspectionDocumentadoRecord) {
-  if (item.anyBlocked) return item.blockReasons || 'Bloqueado'
-  if (item.hasToi && item.hasComunicado) return 'TOI + CSM'
-  if (item.hasToi) return 'TOI'
-  if (item.hasComunicado) return 'CSM'
-  return '—'
+  if (item.anyBlocked || !item.hasToi || !item.hasComunicado) return 'Pendente'
+  return 'OK'
 }
 
 function weekMeterInspectionLabel(item: WeekMeterRecord) {
@@ -1903,8 +1900,8 @@ export function EntradaPanel({
                         <td>
                           <span
                             className={
-                              item.anyBlocked
-                                ? 'schedule-late-badge'
+                              item.anyBlocked || !item.hasToi || !item.hasComunicado
+                                ? 'schedule-pending-badge'
                                 : 'schedule-ok-badge'
                             }
                             title={item.blockReasons ?? undefined}
