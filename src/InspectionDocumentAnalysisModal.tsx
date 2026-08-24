@@ -176,7 +176,6 @@ export function InspectionDocumentAnalysisModal({
 }: InspectionDocumentAnalysisModalProps) {
   const [loading, setLoading] = useState(true)
   const [documents, setDocuments] = useState<InspectionDocumentRecord[]>([])
-  const [complete, setComplete] = useState(false)
   const [canDelete, setCanDelete] = useState(false)
   const [deleteBlockedReason, setDeleteBlockedReason] = useState<string | null>(null)
   const [registeredMeter, setRegisteredMeter] = useState(meter)
@@ -199,7 +198,6 @@ export function InspectionDocumentAnalysisModal({
     try {
       const response = await api.listInspectionDocuments(scheduleId)
       setDocuments(response.documents)
-      setComplete(response.complete)
       setCanDelete(response.canDelete)
       setDeleteBlockedReason(response.deleteBlockedReason)
       setRegisteredMeter(response.meter)
@@ -226,7 +224,6 @@ export function InspectionDocumentAnalysisModal({
       setCanManagePhotos(Boolean(response.canManagePhotos))
     } catch {
       setDocuments([])
-      setComplete(false)
       setCanDelete(false)
       setDeleteBlockedReason(null)
       setRegisteredMeter(meter)
@@ -373,11 +370,6 @@ export function InspectionDocumentAnalysisModal({
         </button>
         <div className="inspection-analysis-screen-heading">
           <h3 id="inspection-document-title">Documento de inspeção — medidor {meter}</h3>
-          <p className="demm-modal-intro">
-            {complete
-              ? 'TOI e CSM anexados. Confira a análise e baixe o PDF.'
-              : 'Análise dos documentos já anexados a este medidor.'}
-          </p>
         </div>
         <button
           type="button"
