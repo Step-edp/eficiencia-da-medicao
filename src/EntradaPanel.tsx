@@ -21,7 +21,6 @@ import { EntradaCsdDashboard } from './EntradaCsdDashboard'
 import { MeterDetailModal } from './MeterDetailModal'
 import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
 import { LoginFeedback } from './LoginFeedback'
-import { ScheduleDateAdjustmentsPanel } from './ScheduleDateAdjustmentsPanel'
 import {
   ToiCollaboratorFields,
   resolveToiCollaborators,
@@ -744,7 +743,6 @@ export function EntradaPanel({
     | 'inspectionPendencias'
     | 'weekMeters'
     | 'demmHistorico'
-    | 'dateAdjustments'
   >('dash')
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
   const [csdPendencias, setCsdPendencias] = useState<CsdDemmPendenciaRecord[]>([])
@@ -781,7 +779,6 @@ export function EntradaPanel({
   const [weekMetersMeterFilter, setWeekMetersMeterFilter] = useState('')
   const [weekMetersCsdFilter, setWeekMetersCsdFilter] = useState('')
   const [weekMetersDemmFilter, setWeekMetersDemmFilter] = useState('')
-  const [dateAdjustmentsCount, setDateAdjustmentsCount] = useState(0)
   const [quickScheduleMeter, setQuickScheduleMeter] = useState<WeekMeterRecord | null>(null)
   const [submittingQuickSchedule, setSubmittingQuickSchedule] = useState(false)
   const [quickScheduleFeedback, setQuickScheduleFeedback] = useState<string | null>(null)
@@ -1064,21 +1061,6 @@ export function EntradaPanel({
     void loadInspectionPendencias()
   }
 
-  const loadDateAdjustmentsCount = useCallback(async () => {
-    try {
-      const response = await api.listScheduleDateAdjustments('all')
-      setDateAdjustmentsCount(response.total)
-    } catch {
-      setDateAdjustmentsCount(0)
-    }
-  }, [])
-
-  const openDateAdjustments = () => {
-    setView('dateAdjustments')
-    setFeedback(null)
-    void loadDateAdjustmentsCount()
-  }
-
   const handleUploadInspectionDocument = async (
     target: { id: string; meter: string },
     file: File,
@@ -1275,8 +1257,7 @@ export function EntradaPanel({
     void loadInspectionPendencias()
     void loadWpaMeters()
     void loadWeekMeters()
-    void loadDateAdjustmentsCount()
-  }, [loadData, loadCsdPendencias, loadInspectionPendencias, loadWpaMeters, loadWeekMeters, loadDateAdjustmentsCount])
+  }, [loadData, loadCsdPendencias, loadInspectionPendencias, loadWpaMeters, loadWeekMeters])
 
   const renderFixedFeedback = () =>
     feedback ? (
@@ -1357,20 +1338,6 @@ export function EntradaPanel({
           onClick={() => openDemmHistorico()}
         >
           Histórico de DEMM
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'dateAdjustments'}
-          className={view === 'dateAdjustments' ? 'active' : ''}
-          onClick={() => openDateAdjustments()}
-        >
-          Alteração de data
-          {dateAdjustmentsCount > 0 ? (
-            <span className="lab-trail-step-badge" aria-label={`${dateAdjustmentsCount} alteração(ões)`}>
-              {dateAdjustmentsCount}
-            </span>
-          ) : null}
         </button>
         <button
           type="button"
@@ -1803,24 +1770,6 @@ export function EntradaPanel({
 
   const openMeterDetail = (meter: string) => setMeterDetailTarget(meter)
 
-  if (view === 'dateAdjustments') {
-    return (
-      <>
-        <div className="entrada-panel">
-          {renderEntradaTabBar()}
-          {renderFixedFeedback()}
-          <ScheduleDateAdjustmentsPanel
-            scope="all"
-            title="Alteração de data"
-            intro="Medidores cuja data/horário de agendamento foi ajustada para conferir com o documento. Cada ajuste também gera apontamento de desvio para os colaboradores 1 e 2 do TOI."
-          />
-        </div>
-        {userProfileModal}
-        {meterDetailModal}
-      </>
-    )
-  }
-
   if (view === 'dash') {
     return (
       <>
@@ -1941,7 +1890,6 @@ export function EntradaPanel({
               void loadWpaMeters()
               void loadWeekMeters()
               void loadData()
-              void loadDateAdjustmentsCount()
               refreshTrailCounts()
             }}
           />
@@ -2615,7 +2563,6 @@ export function EntradaPanel({
               void loadWpaMeters()
               void loadWeekMeters()
               void loadData()
-              void loadDateAdjustmentsCount()
               refreshTrailCounts()
             }}
           />

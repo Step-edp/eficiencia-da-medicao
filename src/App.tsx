@@ -1006,6 +1006,7 @@ function ItemIcon({ title }: { title: string }) {
     'Consultar Medidor': 'search',
     'Calendário de ensaios': 'calendar',
     Reagendar: 'repeat',
+    'Alteração de data': 'clock',
     'Minha produtividade': 'chart',
     'Adicionar passivo': 'calendar',
     'Entrada de medidores': 'inbox',
@@ -2297,6 +2298,7 @@ function HomePanel({
     'Consultar RATM',
     'Consultar Medidor',
     'Reagendar',
+    'Alteração de data',
     'Criar Modelo',
     'Galeria',
     'Apresentação',
@@ -5405,6 +5407,12 @@ function HomePanel({
               <EnsaiosCalendar readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Reagendar' ? (
               <ReagendarPanel readOnly={labMedicaoReadOnly} />
+            ) : selectedLabMeasurementSection === 'Alteração de data' ? (
+              <ScheduleDateAdjustmentsPanel
+                scope="all"
+                title="Alteração de data"
+                intro="Medidores cuja data/horário de agendamento foi ajustada para conferir com o documento. Cada ajuste também gera apontamento de desvio para os colaboradores 1 e 2 do TOI."
+              />
             ) : selectedLabMeasurementSection === 'Minha produtividade' &&
               showMinhaProdutividade ? (
               <MinhaProdutividadePanel
