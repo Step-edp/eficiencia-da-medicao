@@ -242,8 +242,13 @@ export async function login(req: Request, res: Response) {
   )
   const user = result.rows[0]
 
-  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-    res.status(401).json({ error: 'Matrícula ou senha inválida.' })
+  if (!user) {
+    res.status(401).json({ error: 'Matrícula inexistente.' })
+    return
+  }
+
+  if (!(await bcrypt.compare(password, user.password_hash))) {
+    res.status(401).json({ error: 'Senha errada.' })
     return
   }
 
