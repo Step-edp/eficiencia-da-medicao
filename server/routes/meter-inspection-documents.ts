@@ -596,10 +596,9 @@ function evaluateInspectionDocument(
   return { blocked: false, reason: null }
 }
 
-function pickSavedWpa(saved: string | null | undefined, fallback: string | null) {
-  if (saved == null) return fallback
-  const trimmed = saved.trim()
-  return trimmed || null
+function pickSavedWpa(saved: string | null | undefined) {
+  const trimmed = saved?.trim()
+  return trimmed ? trimmed : null
 }
 
 function readWpaText(value: unknown) {
@@ -1124,8 +1123,6 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   const registeredLacre = schedule.rows[0].envelope_seal || null
   const registeredCoverSeal = schedule.rows[0].cover_seal || null
   const registeredReading = schedule.rows[0].meter_reading || null
-  const scheduleSource = schedule.rows[0].source || ''
-  const isFieldSchedule = scheduleSource !== 'passivo' && scheduleSource !== 'bulk_import'
   const registry = await query<{ meter: string; status: string; received_at: Date | null }>(
     `SELECT meter, status, received_at
      FROM meter_registry
@@ -1162,10 +1159,6 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   const deleteBlockedReason =
     userCanManage && !deletable.ok ? deletable.error : null
   const scheduleDateLabel = formatAvailableSlot(schedule.rows[0].scheduled_at)
-  const campoMeterFallback = isFieldSchedule ? registeredMeter : null
-  const campoLacreFallback = isFieldSchedule ? registeredLacre : null
-  const campoCoverSealFallback = isFieldSchedule ? registeredCoverSeal : null
-  const campoReadingFallback = isFieldSchedule ? registeredReading : null
 
   await backfillMissingExtractions(result.rows)
   await repairMeterToiCollisions(
@@ -1181,13 +1174,10 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     registeredReading,
     envelopePhoto: schedule.rows[0].envelope_photo?.trim() || null,
     conference: {
-      campoMeter: pickSavedWpa(schedule.rows[0].inspection_wpa_meter, campoMeterFallback),
-      campoLacre: pickSavedWpa(schedule.rows[0].inspection_wpa_lacre, campoLacreFallback),
-      campoCoverSeal: pickSavedWpa(
-        schedule.rows[0].inspection_wpa_cover_seal,
-        campoCoverSealFallback,
-      ),
-      campoReading: pickSavedWpa(schedule.rows[0].inspection_wpa_reading, campoReadingFallback),
+      campoMeter: pickSavedWpa(schedule.rows[0].inspection_wpa_meter),
+      campoLacre: pickSavedWpa(schedule.rows[0].inspection_wpa_lacre),
+      campoCoverSeal: pickSavedWpa(schedule.rows[0].inspection_wpa_cover_seal),
+      campoReading: pickSavedWpa(schedule.rows[0].inspection_wpa_reading),
       campoScheduleDate: null,
       scheduleMeter: registeredMeter,
       scheduleLacre: registeredLacre,

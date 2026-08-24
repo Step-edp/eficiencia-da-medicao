@@ -156,7 +156,7 @@ function ComparisonField({
   agendamento,
   laboratorio,
   kind = 'digits',
-  campoEmpty = 'Pendente',
+  campoEmpty = '',
   documentoEmpty = '—',
   agendamentoEmpty = '—',
   laboratorioEmpty = '—',
@@ -324,10 +324,10 @@ export function InspectionDocumentAnalysisModal({
       setDeleteBlockedReason(response.deleteBlockedReason)
       setRegisteredMeter(response.meter)
       const nextConference = response.conference ?? {
-        campoMeter: response.meter,
-        campoLacre: response.registeredLacre,
-        campoCoverSeal: response.registeredCoverSeal ?? null,
-        campoReading: response.registeredReading ?? null,
+        campoMeter: null,
+        campoLacre: null,
+        campoCoverSeal: null,
+        campoReading: null,
         campoScheduleDate: null,
         scheduleMeter: response.meter,
         scheduleLacre: response.registeredLacre,
@@ -342,7 +342,7 @@ export function InspectionDocumentAnalysisModal({
       }
       setConference(nextConference)
       setWpaDraft({
-        meter: nextConference.campoMeter ?? response.meter ?? '',
+        meter: nextConference.campoMeter ?? '',
         lacre: nextConference.campoLacre ?? '',
         coverSeal: nextConference.campoCoverSeal ?? '',
         reading: nextConference.campoReading ?? '',
@@ -709,7 +709,7 @@ export function InspectionDocumentAnalysisModal({
         ) : (
           <div className="inspection-document-list">
             {documents.map((document) => {
-              const campoMeter = canEditWpa ? wpaDraft.meter : (conference?.campoMeter ?? registeredMeter)
+              const campoMeter = canEditWpa ? wpaDraft.meter : conference?.campoMeter
               const campoLacre = canEditWpa ? wpaDraft.lacre : conference?.campoLacre
               const campoCoverSeal = canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal
               const campoReading = canEditWpa ? wpaDraft.reading : conference?.campoReading
@@ -774,11 +774,10 @@ export function InspectionDocumentAnalysisModal({
                   </div>
                   <ComparisonField
                     label="Medidor retirado"
-                    campo={canEditWpa ? wpaDraft.meter : (conference?.campoMeter ?? registeredMeter)}
+                    campo={canEditWpa ? wpaDraft.meter : conference?.campoMeter}
                     documento={documentoMeter}
                     agendamento={conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter}
                     laboratorio={conference?.labMeter}
-                    campoEmpty="Pendente"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
@@ -791,7 +790,6 @@ export function InspectionDocumentAnalysisModal({
                     documento={documentoLacre}
                     agendamento={conference?.scheduleLacre ?? document.registeredLacre}
                     laboratorio={conference?.labLacre}
-                    campoEmpty="Pendente"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
@@ -813,7 +811,6 @@ export function InspectionDocumentAnalysisModal({
                     documento={documentoCoverSeal}
                     agendamento={conference?.scheduleCoverSeal ?? document.registeredCoverSeal}
                     laboratorio={conference?.labCoverSeal}
-                    campoEmpty="Pendente"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
@@ -828,7 +825,6 @@ export function InspectionDocumentAnalysisModal({
                     documento={documentoReading}
                     laboratorio={conference?.labReading}
                     agendamentoEmpty="Não aplicável"
-                    campoEmpty="Pendente"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
