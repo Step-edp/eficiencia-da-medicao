@@ -98,7 +98,7 @@ function ComparisonField({
       <dd>
         <div className="inspection-document-comparison-grid is-four">
           <div className="inspection-document-comparison-item">
-            <span className="inspection-document-comparison-label">Campo</span>
+            <span className="inspection-document-comparison-label">WPA</span>
             <strong>{displayConferenceValue(campo)}</strong>
           </div>
           <div className="inspection-document-comparison-item">
