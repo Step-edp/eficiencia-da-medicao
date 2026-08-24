@@ -2383,11 +2383,23 @@ function HomePanel({
       sections = ['Agendar', 'Consultar', 'Meus TOIs']
     }
 
+    if (csdResponsible && !sections.includes('Enviar documentos')) {
+      sections = [...sections, 'Enviar documentos']
+    }
     if (csdResponsible && !sections.includes('Medidores atrasados')) {
       sections = [...sections, 'Medidores atrasados']
     }
 
     return sections
+  })()
+
+  const enviarDocumentosScopeUserId = (() => {
+    const target = isAdmin && previewUser ? previewUser : isAdmin ? null : currentUser
+    if (!target) return undefined
+    if (csdResponsible || isLavraturaPontoFocalScope(target.workSubtype)) {
+      return target.id
+    }
+    return undefined
   })()
 
   /** Perfis de Lavratura: home mostra as opções direto, sem o card Equipe de campo. */
@@ -5217,6 +5229,7 @@ function HomePanel({
               <FieldTeamConsultarPanel
                 mode="mine"
                 allowDelayJustification={csdResponsible}
+                hideInspectionImport={csdResponsible}
               />
             ) : selectedFieldTeamSection === 'Dashboard' ? (
               <PontoFocalDashboard
@@ -5228,18 +5241,12 @@ function HomePanel({
                 forUserId={isAdmin && previewUser ? previewUser.id : undefined}
               />
             ) : selectedFieldTeamSection === 'Enviar documentos' ? (
-              <EnviarDocumentosPanel
-                scopeUserId={
-                  isAdmin && previewUser && isLavraturaPontoFocalScope(previewUser.workSubtype)
-                    ? previewUser.id
-                    : isLavraturaPontoFocalScope(currentUser.workSubtype)
-                      ? currentUser.id
-                      : undefined
-                }
-              />
+              <EnviarDocumentosPanel scopeUserId={enviarDocumentosScopeUserId} />
             ) : (
               <FieldTeamConsultarPanel
-                hideInspectionImport={isLavraturaPontoFocalScope(activeFieldTeamSubtype)}
+                hideInspectionImport={
+                  isLavraturaPontoFocalScope(activeFieldTeamSubtype) || csdResponsible
+                }
                 allowDelayJustification={
                   isLavraturaPontoFocalScope(activeFieldTeamSubtype) || csdResponsible
                 }
@@ -6200,23 +6207,41 @@ function HomePanel({
             </button>
           ) : null}
           {csdResponsible && !flattenFieldTeamHome ? (
-            <button
-              className={`area-card ${getAreaCardClassName('Medidores atrasados')}`}
-              type="button"
-              onClick={() => {
-                if (!fieldTeamArea) return
-                setSelectedOrgCell(null)
-                setSelectedOrgSubcell(null)
-                setSelectedArea(fieldTeamArea)
-                setSelectedFieldTeamSection('Medidores atrasados')
-              }}
-            >
-              <span className="area-card-title">
-                <ItemIcon title="Medidores atrasados" />
-                <span>Medidores atrasados</span>
-                <LateMetersCountBadge count={lateMetersCount} />
-              </span>
-            </button>
+            <>
+              <button
+                className={`area-card ${getAreaCardClassName('Enviar documentos')}`}
+                type="button"
+                onClick={() => {
+                  if (!fieldTeamArea) return
+                  setSelectedOrgCell(null)
+                  setSelectedOrgSubcell(null)
+                  setSelectedArea(fieldTeamArea)
+                  setSelectedFieldTeamSection('Enviar documentos')
+                }}
+              >
+                <span className="area-card-title">
+                  <ItemIcon title="Enviar documentos" />
+                  <span>Enviar documentos</span>
+                </span>
+              </button>
+              <button
+                className={`area-card ${getAreaCardClassName('Medidores atrasados')}`}
+                type="button"
+                onClick={() => {
+                  if (!fieldTeamArea) return
+                  setSelectedOrgCell(null)
+                  setSelectedOrgSubcell(null)
+                  setSelectedArea(fieldTeamArea)
+                  setSelectedFieldTeamSection('Medidores atrasados')
+                }}
+              >
+                <span className="area-card-title">
+                  <ItemIcon title="Medidores atrasados" />
+                  <span>Medidores atrasados</span>
+                  <LateMetersCountBadge count={lateMetersCount} />
+                </span>
+              </button>
+            </>
           ) : null}
           <button
             className={`area-card ${getAreaCardClassName('Suporte')}`}
