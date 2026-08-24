@@ -743,7 +743,6 @@ export function InspectionDocumentAnalysisModal({
                 conference?.labLacre,
                 campoCoverSeal,
                 documentoCoverSeal,
-                conference?.scheduleCoverSeal ?? document.registeredCoverSeal,
                 conference?.labCoverSeal,
                 campoReading,
                 documentoReading,
@@ -817,8 +816,8 @@ export function InspectionDocumentAnalysisModal({
                     kind="text"
                     campo={canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal}
                     documento={documentoCoverSeal}
-                    agendamento={conference?.scheduleCoverSeal ?? document.registeredCoverSeal}
                     laboratorio={conference?.labCoverSeal}
+                    agendamentoEmpty="Não aplicável"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
