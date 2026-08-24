@@ -19,6 +19,7 @@ import {
   PONTO_FOCAL_SCOPE,
   pontoFocalScopeUserId,
   resolvePontoFocalCsdNames,
+  isBackofficeScopeUser,
 } from '../ponto-focal-csds.js'
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
@@ -1020,17 +1021,20 @@ export async function saveDelayJustification(req: Request, res: Response) {
     const userId = req.user?.id ?? ''
     const allowedCsdNames = userId ? await resolvePontoFocalCsdNames(userId) : []
     if (allowedCsdNames === null) {
-      res.status(403).json({
-        error: 'Apenas o responsável do CSD pode justificar o atraso da entrega.',
-      })
-      return
-    }
+      if (!(userId && (await isBackofficeScopeUser(userId)))) {
+        res.status(403).json({
+          error: 'Apenas o responsável do CSD pode justificar o atraso da entrega.',
+        })
+        return
+      }
+    } else {
     const scheduleCsd = row.csd.trim().toUpperCase()
     if (!allowedCsdNames.some((name) => name.toUpperCase() === scheduleCsd)) {
       res.status(403).json({
         error: 'Você só pode justificar atrasos dos CSDs em que é responsável.',
       })
       return
+    }
     }
   }
 
@@ -1107,17 +1111,20 @@ export async function dismissDelayMeter(req: Request, res: Response) {
     const userId = req.user?.id ?? ''
     const allowedCsdNames = userId ? await resolvePontoFocalCsdNames(userId) : []
     if (allowedCsdNames === null) {
-      res.status(403).json({
-        error: 'Apenas o responsável do CSD pode excluir medidores atrasados desta lista.',
-      })
-      return
-    }
+      if (!(userId && (await isBackofficeScopeUser(userId)))) {
+        res.status(403).json({
+          error: 'Apenas o responsável do CSD pode excluir medidores atrasados desta lista.',
+        })
+        return
+      }
+    } else {
     const scheduleCsd = row.csd.trim().toUpperCase()
     if (!allowedCsdNames.some((name) => name.toUpperCase() === scheduleCsd)) {
       res.status(403).json({
         error: 'Você só pode excluir atrasos dos CSDs em que é responsável.',
       })
       return
+    }
     }
   }
 
@@ -1166,14 +1173,15 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
   }
 
   const csdNames = await resolvePontoFocalCsdNames(scopeUserId)
-  if (csdNames === null) {
+  const backofficeAccess = csdNames === null && (await isBackofficeScopeUser(scopeUserId))
+  if (csdNames === null && !backofficeAccess) {
     res.status(403).json({
       error: 'Disponível apenas para o responsável do CSD.',
     })
     return
   }
 
-  if (csdNames.length === 0) {
+  if (!backofficeAccess && (csdNames?.length ?? 0) === 0) {
     res.json({
       csdNames: [],
       current: {
@@ -1230,9 +1238,9 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
        ORDER BY created_at ASC
        LIMIT 1
      ) d ON true
-     WHERE UPPER(TRIM(ms.csd)) = ANY($1::text[])
+     WHERE ${backofficeAccess ? 'TRUE' : 'UPPER(TRIM(ms.csd)) = ANY($1::text[])'}
      ORDER BY ms.scheduled_at ASC`,
-    [csdNames.map((name) => name.toUpperCase())],
+    backofficeAccess ? [] : [(csdNames ?? []).map((name) => name.toUpperCase())],
   )
 
   const now = new Date()
@@ -1374,7 +1382,7 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
     })
 
   res.json({
-    csdNames,
+    csdNames: csdNames ?? [],
     current: {
       total,
       late,

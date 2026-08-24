@@ -2218,7 +2218,8 @@ function HomePanel({
     const showLateMetersCard =
       Boolean(userId) &&
       (csdResponsible ||
-        isLavraturaPontoFocalScope(previewUser?.workSubtype ?? currentUser.workSubtype))
+        isLavraturaPontoFocalScope(previewUser?.workSubtype ?? currentUser.workSubtype) ||
+        isLavraturaBackofficeScope(previewUser?.workSubtype ?? currentUser.workSubtype))
 
     if (!userId || !showLateMetersCard) {
       setLateMetersCount(0)
@@ -2444,7 +2445,7 @@ function HomePanel({
     } else if (isLavraturaPontoFocalScope(activeFieldTeamSubtype)) {
       sections = ['Agendar', 'Consultar', 'Dashboard', 'Enviar documentos', 'Medidores atrasados', 'Apontamentos de desvio']
     } else if (isLavraturaBackofficeScope(activeFieldTeamSubtype)) {
-      sections = ['Agendar', 'Consultar', 'Meus TOIs', 'Enviar documentos', 'Apontamentos de desvio']
+      sections = ['Agendar', 'Consultar', 'Meus TOIs', 'Enviar documentos', 'Medidores atrasados', 'Apontamentos de desvio']
     } else {
       sections = ['Agendar', 'Consultar', 'Meus TOIs', 'Apontamentos de desvio']
     }

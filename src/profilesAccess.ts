@@ -144,7 +144,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-tecnico-backoffice',
     name: profileName('CSD', 'Técnico', 'Lavratura de TOI – Backoffice'),
     description:
-      'Agendar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI.',
+      'Agendar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI, e justificar medidores atrasados.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -156,7 +156,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-analista-backoffice',
     name: profileName('CSD', 'Analista', 'Lavratura de TOI – Backoffice'),
     description:
-      'Agendar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI.',
+      'Agendar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI, e justificar medidores atrasados.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',
@@ -192,7 +192,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'csd-engenheiro-backoffice',
     name: profileName('CSD', 'Engenheiro', 'Lavratura de TOI – Backoffice'),
     description:
-      'Agendar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI.',
+      'Agendar Meus TOIs na Equipe de campo em nome de uma equipe, informando os colaboradores que lavraram o TOI, e justificar medidores atrasados.',
     areas: ['Equipe de campo'],
     match: {
       workArea: 'CSD',

@@ -8,6 +8,7 @@ import {
 } from './engineer-access.js'
 
 export const PONTO_FOCAL_SCOPE = 'Lavratura de TOI - Ponto Focal'
+export const BACKOFFICE_SCOPE = 'Lavratura de TOI - Backoffice'
 const PONTO_FOCAL_ACCESS_AREAS = ['Equipe de campo']
 
 function normalizeWorkSubtype(value?: string | null) {
@@ -35,6 +36,18 @@ export async function resolvePontoFocalCsdNames(userId: string): Promise<string[
     normalizeWorkSubtype(user.work_subtype) === PONTO_FOCAL_SCOPE
 
   return isPontoFocal ? [] : null
+}
+
+export async function isBackofficeScopeUser(userId: string): Promise<boolean> {
+  const userResult = await query<{ work_area: string; work_subtype: string }>(
+    `SELECT work_area, work_subtype FROM users WHERE id = $1`,
+    [userId],
+  )
+  const user = userResult.rows[0]
+  return (
+    user?.work_area?.trim() === 'CSD' &&
+    normalizeWorkSubtype(user.work_subtype) === BACKOFFICE_SCOPE
+  )
 }
 
 export function pontoFocalScopeUserId(
