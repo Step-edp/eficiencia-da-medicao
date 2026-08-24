@@ -72,9 +72,9 @@ function MatchIndicator({ matches }: { matches: boolean | null | undefined }) {
   )
 }
 
-function displayConferenceValue(value: string | null | undefined) {
+function displayConferenceValue(value: string | null | undefined, emptyLabel = '—') {
   const trimmed = value?.trim()
-  return trimmed ? trimmed : '—'
+  return trimmed ? trimmed : emptyLabel
 }
 
 function normalizeConferenceDigits(value: string | null | undefined) {
@@ -130,6 +130,7 @@ function ComparisonField({
   agendamento,
   laboratorio,
   kind = 'digits',
+  laboratorioEmpty = '—',
 }: {
   label: string
   campo?: string | null
@@ -137,6 +138,7 @@ function ComparisonField({
   agendamento?: string | null
   laboratorio?: string | null
   kind?: 'digits' | 'date'
+  laboratorioEmpty?: string
 }) {
   return (
     <div className="inspection-document-comparison">
@@ -157,7 +159,7 @@ function ComparisonField({
           </div>
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">Laboratório</span>
-            <strong>{displayConferenceValue(laboratorio)}</strong>
+            <strong>{displayConferenceValue(laboratorio, laboratorioEmpty)}</strong>
           </div>
           <MatchIndicator
             matches={conferenceMatches([campo, documento, agendamento, laboratorio], kind)}
@@ -431,6 +433,7 @@ export function InspectionDocumentAnalysisModal({
                     documento={document.extractedMeterRetirado ?? document.extractedMeter}
                     agendamento={conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter}
                     laboratorio={conference?.labMeter}
+                    laboratorioEmpty="Pendente"
                   />
                   <ComparisonField
                     label="Lacre do invólucro"
@@ -438,6 +441,7 @@ export function InspectionDocumentAnalysisModal({
                     documento={document.extractedLacre}
                     agendamento={conference?.scheduleLacre ?? document.registeredLacre}
                     laboratorio={conference?.labLacre}
+                    laboratorioEmpty="Pendente"
                   />
                   <ComparisonField
                     label="Lacre da tampa"
@@ -445,6 +449,7 @@ export function InspectionDocumentAnalysisModal({
                     documento={document.extractedCoverSeal}
                     agendamento={conference?.scheduleCoverSeal ?? document.registeredCoverSeal}
                     laboratorio={conference?.labCoverSeal}
+                    laboratorioEmpty="Pendente"
                   />
                   <ComparisonField
                     label="Leitura"
@@ -452,6 +457,7 @@ export function InspectionDocumentAnalysisModal({
                     documento={document.extractedReading}
                     agendamento={conference?.scheduleReading ?? document.registeredReading}
                     laboratorio={conference?.labReading}
+                    laboratorioEmpty="Pendente"
                   />
                   <ComparisonField
                     label="Data de agendamento"
