@@ -258,10 +258,6 @@ export function InspectionDocumentAnalysisModal({
 
                 <dl className="user-detail-grid schedule-detail-grid">
                   <div>
-                    <dt>Arquivo</dt>
-                    <dd>{document.fileName}</dd>
-                  </div>
-                  <div>
                     <dt>Anexado em</dt>
                     <dd>{formatDateTime(document.createdAt)}</dd>
                   </div>
