@@ -28,7 +28,7 @@ import {
   type ToiCollaboratorErrors,
 } from './ToiCollaboratorFields'
 
-const TERCEIRA_OPTIONS = ['BMB', 'Cosampa', 'Engeserv', 'ROTARY', 'TIVIT']
+const TERCEIRA_OPTIONS = ['BMB', 'Cosampa', 'Engelmig', 'Engeserv', 'Provider', 'ROTARY', 'TIVIT']
 
 function ResponsibleUserCell({
   userId,

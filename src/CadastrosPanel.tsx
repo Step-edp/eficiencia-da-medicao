@@ -60,8 +60,9 @@ const FALLBACK_CATALOGS: CatalogGroup[] = [
       { id: -12, catalogKey: 'terceira', value: 'Cosampa', sortOrder: 1, label: 'Empresa terceira' },
       { id: -13, catalogKey: 'terceira', value: 'Engelmig', sortOrder: 2, label: 'Empresa terceira' },
       { id: -14, catalogKey: 'terceira', value: 'Engeserv', sortOrder: 3, label: 'Empresa terceira' },
-      { id: -15, catalogKey: 'terceira', value: 'ROTARY', sortOrder: 4, label: 'Empresa terceira' },
-      { id: -16, catalogKey: 'terceira', value: 'TIVIT', sortOrder: 5, label: 'Empresa terceira' },
+      { id: -15, catalogKey: 'terceira', value: 'Provider', sortOrder: 4, label: 'Empresa terceira' },
+      { id: -16, catalogKey: 'terceira', value: 'ROTARY', sortOrder: 5, label: 'Empresa terceira' },
+      { id: -17, catalogKey: 'terceira', value: 'TIVIT', sortOrder: 6, label: 'Empresa terceira' },
     ],
   },
   {
