@@ -1519,6 +1519,10 @@ export const api = {
     scheduledByName?: string
     schedulingDate?: string
     scheduledAt: string
+    toiCollaborator1Name: string
+    toiCollaborator1Registration: string
+    toiCollaborator2Name: string
+    toiCollaborator2Registration: string
   }) =>
     request<{ schedule: MeterScheduleRecord }>('/api/meter-schedules/passivo', {
       method: 'POST',

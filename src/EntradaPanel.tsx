@@ -21,6 +21,12 @@ import { EntradaCsdDashboard } from './EntradaCsdDashboard'
 import { MeterDetailModal } from './MeterDetailModal'
 import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
 import { LoginFeedback } from './LoginFeedback'
+import {
+  ToiCollaboratorFields,
+  resolveToiCollaborators,
+  useToiCollaboratorOptions,
+  type ToiCollaboratorErrors,
+} from './ToiCollaboratorFields'
 
 const TERCEIRA_OPTIONS = ['BMB', 'Cosampa', 'Engeserv', 'ROTARY', 'TIVIT']
 
@@ -437,6 +443,10 @@ type QuickScheduleModalProps = {
     toi: string
     note: string
     schedulingNotes: string
+    toiCollaborator1Name: string
+    toiCollaborator1Registration: string
+    toiCollaborator2Name: string
+    toiCollaborator2Registration: string
   }) => void
 }
 
@@ -447,16 +457,33 @@ function QuickScheduleModal({
   onClose,
   onSubmit,
 }: QuickScheduleModalProps) {
+  const { users: toiCollaborators, loading: toiCollaboratorsLoading } = useToiCollaboratorOptions()
   const [csmDate, setCsmDate] = useState('')
   const [csmTime, setCsmTime] = useState('00:00')
   const [installation, setInstallation] = useState('')
   const [toi, setToi] = useState('')
   const [note, setNote] = useState('')
   const [schedulingNotes, setSchedulingNotes] = useState('')
+  const [collaborator1UserId, setCollaborator1UserId] = useState('')
+  const [collaborator1Query, setCollaborator1Query] = useState('')
+  const [collaborator2UserId, setCollaborator2UserId] = useState('')
+  const [collaborator2Query, setCollaborator2Query] = useState('')
+  const [collaboratorErrors, setCollaboratorErrors] = useState<ToiCollaboratorErrors>({})
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!csmDate) return
+    const resolvedTeam = resolveToiCollaborators(
+      collaborator1Query,
+      collaborator1UserId,
+      collaborator2Query,
+      collaborator2UserId,
+      toiCollaborators,
+    )
+    if (!resolvedTeam.ok) {
+      setCollaboratorErrors(resolvedTeam.errors)
+      return
+    }
     const scheduledAt = new Date(`${csmDate}T${csmTime}:00`).toISOString()
     onSubmit({
       scheduledAt,
@@ -464,6 +491,10 @@ function QuickScheduleModal({
       toi,
       note,
       schedulingNotes,
+      toiCollaborator1Name: resolvedTeam.collaborator1.name,
+      toiCollaborator1Registration: resolvedTeam.collaborator1.registration,
+      toiCollaborator2Name: resolvedTeam.collaborator2.name,
+      toiCollaborator2Registration: resolvedTeam.collaborator2.registration,
     })
   }
 
@@ -536,6 +567,32 @@ function QuickScheduleModal({
             TOI
             <input value={toi} onChange={(event) => setToi(event.target.value)} disabled={submitting} />
           </label>
+          <ToiCollaboratorFields
+            users={toiCollaborators}
+            loading={toiCollaboratorsLoading}
+            disabled={submitting}
+            errors={collaboratorErrors}
+            onClearError={(field) =>
+              setCollaboratorErrors((current) => {
+                if (!current[field]) return current
+                const next = { ...current }
+                delete next[field]
+                return next
+              })
+            }
+            collaborator1UserId={collaborator1UserId}
+            collaborator1Query={collaborator1Query}
+            collaborator2UserId={collaborator2UserId}
+            collaborator2Query={collaborator2Query}
+            onCollaborator1Change={(userId, query) => {
+              setCollaborator1UserId(userId)
+              setCollaborator1Query(query)
+            }}
+            onCollaborator2Change={(userId, query) => {
+              setCollaborator2UserId(userId)
+              setCollaborator2Query(query)
+            }}
+          />
           <label className="full-width">
             Nota
             <input value={note} onChange={(event) => setNote(event.target.value)} disabled={submitting} />
@@ -1281,6 +1338,10 @@ export function EntradaPanel({
     toi: string
     note: string
     schedulingNotes: string
+    toiCollaborator1Name: string
+    toiCollaborator1Registration: string
+    toiCollaborator2Name: string
+    toiCollaborator2Registration: string
   }) => {
     if (!quickScheduleMeter) return
 
@@ -1296,6 +1357,10 @@ export function EntradaPanel({
         note: payload.note,
         schedulingNotes: payload.schedulingNotes,
         scheduledAt: payload.scheduledAt,
+        toiCollaborator1Name: payload.toiCollaborator1Name,
+        toiCollaborator1Registration: payload.toiCollaborator1Registration,
+        toiCollaborator2Name: payload.toiCollaborator2Name,
+        toiCollaborator2Registration: payload.toiCollaborator2Registration,
       })
 
       setWeekMeters((prev) =>

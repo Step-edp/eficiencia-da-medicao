@@ -25,6 +25,60 @@ export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 const BACKOFFICE_SCOPE = 'Lavratura de TOI - Backoffice'
 const LAVRATURA_SUBTYPE_SQL = `REPLACE(REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-'), '—', '-')`
 
+type LavraturaCollaborator = {
+  id: string
+  name: string
+  registration: string
+}
+
+async function resolveLavraturaCollaborators(
+  registration1: string,
+  registration2: string,
+): Promise<
+  | { ok: true; collaborator1: LavraturaCollaborator; collaborator2: LavraturaCollaborator }
+  | { ok: false; error: string }
+> {
+  const first = registration1.trim().toUpperCase()
+  const second = registration2.trim().toUpperCase()
+  if (!first || !second) {
+    return {
+      ok: false,
+      error:
+        'Selecione os colaboradores 1 e 2 da equipe que lavrou o TOI na lista de usuários cadastrados.',
+    }
+  }
+  if (first === second) {
+    return {
+      ok: false,
+      error: 'Os colaboradores 1 e 2 devem ser usuários diferentes.',
+    }
+  }
+
+  const toiUsers = await query<LavraturaCollaborator>(
+    `SELECT id, name, registration
+     FROM users
+     WHERE approval_status = 'approved'
+       AND role <> 'admin'
+       AND ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'
+       AND UPPER(TRIM(registration)) = ANY($1::text[])`,
+    [[first, second]],
+  )
+  const byRegistration = new Map(
+    toiUsers.rows.map((row) => [row.registration.trim().toUpperCase(), row]),
+  )
+  const collaborator1 = byRegistration.get(first)
+  const collaborator2 = byRegistration.get(second)
+  if (!collaborator1 || !collaborator2) {
+    return {
+      ok: false,
+      error:
+        'Colaboradores inválidos. Selecione apenas usuários com perfil Lavratura de TOI. Se alguém não estiver na lista, solicite o cadastro no portal.',
+    }
+  }
+
+  return { ok: true, collaborator1, collaborator2 }
+}
+
 type MeterScheduleRow = {
   id: string
   meter: string
@@ -419,54 +473,19 @@ export async function createMeterSchedule(req: Request, res: Response) {
       })
       return
     }
-    if (
-      normalized.toiCollaborator1Registration.toUpperCase() ===
-      normalized.toiCollaborator2Registration.toUpperCase()
-    ) {
-      res.status(400).json({
-        error: 'Os colaboradores 1 e 2 devem ser usuários diferentes.',
-      })
-      return
-    }
 
-    const toiUsers = await query<{
-      id: string
-      name: string
-      registration: string
-    }>(
-      `SELECT id, name, registration
-       FROM users
-       WHERE approval_status = 'approved'
-         AND role <> 'admin'
-         AND ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'
-         AND UPPER(TRIM(registration)) = ANY($1::text[])`,
-      [
-        [
-          normalized.toiCollaborator1Registration.toUpperCase(),
-          normalized.toiCollaborator2Registration.toUpperCase(),
-        ],
-      ],
+    const resolvedTeam = await resolveLavraturaCollaborators(
+      normalized.toiCollaborator1Registration,
+      normalized.toiCollaborator2Registration,
     )
-    const byRegistration = new Map(
-      toiUsers.rows.map((row) => [row.registration.trim().toUpperCase(), row]),
-    )
-    const collaborator1 = byRegistration.get(
-      normalized.toiCollaborator1Registration.toUpperCase(),
-    )
-    const collaborator2 = byRegistration.get(
-      normalized.toiCollaborator2Registration.toUpperCase(),
-    )
-    if (!collaborator1 || !collaborator2) {
-      res.status(400).json({
-        error:
-          'Colaboradores inválidos. Selecione apenas usuários com perfil Lavratura de TOI. Se alguém não estiver na lista, solicite o cadastro no portal.',
-      })
+    if (!resolvedTeam.ok) {
+      res.status(400).json({ error: resolvedTeam.error })
       return
     }
-    normalized.toiCollaborator1Name = collaborator1.name
-    normalized.toiCollaborator1Registration = collaborator1.registration
-    normalized.toiCollaborator2Name = collaborator2.name
-    normalized.toiCollaborator2Registration = collaborator2.registration
+    normalized.toiCollaborator1Name = resolvedTeam.collaborator1.name
+    normalized.toiCollaborator1Registration = resolvedTeam.collaborator1.registration
+    normalized.toiCollaborator2Name = resolvedTeam.collaborator2.name
+    normalized.toiCollaborator2Registration = resolvedTeam.collaborator2.registration
 
     if (normalized.toiTeamReason.length < 5) {
       res.status(400).json({
@@ -611,6 +630,10 @@ export async function createPassiveMeterSchedule(req: Request, res: Response) {
     scheduledByName,
     schedulingDate,
     scheduledAt,
+    toiCollaborator1Name,
+    toiCollaborator1Registration,
+    toiCollaborator2Name,
+    toiCollaborator2Registration,
   } = req.body as {
     meter?: string
     installation?: string
@@ -621,6 +644,10 @@ export async function createPassiveMeterSchedule(req: Request, res: Response) {
     scheduledByName?: string
     schedulingDate?: string
     scheduledAt?: string
+    toiCollaborator1Name?: string
+    toiCollaborator1Registration?: string
+    toiCollaborator2Name?: string
+    toiCollaborator2Registration?: string
   }
 
   const normalized = {
@@ -633,6 +660,10 @@ export async function createPassiveMeterSchedule(req: Request, res: Response) {
     scheduledByName: scheduledByName?.trim() ?? '',
     schedulingDate: schedulingDate?.trim() ?? '',
     scheduledAt: scheduledAt?.trim() ?? '',
+    toiCollaborator1Name: toiCollaborator1Name?.trim() ?? '',
+    toiCollaborator1Registration: toiCollaborator1Registration?.trim() ?? '',
+    toiCollaborator2Name: toiCollaborator2Name?.trim() ?? '',
+    toiCollaborator2Registration: toiCollaborator2Registration?.trim() ?? '',
   }
 
   const meterError = validateScheduleNumericField(normalized.meter, 'medidor')
@@ -665,14 +696,29 @@ export async function createPassiveMeterSchedule(req: Request, res: Response) {
     return
   }
 
+  const resolvedTeam = await resolveLavraturaCollaborators(
+    normalized.toiCollaborator1Registration,
+    normalized.toiCollaborator2Registration,
+  )
+  if (!resolvedTeam.ok) {
+    res.status(400).json({ error: resolvedTeam.error })
+    return
+  }
+  normalized.toiCollaborator1Name = resolvedTeam.collaborator1.name
+  normalized.toiCollaborator1Registration = resolvedTeam.collaborator1.registration
+  normalized.toiCollaborator2Name = resolvedTeam.collaborator2.name
+  normalized.toiCollaborator2Registration = resolvedTeam.collaborator2.registration
+
   const id = `schedule-${Date.now()}-${normalized.meter}`
 
   const insert = await query<Omit<MeterScheduleRow, 'created_by_registration'>>(
     `INSERT INTO meter_schedules (
       id, meter, installation, toi, note, csd, client_present,
       scheduling_notes, scheduled_by_name, scheduling_date,
+      toi_collaborator1_name, toi_collaborator1_registration,
+      toi_collaborator2_name, toi_collaborator2_registration,
       scheduled_at, trail_step, source, created_by_user_id
-    ) VALUES ($1,$2,$3,$4,$5,$6,'nao',$7,$8,$9,$10,$11,'passivo',$12)
+    ) VALUES ($1,$2,$3,$4,$5,$6,'nao',$7,$8,$9,$10,$11,$12,$13,$14,$15,'passivo',$16)
     RETURNING *, scheduling_date::text AS scheduling_date`,
     [
       id,
@@ -684,6 +730,10 @@ export async function createPassiveMeterSchedule(req: Request, res: Response) {
       normalized.schedulingNotes,
       normalized.scheduledByName,
       normalized.schedulingDate || null,
+      normalized.toiCollaborator1Name,
+      normalized.toiCollaborator1Registration,
+      normalized.toiCollaborator2Name,
+      normalized.toiCollaborator2Registration,
       scheduledAtDate.toISOString(),
       ENTRADA_TRAIL_STEP,
       req.user?.id ?? null,

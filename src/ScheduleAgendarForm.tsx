@@ -8,6 +8,12 @@ import {
   validateNumericField,
   validateNumericFieldOptional,
 } from './numericFieldValidation'
+import {
+  ToiCollaboratorFields,
+  resolveToiCollaborators,
+  useToiCollaboratorOptions,
+  type ToiCollaboratorErrors,
+} from './ToiCollaboratorFields'
 import { useCsdsOptions } from './useCsdsOptions'
 
 const hourOptions = Array.from({ length: 24 }, (_, index) =>
@@ -17,7 +23,9 @@ const minuteOptions = Array.from({ length: 60 }, (_, index) =>
   String(index).padStart(2, '0'),
 )
 
-type ScheduleFieldErrors = Partial<Record<NumericFieldKey | 'csmDate', string>>
+type ScheduleFieldErrors = Partial<
+  Record<NumericFieldKey | 'csmDate' | 'collaborator1' | 'collaborator2', string>
+>
 
 type ScheduleAgendarFormProps = {
   showPassiveFields?: boolean
@@ -25,6 +33,7 @@ type ScheduleAgendarFormProps = {
 
 export function ScheduleAgendarForm({ showPassiveFields = false }: ScheduleAgendarFormProps) {
   const { options: csdOptions, loading: csdLoading, error: csdError } = useCsdsOptions()
+  const { users: toiCollaborators, loading: toiCollaboratorsLoading } = useToiCollaboratorOptions()
   const [csmDate, setCsmDate] = useState('')
   const [csmHour, setCsmHour] = useState('00')
   const [csmMinute, setCsmMinute] = useState('00')
@@ -36,6 +45,10 @@ export function ScheduleAgendarForm({ showPassiveFields = false }: ScheduleAgend
   const [note, setNote] = useState('')
   const [csd, setCsd] = useState('')
   const [schedulingNotes, setSchedulingNotes] = useState('Medidor não agendado em Campo')
+  const [collaborator1UserId, setCollaborator1UserId] = useState('')
+  const [collaborator1Query, setCollaborator1Query] = useState('')
+  const [collaborator2UserId, setCollaborator2UserId] = useState('')
+  const [collaborator2Query, setCollaborator2Query] = useState('')
   const [fieldErrors, setFieldErrors] = useState<ScheduleFieldErrors>({})
   const [submitting, setSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{
@@ -64,6 +77,10 @@ export function ScheduleAgendarForm({ showPassiveFields = false }: ScheduleAgend
     setNote('')
     setCsd('')
     setSchedulingNotes('Medidor não agendado em Campo')
+    setCollaborator1UserId('')
+    setCollaborator1Query('')
+    setCollaborator2UserId('')
+    setCollaborator2Query('')
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -88,15 +105,32 @@ export function ScheduleAgendarForm({ showPassiveFields = false }: ScheduleAgend
       if (error) nextErrors[field] = error
     }
 
+    const resolvedTeam = resolveToiCollaborators(
+      collaborator1Query,
+      collaborator1UserId,
+      collaborator2Query,
+      collaborator2UserId,
+      toiCollaborators,
+    )
+    if (!resolvedTeam.ok) {
+      Object.assign(nextErrors, resolvedTeam.errors)
+    }
+
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors)
       return
     }
+    if (!resolvedTeam.ok) return
 
     if (!csd) {
       setFeedback({ type: 'error', message: 'Selecione um CSD.' })
       return
     }
+
+    setCollaborator1UserId(resolvedTeam.collaborator1.id)
+    setCollaborator1Query(resolvedTeam.collaborator1.registration)
+    setCollaborator2UserId(resolvedTeam.collaborator2.id)
+    setCollaborator2Query(resolvedTeam.collaborator2.registration)
 
     setFieldErrors({})
     setSubmitting(true)
@@ -118,6 +152,10 @@ export function ScheduleAgendarForm({ showPassiveFields = false }: ScheduleAgend
             }
           : {}),
         scheduledAt,
+        toiCollaborator1Name: resolvedTeam.collaborator1.name,
+        toiCollaborator1Registration: resolvedTeam.collaborator1.registration,
+        toiCollaborator2Name: resolvedTeam.collaborator2.name,
+        toiCollaborator2Registration: resolvedTeam.collaborator2.registration,
       })
 
       resetForm()
@@ -280,6 +318,31 @@ export function ScheduleAgendarForm({ showPassiveFields = false }: ScheduleAgend
           />
           <FormFieldError id="schedule-toi-error" message={fieldErrors.toi} />
         </label>
+
+        <ToiCollaboratorFields
+          users={toiCollaborators}
+          loading={toiCollaboratorsLoading}
+          disabled={submitting}
+          errors={
+            {
+              collaborator1: fieldErrors.collaborator1,
+              collaborator2: fieldErrors.collaborator2,
+            } satisfies ToiCollaboratorErrors
+          }
+          onClearError={(field) => clearFieldError(field)}
+          collaborator1UserId={collaborator1UserId}
+          collaborator1Query={collaborator1Query}
+          collaborator2UserId={collaborator2UserId}
+          collaborator2Query={collaborator2Query}
+          onCollaborator1Change={(userId, query) => {
+            setCollaborator1UserId(userId)
+            setCollaborator1Query(query)
+          }}
+          onCollaborator2Change={(userId, query) => {
+            setCollaborator2UserId(userId)
+            setCollaborator2Query(query)
+          }}
+        />
 
         <label className={fieldErrors.nota ? 'has-field-error' : undefined}>
           Nota
