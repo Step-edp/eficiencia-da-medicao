@@ -43,8 +43,12 @@ const CSM_LACRE_PATTERN = /lacre(?:\(s\))?\s*n[^0-9]{0,4}\(?s?\)?\s*:?\s*(\d{6,1
 const CSM_TOI_REF_PATTERN = /toi\s*n[^0-9]{0,4}(\d{6,12})/i
 const CSM_COMUNICADO_START = /comunicado\s+de\s+substitui/i
 const CSM_MEDIDOR_NUMBER = /do\s*medidor\s*:?\s*(\d{7,9})/gi
-const READING_LABEL_PATTERN = /leitura(?:\s+kwh)?/i
-const READING_VALUE_PATTERN = /\b\d{1,10}\b/
+const READING_LABEL_PATTERN = /lei[tr]ur[aeo](?:\s*k\s*w\s*h)?/i
+const READING_VALUE_PATTERN = /\b\d{3,8}\b/
+const READING_LABELED_VALUE_PATTERN =
+  /lei[tr]ur[aeo](?:\s*k\s*w\s*h)?\s*[:\-]?\s*(\d{3,8})/gi
+const READING_LABELED_GAP_PATTERN =
+  /lei[tr]ur[aeo](?:\s*k\s*w\s*h)?[\s\S]{0,80}?(\d{3,8})/gi
 
 function normalizeInspectionText(text: string): string {
   return text.replace(/\s+/g, ' ').trim()
@@ -106,6 +110,74 @@ function hasComunicadoStructure(text: string, compact: string): boolean {
 
 type TextItem = {
   str?: string
+  transform?: number[]
+  width?: number
+  height?: number
+  hasEOL?: boolean
+}
+
+type PositionedText = {
+  str: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+function positionedItemsFromContent(content: { items: unknown[] }): PositionedText[] {
+  const items: PositionedText[] = []
+  for (const raw of content.items) {
+    const item = raw as TextItem
+    const str = item.str?.trim() ?? ''
+    if (!str) continue
+    const transform = item.transform
+    if (!transform || transform.length < 6) continue
+    items.push({
+      str,
+      x: transform[4],
+      y: transform[5],
+      width: item.width ?? Math.abs(transform[0]) * str.length,
+      height: item.height ?? Math.abs(transform[3]),
+    })
+  }
+  return items
+}
+
+function readingsFromPositionedItems(items: PositionedText[]): string[] {
+  const labels = items
+    .filter((item) => READING_LABEL_PATTERN.test(item.str) && !/\d{3,}/.test(item.str))
+    .sort((left, right) => left.x - right.x || right.y - left.y)
+  const numbers = items.filter((item) => /^\d{3,8}$/.test(item.str.replace(/\s/g, '')))
+  const values: string[] = []
+
+  for (const label of labels) {
+    const cellWidth = Math.max(72, label.width * 2.4)
+    const belowLimit = Math.max(42, label.height * 4.5)
+    const ranked = numbers
+      .map((candidate) => {
+        const digits = candidate.str.replace(/\D/g, '')
+        const sameColumn =
+          candidate.x + candidate.width > label.x - 10 && candidate.x < label.x + cellWidth
+        const below =
+          candidate.y < label.y - Math.max(2, label.height * 0.25) &&
+          label.y - candidate.y < belowLimit
+        const toTheRight =
+          candidate.x >= label.x + Math.max(label.width - 4, 8) &&
+          Math.abs(candidate.y - label.y) < Math.max(12, label.height)
+        if (!(sameColumn && below) && !toTheRight) return null
+        const distance = below ? label.y - candidate.y : candidate.x - label.x
+        return { digits, below, distance }
+      })
+      .filter((row): row is { digits: string; below: boolean; distance: number } => Boolean(row))
+      .sort((left, right) => {
+        if (left.below !== right.below) return left.below ? -1 : 1
+        return left.distance - right.distance
+      })
+
+    if (ranked[0]?.digits) values.push(ranked[0].digits)
+  }
+
+  return values
 }
 
 export type InspectionDocumentParseResult = {
@@ -322,25 +394,61 @@ function extractCoverSeal(text: string): string | null {
   return extractDescriptiveCoverSeal(text) ?? extractNumericCoverSeal(text)
 }
 
-function extractReading(text: string): string | null {
+function collectReadingCandidates(text: string): string[] {
+  const values: string[] = []
+  const add = (value: string | null | undefined) => {
+    const digits = String(value ?? '').replace(/\D/g, '')
+    if (digits.length < 3 || digits.length > 8) return
+    values.push(digits)
+  }
+
+  for (const match of text.matchAll(new RegExp(READING_LABELED_VALUE_PATTERN.source, 'gi'))) {
+    add(match[1])
+  }
+  for (const match of text.matchAll(new RegExp(READING_LABELED_GAP_PATTERN.source, 'gi'))) {
+    add(match[1])
+  }
+
   const startMatch = text.match(DADOS_MEDICAO_START)
   if (startMatch?.index !== undefined) {
     const from = startMatch.index + startMatch[0].length
     const endMatch = text.slice(from).match(DADOS_MEDICAO_END)
     const to = endMatch?.index !== undefined ? from + endMatch.index : from + 1200
-    const section = text.slice(from, to)
-    const labeled = extractAfterLabel(section, READING_LABEL_PATTERN, null, READING_VALUE_PATTERN)
-    if (labeled) return labeled
+    add(extractAfterLabel(text.slice(from, to), READING_LABEL_PATTERN, null, READING_VALUE_PATTERN))
   }
 
   const comunicadoStart = text.search(CSM_COMUNICADO_START)
-  if (comunicadoStart >= 0) {
-    const section = text.slice(comunicadoStart, comunicadoStart + 2500)
-    const leituras = [...section.matchAll(/leitura(?:\s+kwh)?\s*:?\s*(\d{1,10})/gi)]
-    if (leituras[0]?.[1]) return leituras[0][1]
+  const search = comunicadoStart >= 0 ? text.slice(comunicadoStart, comunicadoStart + 3000) : text
+  const retirado = search.match(/medidor\s+retirado[\s\S]{0,700}/i)?.[0]
+  if (retirado) {
+    for (const match of retirado.matchAll(new RegExp(READING_LABELED_GAP_PATTERN.source, 'gi'))) {
+      add(match[1])
+    }
   }
 
-  return null
+  return values
+}
+
+function pickReading(candidates: string[], excluded: Set<string>): string | null {
+  const unique: string[] = []
+  for (const value of candidates) {
+    const key = digitKey(value)
+    if (!key || excluded.has(key) || unique.includes(value)) continue
+    unique.push(value)
+  }
+  if (!unique.length) return null
+
+  const nonZero = unique.filter((value) => !/^0+$/.test(value))
+  const typical = nonZero.filter((value) => {
+    if (value.length < 3 || value.length > 6) return false
+    if (/^(19|20)\d{2}$/.test(value) && nonZero.some((other) => other !== value)) return false
+    return true
+  })
+  return typical[0] ?? nonZero[0] ?? unique[0] ?? null
+}
+
+function extractReading(text: string, excluded: Set<string> = new Set()): string | null {
+  return pickReading(collectReadingCandidates(text), excluded)
 }
 
 function formatExtractedScheduleDate(
@@ -450,12 +558,18 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
     extractAfterLabel(normalized, LACRE_LABEL_PATTERN, null, LACRE_VALUE_PATTERN) ??
     extractComunicadoLacre(normalized)
 
+  const excludedReadings = new Set<string>()
+  for (const value of [meterEncontrado, meterRetirado, lacre, toi, ...toiNumbers]) {
+    const key = digitKey(value)
+    if (key) excludedReadings.add(key)
+  }
+
   return {
     meterEncontrado,
     meterRetirado,
     lacre,
     coverSeal: extractCoverSeal(normalized),
-    reading: extractReading(normalized),
+    reading: extractReading(normalized, excludedReadings),
     installation: extractAfterLabel(
       normalized,
       INSTALLATION_LABEL_PATTERN,
@@ -496,6 +610,9 @@ async function extractPdfFormFieldText(pdf: {
     if (seen.has(key)) return
     seen.add(key)
     lines.push(`${trimmedName}: ${trimmedValue}`)
+    if (READING_LABEL_PATTERN.test(trimmedName) && /^\d{3,8}$/.test(trimmedValue.replace(/\D/g, ''))) {
+      lines.push(`Leitura: ${trimmedValue.replace(/\D/g, '')}`)
+    }
   }
 
   try {
@@ -534,22 +651,26 @@ async function extractInspectionPdfTextLayer(buffer: Buffer): Promise<{ body: st
   }).promise
 
   const parts: string[] = []
+  const spatialReadings: string[] = []
 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber)
     const content = await page.getTextContent()
     const pageText = content.items
       .map((item) => {
-        const textItem = item as TextItem & { hasEOL?: boolean }
+        const textItem = item as TextItem
         const chunk = textItem.str ?? ''
         return textItem.hasEOL ? `${chunk}\n` : chunk
       })
       .join(' ')
     parts.push(pageText)
+    for (const reading of readingsFromPositionedItems(positionedItemsFromContent(content))) {
+      spatialReadings.push(`Leitura: ${reading}`)
+    }
   }
 
   return {
-    body: normalizeInspectionText(parts.join('\n')),
+    body: normalizeInspectionText([...parts, ...spatialReadings].join('\n')),
     form: await extractPdfFormFieldText(pdf),
   }
 }
