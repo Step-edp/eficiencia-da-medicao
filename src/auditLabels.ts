@@ -21,6 +21,8 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   satisfaction_survey: 'Pesquisa de satisfação',
   meter_schedule: 'Agendamento de medidor',
   demm_document: 'DEMM',
+  meter_inspection_document: 'Documento de inspeção',
+  meter_inspection_photo: 'Foto de inspeção',
   meter_model: 'Modelo de medidor',
   presentation: 'Apresentação',
   software: 'Software',

@@ -24,6 +24,7 @@ export type AuditEntityType =
   | 'meter_schedule'
   | 'demm_document'
   | 'meter_inspection_document'
+  | 'meter_inspection_photo'
   | 'catalog_option'
   | 'process_assignment'
   | 'org_cell'
