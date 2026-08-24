@@ -9,7 +9,11 @@ import {
 
 const BASE =
   process.env.API_BASE_URL ?? 'https://eficiencia-da-medicao-production.up.railway.app'
-const CSV_PATH = path.resolve(process.cwd(), 'data/agendar-medidores-em-massa.csv')
+const csvArg = process.argv.find((arg) => arg.startsWith('--csv='))?.slice('--csv='.length)
+const CSV_PATH = path.resolve(
+  process.cwd(),
+  csvArg || 'data/agendar-medidores-em-massa.csv',
+)
 
 async function login(): Promise<string> {
   const registration = process.env.ADMIN_REGISTRATION ?? 'adm@edp'
@@ -175,6 +179,8 @@ async function main() {
   const fixUsers = process.argv.includes('--fix-users')
   const csvContent = readFileSync(CSV_PATH, 'latin1')
   const rows = parseMeterSchedulesCsv(csvContent)
+  console.log(`CSV: ${CSV_PATH}`)
+  console.log(`Linhas válidas: ${rows.length}`)
   const token = await login()
   const csds = await fetchCsds(token)
 

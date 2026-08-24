@@ -696,18 +696,23 @@ export async function createPassiveMeterSchedule(req: Request, res: Response) {
     return
   }
 
-  const resolvedTeam = await resolveLavraturaCollaborators(
-    normalized.toiCollaborator1Registration,
-    normalized.toiCollaborator2Registration,
-  )
-  if (!resolvedTeam.ok) {
-    res.status(400).json({ error: resolvedTeam.error })
-    return
+  const hasCollaborators =
+    Boolean(normalized.toiCollaborator1Registration) ||
+    Boolean(normalized.toiCollaborator2Registration)
+  if (hasCollaborators) {
+    const resolvedTeam = await resolveLavraturaCollaborators(
+      normalized.toiCollaborator1Registration,
+      normalized.toiCollaborator2Registration,
+    )
+    if (!resolvedTeam.ok) {
+      res.status(400).json({ error: resolvedTeam.error })
+      return
+    }
+    normalized.toiCollaborator1Name = resolvedTeam.collaborator1.name
+    normalized.toiCollaborator1Registration = resolvedTeam.collaborator1.registration
+    normalized.toiCollaborator2Name = resolvedTeam.collaborator2.name
+    normalized.toiCollaborator2Registration = resolvedTeam.collaborator2.registration
   }
-  normalized.toiCollaborator1Name = resolvedTeam.collaborator1.name
-  normalized.toiCollaborator1Registration = resolvedTeam.collaborator1.registration
-  normalized.toiCollaborator2Name = resolvedTeam.collaborator2.name
-  normalized.toiCollaborator2Registration = resolvedTeam.collaborator2.registration
 
   const id = `schedule-${Date.now()}-${normalized.meter}`
 

@@ -202,31 +202,102 @@ function resolveCsdName(raw: string, csds: CsdRecord[]): string | null {
   return null
 }
 
+function headerKey(value: string): string {
+  return normalizeLookupKey(value)
+}
+
+function findHeaderIndex(header: string[], ...needles: string[]): number {
+  return header.findIndex((cell) => needles.some((needle) => headerKey(cell).includes(needle)))
+}
+
+function detectScheduleCsvIndexes(header: string[]) {
+  const meter = findHeaderIndex(header, 'medidor')
+  const scheduledAt = findHeaderIndex(header, 'data disponivel', 'data agendada')
+  const installation = findHeaderIndex(header, 'instalacao')
+  const toi = findHeaderIndex(header, 'toi')
+  const note = findHeaderIndex(header, 'nota')
+  const schedulingNotes = findHeaderIndex(header, 'observacoes')
+  const csd = findHeaderIndex(header, 'csd')
+  const scheduledBy = findHeaderIndex(header, 'agendado por', 'agendamento feito por')
+  const schedulingAt = findHeaderIndex(
+    header,
+    'data de agendamento',
+    'data que o usuario fez o agendamento',
+  )
+
+  if (
+    meter < 0 ||
+    scheduledAt < 0 ||
+    installation < 0 ||
+    toi < 0 ||
+    note < 0 ||
+    csd < 0 ||
+    scheduledBy < 0 ||
+    schedulingAt < 0
+  ) {
+    return null
+  }
+
+  return {
+    meter,
+    scheduledAt,
+    installation,
+    toi,
+    note,
+    schedulingNotes: schedulingNotes < 0 ? -1 : schedulingNotes,
+    csd,
+    scheduledBy,
+    schedulingAt,
+  }
+}
+
 function parseCsvRows(content: string): ParsedScheduleRow[] {
   const rows = parseSemicolonCsv(content)
   if (rows.length < 2) return []
 
+  const indexes = detectScheduleCsvIndexes(rows[0]) ?? {
+    meter: 0,
+    scheduledAt: 1,
+    installation: 2,
+    toi: 3,
+    note: 4,
+    schedulingNotes: 5,
+    csd: 6,
+    scheduledBy: 7,
+    schedulingAt: 8,
+  }
   const parsed: ParsedScheduleRow[] = []
 
   for (const cells of rows.slice(1)) {
-    if (cells.length < 9) continue
+    const requiredIndex = Math.max(
+      indexes.meter,
+      indexes.scheduledAt,
+      indexes.installation,
+      indexes.toi,
+      indexes.note,
+      indexes.csd,
+      indexes.scheduledBy,
+      indexes.schedulingAt,
+    )
+    if (cells.length <= requiredIndex) continue
 
-    const meter = sanitizeDigits(cells[0])
+    const meter = sanitizeDigits(cells[indexes.meter])
     if (!meter) continue
 
-    const scheduledAt = parseBrazilianDateTime(cells[1] ?? '')
-    const schedulingAt = parseBrazilianDateTime(cells[8] ?? '')
+    const scheduledAt = parseBrazilianDateTime(cells[indexes.scheduledAt] ?? '')
+    const schedulingAt = parseBrazilianDateTime(cells[indexes.schedulingAt] ?? '')
     if (!scheduledAt || !schedulingAt) continue
 
     parsed.push({
-      meter: formatScheduleNumericField(cells[0], 'medidor'),
+      meter: formatScheduleNumericField(cells[indexes.meter], 'medidor'),
       scheduledAt,
-      installation: formatScheduleNumericField(cells[2], 'instalacao'),
-      toi: formatScheduleNumericField(cells[3], 'toi'),
-      note: normalizeScheduleNote(cells[4]),
-      schedulingNotes: parseText(cells[5]),
-      csdRaw: parseText(cells[6]),
-      scheduledByName: parseText(cells[7]),
+      installation: formatScheduleNumericField(cells[indexes.installation], 'instalacao'),
+      toi: formatScheduleNumericField(cells[indexes.toi], 'toi'),
+      note: normalizeScheduleNote(cells[indexes.note]),
+      schedulingNotes:
+        indexes.schedulingNotes >= 0 ? parseText(cells[indexes.schedulingNotes]) : '',
+      csdRaw: parseText(cells[indexes.csd]),
+      scheduledByName: parseText(cells[indexes.scheduledBy]),
       schedulingAt,
     })
   }
