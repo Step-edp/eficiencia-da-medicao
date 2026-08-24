@@ -130,6 +130,7 @@ function ComparisonField({
   agendamento,
   laboratorio,
   kind = 'digits',
+  campoEmpty = '—',
   laboratorioEmpty = '—',
 }: {
   label: string
@@ -138,6 +139,7 @@ function ComparisonField({
   agendamento?: string | null
   laboratorio?: string | null
   kind?: 'digits' | 'date'
+  campoEmpty?: string
   laboratorioEmpty?: string
 }) {
   return (
@@ -147,7 +149,7 @@ function ComparisonField({
         <div className="inspection-document-comparison-grid is-four">
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">WPA</span>
-            <strong>{displayConferenceValue(campo)}</strong>
+            <strong>{displayConferenceValue(campo, campoEmpty)}</strong>
           </div>
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">Documento</span>
@@ -466,6 +468,8 @@ export function InspectionDocumentAnalysisModal({
                     documento={document.extractedScheduledAt}
                     agendamento={conference?.scheduleScheduleDate}
                     laboratorio={conference?.labScheduleDate}
+                    campoEmpty="Não aplicável"
+                    laboratorioEmpty="Não aplicável"
                   />
                   {document.blockReason ? (
                     <div className="user-detail-full">
