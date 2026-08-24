@@ -2163,8 +2163,7 @@ function HomePanel({
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [userPendingDelete, setUserPendingDelete] = useState<AppUser | null>(null)
   const [deleteReason, setDeleteReason] = useState('')
-  const [userNameFilter, setUserNameFilter] = useState('')
-  const [userRegistrationFilter, setUserRegistrationFilter] = useState('')
+  const [userSearchFilter, setUserSearchFilter] = useState('')
   const isAdmin = currentUser.role === 'admin'
   const canAccessUsers = isAdmin || isLabMedicaoOperator(currentUser)
   const canManageUsers = isAdmin
@@ -2185,19 +2184,15 @@ function HomePanel({
     (user) => user.role !== 'admin' && user.approvalStatus === 'approved',
   )
   const filteredRegisteredUsers = useMemo(() => {
-    const normalizedName = userNameFilter.trim().toLowerCase()
-    const normalizedRegistration = userRegistrationFilter.trim().toLowerCase()
+    const query = userSearchFilter.trim().toLowerCase()
+    if (!query) return registeredUsers
 
     return registeredUsers.filter((user) => {
-      const matchesName = normalizedName
-        ? user.name.toLowerCase().includes(normalizedName)
-        : true
-      const matchesRegistration = normalizedRegistration
-        ? user.registration.toLowerCase().includes(normalizedRegistration)
-        : true
-      return matchesName && matchesRegistration
+      const name = (user.name ?? '').toLowerCase()
+      const registration = (user.registration ?? '').toLowerCase()
+      return name.includes(query) || registration.includes(query)
     })
-  }, [registeredUsers, userNameFilter, userRegistrationFilter])
+  }, [registeredUsers, userSearchFilter])
   const previewUserOptions = useMemo(
     () =>
       [...registeredUsers].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
@@ -4340,31 +4335,41 @@ function HomePanel({
                   />
                 ) : (
                   <>
-                    <div className="materials-filters-grid">
-                      <label>
-                        Nome
+                    <div className="consultar-toolbar">
+                      <label className="consultar-search">
+                        <span className="sr-only">Pesquisar usuários</span>
+                        <span className="consultar-search-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24">
+                            <circle
+                              cx="11"
+                              cy="11"
+                              r="7"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            />
+                            <path
+                              d="M20 20l-3.5-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </span>
                         <input
                           type="search"
-                          value={userNameFilter}
-                          onChange={(event) => setUserNameFilter(event.target.value)}
-                          placeholder="Filtrar por nome"
-                        />
-                      </label>
-                      <label>
-                        Matrícula
-                        <input
-                          type="search"
-                          value={userRegistrationFilter}
-                          onChange={(event) => setUserRegistrationFilter(event.target.value)}
-                          placeholder="Filtrar por matrícula"
+                          value={userSearchFilter}
+                          onChange={(event) => setUserSearchFilter(event.target.value)}
+                          placeholder="Pesquisar por nome ou matrícula"
+                          autoComplete="off"
+                          spellCheck={false}
                         />
                       </label>
                     </div>
                     <p className="consultar-summary">
                       {filteredRegisteredUsers.length} usuário(s) com acesso aprovado
-                      {userNameFilter.trim() || userRegistrationFilter.trim()
-                        ? ` (de ${registeredUsers.length})`
-                        : ''}
+                      {userSearchFilter.trim() ? ` (de ${registeredUsers.length})` : ''}
                     </p>
                     <div className="entrada-table-wrap">
                       <table className="data-table">
@@ -4518,7 +4523,7 @@ function HomePanel({
                     {!filteredRegisteredUsers.length ? (
                       <p className="generated-password-empty">
                         {registeredUsers.length
-                          ? 'Nenhum usuário encontrado com os filtros informados.'
+                          ? 'Nenhum usuário encontrado na pesquisa.'
                           : 'Nenhum usuário aprovado no momento.'}
                       </p>
                     ) : null}
