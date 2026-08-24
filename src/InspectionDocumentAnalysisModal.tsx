@@ -272,20 +272,22 @@ function ComparisonField({
             <span className="inspection-document-comparison-label">Laboratório</span>
             <strong>{displayConferenceValue(laboratorio, laboratorioEmpty)}</strong>
           </div>
-          <MatchIndicator matches={matches} />
-          {adjusted ? (
-            <span className="schedule-ok-badge inspection-document-adjusted-badge">Ajustado</span>
-          ) : null}
-          {showAdjust && matches === false ? (
-            <button
-              type="button"
-              className="secondary-button inspection-document-adjust-btn"
-              disabled={adjusting}
-              onClick={onAdjust}
-            >
-              {adjusting ? 'Ajustando...' : 'Ajustar'}
-            </button>
-          ) : null}
+          <div className="inspection-document-comparison-status">
+            {adjusted ? (
+              <span className="schedule-ok-badge inspection-document-adjusted-badge">Ajustado</span>
+            ) : null}
+            {showAdjust && matches === false ? (
+              <button
+                type="button"
+                className="secondary-button inspection-document-adjust-btn"
+                disabled={adjusting}
+                onClick={onAdjust}
+              >
+                {adjusting ? 'Ajustando...' : 'Ajustar'}
+              </button>
+            ) : null}
+            <MatchIndicator matches={matches} />
+          </div>
         </div>
       </dd>
     </div>

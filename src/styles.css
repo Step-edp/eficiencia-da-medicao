@@ -2223,7 +2223,7 @@ button {
 }
 
 .inspection-document-comparison-grid.is-four {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) auto auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
 }
 
 .inspection-document-comparison-item {
@@ -2333,8 +2333,16 @@ button {
   font-size: 0.82rem;
 }
 
+.inspection-document-comparison-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  min-height: 2rem;
+  align-self: end;
+}
+
 .inspection-document-adjusted-badge {
-  align-self: center;
   white-space: nowrap;
 }
 
@@ -2343,8 +2351,7 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
   }
 
-  .inspection-document-comparison-grid.is-four .inspection-document-match {
-    grid-row: auto;
+  .inspection-document-comparison-grid.is-four .inspection-document-comparison-status {
     grid-column: 3;
     align-self: center;
   }
@@ -2363,12 +2370,11 @@ button {
     grid-column: 1 / -1;
   }
 
-  .inspection-document-match,
-  .inspection-document-comparison-grid.is-four .inspection-document-match {
-    grid-row: auto;
+  .inspection-document-comparison-status,
+  .inspection-document-comparison-grid.is-four .inspection-document-comparison-status {
     grid-column: 1;
     align-self: center;
-    justify-self: start;
+    justify-content: flex-start;
   }
 }
 
