@@ -133,6 +133,8 @@ function ComparisonField({
   campoEmpty = '—',
   agendamentoEmpty = '—',
   laboratorioEmpty = '—',
+  campoEditable = false,
+  onCampoChange,
 }: {
   label: string
   campo?: string | null
@@ -143,6 +145,8 @@ function ComparisonField({
   campoEmpty?: string
   agendamentoEmpty?: string
   laboratorioEmpty?: string
+  campoEditable?: boolean
+  onCampoChange?: (value: string) => void
 }) {
   return (
     <div className="inspection-document-comparison">
@@ -151,7 +155,19 @@ function ComparisonField({
         <div className="inspection-document-comparison-grid is-four">
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">WPA</span>
-            <strong>{displayConferenceValue(campo, campoEmpty)}</strong>
+            {campoEditable ? (
+              <input
+                type="text"
+                className="inspection-document-wpa-input"
+                value={campo ?? ''}
+                placeholder="Digite"
+                inputMode={kind === 'digits' ? 'numeric' : 'text'}
+                aria-label={`${label} no WPA`}
+                onChange={(event) => onCampoChange?.(event.target.value)}
+              />
+            ) : (
+              <strong>{displayConferenceValue(campo, campoEmpty)}</strong>
+            )}
           </div>
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">Documento</span>
@@ -186,6 +202,14 @@ export function InspectionDocumentAnalysisModal({
   const [deleteBlockedReason, setDeleteBlockedReason] = useState<string | null>(null)
   const [registeredMeter, setRegisteredMeter] = useState(meter)
   const [conference, setConference] = useState<InspectionDocumentConference | null>(null)
+  const [canEditWpa, setCanEditWpa] = useState(false)
+  const [wpaDraft, setWpaDraft] = useState({
+    meter: '',
+    lacre: '',
+    coverSeal: '',
+    reading: '',
+  })
+  const wpaSaveTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const [photos, setPhotos] = useState<InspectionPhotoRecord[]>([])
   const [canManagePhotos, setCanManagePhotos] = useState(false)
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
@@ -207,43 +231,92 @@ export function InspectionDocumentAnalysisModal({
       setCanDelete(response.canDelete)
       setDeleteBlockedReason(response.deleteBlockedReason)
       setRegisteredMeter(response.meter)
-      setConference(
-        response.conference ?? {
-          campoMeter: response.meter,
-          campoLacre: response.registeredLacre,
-          campoCoverSeal: response.registeredCoverSeal ?? null,
-          campoReading: response.registeredReading ?? null,
-          campoScheduleDate: null,
-          scheduleMeter: response.meter,
-          scheduleLacre: response.registeredLacre,
-          scheduleCoverSeal: response.registeredCoverSeal ?? null,
-          scheduleReading: response.registeredReading ?? null,
-          scheduleScheduleDate: null,
-          labMeter: null,
-          labLacre: null,
-          labCoverSeal: null,
-          labReading: null,
-          labScheduleDate: null,
-        },
-      )
+      const nextConference = response.conference ?? {
+        campoMeter: response.meter,
+        campoLacre: response.registeredLacre,
+        campoCoverSeal: response.registeredCoverSeal ?? null,
+        campoReading: response.registeredReading ?? null,
+        campoScheduleDate: null,
+        scheduleMeter: response.meter,
+        scheduleLacre: response.registeredLacre,
+        scheduleCoverSeal: response.registeredCoverSeal ?? null,
+        scheduleReading: response.registeredReading ?? null,
+        scheduleScheduleDate: null,
+        labMeter: null,
+        labLacre: null,
+        labCoverSeal: null,
+        labReading: null,
+        labScheduleDate: null,
+      }
+      setConference(nextConference)
+      setWpaDraft({
+        meter: nextConference.campoMeter ?? response.meter ?? '',
+        lacre: nextConference.campoLacre ?? '',
+        coverSeal: nextConference.campoCoverSeal ?? '',
+        reading: nextConference.campoReading ?? '',
+      })
       setPhotos(response.photos ?? [])
       setCanManagePhotos(response.canManagePhotos !== false)
+      setCanEditWpa(response.canEditWpa === true || response.canManagePhotos === true)
     } catch {
       setDocuments([])
       setCanDelete(false)
       setDeleteBlockedReason(null)
       setRegisteredMeter(meter)
       setConference(null)
+      setWpaDraft({ meter: '', lacre: '', coverSeal: '', reading: '' })
       setPhotos([])
       setCanManagePhotos(false)
+      setCanEditWpa(false)
     } finally {
       setLoading(false)
     }
   }, [meter, scheduleId])
 
+  const persistWpaDraft = useCallback(
+    async (next: { meter: string; lacre: string; coverSeal: string; reading: string }) => {
+      try {
+        await api.updateInspectionWpa(scheduleId, next)
+      } catch (error) {
+        setFeedback({
+          type: 'error',
+          message:
+            error instanceof ApiError
+              ? error.message
+              : 'Não foi possível salvar o WPA informado.',
+        })
+      }
+    },
+    [scheduleId],
+  )
+
+  const handleWpaChange = useCallback(
+    (field: 'meter' | 'lacre' | 'coverSeal' | 'reading', value: string) => {
+      setWpaDraft((current) => {
+        const next = { ...current, [field]: value }
+        if (wpaSaveTimerRef.current != null) {
+          window.clearTimeout(wpaSaveTimerRef.current)
+        }
+        wpaSaveTimerRef.current = window.setTimeout(() => {
+          void persistWpaDraft(next)
+        }, 400)
+        return next
+      })
+    },
+    [persistWpaDraft],
+  )
+
   useEffect(() => {
     void loadDocuments()
   }, [loadDocuments])
+
+  useEffect(() => {
+    return () => {
+      if (wpaSaveTimerRef.current != null) {
+        window.clearTimeout(wpaSaveTimerRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -433,40 +506,47 @@ export function InspectionDocumentAnalysisModal({
                   </div>
                   <ComparisonField
                     label="Medidor retirado"
-                    campo={conference?.campoMeter ?? registeredMeter}
+                    campo={canEditWpa ? wpaDraft.meter : (conference?.campoMeter ?? registeredMeter)}
                     documento={document.extractedMeterRetirado ?? document.extractedMeter}
                     agendamento={conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter}
                     laboratorio={conference?.labMeter}
                     laboratorioEmpty="Pendente"
+                    campoEditable={canEditWpa}
+                    onCampoChange={(value) => handleWpaChange('meter', value)}
                   />
                   <ComparisonField
                     label="Lacre do invólucro"
-                    campo={conference?.campoLacre}
+                    campo={canEditWpa ? wpaDraft.lacre : conference?.campoLacre}
                     documento={document.extractedLacre}
                     agendamento={conference?.scheduleLacre ?? document.registeredLacre}
                     laboratorio={conference?.labLacre}
                     laboratorioEmpty="Pendente"
+                    campoEditable={canEditWpa}
+                    onCampoChange={(value) => handleWpaChange('lacre', value)}
                   />
                   <ComparisonField
                     label="Lacre da tampa"
-                    campo={conference?.campoCoverSeal}
+                    campo={canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal}
                     documento={document.extractedCoverSeal}
                     agendamento={conference?.scheduleCoverSeal ?? document.registeredCoverSeal}
                     laboratorio={conference?.labCoverSeal}
                     laboratorioEmpty="Pendente"
+                    campoEditable={canEditWpa}
+                    onCampoChange={(value) => handleWpaChange('coverSeal', value)}
                   />
                   <ComparisonField
                     label="Leitura"
-                    campo={conference?.campoReading}
+                    campo={canEditWpa ? wpaDraft.reading : conference?.campoReading}
                     documento={document.extractedReading}
                     laboratorio={conference?.labReading}
                     agendamentoEmpty="Não aplicável"
                     laboratorioEmpty="Pendente"
+                    campoEditable={canEditWpa}
+                    onCampoChange={(value) => handleWpaChange('reading', value)}
                   />
                   <ComparisonField
                     label="Data de agendamento"
                     kind="date"
-                    campo={conference?.campoScheduleDate}
                     documento={document.extractedScheduledAt}
                     agendamento={conference?.scheduleScheduleDate}
                     laboratorio={conference?.labScheduleDate}

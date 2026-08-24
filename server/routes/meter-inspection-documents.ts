@@ -594,6 +594,16 @@ function evaluateInspectionDocument(
   return { blocked: false, reason: null }
 }
 
+function pickSavedWpa(saved: string | null | undefined, fallback: string | null) {
+  if (saved == null) return fallback
+  const trimmed = saved.trim()
+  return trimmed || null
+}
+
+function readWpaText(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
 const VALID_INSPECTION_DOC_TYPES = new Set<InspectionDocumentType>(['toi', 'comunicado', 'ambos'])
 
 async function canManageInspectionDocuments(req: Request): Promise<boolean> {
@@ -1028,8 +1038,14 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     meter_reading: string
     source: string
     scheduled_at: Date
+    inspection_wpa_meter: string | null
+    inspection_wpa_lacre: string | null
+    inspection_wpa_cover_seal: string | null
+    inspection_wpa_reading: string | null
   }>(
-    `SELECT id, meter, envelope_seal, cover_seal, meter_reading, source, scheduled_at
+    `SELECT id, meter, envelope_seal, cover_seal, meter_reading, source, scheduled_at,
+            inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
+            inspection_wpa_reading
      FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
@@ -1080,6 +1096,10 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   const deleteBlockedReason =
     userCanManage && !deletable.ok ? deletable.error : null
   const scheduleDateLabel = formatAvailableSlot(schedule.rows[0].scheduled_at)
+  const campoMeterFallback = isFieldSchedule ? registeredMeter : null
+  const campoLacreFallback = isFieldSchedule ? registeredLacre : null
+  const campoCoverSealFallback = isFieldSchedule ? registeredCoverSeal : null
+  const campoReadingFallback = isFieldSchedule ? registeredReading : null
 
   await backfillMissingExtractions(result.rows)
 
@@ -1089,11 +1109,14 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     registeredCoverSeal,
     registeredReading,
     conference: {
-      campoMeter: isFieldSchedule ? registeredMeter : null,
-      campoLacre: isFieldSchedule ? registeredLacre : null,
-      campoCoverSeal: isFieldSchedule ? registeredCoverSeal : null,
-      campoReading: isFieldSchedule ? registeredReading : null,
-      campoScheduleDate: isFieldSchedule ? scheduleDateLabel : null,
+      campoMeter: pickSavedWpa(schedule.rows[0].inspection_wpa_meter, campoMeterFallback),
+      campoLacre: pickSavedWpa(schedule.rows[0].inspection_wpa_lacre, campoLacreFallback),
+      campoCoverSeal: pickSavedWpa(
+        schedule.rows[0].inspection_wpa_cover_seal,
+        campoCoverSealFallback,
+      ),
+      campoReading: pickSavedWpa(schedule.rows[0].inspection_wpa_reading, campoReadingFallback),
+      campoScheduleDate: null,
       scheduleMeter: registeredMeter,
       scheduleLacre: registeredLacre,
       scheduleCoverSeal: registeredCoverSeal,
@@ -1123,6 +1146,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     deleteBlockedReason,
     photos: await loadInspectionPhotos(meterScheduleId),
     canManagePhotos: userCanManage,
+    canEditWpa: userCanManage,
   })
 }
 
@@ -1657,4 +1681,57 @@ export async function deleteInspectionPhoto(req: Request, res: Response) {
   })
 
   res.json({ ok: true, photos: await loadInspectionPhotos(meterScheduleId) })
+}
+
+export async function updateInspectionWpa(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error: 'Somente administradores e usuários do Laboratório de Medição podem informar o WPA.',
+    })
+    return
+  }
+
+  const existing = await query<{ id: string }>(
+    `SELECT id FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  if (!existing.rows[0]) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  const meter = readWpaText(req.body?.meter)
+  const lacre = readWpaText(req.body?.lacre)
+  const coverSeal = readWpaText(req.body?.coverSeal)
+  const reading = readWpaText(req.body?.reading)
+
+  await query(
+    `UPDATE meter_schedules
+     SET inspection_wpa_meter = $2,
+         inspection_wpa_lacre = $3,
+         inspection_wpa_cover_seal = $4,
+         inspection_wpa_reading = $5
+     WHERE id = $1`,
+    [meterScheduleId, meter, lacre, coverSeal, reading],
+  )
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: meterScheduleId,
+    summary: `WPA informado na análise do agendamento ${meterScheduleId}`,
+    metadata: { meter, lacre, coverSeal, reading },
+  })
+
+  res.json({
+    ok: true,
+    conference: {
+      campoMeter: meter || null,
+      campoLacre: lacre || null,
+      campoCoverSeal: coverSeal || null,
+      campoReading: reading || null,
+    },
+  })
 }

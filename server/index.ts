@@ -94,6 +94,7 @@ import {
   getScheduleEntryComparisons,
   listInspectionPendencias,
   listWpaAnalysisMeters,
+  updateInspectionWpa,
 } from './routes/meter-inspection-documents.js'
 import {
   createSupportTicket,
@@ -442,6 +443,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     deleteInspectionPhoto,
+  )
+  app.patch(
+    '/api/meter-schedules/:id/inspection-wpa',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    updateInspectionWpa,
   )
 
   app.post('/api/demm-documents', requireAuth, rejectLabMedicaoViewOnlyMutations, createDemmDocument)

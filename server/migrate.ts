@@ -974,4 +974,12 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_meter_inspection_photos_schedule
       ON meter_inspection_photos (meter_schedule_id, created_at DESC)
   `)
+
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS inspection_wpa_meter TEXT,
+      ADD COLUMN IF NOT EXISTS inspection_wpa_lacre TEXT,
+      ADD COLUMN IF NOT EXISTS inspection_wpa_cover_seal TEXT,
+      ADD COLUMN IF NOT EXISTS inspection_wpa_reading TEXT;
+  `)
 }

@@ -1652,7 +1652,24 @@ export const api = {
       deleteBlockedReason: string | null
       photos?: InspectionPhotoRecord[]
       canManagePhotos?: boolean
+      canEditWpa?: boolean
     }>(`/api/meter-schedules/${meterScheduleId}/inspection-documents`),
+  updateInspectionWpa: (
+    meterScheduleId: string,
+    payload: { meter: string; lacre: string; coverSeal: string; reading: string },
+  ) =>
+    request<{
+      ok: true
+      conference: {
+        campoMeter: string | null
+        campoLacre: string | null
+        campoCoverSeal: string | null
+        campoReading: string | null
+      }
+    }>(`/api/meter-schedules/${meterScheduleId}/inspection-wpa`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
   uploadInspectionPhotos: (
     meterScheduleId: string,
     photos: Array<{ fileName: string; photoData: string }>,
