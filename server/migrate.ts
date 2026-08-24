@@ -982,4 +982,32 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS inspection_wpa_cover_seal TEXT,
       ADD COLUMN IF NOT EXISTS inspection_wpa_reading TEXT;
   `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS toi_schedule_deviations (
+      id TEXT PRIMARY KEY,
+      meter_schedule_id TEXT NOT NULL REFERENCES meter_schedules(id) ON DELETE CASCADE,
+      meter TEXT NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'schedule_date_mismatch',
+      description TEXT NOT NULL,
+      scheduled_label TEXT NOT NULL,
+      document_label TEXT NOT NULL,
+      previous_scheduled_at TIMESTAMPTZ NOT NULL,
+      adjusted_scheduled_at TIMESTAMPTZ NOT NULL,
+      collaborator1_name TEXT NOT NULL DEFAULT '',
+      collaborator1_registration TEXT NOT NULL DEFAULT '',
+      collaborator2_name TEXT NOT NULL DEFAULT '',
+      collaborator2_registration TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_by_user_id TEXT REFERENCES users(id)
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_toi_schedule_deviations_created
+      ON toi_schedule_deviations (created_at DESC)
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_toi_schedule_deviations_collab
+      ON toi_schedule_deviations (collaborator1_registration, collaborator2_registration)
+  `)
 }

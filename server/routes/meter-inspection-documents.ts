@@ -6,6 +6,7 @@ import { ENTRADA_TRAIL_STEP, hasMeterEntradaGiven } from '../lab-trail-status.js
 import {
   classifyInspectionDocument,
   extractInspectionPdfText,
+  parseExtractedScheduleLabel,
   parseInspectionText,
   type InspectionDocumentType,
 } from '../inspection-document-parser.js'
@@ -1734,4 +1735,218 @@ export async function updateInspectionWpa(req: Request, res: Response) {
       campoReading: reading || null,
     },
   })
+}
+
+const SCHEDULE_DATE_DEVIATION_DESCRIPTION =
+  'Data/horário de agendamento cadastrado no sistema diferente do inserido no documento'
+
+type ToiScheduleDeviationRow = {
+  id: string
+  meter_schedule_id: string
+  meter: string
+  kind: string
+  description: string
+  scheduled_label: string
+  document_label: string
+  previous_scheduled_at: Date
+  adjusted_scheduled_at: Date
+  collaborator1_name: string
+  collaborator1_registration: string
+  collaborator2_name: string
+  collaborator2_registration: string
+  created_at: Date
+  created_by_user_id: string | null
+  created_by_name: string | null
+  created_by_registration: string | null
+}
+
+function mapScheduleDateAdjustment(row: ToiScheduleDeviationRow) {
+  return {
+    id: row.id,
+    meterScheduleId: row.meter_schedule_id,
+    meter: row.meter,
+    kind: row.kind,
+    description: row.description,
+    scheduledLabel: row.scheduled_label,
+    documentLabel: row.document_label,
+    previousScheduledAt: row.previous_scheduled_at.toISOString(),
+    adjustedScheduledAt: row.adjusted_scheduled_at.toISOString(),
+    collaborator1Name: row.collaborator1_name,
+    collaborator1Registration: row.collaborator1_registration,
+    collaborator2Name: row.collaborator2_name,
+    collaborator2Registration: row.collaborator2_registration,
+    createdAt: row.created_at.toISOString(),
+    createdByUserId: row.created_by_user_id,
+    createdByName: row.created_by_name,
+    createdByRegistration: row.created_by_registration,
+  }
+}
+
+export async function adjustScheduleDateFromDocument(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error: 'Somente administradores e usuários do Laboratório de Medição podem ajustar a data.',
+    })
+    return
+  }
+
+  const requestedDocType =
+    typeof req.body?.docType === 'string' ? req.body.docType.trim() : ''
+
+  const schedule = await query<{
+    id: string
+    meter: string
+    scheduled_at: Date
+    toi_collaborator1_name: string
+    toi_collaborator1_registration: string
+    toi_collaborator2_name: string
+    toi_collaborator2_registration: string
+  }>(
+    `SELECT id, meter, scheduled_at,
+            toi_collaborator1_name, toi_collaborator1_registration,
+            toi_collaborator2_name, toi_collaborator2_registration
+     FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  const current = schedule.rows[0]
+  if (!current) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  const documents = await query<{
+    doc_type: string
+    extracted_scheduled_at: string | null
+  }>(
+    `SELECT doc_type, extracted_scheduled_at
+     FROM meter_inspection_documents
+     WHERE meter_schedule_id = $1
+     ORDER BY created_at DESC`,
+    [meterScheduleId],
+  )
+  const preferred =
+    documents.rows.find((row) => row.doc_type === requestedDocType && row.extracted_scheduled_at) ??
+    documents.rows.find((row) => row.extracted_scheduled_at?.trim())
+  const documentLabel = preferred?.extracted_scheduled_at?.trim() ?? ''
+  const nextDate = parseExtractedScheduleLabel(documentLabel)
+  if (!nextDate) {
+    res.status(400).json({
+      error: 'Não foi possível ler data e horário completos no documento.',
+    })
+    return
+  }
+
+  const previousLabel = formatAvailableSlot(current.scheduled_at)
+  const nextLabel = formatAvailableSlot(nextDate)
+  if (previousLabel === nextLabel) {
+    res.status(400).json({ error: 'A data do agendamento já confere com o documento.' })
+    return
+  }
+
+  const update = await query<{ scheduled_at: Date }>(
+    `UPDATE meter_schedules
+     SET scheduled_at = $1
+     WHERE id = $2
+     RETURNING scheduled_at`,
+    [nextDate.toISOString(), meterScheduleId],
+  )
+  const updatedAt = update.rows[0]?.scheduled_at ?? nextDate
+
+  await query(`UPDATE meter_registry SET scheduled_at = $1 WHERE meter = $2`, [
+    updatedAt.toISOString(),
+    current.meter,
+  ])
+
+  const deviationId = `sched-date-${Date.now()}-${current.meter}`
+  const inserted = await query<ToiScheduleDeviationRow>(
+    `INSERT INTO toi_schedule_deviations (
+       id, meter_schedule_id, meter, kind, description,
+       scheduled_label, document_label, previous_scheduled_at, adjusted_scheduled_at,
+       collaborator1_name, collaborator1_registration,
+       collaborator2_name, collaborator2_registration, created_by_user_id
+     ) VALUES ($1,$2,$3,'schedule_date_mismatch',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+     RETURNING *`,
+    [
+      deviationId,
+      meterScheduleId,
+      current.meter,
+      SCHEDULE_DATE_DEVIATION_DESCRIPTION,
+      previousLabel,
+      documentLabel,
+      current.scheduled_at.toISOString(),
+      updatedAt.toISOString(),
+      current.toi_collaborator1_name ?? '',
+      current.toi_collaborator1_registration ?? '',
+      current.toi_collaborator2_name ?? '',
+      current.toi_collaborator2_registration ?? '',
+      req.user?.id ?? null,
+    ],
+  )
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: meterScheduleId,
+    summary: `Medidor ${current.meter} teve a data de agendamento ajustada de ${previousLabel} para ${nextLabel}. ${SCHEDULE_DATE_DEVIATION_DESCRIPTION}. Agendado: ${previousLabel}. Documento: ${documentLabel}.`,
+    oldData: {
+      meter: current.meter,
+      scheduledAt: current.scheduled_at.toISOString(),
+      scheduledAtLabel: previousLabel,
+    },
+    newData: {
+      meter: current.meter,
+      scheduledAt: updatedAt.toISOString(),
+      scheduledAtLabel: nextLabel,
+    },
+    metadata: {
+      meter: current.meter,
+      kind: 'schedule_date_adjustment',
+      justification: `${SCHEDULE_DATE_DEVIATION_DESCRIPTION}. Agendado: ${previousLabel}. Documento: ${documentLabel}.`,
+      previousScheduledAt: current.scheduled_at.toISOString(),
+      previousScheduledAtLabel: previousLabel,
+      newScheduledAt: updatedAt.toISOString(),
+      newScheduledAtLabel: nextLabel,
+      documentLabel,
+    },
+  })
+
+  res.json({
+    ok: true,
+    scheduleDateLabel: nextLabel,
+    adjustment: inserted.rows[0] ? mapScheduleDateAdjustment({
+      ...inserted.rows[0],
+      created_by_name: null,
+      created_by_registration: req.user?.registration ?? null,
+    }) : null,
+  })
+}
+
+export async function listScheduleDateAdjustments(req: Request, res: Response) {
+  const scope = typeof req.query.scope === 'string' ? req.query.scope.trim() : 'all'
+  const mine = scope === 'mine'
+  const registration = (req.user?.registration ?? '').trim().toUpperCase()
+
+  if (mine && !registration) {
+    res.json({ adjustments: [], total: 0 })
+    return
+  }
+
+  const result = await query<ToiScheduleDeviationRow>(
+    `SELECT d.*, u.name AS created_by_name, u.registration AS created_by_registration
+     FROM toi_schedule_deviations d
+     LEFT JOIN users u ON u.id = d.created_by_user_id
+     WHERE (
+       $1 = false
+       OR UPPER(TRIM(d.collaborator1_registration)) = $2
+       OR UPPER(TRIM(d.collaborator2_registration)) = $2
+     )
+     ORDER BY d.created_at DESC
+     LIMIT 500`,
+    [mine, registration],
+  )
+
+  const adjustments = result.rows.map(mapScheduleDateAdjustment)
+  res.json({ adjustments, total: adjustments.length })
 }

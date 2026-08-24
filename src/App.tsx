@@ -7,6 +7,7 @@ import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
 import { FieldTeamConsultarPanel } from './FieldTeamConsultarPanel'
 import { PontoFocalDashboard } from './PontoFocalDashboard'
 import { EnviarDocumentosPanel } from './EnviarDocumentosPanel'
+import { ScheduleDateAdjustmentsPanel } from './ScheduleDateAdjustmentsPanel'
 import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
@@ -1025,6 +1026,7 @@ function ItemIcon({ title }: { title: string }) {
     'Meus TOIs': 'inbox',
     'Enviar documentos': 'archive',
     'Medidores atrasados': 'clock',
+    'Apontamentos de desvio': 'shield',
   }
 
   const icon = iconByTitle[title] ?? 'star'
@@ -1870,6 +1872,7 @@ function HomePanel({
   const [selectedFieldTeamSection, setSelectedFieldTeamSection] = useState<string | null>(null)
   const [csdResponsible, setCsdResponsible] = useState(false)
   const [lateMetersCount, setLateMetersCount] = useState(0)
+  const [scheduleDateDeviationCount, setScheduleDateDeviationCount] = useState(0)
   const [selectedHomologationSection, setSelectedHomologationSection] = useState<string | null>(
     () => savedNav?.selectedHomologationSection ?? null,
   )
@@ -2199,6 +2202,22 @@ function HomePanel({
     selectedArea,
     selectedFieldTeamSection,
   ])
+
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .listScheduleDateAdjustments('mine')
+      .then((response) => {
+        if (!cancelled) setScheduleDateDeviationCount(response.total)
+      })
+      .catch(() => {
+        if (!cancelled) setScheduleDateDeviationCount(0)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentUser.id, selectedArea, selectedFieldTeamSection])
   const isAdminFullPreview =
     isAdmin &&
     ((previewMode === 'profile' &&
@@ -2374,13 +2393,13 @@ function HomePanel({
     if (!hasLavraturaAccess) {
       sections = ['Agendar', 'Consultar']
     } else if (isLavraturaEquipeCampoScope(activeFieldTeamSubtype)) {
-      sections = ['Agendar', 'Meus TOIs']
+      sections = ['Agendar', 'Meus TOIs', 'Apontamentos de desvio']
     } else if (isLavraturaPontoFocalScope(activeFieldTeamSubtype)) {
-      sections = ['Agendar', 'Consultar', 'Dashboard', 'Enviar documentos', 'Medidores atrasados']
+      sections = ['Agendar', 'Consultar', 'Dashboard', 'Enviar documentos', 'Medidores atrasados', 'Apontamentos de desvio']
     } else if (isLavraturaBackofficeScope(activeFieldTeamSubtype)) {
-      sections = ['Agendar', 'Consultar', 'Meus TOIs', 'Enviar documentos']
+      sections = ['Agendar', 'Consultar', 'Meus TOIs', 'Enviar documentos', 'Apontamentos de desvio']
     } else {
-      sections = ['Agendar', 'Consultar', 'Meus TOIs']
+      sections = ['Agendar', 'Consultar', 'Meus TOIs', 'Apontamentos de desvio']
     }
 
     if (csdResponsible && !sections.includes('Enviar documentos')) {
@@ -5240,6 +5259,12 @@ function HomePanel({
                 mode="late-meters"
                 forUserId={isAdmin && previewUser ? previewUser.id : undefined}
               />
+            ) : selectedFieldTeamSection === 'Apontamentos de desvio' ? (
+              <ScheduleDateAdjustmentsPanel
+                scope="mine"
+                title="Apontamentos de desvio"
+                intro="Data/horário de agendamento cadastrado no sistema diferente do inserido no documento. Confira o horário agendado no sistema e o horário que consta no documento."
+              />
             ) : selectedFieldTeamSection === 'Enviar documentos' ? (
               <EnviarDocumentosPanel scopeUserId={enviarDocumentosScopeUserId} />
             ) : (
@@ -5974,6 +5999,9 @@ function HomePanel({
                     {section === 'Medidores atrasados' ? (
                       <LateMetersCountBadge count={lateMetersCount} />
                     ) : null}
+                    {section === 'Apontamentos de desvio' ? (
+                      <LateMetersCountBadge count={scheduleDateDeviationCount} />
+                    ) : null}
                   </span>
                 </button>
               ))}
@@ -6189,6 +6217,9 @@ function HomePanel({
                     <span>{section}</span>
                     {section === 'Medidores atrasados' ? (
                       <LateMetersCountBadge count={lateMetersCount} />
+                    ) : null}
+                    {section === 'Apontamentos de desvio' ? (
+                      <LateMetersCountBadge count={scheduleDateDeviationCount} />
                     ) : null}
                   </span>
                 </button>
@@ -6750,7 +6781,8 @@ function getAreaCardClassName(title: string) {
     title === 'Meus TOIs' ||
     title === 'Dashboard' ||
     title === 'Enviar documentos' ||
-    title === 'Medidores atrasados'
+    title === 'Medidores atrasados' ||
+    title === 'Apontamentos de desvio'
   ) {
     return 'area-card-equipe-campo'
   }

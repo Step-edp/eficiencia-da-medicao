@@ -272,6 +272,24 @@ function formatExtractedScheduleDate(
   return formatAvailableSlot(date)
 }
 
+export function parseExtractedScheduleLabel(value: string | null | undefined): Date | null {
+  const match = String(value ?? '').match(
+    /(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\D+(\d{1,2}):(\d{2}))?/,
+  )
+  if (!match || match[4] == null || match[5] == null) return null
+  const date = new Date(
+    Number(match[3]),
+    Number(match[2]) - 1,
+    Number(match[1]),
+    Number(match[4]),
+    Number(match[5]),
+    0,
+    0,
+  )
+  if (Number.isNaN(date.getTime())) return null
+  return date
+}
+
 function scheduleDateFromMatch(match: RegExpMatchArray | null): string | null {
   if (!match) return null
   return formatExtractedScheduleDate(

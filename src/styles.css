@@ -1890,6 +1890,10 @@ button {
   cursor: not-allowed;
 }
 
+.panel-switch.entrada-demm-switch > button .lab-trail-step-badge {
+  margin-left: 6px;
+}
+
 .entrada-dedicated-screen {
   display: grid;
   gap: 16px;
@@ -2175,7 +2179,7 @@ button {
 }
 
 .inspection-document-comparison-grid.is-four {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto auto;
 }
 
 .inspection-document-comparison-item {
@@ -2243,6 +2247,13 @@ button {
   background: rgba(255, 255, 255, 0.06);
   color: var(--text-soft);
   font-size: 0.95rem;
+}
+
+.inspection-document-adjust-btn {
+  align-self: center;
+  white-space: nowrap;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.82rem;
 }
 
 @media (max-width: 900px) {

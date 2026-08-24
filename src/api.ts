@@ -641,6 +641,26 @@ export type InspectionDocumentConference = {
   labScheduleDate: string | null
 }
 
+export type ScheduleDateAdjustmentRecord = {
+  id: string
+  meterScheduleId: string
+  meter: string
+  kind: string
+  description: string
+  scheduledLabel: string
+  documentLabel: string
+  previousScheduledAt: string
+  adjustedScheduledAt: string
+  collaborator1Name: string
+  collaborator1Registration: string
+  collaborator2Name: string
+  collaborator2Registration: string
+  createdAt: string
+  createdByUserId: string | null
+  createdByName: string | null
+  createdByRegistration: string | null
+}
+
 export type InspectionDocumentRecord = {
   id: string
   meterScheduleId: string
@@ -1670,6 +1690,18 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+  adjustScheduleDateFromDocument: (meterScheduleId: string, docType?: InspectionDocumentType) =>
+    request<{ ok: true; scheduleDateLabel: string }>(
+      `/api/meter-schedules/${meterScheduleId}/adjust-schedule-date`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ docType }),
+      },
+    ),
+  listScheduleDateAdjustments: (scope: 'all' | 'mine' = 'all') =>
+    request<{ adjustments: ScheduleDateAdjustmentRecord[]; total: number }>(
+      `/api/meter-schedules/date-adjustments?scope=${scope}`,
+    ),
   uploadInspectionPhotos: (
     meterScheduleId: string,
     photos: Array<{ fileName: string; photoData: string }>,

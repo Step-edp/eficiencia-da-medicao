@@ -135,6 +135,9 @@ function ComparisonField({
   laboratorioEmpty = '—',
   campoEditable = false,
   onCampoChange,
+  showAdjust = false,
+  adjusting = false,
+  onAdjust,
 }: {
   label: string
   campo?: string | null
@@ -147,7 +150,11 @@ function ComparisonField({
   laboratorioEmpty?: string
   campoEditable?: boolean
   onCampoChange?: (value: string) => void
+  showAdjust?: boolean
+  adjusting?: boolean
+  onAdjust?: () => void
 }) {
+  const matches = conferenceMatches([campo, documento, agendamento, laboratorio], kind)
   return (
     <div className="inspection-document-comparison">
       <dt>{label}</dt>
@@ -181,9 +188,17 @@ function ComparisonField({
             <span className="inspection-document-comparison-label">Laboratório</span>
             <strong>{displayConferenceValue(laboratorio, laboratorioEmpty)}</strong>
           </div>
-          <MatchIndicator
-            matches={conferenceMatches([campo, documento, agendamento, laboratorio], kind)}
-          />
+          <MatchIndicator matches={matches} />
+          {showAdjust && matches === false ? (
+            <button
+              type="button"
+              className="secondary-button inspection-document-adjust-btn"
+              disabled={adjusting}
+              onClick={onAdjust}
+            >
+              {adjusting ? 'Ajustando...' : 'Ajustar'}
+            </button>
+          ) : null}
         </div>
       </dd>
     </div>
@@ -209,7 +224,7 @@ export function InspectionDocumentAnalysisModal({
     coverSeal: '',
     reading: '',
   })
-  const wpaSaveTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+  const wpaSaveTimerRef = useRef<number | null>(null)
   const [photos, setPhotos] = useState<InspectionPhotoRecord[]>([])
   const [canManagePhotos, setCanManagePhotos] = useState(false)
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
@@ -218,6 +233,7 @@ export function InspectionDocumentAnalysisModal({
   const photoInputId = useId()
   const photoInputRef = useRef<HTMLInputElement | null>(null)
   const [deletingDocType, setDeletingDocType] = useState<InspectionDocumentType | null>(null)
+  const [adjustingDocType, setAdjustingDocType] = useState<InspectionDocumentType | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
@@ -363,6 +379,33 @@ export function InspectionDocumentAnalysisModal({
       })
     } finally {
       setDeletingDocType(null)
+    }
+  }
+
+  const handleAdjustScheduleDate = async (document: InspectionDocumentRecord) => {
+    setAdjustingDocType(document.docType)
+    setFeedback(null)
+    try {
+      const response = await api.adjustScheduleDateFromDocument(
+        document.meterScheduleId,
+        document.docType,
+      )
+      setFeedback({
+        type: 'success',
+        message: `Data de agendamento ajustada para ${response.scheduleDateLabel}.`,
+      })
+      onDocumentsChanged?.()
+      await loadDocuments()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível ajustar a data de agendamento.',
+      })
+    } finally {
+      setAdjustingDocType(null)
     }
   }
 
@@ -552,6 +595,9 @@ export function InspectionDocumentAnalysisModal({
                     laboratorio={conference?.labScheduleDate}
                     campoEmpty="Não aplicável"
                     laboratorioEmpty="Não aplicável"
+                    showAdjust={canEditWpa}
+                    adjusting={adjustingDocType === document.docType}
+                    onAdjust={() => void handleAdjustScheduleDate(document)}
                   />
                   {document.blockReason ? (
                     <div className="user-detail-full">

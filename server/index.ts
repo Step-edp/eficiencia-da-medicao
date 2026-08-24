@@ -95,6 +95,8 @@ import {
   listInspectionPendencias,
   listWpaAnalysisMeters,
   updateInspectionWpa,
+  adjustScheduleDateFromDocument,
+  listScheduleDateAdjustments,
 } from './routes/meter-inspection-documents.js'
 import {
   createSupportTicket,
@@ -400,6 +402,7 @@ async function start() {
 
   app.get('/api/meter-schedules/inspection-pendencias', requireAuth, listInspectionPendencias)
   app.get('/api/meter-schedules/wpa-analysis', requireAuth, listWpaAnalysisMeters)
+  app.get('/api/meter-schedules/date-adjustments', requireAuth, listScheduleDateAdjustments)
   app.get(
     '/api/meter-schedules/:id/entry-comparisons',
     requireAuth,
@@ -449,6 +452,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     updateInspectionWpa,
+  )
+  app.post(
+    '/api/meter-schedules/:id/adjust-schedule-date',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    adjustScheduleDateFromDocument,
   )
 
   app.post('/api/demm-documents', requireAuth, rejectLabMedicaoViewOnlyMutations, createDemmDocument)
