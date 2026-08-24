@@ -199,7 +199,11 @@ function ComparisonField({
   agendamentoPhoto?: string | null
   onPreviewAgendamentoPhoto?: () => void
 }) {
-  const matches = conferenceMatches([campo, documento, agendamento, laboratorio], kind)
+  const wpaRequired = campoEmpty !== 'Não aplicável'
+  const matches =
+    wpaRequired && !hasConferenceValue(campo)
+      ? null
+      : conferenceMatches([campo, documento, agendamento, laboratorio], kind)
   return (
     <div className="inspection-document-comparison">
       <dt>{label}</dt>
