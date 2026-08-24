@@ -131,6 +131,7 @@ function ComparisonField({
   laboratorio,
   kind = 'digits',
   campoEmpty = '—',
+  agendamentoEmpty = '—',
   laboratorioEmpty = '—',
 }: {
   label: string
@@ -140,6 +141,7 @@ function ComparisonField({
   laboratorio?: string | null
   kind?: 'digits' | 'date'
   campoEmpty?: string
+  agendamentoEmpty?: string
   laboratorioEmpty?: string
 }) {
   return (
@@ -157,7 +159,7 @@ function ComparisonField({
           </div>
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">Agendamento</span>
-            <strong>{displayConferenceValue(agendamento)}</strong>
+            <strong>{displayConferenceValue(agendamento, agendamentoEmpty)}</strong>
           </div>
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">Laboratório</span>
@@ -457,8 +459,8 @@ export function InspectionDocumentAnalysisModal({
                     label="Leitura"
                     campo={conference?.campoReading}
                     documento={document.extractedReading}
-                    agendamento={conference?.scheduleReading ?? document.registeredReading}
                     laboratorio={conference?.labReading}
+                    agendamentoEmpty="Não aplicável"
                     laboratorioEmpty="Pendente"
                   />
                   <ComparisonField
