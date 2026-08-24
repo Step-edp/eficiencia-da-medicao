@@ -1165,13 +1165,19 @@ function ItemIcon({ title }: { title: string }) {
   )
 }
 
-function LateMetersCountBadge({ count }: { count: number }) {
+function LateMetersCountBadge({
+  count,
+  label,
+}: {
+  count: number
+  label?: string
+}) {
   if (count <= 0) return null
 
   return (
     <span
       className="support-alert-badge"
-      aria-label={`${count} medidor(es) atrasado(s)`}
+      aria-label={label ?? `${count} medidor(es) atrasado(s)`}
     >
       {count}
     </span>
@@ -1917,6 +1923,7 @@ function HomePanel({
   const [csdResponsible, setCsdResponsible] = useState(false)
   const [lateMetersCount, setLateMetersCount] = useState(0)
   const [scheduleDateDeviationCount, setScheduleDateDeviationCount] = useState(0)
+  const [labDateAdjustmentCount, setLabDateAdjustmentCount] = useState(0)
   const [selectedHomologationSection, setSelectedHomologationSection] = useState<string | null>(
     () => savedNav?.selectedHomologationSection ?? null,
   )
@@ -2012,9 +2019,20 @@ function HomePanel({
       }
     }
 
+    const refreshLabDateAdjustments = async () => {
+      try {
+        const response = await api.listScheduleDateAdjustments('all')
+        if (!cancelled) setLabDateAdjustmentCount(response.total)
+      } catch {
+        if (!cancelled) setLabDateAdjustmentCount(0)
+      }
+    }
+
     void refreshOpenSupportCount()
+    void refreshLabDateAdjustments()
     const intervalId = window.setInterval(() => {
       void refreshOpenSupportCount()
+      void refreshLabDateAdjustments()
     }, 20000)
 
     return () => {
@@ -6026,6 +6044,12 @@ function HomePanel({
                             Alerta
                             {openSupportCount > 1 ? ` · ${openSupportCount}` : ''}
                           </span>
+                        ) : null}
+                        {section === 'Alteração de data' ? (
+                          <LateMetersCountBadge
+                            count={labDateAdjustmentCount}
+                            label={`${labDateAdjustmentCount} alteração(ões) de data`}
+                          />
                         ) : null}
                       </span>
                     </button>
