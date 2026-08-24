@@ -1662,6 +1662,7 @@ export const api = {
       registeredLacre: string | null
       registeredCoverSeal: string | null
       registeredReading: string | null
+      envelopePhoto?: string | null
       conference?: InspectionDocumentConference
       meterScheduleId: string
       documents: InspectionDocumentRecord[]

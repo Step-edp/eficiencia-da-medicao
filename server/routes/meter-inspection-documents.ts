@@ -1044,9 +1044,10 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     inspection_wpa_cover_seal: string | null
     inspection_wpa_reading: string | null
     inspection_observations: string | null
+    envelope_photo: string | null
   }>(
     `SELECT id, meter, envelope_seal, cover_seal, meter_reading, source, scheduled_at,
-            inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
+            envelope_photo, inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
             inspection_wpa_reading, inspection_observations
      FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
@@ -1110,6 +1111,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     registeredLacre,
     registeredCoverSeal,
     registeredReading,
+    envelopePhoto: schedule.rows[0].envelope_photo?.trim() || null,
     conference: {
       campoMeter: pickSavedWpa(schedule.rows[0].inspection_wpa_meter, campoMeterFallback),
       campoLacre: pickSavedWpa(schedule.rows[0].inspection_wpa_lacre, campoLacreFallback),

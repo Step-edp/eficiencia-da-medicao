@@ -2240,6 +2240,39 @@ button {
   word-break: break-word;
 }
 
+.inspection-document-comparison-value-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.inspection-document-photo-eye {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border: 1px solid rgba(24, 216, 240, 0.34);
+  border-radius: 999px;
+  background: rgba(8, 39, 66, 0.8);
+  color: #d9f7ff;
+  cursor: pointer;
+}
+
+.inspection-document-photo-eye:hover,
+.inspection-document-photo-eye:focus-visible {
+  border-color: rgba(24, 216, 240, 0.7);
+  background: rgba(8, 39, 66, 0.95);
+}
+
+.inspection-document-photo-eye svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
 .inspection-document-wpa-input {
   width: 100%;
   min-width: 0;

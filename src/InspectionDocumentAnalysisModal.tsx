@@ -146,6 +146,8 @@ function ComparisonField({
   showAdjust = false,
   adjusting = false,
   onAdjust,
+  agendamentoPhoto,
+  onPreviewAgendamentoPhoto,
 }: {
   label: string
   campo?: string | null
@@ -161,6 +163,8 @@ function ComparisonField({
   showAdjust?: boolean
   adjusting?: boolean
   onAdjust?: () => void
+  agendamentoPhoto?: string | null
+  onPreviewAgendamentoPhoto?: () => void
 }) {
   const matches = conferenceMatches([campo, documento, agendamento, laboratorio], kind)
   return (
@@ -190,7 +194,30 @@ function ComparisonField({
           </div>
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">Agendamento</span>
-            <strong>{displayConferenceValue(agendamento, agendamentoEmpty)}</strong>
+            <div className="inspection-document-comparison-value-row">
+              {hasConferenceValue(agendamento) || !agendamentoPhoto ? (
+                <strong>{displayConferenceValue(agendamento, agendamentoEmpty)}</strong>
+              ) : null}
+              {agendamentoPhoto ? (
+                <button
+                  type="button"
+                  className="inspection-document-photo-eye"
+                  onClick={onPreviewAgendamentoPhoto}
+                  aria-label={`Visualizar foto do ${label.toLowerCase()} no agendamento`}
+                  title="Visualizar foto do agendamento"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    />
+                    <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
+                  </svg>
+                </button>
+              ) : null}
+            </div>
           </div>
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">Laboratório</span>
@@ -236,10 +263,11 @@ export function InspectionDocumentAnalysisModal({
   const observationsTimerRef = useRef<number | null>(null)
   const [observations, setObservations] = useState('')
   const [photos, setPhotos] = useState<InspectionPhotoRecord[]>([])
+  const [envelopePhoto, setEnvelopePhoto] = useState<string | null>(null)
   const [canManagePhotos, setCanManagePhotos] = useState(false)
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null)
-  const [previewPhoto, setPreviewPhoto] = useState<InspectionPhotoRecord | null>(null)
+  const [previewPhoto, setPreviewPhoto] = useState<{ src: string; caption: string } | null>(null)
   const photoInputId = useId()
   const photoInputRef = useRef<HTMLInputElement | null>(null)
   const [deletingDocType, setDeletingDocType] = useState<InspectionDocumentType | null>(null)
@@ -282,6 +310,7 @@ export function InspectionDocumentAnalysisModal({
         reading: nextConference.campoReading ?? '',
       })
       setPhotos(response.photos ?? [])
+      setEnvelopePhoto(response.envelopePhoto?.trim() || null)
       setCanManagePhotos(response.canManagePhotos !== false)
       setCanEditWpa(response.canEditWpa === true || response.canManagePhotos === true)
       setObservations(response.observations ?? '')
@@ -293,6 +322,7 @@ export function InspectionDocumentAnalysisModal({
       setConference(null)
       setWpaDraft({ meter: '', lacre: '', coverSeal: '', reading: '' })
       setPhotos([])
+      setEnvelopePhoto(null)
       setCanManagePhotos(false)
       setCanEditWpa(false)
       setObservations('')
@@ -494,7 +524,7 @@ export function InspectionDocumentAnalysisModal({
     try {
       const response = await api.deleteInspectionPhoto(scheduleId, photo.id)
       setPhotos(response.photos)
-      if (previewPhoto?.id === photo.id) setPreviewPhoto(null)
+      if (previewPhoto?.src === photo.photoData) setPreviewPhoto(null)
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -640,6 +670,15 @@ export function InspectionDocumentAnalysisModal({
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     onCampoChange={(value) => handleWpaChange('lacre', value)}
+                    agendamentoPhoto={envelopePhoto}
+                    onPreviewAgendamentoPhoto={() =>
+                      envelopePhoto
+                        ? setPreviewPhoto({
+                            src: envelopePhoto,
+                            caption: `Foto do lacre do invólucro no agendamento do medidor ${meter}`,
+                          })
+                        : undefined
+                    }
                   />
                   <ComparisonField
                     label="Lacre da tampa"
@@ -773,7 +812,12 @@ export function InspectionDocumentAnalysisModal({
                     <button
                       type="button"
                       className="inspection-photo-thumb-button"
-                      onClick={() => setPreviewPhoto(photo)}
+                      onClick={() =>
+                        setPreviewPhoto({
+                          src: photo.photoData,
+                          caption: photo.fileName || `Foto do medidor ${meter}`,
+                        })
+                      }
                       aria-label={`Ampliar foto ${photo.fileName || photo.id}`}
                     >
                       <img src={photo.photoData} alt={photo.fileName || 'Foto da análise'} />
@@ -841,13 +885,11 @@ export function InspectionDocumentAnalysisModal({
                 />
               </svg>
             </button>
-            <p className="envelope-photo-lightbox-caption">
-              {previewPhoto.fileName || `Foto do medidor ${meter}`}
-            </p>
+            <p className="envelope-photo-lightbox-caption">{previewPhoto.caption}</p>
             <img
               className="envelope-photo-lightbox-image"
-              src={previewPhoto.photoData}
-              alt={previewPhoto.fileName || `Foto do medidor ${meter}`}
+              src={previewPhoto.src}
+              alt={previewPhoto.caption}
             />
           </div>
         </div>
