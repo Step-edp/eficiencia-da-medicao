@@ -141,9 +141,11 @@ export async function listMeterSchedules(req: Request, res: Response) {
     filters.push(`ms.meter = $${params.length}`)
   } else if (galleryMode) {
     filters.push(`ms.envelope_photo <> ''`)
+    filters.push(`ms.delay_dismissed_at IS NULL`)
   } else {
     params.push(trailStep)
     filters.push(`ms.trail_step = $${params.length}`)
+    filters.push(`ms.delay_dismissed_at IS NULL`)
   }
 
   let mineFilter = ''
@@ -228,7 +230,10 @@ export async function countMeterSchedules(req: Request, res: Response) {
       : ENTRADA_TRAIL_STEP
 
   const result = await query<{ total: string }>(
-    `SELECT COUNT(*)::text AS total FROM meter_schedules WHERE trail_step = $1`,
+    `SELECT COUNT(*)::text AS total
+     FROM meter_schedules
+     WHERE trail_step = $1
+       AND delay_dismissed_at IS NULL`,
     [trailStep],
   )
 
@@ -511,7 +516,7 @@ export async function createMeterSchedule(req: Request, res: Response) {
 
   const duplicate = await query<{ id: string }>(
     `SELECT id FROM meter_schedules
-     WHERE meter = $1 AND trail_step = $2
+     WHERE meter = $1 AND trail_step = $2 AND delay_dismissed_at IS NULL
      LIMIT 1`,
     [normalized.meter, ENTRADA_TRAIL_STEP],
   )

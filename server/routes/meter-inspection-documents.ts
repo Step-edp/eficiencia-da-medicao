@@ -376,6 +376,7 @@ export async function loadInspectionSummariesByNorm(
      ) ms_norm ON ms_norm.id = ms.id
      LEFT JOIN meter_inspection_documents d ON d.meter_schedule_id = ms.id
      WHERE ms.trail_step = $2
+       AND ms.delay_dismissed_at IS NULL
        AND ms_norm.norm = ANY($1::text[])`,
     [normalizedMeters, ENTRADA_TRAIL_STEP],
   )
@@ -668,12 +669,20 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     toi: string
     note: string
     source: string
+    delay_dismissed_at: Date | null
   }>(
-    `SELECT id, meter, csd, envelope_seal, cover_seal, meter_reading, installation, toi, note, source FROM meter_schedules WHERE id = $1`,
+    `SELECT id, meter, csd, envelope_seal, cover_seal, meter_reading, installation, toi, note, source, delay_dismissed_at FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
   if (!schedule.rows[0]) {
     res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  if (schedule.rows[0].delay_dismissed_at) {
+    res.status(400).json({
+      error: 'Este medidor foi excluído da lista e não recebe mais documentos.',
+    })
     return
   }
 
@@ -1162,6 +1171,7 @@ export async function listInspectionPendencias(req: Request, res: Response) {
           SELECT 1 FROM meter_inspection_documents d
           WHERE d.meter_schedule_id = ms.id
         ))
+     AND ms.delay_dismissed_at IS NULL
      ${csdFilter}
      ORDER BY ms.scheduled_at ASC`,
     params,
@@ -1300,6 +1310,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
        SELECT 1 FROM meter_inspection_documents d
        WHERE d.meter_schedule_id = ms.id
      )
+     AND ms.delay_dismissed_at IS NULL
      ${csdFilter}
      ORDER BY ms.scheduled_at ASC`,
     params,

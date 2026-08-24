@@ -51,6 +51,7 @@ export async function listCalendarMeters(req: Request, res: Response) {
      LEFT JOIN meter_registry mr ON mr.meter = ms.meter
      WHERE ms.scheduled_at::date >= $1::date
        AND ms.scheduled_at::date <= $2::date
+       AND ms.delay_dismissed_at IS NULL
      ORDER BY ms.scheduled_at ASC, ms.meter ASC`,
     [from, to],
   )

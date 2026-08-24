@@ -814,17 +814,36 @@ export async function listWeekMeters(_req: Request, res: Response) {
         `SELECT DISTINCT ON (meter) meter, trail_step
          FROM meter_schedules
          WHERE meter = ANY($1::text[])
+           AND delay_dismissed_at IS NULL
          ORDER BY meter, created_at DESC`,
         [uniqueMeters],
       )
     : { rows: [] as Array<{ meter: string; trail_step: string }> }
   const scheduleTrailByMeter = new Map(scheduleTrailRows.rows.map((row) => [row.meter, row.trail_step]))
 
+  const dismissedOnlyRows = uniqueMeters.length
+    ? await query<{ meter: string }>(
+        `SELECT DISTINCT ms.meter
+         FROM meter_schedules ms
+         WHERE ms.meter = ANY($1::text[])
+           AND ms.delay_dismissed_at IS NOT NULL
+           AND NOT EXISTS (
+             SELECT 1
+             FROM meter_schedules active
+             WHERE active.meter = ms.meter
+               AND active.delay_dismissed_at IS NULL
+           )`,
+        [uniqueMeters],
+      )
+    : { rows: [] as Array<{ meter: string }> }
+  const dismissedOnly = new Set(dismissedOnlyRows.rows.map((row) => row.meter))
+
   const normalizedMeters = uniqueMeters.map((meter) => normalizeScheduleMeter(meter))
   const inspectionByNorm = await loadInspectionSummariesByNorm(normalizedMeters)
 
   const meters = analyzed
     .filter((item) => {
+      if (dismissedOnly.has(item.meter)) return false
       const registry = registryByMeter.get(item.meter)
       const scheduleTrailStep = scheduleTrailByMeter.get(item.meter)
       return meterAwaitingEntrada(registry?.status, scheduleTrailStep)
@@ -1161,6 +1180,7 @@ export async function getEntradaCsdDashboard(_req: Request, res: Response) {
        ORDER BY created_at ASC
        LIMIT 1
      ) d ON true
+     WHERE ms.delay_dismissed_at IS NULL
      ORDER BY ms.scheduled_at ASC`,
   )
 

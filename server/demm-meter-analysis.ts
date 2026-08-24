@@ -26,6 +26,7 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
     `SELECT DISTINCT ON (${NORMALIZED_METER_SQL}) id, meter, scheduled_at
      FROM meter_schedules
      WHERE trail_step = $2
+       AND delay_dismissed_at IS NULL
        AND ${NORMALIZED_METER_SQL} = ANY($1::text[])
      ORDER BY ${NORMALIZED_METER_SQL}, created_at DESC`,
     [normalizedMeters, ENTRADA_TRAIL_STEP],
