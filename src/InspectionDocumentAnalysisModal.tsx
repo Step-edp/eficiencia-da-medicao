@@ -130,7 +130,7 @@ function ComparisonField({
   agendamento,
   laboratorio,
   kind = 'digits',
-  campoEmpty = '—',
+  campoEmpty = 'Pendente',
   agendamentoEmpty = '—',
   laboratorioEmpty = '—',
   campoEditable = false,
@@ -167,7 +167,7 @@ function ComparisonField({
                 type="text"
                 className="inspection-document-wpa-input"
                 value={campo ?? ''}
-                placeholder="Digite"
+                placeholder={campoEmpty}
                 inputMode={kind === 'digits' ? 'numeric' : 'text'}
                 aria-label={`${label} no WPA`}
                 onChange={(event) => onCampoChange?.(event.target.value)}
@@ -553,6 +553,7 @@ export function InspectionDocumentAnalysisModal({
                     documento={document.extractedMeterRetirado ?? document.extractedMeter}
                     agendamento={conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter}
                     laboratorio={conference?.labMeter}
+                    campoEmpty="Pendente"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     onCampoChange={(value) => handleWpaChange('meter', value)}
@@ -563,6 +564,7 @@ export function InspectionDocumentAnalysisModal({
                     documento={document.extractedLacre}
                     agendamento={conference?.scheduleLacre ?? document.registeredLacre}
                     laboratorio={conference?.labLacre}
+                    campoEmpty="Pendente"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     onCampoChange={(value) => handleWpaChange('lacre', value)}
@@ -573,6 +575,7 @@ export function InspectionDocumentAnalysisModal({
                     documento={document.extractedCoverSeal}
                     agendamento={conference?.scheduleCoverSeal ?? document.registeredCoverSeal}
                     laboratorio={conference?.labCoverSeal}
+                    campoEmpty="Pendente"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     onCampoChange={(value) => handleWpaChange('coverSeal', value)}
@@ -583,6 +586,7 @@ export function InspectionDocumentAnalysisModal({
                     documento={document.extractedReading}
                     laboratorio={conference?.labReading}
                     agendamentoEmpty="Não aplicável"
+                    campoEmpty="Pendente"
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     onCampoChange={(value) => handleWpaChange('reading', value)}
