@@ -89,6 +89,8 @@ import {
   downloadInspectionDocument,
   deleteInspectionDocument,
   listInspectionDocuments,
+  uploadInspectionPhotos,
+  deleteInspectionPhoto,
   getScheduleEntryComparisons,
   listInspectionPendencias,
   listWpaAnalysisMeters,
@@ -428,6 +430,18 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     deleteInspectionDocument,
+  )
+  app.post(
+    '/api/meter-schedules/:id/inspection-photos',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    uploadInspectionPhotos,
+  )
+  app.delete(
+    '/api/meter-schedules/:id/inspection-photos/:photoId',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    deleteInspectionPhoto,
   )
 
   app.post('/api/demm-documents', requireAuth, rejectLabMedicaoViewOnlyMutations, createDemmDocument)

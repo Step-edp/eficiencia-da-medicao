@@ -616,6 +616,13 @@ export type DemmDocumentRecord = {
 
 export type InspectionDocumentType = 'toi' | 'comunicado' | 'ambos'
 
+export type InspectionPhotoRecord = {
+  id: string
+  fileName: string
+  photoData: string
+  createdAt: string
+}
+
 export type InspectionDocumentConference = {
   campoMeter: string | null
   campoLacre: string | null
@@ -1636,7 +1643,25 @@ export const api = {
       hasComunicado: boolean
       canDelete: boolean
       deleteBlockedReason: string | null
+      photos?: InspectionPhotoRecord[]
+      canManagePhotos?: boolean
     }>(`/api/meter-schedules/${meterScheduleId}/inspection-documents`),
+  uploadInspectionPhotos: (
+    meterScheduleId: string,
+    photos: Array<{ fileName: string; photoData: string }>,
+  ) =>
+    request<{ photos: InspectionPhotoRecord[] }>(
+      `/api/meter-schedules/${meterScheduleId}/inspection-photos`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ photos }),
+      },
+    ),
+  deleteInspectionPhoto: (meterScheduleId: string, photoId: string) =>
+    request<{ ok: true; photos: InspectionPhotoRecord[] }>(
+      `/api/meter-schedules/${meterScheduleId}/inspection-photos/${photoId}`,
+      { method: 'DELETE' },
+    ),
   getScheduleEntryComparisons: (meterScheduleId: string) =>
     request<{ meterScheduleId: string; comparisons: ScheduleEntryComparisons }>(
       `/api/meter-schedules/${meterScheduleId}/entry-comparisons`,

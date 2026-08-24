@@ -957,4 +957,19 @@ export async function migrate() {
       AND REPLACE(REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-'), '—', '-')
         <> 'Lavratura de TOI - Ponto Focal'
   `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS meter_inspection_photos (
+      id TEXT PRIMARY KEY,
+      meter_schedule_id TEXT NOT NULL REFERENCES meter_schedules(id) ON DELETE CASCADE,
+      file_name TEXT NOT NULL DEFAULT '',
+      photo_data TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_by_user_id TEXT REFERENCES users(id)
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_meter_inspection_photos_schedule
+      ON meter_inspection_photos (meter_schedule_id, created_at DESC)
+  `)
 }

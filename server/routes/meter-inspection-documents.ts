@@ -1003,6 +1003,8 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     hasComunicado: presence.hasComunicado,
     canDelete,
     deleteBlockedReason,
+    photos: await loadInspectionPhotos(meterScheduleId),
+    canManagePhotos: userCanManage,
   })
 }
 
@@ -1396,4 +1398,143 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
   }
 
   res.json({ meters })
+}
+
+const MAX_INSPECTION_PHOTOS = 20
+const MAX_INSPECTION_PHOTO_CHARS = 3_500_000
+
+type InspectionPhotoRow = {
+  id: string
+  file_name: string
+  photo_data: string
+  created_at: Date
+}
+
+function mapInspectionPhoto(row: InspectionPhotoRow) {
+  return {
+    id: row.id,
+    fileName: row.file_name,
+    photoData: row.photo_data,
+    createdAt: row.created_at.toISOString(),
+  }
+}
+
+async function loadInspectionPhotos(meterScheduleId: string) {
+  const result = await query<InspectionPhotoRow>(
+    `SELECT id, file_name, photo_data, created_at
+     FROM meter_inspection_photos
+     WHERE meter_schedule_id = $1
+     ORDER BY created_at DESC`,
+    [meterScheduleId],
+  )
+  return result.rows.map(mapInspectionPhoto)
+}
+
+export async function uploadInspectionPhotos(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error: 'Somente administradores e usuários do Laboratório de Medição podem enviar fotos.',
+    })
+    return
+  }
+
+  const schedule = await query<{ id: string }>(
+    `SELECT id FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  if (!schedule.rows[0]) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  const body = req.body as {
+    photos?: Array<{ fileName?: string; photoData?: string }>
+  }
+  const incoming = Array.isArray(body.photos) ? body.photos : []
+  if (!incoming.length) {
+    res.status(400).json({ error: 'Selecione ao menos uma foto.' })
+    return
+  }
+
+  const existing = await query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM meter_inspection_photos WHERE meter_schedule_id = $1`,
+    [meterScheduleId],
+  )
+  const currentCount = Number(existing.rows[0]?.count ?? 0)
+  if (currentCount + incoming.length > MAX_INSPECTION_PHOTOS) {
+    res.status(400).json({
+      error: `É possível anexar no máximo ${MAX_INSPECTION_PHOTOS} fotos por medidor.`,
+    })
+    return
+  }
+
+  const created = []
+  for (const item of incoming) {
+    const photoData = item.photoData?.trim() ?? ''
+    if (!photoData.startsWith('data:image/') || photoData.length > MAX_INSPECTION_PHOTO_CHARS) {
+      res.status(400).json({
+        error: 'Envie imagens nítidas (JPG ou PNG) de até cerca de 2 MB.',
+      })
+      return
+    }
+    const id = `insp-photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const insert = await query<InspectionPhotoRow>(
+      `INSERT INTO meter_inspection_photos (
+         id, meter_schedule_id, file_name, photo_data, created_by_user_id
+       ) VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, file_name, photo_data, created_at`,
+      [
+        id,
+        meterScheduleId,
+        (item.fileName ?? '').trim().slice(0, 180),
+        photoData,
+        req.user?.id ?? null,
+      ],
+    )
+    created.push(mapInspectionPhoto(insert.rows[0]))
+  }
+
+  await writeAuditLog(req, {
+    action: 'create',
+    entityType: 'meter_inspection_photo',
+    entityId: meterScheduleId,
+    summary: `${created.length} foto(s) anexada(s) à análise do agendamento ${meterScheduleId}`,
+    metadata: { meterScheduleId, count: created.length },
+  })
+
+  res.status(201).json({ photos: await loadInspectionPhotos(meterScheduleId) })
+}
+
+export async function deleteInspectionPhoto(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+  const photoId = typeof req.params.photoId === 'string' ? req.params.photoId : ''
+
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error: 'Somente administradores e usuários do Laboratório de Medição podem excluir fotos.',
+    })
+    return
+  }
+
+  const existing = await query<{ id: string }>(
+    `SELECT id FROM meter_inspection_photos
+     WHERE id = $1 AND meter_schedule_id = $2`,
+    [photoId, meterScheduleId],
+  )
+  if (!existing.rows[0]) {
+    res.status(404).json({ error: 'Foto não encontrada.' })
+    return
+  }
+
+  await query(`DELETE FROM meter_inspection_photos WHERE id = $1`, [photoId])
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'meter_inspection_photo',
+    entityId: photoId,
+    summary: `Foto removida da análise do agendamento ${meterScheduleId}`,
+    metadata: { meterScheduleId },
+  })
+
+  res.json({ ok: true, photos: await loadInspectionPhotos(meterScheduleId) })
 }

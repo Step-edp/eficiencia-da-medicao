@@ -2106,6 +2106,56 @@ button {
   justify-content: center;
 }
 
+.inspection-photo-section {
+  display: grid;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.inspection-photo-section-header h4 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.inspection-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.inspection-photo-item {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.inspection-photo-thumb-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.inspection-photo-thumb-button img {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+
+.inspection-photo-delete {
+  justify-self: start;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(231, 76, 60, 0.16);
+  color: #ffb3aa;
+  font-size: 0.82rem;
+}
+
 .inspection-document-comparison {
   grid-column: 1 / -1;
 }

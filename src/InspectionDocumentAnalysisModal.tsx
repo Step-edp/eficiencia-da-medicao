@@ -1,7 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, ApiError, type InspectionDocumentConference, type InspectionDocumentRecord, type InspectionDocumentType } from './api'
+import {
+  api,
+  ApiError,
+  type InspectionDocumentConference,
+  type InspectionDocumentRecord,
+  type InspectionDocumentType,
+  type InspectionPhotoRecord,
+} from './api'
 import { LoginFeedback } from './LoginFeedback'
+import { readImageAsDataUrl } from './readImageAsDataUrl'
 
 type InspectionDocumentAnalysisModalProps = {
   meter: string
@@ -125,6 +133,13 @@ export function InspectionDocumentAnalysisModal({
   const [deleteBlockedReason, setDeleteBlockedReason] = useState<string | null>(null)
   const [registeredMeter, setRegisteredMeter] = useState(meter)
   const [conference, setConference] = useState<InspectionDocumentConference | null>(null)
+  const [photos, setPhotos] = useState<InspectionPhotoRecord[]>([])
+  const [canManagePhotos, setCanManagePhotos] = useState(false)
+  const [uploadingPhotos, setUploadingPhotos] = useState(false)
+  const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null)
+  const [previewPhoto, setPreviewPhoto] = useState<InspectionPhotoRecord | null>(null)
+  const photoInputId = useId()
+  const photoInputRef = useRef<HTMLInputElement | null>(null)
   const [deletingDocType, setDeletingDocType] = useState<InspectionDocumentType | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
@@ -156,6 +171,8 @@ export function InspectionDocumentAnalysisModal({
           labReading: null,
         },
       )
+      setPhotos(response.photos ?? [])
+      setCanManagePhotos(Boolean(response.canManagePhotos))
     } catch {
       setDocuments([])
       setComplete(false)
@@ -163,6 +180,8 @@ export function InspectionDocumentAnalysisModal({
       setDeleteBlockedReason(null)
       setRegisteredMeter(meter)
       setConference(null)
+      setPhotos([])
+      setCanManagePhotos(false)
     } finally {
       setLoading(false)
     }
@@ -177,7 +196,12 @@ export function InspectionDocumentAnalysisModal({
     document.body.style.overflow = 'hidden'
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key !== 'Escape') return
+      if (previewPhoto) {
+        setPreviewPhoto(null)
+        return
+      }
+      onClose()
     }
     window.addEventListener('keydown', handleKeyDown)
 
@@ -185,7 +209,7 @@ export function InspectionDocumentAnalysisModal({
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [onClose])
+  }, [onClose, previewPhoto])
 
   const handleDeleteDocument = async (document: InspectionDocumentRecord) => {
     const label = inspectionDocTypeLabel(document.docType)
@@ -212,6 +236,61 @@ export function InspectionDocumentAnalysisModal({
       })
     } finally {
       setDeletingDocType(null)
+    }
+  }
+
+  const openPhotoPicker = () => {
+    photoInputRef.current?.click()
+  }
+
+  const handlePhotoFiles = async (fileList: FileList | null) => {
+    if (!fileList?.length) return
+    setUploadingPhotos(true)
+    setFeedback(null)
+    try {
+      const photosToUpload = []
+      for (const file of Array.from(fileList)) {
+        const photoData = await readImageAsDataUrl(file)
+        photosToUpload.push({ fileName: file.name, photoData })
+      }
+      const response = await api.uploadInspectionPhotos(scheduleId, photosToUpload)
+      setPhotos(response.photos)
+      setFeedback({
+        type: 'success',
+        message:
+          photosToUpload.length === 1
+            ? 'Foto enviada.'
+            : `${photosToUpload.length} fotos enviadas.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError ? error.message : 'Não foi possível enviar as fotos.',
+      })
+    } finally {
+      setUploadingPhotos(false)
+      if (photoInputRef.current) photoInputRef.current.value = ''
+    }
+  }
+
+  const handleDeletePhoto = async (photo: InspectionPhotoRecord) => {
+    const confirmed = window.confirm('Excluir esta foto da análise?')
+    if (!confirmed) return
+    setDeletingPhotoId(photo.id)
+    setFeedback(null)
+    try {
+      const response = await api.deleteInspectionPhoto(scheduleId, photo.id)
+      setPhotos(response.photos)
+      if (previewPhoto?.id === photo.id) setPreviewPhoto(null)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError ? error.message : 'Não foi possível excluir a foto.',
+      })
+    } finally {
+      setDeletingPhotoId(null)
     }
   }
 
@@ -355,6 +434,16 @@ export function InspectionDocumentAnalysisModal({
                   >
                     Baixar PDF
                   </a>
+                  {canManagePhotos ? (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={uploadingPhotos}
+                      onClick={openPhotoPicker}
+                    >
+                      {uploadingPhotos ? 'Enviando...' : 'Enviar fotos'}
+                    </button>
+                  ) : null}
                   {canDelete ? (
                     <button
                       type="button"
@@ -371,12 +460,99 @@ export function InspectionDocumentAnalysisModal({
           </div>
         )}
 
+        {photos.length > 0 || canManagePhotos ? (
+          <section className="inspection-photo-section" aria-label="Fotos da análise">
+            <div className="inspection-photo-section-header">
+              <h4>Fotos</h4>
+            </div>
+            {photos.length === 0 ? (
+              <p className="entrada-panel-empty">Nenhuma foto enviada ainda.</p>
+            ) : (
+              <div className="inspection-photo-grid">
+                {photos.map((photo) => (
+                  <figure key={photo.id} className="inspection-photo-item">
+                    <button
+                      type="button"
+                      className="inspection-photo-thumb-button"
+                      onClick={() => setPreviewPhoto(photo)}
+                      aria-label={`Ampliar foto ${photo.fileName || photo.id}`}
+                    >
+                      <img src={photo.photoData} alt={photo.fileName || 'Foto da análise'} />
+                    </button>
+                    {canManagePhotos ? (
+                      <button
+                        type="button"
+                        className="inspection-photo-delete"
+                        disabled={deletingPhotoId === photo.id}
+                        onClick={() => void handleDeletePhoto(photo)}
+                      >
+                        {deletingPhotoId === photo.id ? 'Excluindo...' : 'Excluir'}
+                      </button>
+                    ) : null}
+                  </figure>
+                ))}
+              </div>
+            )}
+          </section>
+        ) : null}
+
+        <input
+          id={photoInputId}
+          ref={photoInputRef}
+          className="file-picker-input"
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          onChange={(event) => void handlePhotoFiles(event.target.files)}
+        />
+
         <div className="inspection-analysis-screen-actions">
           <button type="button" className="primary-button" onClick={onClose}>
             Voltar
           </button>
         </div>
       </div>
+      {previewPhoto ? (
+        <div
+          className="envelope-photo-lightbox"
+          role="presentation"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <div
+            className="envelope-photo-lightbox-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Foto ampliada"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="icon-button schedule-slot-modal-close"
+              onClick={() => setPreviewPhoto(null)}
+              aria-label="Fechar"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+            <p className="envelope-photo-lightbox-caption">
+              {previewPhoto.fileName || `Foto do medidor ${meter}`}
+            </p>
+            <img
+              className="envelope-photo-lightbox-image"
+              src={previewPhoto.photoData}
+              alt={previewPhoto.fileName || `Foto do medidor ${meter}`}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>,
     document.body,
   )
