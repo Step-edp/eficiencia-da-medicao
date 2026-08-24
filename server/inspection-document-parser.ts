@@ -2,12 +2,10 @@ import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { extractInspectionPdfTextViaOcr, isUnreadablePdfText } from './inspection-pdf-ocr.js'
 import { formatAvailableSlot } from './schedule-slots.js'
 
-// "5.Dados da Medição" até "6. Selagem": única faixa do TOI onde aparecem os números do
-// medidor encontrado/instalado. O texto de um PDF de tabela pode sair fora da ordem visual
-// (célula a célula ou linha a linha), então em vez de procurar o número logo após o rótulo
-// "Medidor Encontrado", pegamos o primeiro número de 7-9 dígitos dessa faixa — o campo
-// "Encontrado" sempre é preenchido antes do "Instalado" no formulário, então seu valor
-// aparece primeiro no fluxo de texto em qualquer uma das ordens possíveis de extração.
+// "5.Dados da Medição" até "6. Selagem": faixa do TOI com medidor encontrado/instalado.
+// O PDF em tabela pode embaralhar a ordem das células, então o número do TOI às vezes
+// aparece nessa faixa antes do medidor. Sempre descartamos o número do TOI e preferimos
+// o valor ao lado de "Nº do Medidor Encontrado".
 const DADOS_MEDICAO_START = /5\s*\.?\s*dados\s+da\s+medi[cç][aã]o/i
 const DADOS_MEDICAO_END = /6\s*\.?\s*selagem/i
 const METER_NUMBER_PATTERN = /\b\d{7,9}\b/
@@ -23,7 +21,8 @@ const TOI_VALUE_PATTERN = /\b\d{6,12}\b/
 const ORDEM_INSPECAO_VALUE_PATTERN = /\b\d{10,14}\b/
 
 const ORDEM_INSPECAO_LABEL_PATTERN = /ordem\s+de\s+inspe[cçãa\u00e7\u00e3]\s*n[º°o\u00ba.]?\s*:?\s*/i
-const MEDIDOR_ENCONTRADO_OCR_PATTERN = /medidor\s+encontrado[\s\S]{0,450}?(\d{7,9})/i
+const MEDIDOR_ENCONTRADO_LABEL_PATTERN =
+  /(?:n[º°o.]?\s*(?:do\s+)?)?medidor\s+encontrado/i
 const NOTA_LABEL_PATTERN = /nota(?:\s+fiscal)?\s*:?\s*/i
 const NOTA_VALUE_PATTERN = /\b\d{8,12}\b/
 
@@ -160,35 +159,106 @@ function extractAfterLabel(
   return valueMatch?.[0] ?? null
 }
 
-function extractMeterEncontrado(text: string): string | null {
+function digitKey(value: string | null | undefined): string {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  if (!digits) return ''
+  return digits.replace(/^0+/, '') || '0'
+}
+
+function listKnownToiNumbers(text: string): Set<string> {
+  const values = new Set<string>()
+  const add = (value: string | null | undefined) => {
+    const key = digitKey(value)
+    if (key) values.add(key)
+  }
+  add(extractToiNumber(text))
+  for (const match of text.matchAll(/toi\s*n[^0-9]{0,8}(\d{6,12})/gi)) {
+    add(match[1])
+  }
+  const ordem = text.match(/ordem\s+de\s+inspe[\s\S]{0,24}?(\d{10,14})/i)?.[1]
+  if (ordem) {
+    add(ordem)
+    if (ordem.length >= 7) add(ordem.slice(-7))
+  }
+  return values
+}
+
+function isKnownToiNumber(value: string | null | undefined, toiNumbers: Set<string>): boolean {
+  const key = digitKey(value)
+  return Boolean(key && toiNumbers.has(key))
+}
+
+function firstMeterNumber(text: string, toiNumbers: Set<string>): string | null {
+  for (const match of text.matchAll(new RegExp(METER_NUMBER_PATTERN.source, 'g'))) {
+    if (match[0] && !isKnownToiNumber(match[0], toiNumbers)) return match[0]
+  }
+  return null
+}
+
+function meterAfterLabel(
+  text: string,
+  label: RegExp,
+  toiNumbers: Set<string>,
+  stopPattern?: RegExp,
+  windowSize = 280,
+): string | null {
+  const labelMatch = text.match(label)
+  if (!labelMatch || labelMatch.index === undefined) return null
+  const from = labelMatch.index + labelMatch[0].length
+  let slice = text.slice(from, from + windowSize)
+  if (stopPattern) {
+    const stop = slice.search(stopPattern)
+    if (stop >= 0) slice = slice.slice(0, stop)
+  }
+  return firstMeterNumber(slice, toiNumbers)
+}
+
+function pickMeterNumber(
+  primary: string | null,
+  secondary: string | null,
+  toiNumbers: Set<string>,
+): string | null {
+  if (primary && !isKnownToiNumber(primary, toiNumbers)) return primary
+  if (secondary && !isKnownToiNumber(secondary, toiNumbers)) return secondary
+  return null
+}
+
+function extractMeterEncontrado(text: string, toiNumbers: Set<string>): string | null {
+  const labeled = meterAfterLabel(
+    text,
+    MEDIDOR_ENCONTRADO_LABEL_PATTERN,
+    toiNumbers,
+  )
+  if (labeled) return labeled
+
   const startMatch = text.match(DADOS_MEDICAO_START)
   if (startMatch?.index !== undefined) {
     const from = startMatch.index + startMatch[0].length
     const endMatch = text.slice(from).match(DADOS_MEDICAO_END)
     const to = endMatch?.index !== undefined ? from + endMatch.index : from + 1200
     const section = text.slice(from, to)
-    const meterMatch = section.match(METER_NUMBER_PATTERN)
-    if (meterMatch?.[0]) return meterMatch[0]
+    const meterMatch = firstMeterNumber(section, toiNumbers)
+    if (meterMatch) return meterMatch
   }
 
-  const ocrMatch = text.match(MEDIDOR_ENCONTRADO_OCR_PATTERN)
-  return ocrMatch?.[1] ?? null
+  const ocrWindow = text.match(/medidor\s+encontrado[\s\S]{0,450}/i)?.[0]
+  return ocrWindow ? firstMeterNumber(ocrWindow, toiNumbers) : null
 }
 
-function extractComunicadoMeterRetirado(text: string): string | null {
+function extractComunicadoMeterRetirado(text: string, toiNumbers: Set<string>): string | null {
   const comunicadoStart = text.search(CSM_COMUNICADO_START)
-  if (comunicadoStart >= 0) {
-    const section = text.slice(comunicadoStart, comunicadoStart + 3000)
-    const medidores = [...section.matchAll(CSM_MEDIDOR_NUMBER)]
-    if (medidores[0]?.[1]) return medidores[0][1]
-  }
+  const search = comunicadoStart >= 0 ? text.slice(comunicadoStart, comunicadoStart + 3000) : text
+  const labeled = [...search.matchAll(new RegExp(CSM_MEDIDOR_NUMBER.source, 'gi'))]
+    .map((match) => match[1])
+    .find((value) => value && !isKnownToiNumber(value, toiNumbers))
+  if (labeled) return labeled
 
-  const labeled = text.match(CSM_MEDIDOR_RETIRADO_PATTERN)
-  if (labeled?.[1]) return labeled[1]
+  const fallback = text.match(CSM_MEDIDOR_RETIRADO_PATTERN)
+  if (fallback?.[1] && !isKnownToiNumber(fallback[1], toiNumbers)) return fallback[1]
 
-  const section = text.match(/medidor\s+retirado[\s\S]{0,400}/i)?.[0]
+  const section = search.match(/medidor\s+retirado[\s\S]{0,400}/i)?.[0]
   if (!section) return null
-  return section.match(METER_NUMBER_PATTERN)?.[0] ?? null
+  return firstMeterNumber(section, toiNumbers)
 }
 
 function extractComunicadoLacre(text: string): string | null {
@@ -332,30 +402,18 @@ function extractToiNumber(text: string): string | null {
   )
 }
 
-function isLikelyToiFragment(value: string, text: string): boolean {
-  const ordem = text.match(/ordem\s+de\s+inspe[\s\S]{0,20}?(\d{10,14})/i)?.[1]
-  if (ordem && (ordem === value || ordem.endsWith(value))) return true
-  const toiRef = text.match(CSM_TOI_REF_PATTERN)?.[1]
-  return Boolean(toiRef && toiRef === value)
-}
-
 function normalizedSlice(text: string): string {
   return text.replace(/\s+/g, ' ')
 }
 
 export function parseInspectionText(text: string): InspectionDocumentParseResult {
   const normalized = normalizedSlice(text)
-  const compact = compactInspectionText(normalized)
-  const comunicadoPresent = hasComunicadoStructure(normalized, compact)
-
-  const meterFromToi = extractMeterEncontrado(normalized)
-  const meterFromCsm = extractComunicadoMeterRetirado(normalized)
-  let meterEncontrado =
-    comunicadoPresent && meterFromCsm ? meterFromCsm : meterFromToi ?? meterFromCsm
   const toi = extractToiNumber(normalized) ?? extractComunicadoToiRef(normalized)
-  if (meterEncontrado && isLikelyToiFragment(meterEncontrado, normalized)) {
-    meterEncontrado = meterFromCsm
-  }
+  const toiNumbers = listKnownToiNumbers(normalized)
+  const meterFromToi = extractMeterEncontrado(normalized, toiNumbers)
+  const meterFromCsm = extractComunicadoMeterRetirado(normalized, toiNumbers)
+  const meterEncontrado = pickMeterNumber(meterFromToi, meterFromCsm, toiNumbers)
+  const meterRetirado = pickMeterNumber(meterFromCsm, meterFromToi, toiNumbers)
 
   const lacre =
     extractAfterLabel(normalized, LACRE_LABEL_PATTERN, null, LACRE_VALUE_PATTERN) ??
@@ -363,7 +421,7 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
 
   return {
     meterEncontrado,
-    meterRetirado: meterFromCsm,
+    meterRetirado,
     lacre,
     coverSeal: extractCoverSeal(normalized),
     reading: extractReading(normalized),

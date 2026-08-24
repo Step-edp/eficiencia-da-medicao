@@ -1028,6 +1028,66 @@ async function backfillMissingExtractions(
   }
 }
 
+function sameNumericId(left: string | null | undefined, right: string | null | undefined) {
+  const leftDigits = String(left ?? '').replace(/\D/g, '').replace(/^0+/, '')
+  const rightDigits = String(right ?? '').replace(/\D/g, '').replace(/^0+/, '')
+  return Boolean(leftDigits && rightDigits && leftDigits === rightDigits)
+}
+
+async function repairMeterToiCollisions(
+  rows: Array<Omit<InspectionDocumentRow, 'file_data'>>,
+  expectedMeter: string,
+  expectedLacre: string | null,
+) {
+  for (const row of rows) {
+    const meterLooksLikeToi = sameNumericId(row.extracted_meter, row.extracted_toi)
+    const retiradoLooksLikeToi = sameNumericId(row.extracted_meter_retirado, row.extracted_toi)
+    const blockedByMeter = Boolean(
+      row.blocked && /medidor encontrado no documento/i.test(row.block_reason ?? ''),
+    )
+    if (!meterLooksLikeToi && !retiradoLooksLikeToi && !blockedByMeter) continue
+
+    const file = await query<{ file_data: Buffer }>(
+      `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
+      [row.id],
+    )
+    if (!file.rows[0]?.file_data) continue
+    try {
+      const parsed = parseInspectionText(await extractInspectionPdfText(file.rows[0].file_data))
+      const evaluation = evaluateInspectionDocument(
+        parsed.lacre ?? row.extracted_lacre,
+        parsed.meterEncontrado,
+        expectedMeter,
+        expectedLacre,
+      )
+      await query(
+        `UPDATE meter_inspection_documents
+         SET extracted_meter = $1,
+             extracted_meter_retirado = $2,
+             extracted_toi = COALESCE($3, extracted_toi),
+             blocked = $4,
+             block_reason = $5
+         WHERE id = $6`,
+        [
+          parsed.meterEncontrado,
+          parsed.meterRetirado,
+          parsed.toi,
+          evaluation.blocked,
+          evaluation.reason,
+          row.id,
+        ],
+      )
+      row.extracted_meter = parsed.meterEncontrado
+      row.extracted_meter_retirado = parsed.meterRetirado
+      if (parsed.toi) row.extracted_toi = parsed.toi
+      row.blocked = evaluation.blocked
+      row.block_reason = evaluation.reason
+    } catch (error) {
+      console.error('Falha ao corrigir medidor extraído do documento de inspeção:', error)
+    }
+  }
+}
+
 export async function listInspectionDocuments(req: Request, res: Response) {
   const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
 
@@ -1105,6 +1165,11 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   const campoReadingFallback = isFieldSchedule ? registeredReading : null
 
   await backfillMissingExtractions(result.rows)
+  await repairMeterToiCollisions(
+    result.rows,
+    registeredMeter,
+    registeredLacre,
+  )
 
   res.json({
     meter: registeredMeter,
