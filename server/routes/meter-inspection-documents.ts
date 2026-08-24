@@ -1978,6 +1978,27 @@ type ToiScheduleDeviationRow = {
   created_by_user_id: string | null
   created_by_name: string | null
   created_by_registration: string | null
+  physically_adjusted_at: Date | null
+  physically_adjusted_by_user_id: string | null
+  physically_adjusted_by_name: string | null
+  physically_adjusted_by_registration: string | null
+}
+
+const SCHEDULE_DATE_DEVIATION_SELECT = `
+  SELECT d.*,
+         u.name AS created_by_name,
+         u.registration AS created_by_registration,
+         p.name AS physically_adjusted_by_name,
+         p.registration AS physically_adjusted_by_registration
+  FROM toi_schedule_deviations d
+  LEFT JOIN users u ON u.id = d.created_by_user_id
+  LEFT JOIN users p ON p.id = d.physically_adjusted_by_user_id
+`
+
+function toIsoOrNull(value: Date | string | null | undefined) {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
 function mapScheduleDateAdjustment(row: ToiScheduleDeviationRow) {
@@ -1999,7 +2020,20 @@ function mapScheduleDateAdjustment(row: ToiScheduleDeviationRow) {
     createdByUserId: row.created_by_user_id,
     createdByName: row.created_by_name,
     createdByRegistration: row.created_by_registration,
+    physicallyAdjustedAt: toIsoOrNull(row.physically_adjusted_at),
+    physicallyAdjustedByUserId: row.physically_adjusted_by_user_id,
+    physicallyAdjustedByName: row.physically_adjusted_by_name,
+    physicallyAdjustedByRegistration: row.physically_adjusted_by_registration,
   }
+}
+
+async function loadScheduleDateAdjustment(id: string) {
+  const result = await query<ToiScheduleDeviationRow>(
+    `${SCHEDULE_DATE_DEVIATION_SELECT} WHERE d.id = $1`,
+    [id],
+  )
+  const row = result.rows[0]
+  return row ? mapScheduleDateAdjustment(row) : null
 }
 
 export async function adjustScheduleDateFromDocument(req: Request, res: Response) {
@@ -2135,11 +2169,18 @@ export async function adjustScheduleDateFromDocument(req: Request, res: Response
   res.json({
     ok: true,
     scheduleDateLabel: nextLabel,
-    adjustment: inserted.rows[0] ? mapScheduleDateAdjustment({
-      ...inserted.rows[0],
-      created_by_name: null,
-      created_by_registration: req.user?.registration ?? null,
-    }) : null,
+    adjustment: inserted.rows[0]
+      ? mapScheduleDateAdjustment({
+          ...inserted.rows[0],
+          created_by_name: null,
+          created_by_registration: req.user?.registration ?? null,
+          physically_adjusted_at: inserted.rows[0].physically_adjusted_at ?? null,
+          physically_adjusted_by_user_id:
+            inserted.rows[0].physically_adjusted_by_user_id ?? null,
+          physically_adjusted_by_name: null,
+          physically_adjusted_by_registration: null,
+        })
+      : null,
   })
 }
 
@@ -2149,24 +2190,122 @@ export async function listScheduleDateAdjustments(req: Request, res: Response) {
   const registration = (req.user?.registration ?? '').trim().toUpperCase()
 
   if (mine && !registration) {
-    res.json({ adjustments: [], total: 0 })
+    res.json({ adjustments: [], history: [], total: 0, historyTotal: 0 })
     return
   }
 
-  const result = await query<ToiScheduleDeviationRow>(
-    `SELECT d.*, u.name AS created_by_name, u.registration AS created_by_registration
-     FROM toi_schedule_deviations d
-     LEFT JOIN users u ON u.id = d.created_by_user_id
+  const scopeFilter = `
      WHERE (
        $1 = false
        OR UPPER(TRIM(d.collaborator1_registration)) = $2
        OR UPPER(TRIM(d.collaborator2_registration)) = $2
-     )
-     ORDER BY d.created_at DESC
-     LIMIT 500`,
-    [mine, registration],
-  )
+     )`
 
-  const adjustments = result.rows.map(mapScheduleDateAdjustment)
-  res.json({ adjustments, total: adjustments.length })
+  const [pendingResult, historyResult] = await Promise.all([
+    query<ToiScheduleDeviationRow>(
+      `${SCHEDULE_DATE_DEVIATION_SELECT}
+       ${scopeFilter}
+         AND d.physically_adjusted_at IS NULL
+       ORDER BY d.created_at DESC
+       LIMIT 500`,
+      [mine, registration],
+    ),
+    query<ToiScheduleDeviationRow>(
+      `${SCHEDULE_DATE_DEVIATION_SELECT}
+       ${scopeFilter}
+         AND d.physically_adjusted_at IS NOT NULL
+       ORDER BY d.physically_adjusted_at DESC
+       LIMIT 500`,
+      [mine, registration],
+    ),
+  ])
+
+  const adjustments = pendingResult.rows.map(mapScheduleDateAdjustment)
+  const history = historyResult.rows.map(mapScheduleDateAdjustment)
+  res.json({
+    adjustments,
+    history,
+    total: adjustments.length,
+    historyTotal: history.length,
+  })
+}
+
+export async function markScheduleDatePhysicallyAdjusted(req: Request, res: Response) {
+  const id = typeof req.params.id === 'string' ? req.params.id.trim() : ''
+  if (!id) {
+    res.status(400).json({ error: 'Informe o apontamento de alteração de data.' })
+    return
+  }
+
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error: 'Somente administradores e usuários do Laboratório de Medição podem marcar o ajuste físico.',
+    })
+    return
+  }
+
+  const existing = await query<{
+    id: string
+    meter: string
+    meter_schedule_id: string
+    physically_adjusted_at: Date | null
+  }>(
+    `SELECT id, meter, meter_schedule_id, physically_adjusted_at
+     FROM toi_schedule_deviations
+     WHERE id = $1`,
+    [id],
+  )
+  const current = existing.rows[0]
+  if (!current) {
+    res.status(404).json({ error: 'Apontamento de alteração de data não encontrado.' })
+    return
+  }
+  if (current.physically_adjusted_at) {
+    res.status(400).json({ error: 'Este apontamento já foi marcado como ajustado fisicamente.' })
+    return
+  }
+
+  const updated = await query<{ id: string }>(
+    `UPDATE toi_schedule_deviations
+     SET physically_adjusted_at = NOW(),
+         physically_adjusted_by_user_id = $2
+     WHERE id = $1 AND physically_adjusted_at IS NULL
+     RETURNING id`,
+    [id, req.user?.id ?? null],
+  )
+  if (!updated.rows[0]) {
+    res.status(400).json({ error: 'Este apontamento já foi marcado como ajustado fisicamente.' })
+    return
+  }
+
+  const adjustment = await loadScheduleDateAdjustment(id)
+  if (!adjustment) {
+    res.status(500).json({ error: 'Não foi possível carregar o apontamento atualizado.' })
+    return
+  }
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: current.meter_schedule_id,
+    summary: `Medidor ${current.meter} marcado como ajustado fisicamente na alteração de data.`,
+    oldData: {
+      meter: current.meter,
+      physicallyAdjustedAt: null,
+    },
+    newData: {
+      meter: current.meter,
+      physicallyAdjustedAt: adjustment.physicallyAdjustedAt,
+      physicallyAdjustedByUserId: adjustment.physicallyAdjustedByUserId,
+      physicallyAdjustedByName: adjustment.physicallyAdjustedByName,
+      physicallyAdjustedByRegistration: adjustment.physicallyAdjustedByRegistration,
+    },
+    metadata: {
+      meter: current.meter,
+      kind: 'schedule_date_physical_adjustment',
+      deviationId: id,
+    },
+  })
+
+  res.json({ ok: true, adjustment })
 }

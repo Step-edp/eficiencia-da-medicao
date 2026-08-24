@@ -659,6 +659,10 @@ export type ScheduleDateAdjustmentRecord = {
   createdByUserId: string | null
   createdByName: string | null
   createdByRegistration: string | null
+  physicallyAdjustedAt: string | null
+  physicallyAdjustedByUserId: string | null
+  physicallyAdjustedByName: string | null
+  physicallyAdjustedByRegistration: string | null
 }
 
 export type InspectionDocumentRecord = {
@@ -1736,8 +1740,16 @@ export const api = {
       },
     ),
   listScheduleDateAdjustments: (scope: 'all' | 'mine' = 'all') =>
-    request<{ adjustments: ScheduleDateAdjustmentRecord[]; total: number }>(
-      `/api/meter-schedules/date-adjustments?scope=${scope}`,
+    request<{
+      adjustments: ScheduleDateAdjustmentRecord[]
+      history: ScheduleDateAdjustmentRecord[]
+      total: number
+      historyTotal: number
+    }>(`/api/meter-schedules/date-adjustments?scope=${scope}`),
+  markScheduleDatePhysicallyAdjusted: (id: string) =>
+    request<{ ok: true; adjustment: ScheduleDateAdjustmentRecord }>(
+      `/api/meter-schedules/date-adjustments/${encodeURIComponent(id)}/physical`,
+      { method: 'POST' },
     ),
   uploadInspectionPhotos: (
     meterScheduleId: string,

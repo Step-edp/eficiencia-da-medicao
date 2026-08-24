@@ -1016,6 +1016,15 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_toi_schedule_deviations_collab
       ON toi_schedule_deviations (collaborator1_registration, collaborator2_registration)
   `)
+  await query(`
+    ALTER TABLE toi_schedule_deviations
+      ADD COLUMN IF NOT EXISTS physically_adjusted_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS physically_adjusted_by_user_id TEXT REFERENCES users(id)
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_toi_schedule_deviations_physical
+      ON toi_schedule_deviations (physically_adjusted_at DESC)
+  `)
 
   await query(`
     UPDATE users

@@ -1021,6 +1021,12 @@ button {
   padding: 12px 16px;
 }
 
+.entrada-table .compact-button {
+  min-width: 0;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
 .compact-link-button {
   display: inline-flex;
   align-items: center;

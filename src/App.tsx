@@ -5337,6 +5337,7 @@ function HomePanel({
                 scope="mine"
                 title="Apontamentos de desvio"
                 intro="Data/horário de agendamento cadastrado no sistema diferente do inserido no documento. Confira o horário agendado no sistema e o horário que consta no documento."
+                onPendingCountChange={setScheduleDateDeviationCount}
               />
             ) : selectedFieldTeamSection === 'Enviar documentos' ? (
               <EnviarDocumentosPanel scopeUserId={enviarDocumentosScopeUserId} />
@@ -5430,7 +5431,10 @@ function HomePanel({
               <ScheduleDateAdjustmentsPanel
                 scope="all"
                 title="Alteração de data"
-                intro="Medidores cuja data/horário de agendamento foi ajustada para conferir com o documento. Cada ajuste também gera apontamento de desvio para os colaboradores 1 e 2 do TOI."
+                intro="Medidores cuja data/horário de agendamento foi ajustada para conferir com o documento. Cada ajuste também gera apontamento de desvio para os colaboradores 1 e 2 do TOI. Marque Ajustado fisicamente quando a correção no documento estiver concluída."
+                allowPhysicalAdjust
+                readOnly={labMedicaoReadOnly}
+                onPendingCountChange={setLabDateAdjustmentCount}
               />
             ) : selectedLabMeasurementSection === 'Minha produtividade' &&
               showMinhaProdutividade ? (

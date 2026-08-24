@@ -99,6 +99,7 @@ import {
   updateInspectionExtracted,
   adjustScheduleDateFromDocument,
   listScheduleDateAdjustments,
+  markScheduleDatePhysicallyAdjusted,
 } from './routes/meter-inspection-documents.js'
 import {
   createSupportTicket,
@@ -405,6 +406,12 @@ async function start() {
   app.get('/api/meter-schedules/inspection-pendencias', requireAuth, listInspectionPendencias)
   app.get('/api/meter-schedules/wpa-analysis', requireAuth, listWpaAnalysisMeters)
   app.get('/api/meter-schedules/date-adjustments', requireAuth, listScheduleDateAdjustments)
+  app.post(
+    '/api/meter-schedules/date-adjustments/:id/physical',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    markScheduleDatePhysicallyAdjusted,
+  )
   app.get(
     '/api/meter-schedules/:id/entry-comparisons',
     requireAuth,
