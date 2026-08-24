@@ -683,6 +683,28 @@ export function InspectionDocumentAnalysisModal({
                   ) : null}
                 </dl>
 
+                <section className="inspection-photo-section" aria-label="Observações da análise">
+                  <div className="inspection-photo-section-header">
+                    <h4>Observações</h4>
+                  </div>
+                  {canEditWpa ? (
+                    <label className="inspection-observations-label">
+                      <textarea
+                        className="inspection-observations-input"
+                        rows={4}
+                        maxLength={4000}
+                        value={observations}
+                        placeholder="Registre observações da análise de TOI e CSM"
+                        onChange={(event) => handleObservationsChange(event.target.value)}
+                      />
+                    </label>
+                  ) : (
+                    <p className="inspection-observations-readonly">
+                      {observations.trim() || 'Nenhuma observação registrada.'}
+                    </p>
+                  )}
+                </section>
+
                 <div className="inspection-document-card-actions">
                   <a
                     className="secondary-button"
@@ -729,28 +751,6 @@ export function InspectionDocumentAnalysisModal({
             })}
           </div>
         )}
-
-        <section className="inspection-photo-section" aria-label="Observações da análise">
-          <div className="inspection-photo-section-header">
-            <h4>Observações</h4>
-          </div>
-          {canEditWpa ? (
-            <label className="inspection-observations-label">
-              <textarea
-                className="inspection-observations-input"
-                rows={4}
-                maxLength={4000}
-                value={observations}
-                placeholder="Registre observações da análise de TOI e CSM"
-                onChange={(event) => handleObservationsChange(event.target.value)}
-              />
-            </label>
-          ) : (
-            <p className="inspection-observations-readonly">
-              {observations.trim() || 'Nenhuma observação registrada.'}
-            </p>
-          )}
-        </section>
 
         <section className="inspection-photo-section" aria-label="Fotos da análise">
             <div className="inspection-photo-section-header">
