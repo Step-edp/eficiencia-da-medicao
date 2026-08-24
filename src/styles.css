@@ -5157,6 +5157,14 @@ button {
   margin: 8px 0 24px;
 }
 
+.ponto-focal-late-section .consultar-toolbar {
+  margin: 4px 0 16px;
+}
+
+.ponto-focal-late-section .consultar-search {
+  max-width: 560px;
+}
+
 .ponto-focal-delay-input {
   width: min(280px, 100%);
   min-height: 64px;

@@ -16,6 +16,41 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`
 }
 
+function normalizeSearch(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, '')
+}
+
+function lateMeterMatchesQuery(item: PontoFocalLateMeter, query: string) {
+  const haystack = normalizeSearch(
+    [
+      item.meter,
+      item.installation,
+      item.toi,
+      item.note,
+      item.csd,
+      item.scheduledAtLabel,
+      item.deliveryDeadlineLabel,
+      `${item.daysLate} dia(s)`,
+      item.delayJustification,
+    ].join(' '),
+  )
+  if (haystack.includes(query)) return true
+  const queryDigits = digitsOnly(query)
+  if (queryDigits.length < 3) return false
+  return (
+    digitsOnly(item.meter).includes(queryDigits) ||
+    digitsOnly(item.installation).includes(queryDigits)
+  )
+}
+
 export function PontoFocalDashboard({
   forUserId,
   mode = 'full',
@@ -30,6 +65,7 @@ export function PontoFocalDashboard({
     null,
   )
   const [lateListTab, setLateListTab] = useState<'pending' | 'dismissed'>('pending')
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -162,8 +198,18 @@ export function PontoFocalDashboard({
   const { current, delay, monthly, csdNames } = data
   const lateMeters = data.lateMeters ?? []
   const dismissedLateMeters = data.dismissedLateMeters ?? []
+  const searchNormalized = normalizeSearch(searchQuery)
+  const filteredLateMeters = searchNormalized
+    ? lateMeters.filter((item) => lateMeterMatchesQuery(item, searchNormalized))
+    : lateMeters
+  const filteredDismissedLateMeters = searchNormalized
+    ? dismissedLateMeters.filter((item) => lateMeterMatchesQuery(item, searchNormalized))
+    : dismissedLateMeters
   const maxMonthTotal = Math.max(1, ...monthly.map((item) => item.total))
-  const pendingJustification = lateMeters.filter((item) => !item.delayJustification).length
+  const pendingJustification = filteredLateMeters.filter((item) => !item.delayJustification).length
+  const hasSearch = Boolean(searchNormalized)
+  const showSearch =
+    lateMeters.length > 0 || dismissedLateMeters.length > 0 || hasSearch
 
   return (
     <div className="users-dashboard ponto-focal-dashboard">
@@ -245,7 +291,7 @@ export function PontoFocalDashboard({
           </h3>
           {lateListTab === 'pending' && lateMeters.length > 0 ? (
             <p className="demm-analysis-summary">
-              {`${lateMeters.length} atrasado(s)${
+              {`${hasSearch ? `${filteredLateMeters.length} de ${lateMeters.length}` : lateMeters.length} atrasado(s)${
                 pendingJustification
                   ? ` · ${pendingJustification} sem justificativa`
                   : ''
@@ -254,7 +300,7 @@ export function PontoFocalDashboard({
           ) : null}
           {lateListTab === 'dismissed' && dismissedLateMeters.length > 0 ? (
             <p className="demm-analysis-summary">
-              {`${dismissedLateMeters.length} registro(s) excluído(s)`}
+              {`${hasSearch ? `${filteredDismissedLateMeters.length} de ${dismissedLateMeters.length}` : dismissedLateMeters.length} registro(s) excluído(s)`}
             </p>
           ) : null}
         </div>
@@ -286,9 +332,46 @@ export function PontoFocalDashboard({
           </button>
         </div>
 
+        {showSearch ? (
+          <div className="consultar-toolbar">
+            <label className="consultar-search">
+              <span className="sr-only">Pesquisar medidores</span>
+              <span className="consultar-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle
+                    cx="11"
+                    cy="11"
+                    r="7"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                  <path
+                    d="M20 20l-3.5-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Pesquisar por medidor, instalação, CSD, motivo…"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+          </div>
+        ) : null}
+
         {lateListTab === 'pending' ? (
           lateMeters.length === 0 ? (
             <p className="entrada-panel-empty">Não há medidores atrasados para justificar.</p>
+          ) : filteredLateMeters.length === 0 ? (
+            <p className="entrada-panel-empty">Nenhum resultado para a pesquisa.</p>
           ) : (
           <div className="entrada-table-wrap">
             <table className="data-table entrada-table">
@@ -305,7 +388,7 @@ export function PontoFocalDashboard({
                 </tr>
               </thead>
               <tbody>
-                {lateMeters.map((item) => {
+                {filteredLateMeters.map((item) => {
                   const justified = Boolean(item.delayJustification)
                   return (
                     <tr key={item.id} className="schedule-row-late">
@@ -398,6 +481,8 @@ export function PontoFocalDashboard({
           )
         ) : dismissedLateMeters.length === 0 ? (
           <p className="entrada-panel-empty">Nenhum medidor excluído desta lista.</p>
+        ) : filteredDismissedLateMeters.length === 0 ? (
+          <p className="entrada-panel-empty">Nenhum resultado para a pesquisa.</p>
         ) : (
           <div className="entrada-table-wrap">
             <table className="data-table entrada-table">
@@ -413,7 +498,7 @@ export function PontoFocalDashboard({
                 </tr>
               </thead>
               <tbody>
-                {dismissedLateMeters.map((item) => (
+                {filteredDismissedLateMeters.map((item) => (
                   <tr key={item.id}>
                     <td>{item.meter}</td>
                     <td>{item.installation || '—'}</td>
