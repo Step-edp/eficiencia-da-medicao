@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { query } from '../db.js'
-import { clearAuthCookie, requireAdmin, requireAuth, setAuthCookie, signSsoToken, signToken, verifySsoToken } from '../auth.js'
+import { clearAuthCookie, requireAdmin, requireAdminOrLabMedicao, requireAuth, setAuthCookie, signSsoToken, signToken, verifySsoToken } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 import {
   isAllowedEngineerSubtype,
@@ -27,7 +27,7 @@ import { skipsVacationAgenda } from '../vacation-exempt.js'
 /** Portais da home derivados do escopo do técnico (alinhado aos perfis de cadastro). */
 function accessAreasForTechnician(workArea: string, subtype: string): string[] {
   if (workArea === 'Medição' && subtype === 'Laboratório de Medição') {
-    return ['Laboratório de Medição']
+    return ['Laboratório de Medição', 'Usuários']
   }
   if (workArea === 'Medição' && subtype === 'Atividades administrativas da Medição') {
     return ['Medição']
@@ -634,14 +634,16 @@ export async function exchangeSsoToken(req: Request, res: Response) {
   res.json({ user: await mapUserWithVacation(user) })
 }
 
-export async function listUsers(_req: Request, res: Response) {
+export async function listUsers(req: Request, res: Response) {
+  const includePassword = req.user?.role === 'admin'
   const result = await query<UserRow>(
     `SELECT u.id, u.name, u.registration, u.email, u.role, u.approval_status,
             u.requested_at, u.approved_at, u.rejected_at, u.rejection_reason,
             u.approved_by_user_id, u.birth_date, u.job_title, u.cpf,
             u.personal_description, u.hobby, u.work_area, u.work_subtype, u.whatsapp,
             u.employment_type, u.third_party_company, u.locality, u.edp_unit,
-            u.access_areas, u.access_processes, u.password_plain,
+            u.access_areas, u.access_processes,
+            ${includePassword ? 'u.password_plain' : "'' AS password_plain"},
             (u.profile_photo <> '') AS has_profile_photo,
             '' AS profile_photo,
             a.name AS approved_by_name,
@@ -651,7 +653,7 @@ export async function listUsers(_req: Request, res: Response) {
      ORDER BY u.requested_at DESC`,
   )
   const users = await Promise.all(
-    result.rows.map((row) => mapUserWithVacation(row, { includePassword: true })),
+    result.rows.map((row) => mapUserWithVacation(row, { includePassword })),
   )
   res.json({ users })
 }
@@ -1632,8 +1634,8 @@ export const authRoutes = {
   logout: [requireAuth, logout],
   createEmbedToken: [requireAuth, createEmbedToken],
   exchangeSsoToken,
-  listUsers: [requireAuth, requireAdmin, listUsers],
-  listUserProfilePhotos: [requireAuth, requireAdmin, listUserProfilePhotos],
+  listUsers: [requireAuth, requireAdminOrLabMedicao, listUsers],
+  listUserProfilePhotos: [requireAuth, requireAdminOrLabMedicao, listUserProfilePhotos],
   approveUser: [requireAuth, requireAdmin, approveUser],
   updateUser: [requireAuth, requireAdmin, updateUser],
   rejectUser: [requireAuth, requireAdmin, rejectUser],

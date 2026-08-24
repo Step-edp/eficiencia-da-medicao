@@ -65,6 +65,7 @@ type UserDetailModalProps = {
   showPassword?: boolean
   profilePhotoSrc?: string
   allowProfilePhotoEdit?: boolean
+  allowEdit?: boolean
 }
 
 function statusLabel(status: AppUser['approvalStatus']) {
@@ -134,10 +135,11 @@ export function UserDetailModal({
   showPassword = false,
   profilePhotoSrc = '',
   allowProfilePhotoEdit = false,
+  allowEdit = true,
 }: UserDetailModalProps) {
   const isAdminUser = user.role === 'admin'
-  const canDelete = !isAdminUser
-  const [editing, setEditing] = useState(startInEditMode)
+  const canDelete = allowEdit && !isAdminUser
+  const [editing, setEditing] = useState(startInEditMode && allowEdit)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -244,8 +246,8 @@ export function UserDetailModal({
     setProfilePhoto(profilePhotoSrc || user.profilePhoto || '')
     setProfilePhotoName('')
     setPassword(user.password ?? '')
-    setEditing(startInEditMode)
-  }, [user, startInEditMode, profilePhotoSrc])
+    setEditing(startInEditMode && allowEdit)
+  }, [user, startInEditMode, profilePhotoSrc, allowEdit])
 
   useEffect(() => {
     if (editing || !profilePhotoSrc) return
@@ -384,6 +386,7 @@ export function UserDetailModal({
 
   const handleSave = async (event: FormEvent) => {
     event.preventDefault()
+    if (!allowEdit) return
     setLocalFeedback(null)
 
     if (isAdminUser) {
@@ -1132,6 +1135,7 @@ export function UserDetailModal({
               ) : null}
             </dl>
 
+            {allowEdit ? (
             <div className="user-detail-actions">
               <button
                 type="button"
@@ -1156,6 +1160,7 @@ export function UserDetailModal({
                 <span className="user-detail-admin-note">Administrador: edição permitida, exclusão bloqueada.</span>
               )}
             </div>
+            ) : null}
           </>
         )}
       </div>

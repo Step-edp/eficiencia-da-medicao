@@ -1016,4 +1016,13 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_toi_schedule_deviations_collab
       ON toi_schedule_deviations (collaborator1_registration, collaborator2_registration)
   `)
+
+  await query(`
+    UPDATE users
+    SET access_areas = access_areas || '["Usuários"]'::jsonb
+    WHERE approval_status = 'approved'
+      AND work_area = 'Medição'
+      AND REPLACE(REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-'), '—', '-') = 'Laboratório de Medição'
+      AND NOT COALESCE(access_areas, '[]'::jsonb) @> '["Usuários"]'::jsonb
+  `)
 }

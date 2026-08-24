@@ -29,6 +29,7 @@ import {
   isLavraturaPontoFocalScope,
   isMedicaoEstagiario,
   isLabMedicaoViewOnly,
+  isLabMedicaoOperator,
   isConsumoIrregular,
   skipsVacationAgenda,
   listUsersForCadastroProfile,
@@ -156,6 +157,26 @@ export default function App() {
   const [showAuthSupport, setShowAuthSupport] = useState(false)
   const [userProfilePhotos, setUserProfilePhotos] = useState<Record<string, string>>({})
 
+  const loadUsersDirectory = useCallback(async () => {
+    const usersResponse = await api.listUsers()
+    setRegisteredUsers(usersResponse.users)
+
+    const photoIds = usersResponse.users
+      .filter((user) => user.hasProfilePhoto)
+      .map((user) => user.id)
+    if (!photoIds.length) {
+      setUserProfilePhotos({})
+      return
+    }
+
+    void api
+      .listUserProfilePhotos(photoIds)
+      .then(({ photos }) => setUserProfilePhotos(photos))
+      .catch(() => {
+        setUserProfilePhotos({})
+      })
+  }, [])
+
   const loadAdminData = useCallback(async () => {
     const [usersResponse, requestsResponse] = await Promise.all([
       api.listUsers(),
@@ -217,6 +238,12 @@ export default function App() {
               setHomologationRequests([])
             }
           })
+        } else if (isLabMedicaoOperator(user)) {
+          void loadUsersDirectory().catch(() => {
+            if (active) {
+              setRegisteredUsers([])
+            }
+          })
         }
       } catch {
         if (active) {
@@ -234,7 +261,7 @@ export default function App() {
     return () => {
       active = false
     }
-  }, [loadAdminData])
+  }, [loadAdminData, loadUsersDirectory])
 
   const fixedRequestLink = `${window.location.origin}${window.location.pathname}${FIXED_PURCHASE_REQUEST_HASH}`
 
@@ -363,7 +390,13 @@ export default function App() {
         onCurrentUserChange={setAuthenticatedUser}
         onCreateHomologationRequest={handleCreateHomologationRequest}
         onLogout={handleLogout}
-        onRefreshAdminData={loadAdminData}
+        onRefreshAdminData={
+          authenticatedUser.role === 'admin'
+            ? loadAdminData
+            : isLabMedicaoOperator(authenticatedUser)
+              ? loadUsersDirectory
+              : undefined
+        }
         userProfilePhotos={userProfilePhotos}
       />
     )
@@ -420,6 +453,8 @@ export default function App() {
                 setAuthenticatedUser(user)
                 if (user.role === 'admin') {
                   void loadAdminData()
+                } else if (isLabMedicaoOperator(user)) {
+                  void loadUsersDirectory()
                 }
               }}
             />
@@ -1160,6 +1195,7 @@ type PendingApprovalItemProps = {
   terceiraOptions: string[]
   csdScopeOptions: string[]
   showPassword?: boolean
+  allowManage?: boolean
   onApprove: (userId: string, payload: ApproveUserPayload) => Promise<void>
   onReject: (
     userId: string,
@@ -1177,6 +1213,7 @@ function PendingApprovalItem({
   terceiraOptions,
   csdScopeOptions,
   showPassword = false,
+  allowManage = true,
   onApprove,
   onReject,
   onEdit,
@@ -1453,6 +1490,7 @@ function PendingApprovalItem({
             ) : null}
           </dl>
 
+          {allowManage ? (
           <div className="approval-completion-fields">
             {needsCompany ? (
               <label>
@@ -1594,7 +1632,10 @@ function PendingApprovalItem({
               </fieldset>
             ) : null}
           </div>
+          ) : null}
 
+          {allowManage ? (
+            <>
           <div className="approval-item-actions">
             <button
               className="secondary-button compact-button"
@@ -1646,6 +1687,8 @@ function PendingApprovalItem({
                 {rejecting ? 'Reprovando...' : 'Confirmar reprovação e enviar e-mail'}
               </button>
             </div>
+          ) : null}
+            </>
           ) : null}
         </>
       ) : null}
@@ -2104,12 +2147,14 @@ function HomePanel({
   const [userNameFilter, setUserNameFilter] = useState('')
   const [userRegistrationFilter, setUserRegistrationFilter] = useState('')
   const isAdmin = currentUser.role === 'admin'
+  const canAccessUsers = isAdmin || isLabMedicaoOperator(currentUser)
+  const canManageUsers = isAdmin
 
   useEffect(() => {
-    if (selectedArea?.title === 'Usuários' && isAdmin && onRefreshAdminData) {
+    if (selectedArea?.title === 'Usuários' && canAccessUsers && onRefreshAdminData) {
       void onRefreshAdminData()
     }
-  }, [selectedArea?.title, isAdmin, onRefreshAdminData])
+  }, [selectedArea?.title, canAccessUsers, onRefreshAdminData])
 
   const pendingApprovalUsers = users.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'pending',
@@ -4151,8 +4196,11 @@ function HomePanel({
             <h2>Gestão de usuários</h2>
             <p>
               Consulte os usuários com acesso ao portal, os cadastros pendentes e o
-              dashboard de distribuição. Clique em um usuário para ver os dados e
-              editar as informações.
+              dashboard de distribuição. Clique em um usuário para ver os dados
+              {canManageUsers ? ' e editar as informações' : ''}.
+              {canAccessUsers && !canManageUsers
+                ? ' Neste perfil a senha não é exibida e a gestão de cadastros permanece com o administrador.'
+                : ''}
             </p>
 
             {passwordFeedback ? (
@@ -4163,7 +4211,7 @@ function HomePanel({
               />
             ) : null}
 
-            {!isAdmin ? (
+            {!canAccessUsers ? (
               <p className="generated-password-empty">
                 Somente o perfil administrador pode gerenciar usuários.
               </p>
@@ -4223,6 +4271,7 @@ function HomePanel({
                           terceiraOptions={terceiraOptions}
                           csdScopeOptions={csdScopeOptions}
                           showPassword={canViewUserPasswords}
+                          allowManage={canManageUsers}
                           onApprove={onApproveUser}
                           onReject={async (userId, reason) => {
                             const result = await onRejectUser(userId, reason)
@@ -4310,7 +4359,7 @@ function HomePanel({
                             <th>Status</th>
                             <th>Aprovado por</th>
                             <th>Solicitado em</th>
-                            <th>Ações</th>
+                            {canManageUsers ? <th>Ações</th> : null}
                           </tr>
                         </thead>
                         <tbody>
@@ -4405,6 +4454,7 @@ function HomePanel({
                               <td className="users-table-cell-nowrap">
                                 {new Date(user.requestedAt).toLocaleString('pt-BR')}
                               </td>
+                              {canManageUsers ? (
                               <td className="users-table-actions">
                                 <button
                                   type="button"
@@ -4438,6 +4488,7 @@ function HomePanel({
                                   </svg>
                                 </button>
                               </td>
+                              ) : null}
                             </tr>
                           ))}
                         </tbody>
@@ -4455,7 +4506,7 @@ function HomePanel({
               </>
             )}
 
-            {userPendingDelete
+            {userPendingDelete && canManageUsers
               ? createPortal(
                   <div
                     className="ensaios-block-modal-overlay"
@@ -4536,8 +4587,9 @@ function HomePanel({
                     orgCells={orgCells}
                     terceiraOptions={terceiraOptions}
                     showPassword={canViewUserPasswords}
-                    allowProfilePhotoEdit={isAdmin}
-                    startInEditMode={userDetailStartEditing}
+                    allowProfilePhotoEdit={canManageUsers}
+                    allowEdit={canManageUsers}
+                    startInEditMode={userDetailStartEditing && canManageUsers}
                     onClose={() => {
                       setSelectedUserDetail(null)
                       setUserDetailStartEditing(false)

@@ -230,8 +230,8 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'medicao-tecnico-laboratorio',
     name: profileName('Medição', 'Técnico', 'Laboratório de Medição'),
     description:
-      'Executar atividades operacionais do Laboratório de Medição, incluindo processamento, análise e registro dos ensaios.',
-    areas: ['Laboratório de Medição'],
+      'Executar atividades operacionais do Laboratório de Medição, incluindo processamento, análise e registro dos ensaios. Consulta o diretório de usuários, sem visualizar senhas.',
+    areas: ['Laboratório de Medição', 'Usuários'],
     match: {
       workArea: 'Medição',
       jobTitle: 'Técnico',
@@ -507,6 +507,16 @@ export function normalizeWorkSubtype(workSubtype?: string | null) {
     .replace(/\u2014/g, '-') // em-dash
 }
 
+export function isLabMedicaoOperator(user: {
+  workArea?: string | null
+  workSubtype?: string | null
+}) {
+  return (
+    (user.workArea?.trim() ?? '') === 'Medição' &&
+    normalizeWorkSubtype(user.workSubtype) === 'Laboratório de Medição'
+  )
+}
+
 /** Escopo CSD – Leituras de faturamento (consulta de senhas em Medição). */
 export function isCsdLeiturasFaturamentoScope(workSubtype?: string | null) {
   return normalizeWorkSubtype(workSubtype) === 'Leituras de faturamento'
@@ -619,6 +629,11 @@ export function getAccessiblePortals(user: {
     if (!portals.includes('Medição')) {
       portals = [...portals, 'Medição']
     }
+  }
+
+  // Perfil Laboratório de Medição: consulta de usuários sem visualizar senha.
+  if (isLabMedicaoOperator(user) && !portals.includes('Usuários')) {
+    portals = [...portals, 'Usuários']
   }
 
   // Consumo Irregular: Laboratório de Medição (Reagendar, Consultar Medidor, Consultar RATM).

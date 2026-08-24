@@ -132,6 +132,50 @@ export async function requireGestorOrAdmin(
   res.status(403).json({ error: 'Acesso restrito ao gestor ou administrador.' })
 }
 
+/** Administrador ou perfil operacional do Laboratório de Medição. */
+export async function requireAdminOrLabMedicao(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  if (!req.user) {
+    res.status(401).json({ error: 'Não autenticado.' })
+    return
+  }
+  if (req.user.role === 'admin') {
+    next()
+    return
+  }
+
+  try {
+    const result = await query<{
+      work_area: string
+      work_subtype: string
+      approval_status: string
+    }>(
+      `SELECT work_area, work_subtype, approval_status FROM users WHERE id = $1`,
+      [req.user.id],
+    )
+    const user = result.rows[0]
+    const subtype = (user?.work_subtype?.trim() ?? '')
+      .replace(/\u2013/g, '-')
+      .replace(/\u2014/g, '-')
+    if (
+      user?.approval_status === 'approved' &&
+      user.work_area?.trim() === 'Medição' &&
+      subtype === 'Laboratório de Medição'
+    ) {
+      next()
+      return
+    }
+  } catch {
+    res.status(500).json({ error: 'Falha ao validar permissão.' })
+    return
+  }
+
+  res.status(403).json({ error: 'Acesso restrito ao administrador ou ao Laboratório de Medição.' })
+}
+
 declare global {
   namespace Express {
     interface Request {
