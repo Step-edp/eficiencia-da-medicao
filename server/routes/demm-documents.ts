@@ -2,7 +2,7 @@ import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 import { parseDemmPdf } from '../demm-pdf-parser.js'
-import { analyzeDemmMeters, type DemmMeterAnalysis } from '../demm-meter-analysis.js'
+import { analyzeDemmMeters, NORMALIZED_METER_SQL, type DemmMeterAnalysis } from '../demm-meter-analysis.js'
 import { loadInspectionSummariesByNorm, type InspectionSummary } from './meter-inspection-documents.js'
 import { normalizeScheduleMeter } from '../numeric-field-validation.js'
 import { validateDemmUploadMeters } from '../demm-upload-validation.js'
@@ -96,6 +96,39 @@ async function parseAndAnalyzeDemm(fileBuffer: Buffer) {
   }
 }
 
+async function loadMetersWithEntradaGiven(meters: string[]): Promise<Set<string>> {
+  const given = new Set<string>()
+  if (!meters.length) return given
+
+  const normalized = [...new Set(meters.map((meter) => normalizeScheduleMeter(meter)))]
+  const [scheduleRows, registryRows] = await Promise.all([
+    query<{ norm: string }>(
+      `SELECT DISTINCT ${NORMALIZED_METER_SQL} AS norm
+       FROM meter_schedules
+       WHERE ${NORMALIZED_METER_SQL} = ANY($1::text[])
+         AND (trail_step <> $2 OR received_at IS NOT NULL)`,
+      [normalized, ENTRADA_TRAIL_STEP],
+    ),
+    query<{ status: string; norm: string }>(
+      `SELECT status, ${NORMALIZED_METER_SQL} AS norm
+       FROM meter_registry
+       WHERE ${NORMALIZED_METER_SQL} = ANY($1::text[])`,
+      [normalized],
+    ),
+  ])
+
+  const givenNorms = new Set(scheduleRows.rows.map((row) => row.norm))
+  for (const row of registryRows.rows) {
+    if (hasMeterEntradaGiven(row.status)) givenNorms.add(row.norm)
+  }
+
+  for (const meter of meters) {
+    if (givenNorms.has(normalizeScheduleMeter(meter))) given.add(meter)
+  }
+
+  return given
+}
+
 export async function listDemmDocuments(_req: Request, res: Response) {
   const result = await query<Omit<DemmDocumentRow, 'file_data'> & { created_by_registration: string | null }>(
     `SELECT d.id, d.meter_schedule_id, d.meter, d.file_name, d.extracted_meters,
@@ -112,7 +145,10 @@ export async function listDemmDocuments(_req: Request, res: Response) {
       result.rows.flatMap((row) => (row.extracted_meters ?? []).map((item) => item.meter)),
     ),
   ]
-  const statusByMeter = await buildMeterWeekStatusMap(allMeters)
+  const [statusByMeter, entradaGivenMeters] = await Promise.all([
+    buildMeterWeekStatusMap(allMeters),
+    loadMetersWithEntradaGiven(allMeters),
+  ])
 
   res.json({
     documents: result.rows.map((row) => {
@@ -123,11 +159,17 @@ export async function listDemmDocuments(_req: Request, res: Response) {
       ).length
       const bulkEntryReady =
         meterNumbers.length > 0 && liberadoCount === meterNumbers.length
+      const entryGivenCount = meterNumbers.filter((meter) =>
+        entradaGivenMeters.has(meter),
+      ).length
+      const allEntryGiven = meterNumbers.length > 0 && entryGivenCount === meterNumbers.length
 
       return {
         ...mapped,
         bulkEntryReady,
         liberadoCount,
+        entryGivenCount,
+        allEntryGiven,
       }
     }),
   })

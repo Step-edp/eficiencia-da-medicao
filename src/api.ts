@@ -607,6 +607,8 @@ export type DemmDocumentRecord = {
   scheduledCount: number
   bulkEntryReady?: boolean
   liberadoCount?: number
+  entryGivenCount?: number
+  allEntryGiven?: boolean
   createdAt: string
   createdByUserId: string | null
   createdByRegistration: string | null

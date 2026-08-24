@@ -740,6 +740,7 @@ export function EntradaPanel({
   const [view, setView] = useState<
     | 'dash'
     | 'overview'
+    | 'demmEntrada'
     | 'metersBase'
     | 'csdPendencias'
     | 'inspectionPendencias'
@@ -1224,6 +1225,12 @@ export function EntradaPanel({
     void loadData()
   }
 
+  const openDemmEntrada = () => {
+    setView('demmEntrada')
+    setFeedback(null)
+    void loadData()
+  }
+
   const openDash = () => {
     setView('dash')
     setFeedback(null)
@@ -1269,6 +1276,15 @@ export function EntradaPanel({
           onClick={() => openOverview()}
         >
           DEMMs cadastradas
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'demmEntrada'}
+          className={view === 'demmEntrada' ? 'active' : ''}
+          onClick={() => openDemmEntrada()}
+        >
+          DEMMs com entrada
         </button>
         <button
           type="button"
@@ -1487,11 +1503,124 @@ export function EntradaPanel({
     }
   }
 
-  const totalDemmMeters = demmDocuments.reduce((sum, document) => sum + document.meterCount, 0)
-  const totalDemmScheduled = demmDocuments.reduce(
-    (sum, document) => sum + document.scheduledCount,
-    0,
-  )
+  const pendingDemmDocuments = demmDocuments.filter((document) => !document.allEntryGiven)
+  const receivedDemmDocuments = demmDocuments.filter((document) => document.allEntryGiven)
+
+  const renderDemmDocumentsSection = (
+    documents: DemmDocumentRecord[],
+    options: {
+      title: string
+      emptyMessage: string
+      countHeader: string
+      countSummary: string
+      countValue: (document: DemmDocumentRecord) => number
+    },
+  ) => {
+    const totalMeters = documents.reduce((sum, document) => sum + document.meterCount, 0)
+    const totalCount = documents.reduce((sum, document) => sum + options.countValue(document), 0)
+
+    return (
+      <section className="entrada-section">
+        <div className="entrada-section-heading">
+          <h3 className="entrada-section-title">{options.title}</h3>
+          {documents.length > 0 ? (
+            <span className="entrada-section-total">
+              Total: {totalMeters} medidor(es)
+              {totalCount > 0 ? ` · ${totalCount} ${options.countSummary}` : ''}
+            </span>
+          ) : null}
+        </div>
+        {loading && documents.length === 0 && demmDocuments.length === 0 ? (
+          <p className="entrada-panel-empty">Carregando DEMMs...</p>
+        ) : documents.length === 0 ? (
+          <p className="entrada-panel-empty">{options.emptyMessage}</p>
+        ) : (
+          <div className="entrada-table-wrap">
+            <table className="data-table entrada-table">
+              <thead>
+                <tr>
+                  <th>Nº documento</th>
+                  <th>CSD</th>
+                  <th>Data emissão</th>
+                  <th>Medidores</th>
+                  <th>{options.countHeader}</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {documents.map((document) => (
+                  <tr
+                    key={document.id}
+                    className={`demm-row-clickable${document.bulkEntryReady ? ' demm-row-bulk-ready' : ''}`}
+                    onClick={() => void openDemmAnalysis(document)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        void openDemmAnalysis(document)
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Ver detalhes da DEMM ${document.documentNumber ?? document.fileName}`}
+                  >
+                    <td>{document.documentNumber ?? '—'}</td>
+                    <td>{document.csdName ?? '—'}</td>
+                    <td>{document.emissionDate ?? '—'}</td>
+                    <td>{document.meterCount}</td>
+                    <td>{options.countValue(document)}</td>
+                    <td>
+                      <div className="entrada-demm-actions" onClick={(event) => event.stopPropagation()}>
+                        <a
+                          className="entrada-demm-link"
+                          href={api.getDemmDocumentFileUrl(document.id)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          PDF
+                        </a>
+                        {readOnly ? null : (
+                          <button
+                            type="button"
+                            className="entrada-demm-delete-button"
+                            disabled={deletingDemmId === document.id}
+                            onClick={() => void handleDeleteDemm(document)}
+                            aria-label={
+                              deletingDemmId === document.id ? 'Excluindo DEMM' : 'Excluir DEMM'
+                            }
+                            title={
+                              deletingDemmId === document.id ? 'Excluindo...' : 'Excluir DEMM'
+                            }
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path
+                                d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="entrada-table-total-row">
+                  <td colSpan={3}>Total</td>
+                  <td>{totalMeters}</td>
+                  <td>{totalCount}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </section>
+    )
+  }
 
   const demmModal = showDemmModal
     ? createPortal(
@@ -2347,105 +2476,24 @@ export function EntradaPanel({
 
         {renderFixedFeedback()}
 
-        <section className="entrada-section">
-          <div className="entrada-section-heading">
-            <h3 className="entrada-section-title">DEMMs cadastradas</h3>
-            {demmDocuments.length > 0 ? (
-              <span className="entrada-section-total">
-                Total: {totalDemmMeters} medidor(es)
-                {totalDemmScheduled > 0 ? ` · ${totalDemmScheduled} agendado(s)` : ''}
-              </span>
-            ) : null}
-          </div>
-          {loading && demmDocuments.length === 0 ? (
-            <p className="entrada-panel-empty">Carregando DEMMs...</p>
-          ) : demmDocuments.length === 0 ? (
-            <p className="entrada-panel-empty">Nenhuma DEMM cadastrada.</p>
-          ) : (
-            <div className="entrada-table-wrap">
-              <table className="data-table entrada-table">
-                <thead>
-                  <tr>
-                    <th>Nº documento</th>
-                    <th>CSD</th>
-                    <th>Data emissão</th>
-                    <th>Medidores</th>
-                    <th>Agendados</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {demmDocuments.map((document) => (
-                    <tr
-                      key={document.id}
-                      className={`demm-row-clickable${document.bulkEntryReady ? ' demm-row-bulk-ready' : ''}`}
-                      onClick={() => void openDemmAnalysis(document)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          void openDemmAnalysis(document)
-                        }
-                      }}
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`Ver detalhes da DEMM ${document.documentNumber ?? document.fileName}`}
-                    >
-                      <td>{document.documentNumber ?? '—'}</td>
-                      <td>{document.csdName ?? '—'}</td>
-                      <td>{document.emissionDate ?? '—'}</td>
-                      <td>{document.meterCount}</td>
-                      <td>{document.scheduledCount}</td>
-                      <td>
-                        <div className="entrada-demm-actions" onClick={(event) => event.stopPropagation()}>
-                          <a
-                            className="entrada-demm-link"
-                            href={api.getDemmDocumentFileUrl(document.id)}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            PDF
-                          </a>
-                          {readOnly ? null : (
-                            <button
-                              type="button"
-                              className="entrada-demm-delete-button"
-                              disabled={deletingDemmId === document.id}
-                              onClick={() => void handleDeleteDemm(document)}
-                              aria-label={
-                                deletingDemmId === document.id ? 'Excluindo DEMM' : 'Excluir DEMM'
-                              }
-                              title={
-                                deletingDemmId === document.id ? 'Excluindo...' : 'Excluir DEMM'
-                              }
-                            >
-                              <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path
-                                  d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="entrada-table-total-row">
-                    <td colSpan={3}>Total</td>
-                    <td>{totalDemmMeters}</td>
-                    <td>{totalDemmScheduled}</td>
-                    <td />
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          )}
-        </section>
+        {view === 'demmEntrada'
+          ? renderDemmDocumentsSection(receivedDemmDocuments, {
+              title: 'DEMMs com entrada',
+              emptyMessage: 'Nenhuma DEMM com todos os medidores já dados entrada.',
+              countHeader: 'Com entrada',
+              countSummary: 'com entrada',
+              countValue: (document) => document.entryGivenCount ?? 0,
+            })
+          : renderDemmDocumentsSection(pendingDemmDocuments, {
+              title: 'DEMMs cadastradas',
+              emptyMessage:
+                demmDocuments.length > 0
+                  ? 'Todas as DEMMs cadastradas já tiveram entrada. Veja a aba DEMMs com entrada.'
+                  : 'Nenhuma DEMM cadastrada.',
+              countHeader: 'Agendados',
+              countSummary: 'agendado(s)',
+              countValue: (document) => document.scheduledCount,
+            })}
       </div>
 
       {demmModal}
