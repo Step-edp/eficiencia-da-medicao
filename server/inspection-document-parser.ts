@@ -278,17 +278,48 @@ function extractSelagemSection(text: string): string | null {
   return text.slice(from, to)
 }
 
-function extractCoverSeal(text: string): string | null {
-  const section = extractSelagemSection(text)
-  if (!section) return null
+const COVER_COLOR_PATTERN =
+  'azul|vermelho|amarelo|verde|branco|preto|laranja|cinza|roxo'
+const COVER_STATUS_PATTERN =
+  'em ordem|violado|sem lacre|n[aã]o aplic[aá]vel'
 
+function normalizeCoverSealValue(value: string | null | undefined): string | null {
+  const trimmed = value?.replace(/\s+/g, ' ').trim()
+  if (!trimmed) return null
+  return trimmed.slice(0, 120)
+}
+
+function extractDescriptiveCoverSeal(text: string): string | null {
+  const labeled = text.match(
+    new RegExp(
+      `tampa(?:\\s+do)?(?:\\s+medidor)?\\s*[:\\-–]?\\s*((?:${COVER_COLOR_PATTERN})[a-z]*)\\s*[-–—:]?\\s*(${COVER_STATUS_PATTERN})`,
+      'i',
+    ),
+  )
+  if (labeled?.[1] && labeled[2]) {
+    return normalizeCoverSealValue(`${labeled[1]} - ${labeled[2]}`)
+  }
+
+  const colorStatus = text.match(
+    new RegExp(`\\b((?:${COVER_COLOR_PATTERN})[a-z]*)\\s*[-–—]\\s*(${COVER_STATUS_PATTERN})\\b`, 'i'),
+  )
+  if (colorStatus?.[0]) return normalizeCoverSealValue(colorStatus[0])
+
+  return null
+}
+
+function extractNumericCoverSeal(text: string): string | null {
+  const section = extractSelagemSection(text) ?? text
   const labeled = section.match(
     /lacre(?:\(s\))?\s*(?:da\s+)?tampa[\s\S]{0,100}?(\d{4,12})/i,
   )?.[1]
   if (labeled) return labeled
 
-  const reverse = section.match(/tampa[\s\S]{0,100}?lacre[\s\S]{0,60}?(\d{4,12})/i)?.[1]
-  return reverse ?? null
+  return section.match(/tampa[\s\S]{0,100}?lacre[\s\S]{0,60}?(\d{4,12})/i)?.[1] ?? null
+}
+
+function extractCoverSeal(text: string): string | null {
+  return extractDescriptiveCoverSeal(text) ?? extractNumericCoverSeal(text)
 }
 
 function extractReading(text: string): string | null {
@@ -437,7 +468,65 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
   }
 }
 
-async function extractInspectionPdfTextLayer(buffer: Buffer): Promise<string> {
+function stringifyPdfFieldValue(value: unknown): string {
+  if (value == null) return ''
+  if (Array.isArray(value)) {
+    return value.map(stringifyPdfFieldValue).filter(Boolean).join(' ')
+  }
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value).trim()
+  }
+  return ''
+}
+
+async function extractPdfFormFieldText(pdf: {
+  numPages: number
+  getPage: (pageNumber: number) => Promise<{
+    getAnnotations: () => Promise<Array<{ fieldName?: string; fieldValue?: unknown }>>
+  }>
+  getFieldObjects?: () => Promise<Record<string, Array<{ value?: unknown }>> | null>
+}): Promise<string> {
+  const lines: string[] = []
+  const seen = new Set<string>()
+  const add = (name: string, value: string) => {
+    const trimmedName = name.trim()
+    const trimmedValue = value.trim()
+    if (!trimmedName || !trimmedValue) return
+    const key = `${trimmedName}:${trimmedValue}`.toLowerCase()
+    if (seen.has(key)) return
+    seen.add(key)
+    lines.push(`${trimmedName}: ${trimmedValue}`)
+  }
+
+  try {
+    const fields = (await pdf.getFieldObjects?.()) ?? null
+    if (fields) {
+      for (const [name, items] of Object.entries(fields)) {
+        if (!Array.isArray(items)) continue
+        for (const item of items) {
+          const value = stringifyPdfFieldValue(item?.value)
+          if (value) add(name, value)
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Falha ao ler campos de formulário do PDF de inspeção:', error)
+  }
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber)
+    const annotations = await page.getAnnotations()
+    for (const annotation of annotations) {
+      const name = typeof annotation.fieldName === 'string' ? annotation.fieldName : ''
+      const value = stringifyPdfFieldValue(annotation.fieldValue)
+      if (name && value) add(name, value)
+    }
+  }
+
+  return lines.join('\n')
+}
+
+async function extractInspectionPdfTextLayer(buffer: Buffer): Promise<{ body: string; form: string }> {
   const pdf = await getDocument({
     data: new Uint8Array(buffer),
     useSystemFonts: true,
@@ -459,31 +548,33 @@ async function extractInspectionPdfTextLayer(buffer: Buffer): Promise<string> {
     parts.push(pageText)
   }
 
-  return normalizeInspectionText(parts.join('\n'))
+  return {
+    body: normalizeInspectionText(parts.join('\n')),
+    form: await extractPdfFormFieldText(pdf),
+  }
 }
 
 export async function extractInspectionPdfText(buffer: Buffer): Promise<string> {
-  const layerText = await extractInspectionPdfTextLayer(buffer)
-  if (!isUnreadablePdfText(layerText)) {
-    return layerText
+  const { body, form } = await extractInspectionPdfTextLayer(buffer)
+  let main = body
+  if (isUnreadablePdfText(body)) {
+    console.info('PDF de inspeção com camada de texto ilegível; tentando OCR.')
+    try {
+      const ocrText = await extractInspectionPdfTextViaOcr(buffer)
+      const normalizedOcr = normalizeInspectionText(ocrText)
+      if (normalizedOcr && !isUnreadablePdfText(normalizedOcr)) {
+        main = normalizedOcr
+      } else if (normalizedOcr) {
+        console.warn('OCR produziu texto ainda ilegível.', { length: normalizedOcr.length })
+        main = normalizedOcr
+      } else {
+        console.warn('OCR não retornou texto.')
+      }
+    } catch (error) {
+      console.error('Falha no OCR do PDF de inspeção:', error)
+    }
   }
 
-  console.info('PDF de inspeção com camada de texto ilegível; tentando OCR.')
-  try {
-    const ocrText = await extractInspectionPdfTextViaOcr(buffer)
-    const normalizedOcr = normalizeInspectionText(ocrText)
-    if (normalizedOcr && !isUnreadablePdfText(normalizedOcr)) {
-      return normalizedOcr
-    }
-    if (normalizedOcr) {
-      console.warn('OCR produziu texto ainda ilegível.', { length: normalizedOcr.length })
-    } else {
-      console.warn('OCR não retornou texto.')
-    }
-  } catch (error) {
-    console.error('Falha no OCR do PDF de inspeção:', error)
-  }
-
-  return ''
+  return normalizeInspectionText([main, form].filter(Boolean).join('\n'))
 }
 

@@ -125,8 +125,15 @@ function normalizeConferenceDate(value: string | null | undefined) {
 
 function conferenceMatches(
   values: Array<string | null | undefined>,
-  kind: 'digits' | 'date' = 'digits',
+  kind: 'digits' | 'date' | 'text' = 'digits',
 ): boolean | null {
+  if (kind === 'text') {
+    const normalized = values
+      .map((value) => value?.replace(/\s+/g, ' ').trim().toLowerCase())
+      .filter((value): value is string => Boolean(value))
+    if (normalized.length < 2) return null
+    return normalized.every((value) => value === normalized[0])
+  }
   if (kind === 'date') {
     const normalized = values
       .map((value) => normalizeConferenceDate(value))
@@ -175,7 +182,7 @@ function ComparisonField({
   documento?: string | null
   agendamento?: string | null
   laboratorio?: string | null
-  kind?: 'digits' | 'date'
+  kind?: 'digits' | 'date' | 'text'
   campoEmpty?: string
   documentoEmpty?: string
   agendamentoEmpty?: string
@@ -807,6 +814,7 @@ export function InspectionDocumentAnalysisModal({
                   />
                   <ComparisonField
                     label="Lacre da tampa"
+                    kind="text"
                     campo={canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal}
                     documento={documentoCoverSeal}
                     agendamento={conference?.scheduleCoverSeal ?? document.registeredCoverSeal}

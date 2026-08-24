@@ -995,7 +995,8 @@ async function backfillMissingExtractions(
     if (row.extracted_fields_manual) continue
     const needsSchedule = !row.extracted_scheduled_at?.trim()
     const needsRetirado = !row.extracted_meter_retirado?.trim()
-    if (!needsSchedule && !needsRetirado) continue
+    const needsCoverSeal = !row.extracted_cover_seal?.trim()
+    if (!needsSchedule && !needsRetirado && !needsCoverSeal) continue
 
     const file = await query<{ file_data: Buffer }>(
       `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
@@ -1016,6 +1017,11 @@ async function backfillMissingExtractions(
         assignments.push(`extracted_meter_retirado = $${assignments.length + 1}`)
         values.push(parsed.meterRetirado)
         row.extracted_meter_retirado = parsed.meterRetirado
+      }
+      if (needsCoverSeal && parsed.coverSeal) {
+        assignments.push(`extracted_cover_seal = $${assignments.length + 1}`)
+        values.push(parsed.coverSeal)
+        row.extracted_cover_seal = parsed.coverSeal
       }
       if (!assignments.length) continue
 
