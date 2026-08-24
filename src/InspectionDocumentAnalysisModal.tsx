@@ -136,6 +136,21 @@ export function InspectionDocumentAnalysisModal({
     void loadDocuments()
   }, [loadDocuments])
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [onClose])
+
   const handleDeleteDocument = async (document: InspectionDocumentRecord) => {
     const label = inspectionDocTypeLabel(document.docType)
     const confirmed = window.confirm(
@@ -165,38 +180,49 @@ export function InspectionDocumentAnalysisModal({
   }
 
   return createPortal(
-    <div className="ensaios-block-modal-overlay" role="presentation" onClick={onClose}>
-      <div
-        className="ensaios-block-modal demm-modal inspection-document-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="inspection-document-title"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <div
+      className="inspection-analysis-screen"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="inspection-document-title"
+    >
+      <header className="inspection-analysis-screen-bar">
         <button
           type="button"
-          className="icon-button schedule-slot-modal-close"
+          className="icon-button"
           onClick={onClose}
-          aria-label="Fechar"
-          title="Fechar"
+          aria-label="Voltar"
+          title="Voltar"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path
-              d="M6 6l12 12M18 6L6 18"
+              d="M15 5l-7 7 7 7"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
               strokeLinecap="round"
+              strokeLinejoin="round"
             />
           </svg>
         </button>
+        <div className="inspection-analysis-screen-heading">
+          <h3 id="inspection-document-title">Documento de inspeção — medidor {meter}</h3>
+          <p className="demm-modal-intro">
+            {complete
+              ? 'TOI e CSM anexados. Confira a análise e baixe o PDF.'
+              : 'Análise dos documentos já anexados a este medidor.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onClose}
+        >
+          Voltar
+        </button>
+      </header>
 
-        <h3 id="inspection-document-title">Documento de inspeção — medidor {meter}</h3>
-        <p className="demm-modal-intro">
-          {complete
-            ? 'TOI e CSM anexados. Confira a análise e baixe o PDF.'
-            : 'Análise dos documentos já anexados a este medidor.'}
-        </p>
+      <div className="inspection-analysis-screen-body">
 
         {feedback ? (
           <LoginFeedback
@@ -309,9 +335,9 @@ export function InspectionDocumentAnalysisModal({
           </div>
         )}
 
-        <div className="ensaios-block-modal-actions">
+        <div className="inspection-analysis-screen-actions">
           <button type="button" className="primary-button" onClick={onClose}>
-            Fechar
+            Voltar
           </button>
         </div>
       </div>

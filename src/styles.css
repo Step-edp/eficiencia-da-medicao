@@ -1995,6 +1995,59 @@ button {
   overflow: auto;
 }
 
+.inspection-analysis-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background:
+    radial-gradient(circle at top, rgba(0, 190, 255, 0.24), transparent 30%),
+    radial-gradient(circle at right, rgba(46, 255, 158, 0.18), transparent 22%),
+    linear-gradient(135deg, #031424 0%, #082743 45%, #0e3157 100%);
+}
+
+.inspection-analysis-screen-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(5, 20, 38, 0.92);
+}
+
+.inspection-analysis-screen-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.inspection-analysis-screen-heading h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.inspection-analysis-screen-heading .demm-modal-intro {
+  margin: 4px 0 0;
+}
+
+.inspection-analysis-screen-body {
+  overflow: auto;
+  padding: 24px 32px 40px;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  width: min(1100px, 100%);
+  margin: 0 auto;
+}
+
+.inspection-analysis-screen-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+}
+
 .inspection-document-modal {
   width: min(720px, 100%);
 }
