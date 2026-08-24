@@ -1043,10 +1043,11 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     inspection_wpa_lacre: string | null
     inspection_wpa_cover_seal: string | null
     inspection_wpa_reading: string | null
+    inspection_observations: string | null
   }>(
     `SELECT id, meter, envelope_seal, cover_seal, meter_reading, source, scheduled_at,
             inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
-            inspection_wpa_reading
+            inspection_wpa_reading, inspection_observations
      FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
@@ -1148,6 +1149,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     photos: await loadInspectionPhotos(meterScheduleId),
     canManagePhotos: userCanManage,
     canEditWpa: userCanManage,
+    observations: schedule.rows[0].inspection_observations ?? '',
   })
 }
 
@@ -1735,6 +1737,47 @@ export async function updateInspectionWpa(req: Request, res: Response) {
       campoReading: reading || null,
     },
   })
+}
+
+const MAX_INSPECTION_OBSERVATIONS = 4000
+
+export async function updateInspectionObservations(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error: 'Somente administradores e usuários do Laboratório de Medição podem informar observações.',
+    })
+    return
+  }
+
+  const existing = await query<{ id: string }>(
+    `SELECT id FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  if (!existing.rows[0]) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  const observations = typeof req.body?.observations === 'string'
+    ? req.body.observations.trim().slice(0, MAX_INSPECTION_OBSERVATIONS)
+    : ''
+
+  await query(
+    `UPDATE meter_schedules SET inspection_observations = $2 WHERE id = $1`,
+    [meterScheduleId, observations],
+  )
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: meterScheduleId,
+    summary: `Observações da análise atualizadas no agendamento ${meterScheduleId}`,
+    metadata: { observationsLength: observations.length },
+  })
+
+  res.json({ ok: true, observations })
 }
 
 const SCHEDULE_DATE_DEVIATION_DESCRIPTION =

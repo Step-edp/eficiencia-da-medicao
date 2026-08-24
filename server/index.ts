@@ -95,6 +95,7 @@ import {
   listInspectionPendencias,
   listWpaAnalysisMeters,
   updateInspectionWpa,
+  updateInspectionObservations,
   adjustScheduleDateFromDocument,
   listScheduleDateAdjustments,
 } from './routes/meter-inspection-documents.js'
@@ -452,6 +453,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     updateInspectionWpa,
+  )
+  app.patch(
+    '/api/meter-schedules/:id/inspection-observations',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    updateInspectionObservations,
   )
   app.post(
     '/api/meter-schedules/:id/adjust-schedule-date',

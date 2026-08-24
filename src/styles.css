@@ -2128,6 +2128,39 @@ button {
   font-size: 1.02rem;
 }
 
+.inspection-observations-label {
+  display: grid;
+  gap: 0;
+}
+
+.inspection-observations-input {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(5, 20, 38, 0.72);
+  color: inherit;
+  font: inherit;
+}
+
+.inspection-observations-input:focus {
+  outline: none;
+  border-color: rgba(24, 216, 240, 0.7);
+  box-shadow: 0 0 0 2px rgba(24, 216, 240, 0.18);
+}
+
+.inspection-observations-readonly {
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(5, 20, 38, 0.45);
+  color: var(--text-main);
+  white-space: pre-wrap;
+}
+
 .inspection-photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

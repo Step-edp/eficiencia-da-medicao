@@ -225,6 +225,8 @@ export function InspectionDocumentAnalysisModal({
     reading: '',
   })
   const wpaSaveTimerRef = useRef<number | null>(null)
+  const observationsTimerRef = useRef<number | null>(null)
+  const [observations, setObservations] = useState('')
   const [photos, setPhotos] = useState<InspectionPhotoRecord[]>([])
   const [canManagePhotos, setCanManagePhotos] = useState(false)
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
@@ -274,6 +276,7 @@ export function InspectionDocumentAnalysisModal({
       setPhotos(response.photos ?? [])
       setCanManagePhotos(response.canManagePhotos !== false)
       setCanEditWpa(response.canEditWpa === true || response.canManagePhotos === true)
+      setObservations(response.observations ?? '')
     } catch {
       setDocuments([])
       setCanDelete(false)
@@ -284,6 +287,7 @@ export function InspectionDocumentAnalysisModal({
       setPhotos([])
       setCanManagePhotos(false)
       setCanEditWpa(false)
+      setObservations('')
     } finally {
       setLoading(false)
     }
@@ -322,6 +326,33 @@ export function InspectionDocumentAnalysisModal({
     [persistWpaDraft],
   )
 
+  const persistObservations = useCallback(
+    async (next: string) => {
+      try {
+        await api.updateInspectionObservations(scheduleId, next)
+      } catch (error) {
+        setFeedback({
+          type: 'error',
+          message:
+            error instanceof ApiError
+              ? error.message
+              : 'Não foi possível salvar as observações.',
+        })
+      }
+    },
+    [scheduleId],
+  )
+
+  const handleObservationsChange = (value: string) => {
+    setObservations(value)
+    if (observationsTimerRef.current != null) {
+      window.clearTimeout(observationsTimerRef.current)
+    }
+    observationsTimerRef.current = window.setTimeout(() => {
+      void persistObservations(value)
+    }, 400)
+  }
+
   useEffect(() => {
     void loadDocuments()
   }, [loadDocuments])
@@ -330,6 +361,9 @@ export function InspectionDocumentAnalysisModal({
     return () => {
       if (wpaSaveTimerRef.current != null) {
         window.clearTimeout(wpaSaveTimerRef.current)
+      }
+      if (observationsTimerRef.current != null) {
+        window.clearTimeout(observationsTimerRef.current)
       }
     }
   }, [])
@@ -656,6 +690,28 @@ export function InspectionDocumentAnalysisModal({
             ))}
           </div>
         )}
+
+        <section className="inspection-photo-section" aria-label="Observações da análise">
+          <div className="inspection-photo-section-header">
+            <h4>Observações</h4>
+          </div>
+          {canEditWpa ? (
+            <label className="inspection-observations-label">
+              <textarea
+                className="inspection-observations-input"
+                rows={4}
+                maxLength={4000}
+                value={observations}
+                placeholder="Registre observações da análise de TOI e CSM"
+                onChange={(event) => handleObservationsChange(event.target.value)}
+              />
+            </label>
+          ) : (
+            <p className="inspection-observations-readonly">
+              {observations.trim() || 'Nenhuma observação registrada.'}
+            </p>
+          )}
+        </section>
 
         <section className="inspection-photo-section" aria-label="Fotos da análise">
             <div className="inspection-photo-section-header">

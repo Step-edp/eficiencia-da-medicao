@@ -980,7 +980,8 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS inspection_wpa_meter TEXT,
       ADD COLUMN IF NOT EXISTS inspection_wpa_lacre TEXT,
       ADD COLUMN IF NOT EXISTS inspection_wpa_cover_seal TEXT,
-      ADD COLUMN IF NOT EXISTS inspection_wpa_reading TEXT;
+      ADD COLUMN IF NOT EXISTS inspection_wpa_reading TEXT,
+      ADD COLUMN IF NOT EXISTS inspection_observations TEXT NOT NULL DEFAULT '';
   `)
 
   await query(`
