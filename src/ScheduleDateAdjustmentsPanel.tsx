@@ -14,10 +14,6 @@ function formatCollaborator(name: string, registration: string) {
   return trimmedName || trimmedRegistration || '—'
 }
 
-function formatAdjustedBy(item: ScheduleDateAdjustmentRecord) {
-  return formatCollaborator(item.createdByName ?? '', item.createdByRegistration ?? '')
-}
-
 function formatPhysicallyAdjustedBy(item: ScheduleDateAdjustmentRecord) {
   return formatCollaborator(
     item.physicallyAdjustedByName ?? '',
@@ -171,10 +167,6 @@ export function ScheduleDateAdjustmentsPanel({
                 <th>Medidor</th>
                 <th>Agendado no sistema</th>
                 <th>No documento</th>
-                <th>Colaborador 1</th>
-                <th>Colaborador 2</th>
-                <th>Ajustado por</th>
-                <th>Em</th>
                 {showPhysicalColumns ? <th>Ajustado fisicamente por</th> : null}
                 {showPhysicalColumns ? <th>Ajuste físico em</th> : null}
                 {showPhysicalButton ? <th>Ação</th> : null}
@@ -194,14 +186,6 @@ export function ScheduleDateAdjustmentsPanel({
                   </td>
                   <td>{item.scheduledLabel}</td>
                   <td>{item.documentLabel}</td>
-                  <td>
-                    {formatCollaborator(item.collaborator1Name, item.collaborator1Registration)}
-                  </td>
-                  <td>
-                    {formatCollaborator(item.collaborator2Name, item.collaborator2Registration)}
-                  </td>
-                  <td>{formatAdjustedBy(item)}</td>
-                  <td>{formatWhen(item.createdAt)}</td>
                   {showPhysicalColumns ? <td>{formatPhysicallyAdjustedBy(item)}</td> : null}
                   {showPhysicalColumns ? (
                     <td>
