@@ -1420,6 +1420,82 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
   })
 }
 
+function roundOneDecimal(value: number | string | null | undefined): number | null {
+  if (value == null || value === '') return null
+  const numeric = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(numeric)) return null
+  return Math.round(numeric * 10) / 10
+}
+
+/** Indicadores de volume de agendamento e tempo até a data de ensaio. */
+export async function getAgendamentoDashboard(_req: Request, res: Response) {
+  const result = await query<{ month_key: string; total: string; avg_days: string | null }>(
+    `SELECT to_char(ms.created_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM') AS month_key,
+            COUNT(*)::int AS total,
+            AVG(
+              GREATEST(
+                0,
+                (ms.scheduled_at AT TIME ZONE 'America/Sao_Paulo')::date
+                  - COALESCE(
+                      ms.scheduling_date,
+                      (ms.created_at AT TIME ZONE 'America/Sao_Paulo')::date
+                    )
+              )
+            ) AS avg_days
+     FROM meter_schedules ms
+     GROUP BY 1
+     ORDER BY 1`,
+  )
+
+  const monthlyRaw = result.rows.map((row) => ({
+    monthKey: row.month_key,
+    label: monthLabelFromKey(row.month_key),
+    total: Number(row.total) || 0,
+    avgDays: row.avg_days == null || row.avg_days === '' ? null : Number(row.avg_days),
+  }))
+
+  const yearlyMap = new Map<number, { total: number; weightedDays: number; samples: number }>()
+  let total = 0
+  let weightedDays = 0
+  let samples = 0
+
+  for (const item of monthlyRaw) {
+    const year = Number(item.monthKey.slice(0, 4))
+    if (!Number.isFinite(year)) continue
+    const current = yearlyMap.get(year) ?? { total: 0, weightedDays: 0, samples: 0 }
+    current.total += item.total
+    if (item.avgDays != null && Number.isFinite(item.avgDays) && item.total > 0) {
+      current.weightedDays += item.avgDays * item.total
+      current.samples += item.total
+      weightedDays += item.avgDays * item.total
+      samples += item.total
+    }
+    yearlyMap.set(year, current)
+    total += item.total
+  }
+
+  const monthly = monthlyRaw.map((item) => ({
+    ...item,
+    avgDays: roundOneDecimal(item.avgDays),
+  }))
+
+  const yearly = [...yearlyMap.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([year, values]) => ({
+      year,
+      total: values.total,
+      avgDays: values.samples > 0 ? roundOneDecimal(values.weightedDays / values.samples) : null,
+    }))
+
+  res.json({
+    total,
+    averageDays: samples > 0 ? roundOneDecimal(weightedDays / samples) : null,
+    years: yearly.map((item) => item.year).reverse(),
+    monthly,
+    yearly,
+  })
+}
+
 export async function createBulkMeterSchedulesImport(req: Request, res: Response) {
   const csvContent = typeof req.body?.csvContent === 'string' ? req.body.csvContent : ''
   if (!csvContent.trim()) {

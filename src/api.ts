@@ -444,6 +444,23 @@ export type PontoFocalLateMeter = {
   dismissedAt?: string | null
 }
 
+export type AgendamentoDashboardData = {
+  total: number
+  averageDays: number | null
+  years: number[]
+  monthly: Array<{
+    monthKey: string
+    label: string
+    total: number
+    avgDays: number | null
+  }>
+  yearly: Array<{
+    year: number
+    total: number
+    avgDays: number | null
+  }>
+}
+
 export type PontoFocalDashboardData = {
   csdNames: string[]
   current: {
@@ -1521,6 +1538,8 @@ export const api = {
       total: number
     }>(`/api/meter-schedules/history?${search.toString()}`)
   },
+  getAgendamentoDashboard: () =>
+    request<AgendamentoDashboardData>('/api/meter-schedules/agendamento-dashboard'),
   getPontoFocalDashboard: (forUserId?: string) => {
     const search = new URLSearchParams()
     if (forUserId) search.set('forUserId', forUserId)

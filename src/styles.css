@@ -6158,6 +6158,62 @@ h2 {
   margin-bottom: 18px;
 }
 
+.agendamento-dash {
+  display: grid;
+  gap: 20px;
+}
+
+.agendamento-dash-kpis {
+  margin: 0;
+}
+
+.agendamento-dash-chart-card h4 {
+  margin-bottom: 4px;
+}
+
+.agendamento-dash-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.agendamento-dash-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.agendamento-dash-mode {
+  margin: 0;
+  min-width: 220px;
+}
+
+.agendamento-dash-year {
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+}
+
+.agendamento-dash-year select {
+  min-width: 120px;
+}
+
+.agendamento-dash-bar {
+  width: 22px;
+  background: linear-gradient(180deg, #18d8f0, #0b7fb8);
+}
+
+@media (max-width: 720px) {
+  .agendamento-dash-kpis {
+    grid-template-columns: 1fr;
+  }
+}
+
 .panel-switch button {
   border: 0;
   padding: 14px 18px;

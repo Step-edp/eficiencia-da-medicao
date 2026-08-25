@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { AgendamentoDashPanel } from './AgendamentoDashPanel'
 import { FieldTeamConsultarPanel } from './FieldTeamConsultarPanel'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 
-type LabAgendarTab = 'novo' | 'lista'
+type LabAgendarTab = 'novo' | 'lista' | 'dash'
 
 type LabAgendarPanelProps = {
   readOnly?: boolean
@@ -10,15 +11,7 @@ type LabAgendarPanelProps = {
 
 export function LabAgendarPanel({ readOnly = false }: LabAgendarPanelProps) {
   const [tab, setTab] = useState<LabAgendarTab>('lista')
-
-  if (readOnly) {
-    return (
-      <>
-        <p>Agendamentos realizados (visualização).</p>
-        <FieldTeamConsultarPanel />
-      </>
-    )
-  }
+  const activeTab = tab === 'novo' && readOnly ? 'lista' : tab
 
   return (
     <>
@@ -28,32 +21,48 @@ export function LabAgendarPanel({ readOnly = false }: LabAgendarPanelProps) {
         aria-label="Agendamento"
       >
         <button
-          className={tab === 'lista' ? 'active' : ''}
+          className={activeTab === 'lista' ? 'active' : ''}
           type="button"
           role="tab"
-          aria-selected={tab === 'lista'}
+          aria-selected={activeTab === 'lista'}
           onClick={() => setTab('lista')}
         >
           Medidores agendados
         </button>
+        {readOnly ? null : (
+          <button
+            className={activeTab === 'novo' ? 'active' : ''}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'novo'}
+            onClick={() => setTab('novo')}
+          >
+            Novo agendamento
+          </button>
+        )}
         <button
-          className={tab === 'novo' ? 'active' : ''}
+          className={activeTab === 'dash' ? 'active' : ''}
           type="button"
           role="tab"
-          aria-selected={tab === 'novo'}
-          onClick={() => setTab('novo')}
+          aria-selected={activeTab === 'dash'}
+          onClick={() => setTab('dash')}
         >
-          Novo agendamento
+          Dash
         </button>
       </div>
 
-      {tab === 'novo' ? (
+      {activeTab === 'dash' ? (
+        <AgendamentoDashPanel />
+      ) : activeTab === 'novo' ? (
         <>
           <p>Preencha os dados abaixo para reservar a data de agendamento.</p>
           <ScheduleAgendarForm />
         </>
       ) : (
-        <FieldTeamConsultarPanel />
+        <>
+          {readOnly ? <p>Agendamentos realizados (visualização).</p> : null}
+          <FieldTeamConsultarPanel />
+        </>
       )}
     </>
   )
