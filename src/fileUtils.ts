@@ -6,3 +6,10 @@ export function readFileAsBase64(file: File): Promise<string> {
     reader.readAsDataURL(file)
   })
 }
+
+export function inspectionPdfFilesFromList(fileList: FileList | null): File[] {
+  return Array.from(fileList ?? []).filter(
+    (file) =>
+      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'),
+  )
+}

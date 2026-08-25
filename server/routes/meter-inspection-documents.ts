@@ -236,12 +236,18 @@ function pickToiExtractionRow(
       | 'extracted_installation'
       | 'extracted_toi'
       | 'extracted_note'
-    >
+    > &
+      Partial<
+        Pick<
+          InspectionDocumentRow,
+          'extracted_meter' | 'extracted_meter_retirado' | 'extracted_lacre'
+        >
+      >
   >,
 ) {
   return (
-    rows.find((row) => row.doc_type === 'ambos') ??
-    rows.find((row) => row.doc_type === 'toi') ??
+    rows.find((row) => effectiveInspectionDocType(row) === 'ambos') ??
+    rows.find((row) => effectiveInspectionDocType(row) === 'toi') ??
     null
   )
 }
@@ -294,17 +300,41 @@ type DocumentForInspectionAggregate = Pick<
   | 'extracted_note'
 >
 
+function effectiveInspectionDocType(
+  doc: Pick<DocumentForInspectionAggregate, 'doc_type'> &
+    Partial<
+      Pick<
+        DocumentForInspectionAggregate,
+        | 'extracted_meter'
+        | 'extracted_meter_retirado'
+        | 'extracted_lacre'
+        | 'extracted_cover_seal'
+      >
+    >,
+): InspectionDocumentType {
+  if (doc.doc_type !== 'ambos') return doc.doc_type
+  const hasToiFields = Boolean(
+    doc.extracted_lacre?.trim() ||
+      doc.extracted_meter?.trim() ||
+      doc.extracted_cover_seal?.trim(),
+  )
+  const hasCsmFields = Boolean(doc.extracted_meter_retirado?.trim())
+  if (!hasToiFields && hasCsmFields) return 'comunicado'
+  return 'ambos'
+}
+
 export function aggregateInspectionForSchedule(
   schedule: ScheduleForInspectionAggregate,
   documents: DocumentForInspectionAggregate[],
 ): InspectionSummary {
-  const types = new Set(documents.map((doc) => doc.doc_type))
+  const types = new Set(documents.map((doc) => effectiveInspectionDocType(doc)))
   const hasToi = types.has('toi') || types.has('ambos')
   const hasComunicado = types.has('comunicado') || types.has('ambos')
   const reasons: string[] = []
 
   for (const doc of documents) {
-    if (doc.doc_type !== 'toi' && doc.doc_type !== 'ambos') continue
+    const docType = effectiveInspectionDocType(doc)
+    if (docType !== 'toi' && docType !== 'ambos') continue
     const evaluation = evaluateInspectionDocument(
       doc.extracted_lacre,
       doc.extracted_meter,
@@ -317,12 +347,10 @@ export function aggregateInspectionForSchedule(
   }
 
   for (const doc of documents) {
-    if (doc.doc_type !== 'comunicado') continue
-    const evaluation = evaluateInspectionDocument(
-      doc.extracted_lacre,
+    if (effectiveInspectionDocType(doc) !== 'comunicado') continue
+    const evaluation = evaluateComunicadoDocument(
       doc.extracted_meter_retirado,
       schedule.meter,
-      schedule.envelope_seal,
     )
     if (evaluation.blocked && evaluation.reason) {
       reasons.push(evaluation.reason)
@@ -575,6 +603,25 @@ function buildScheduleEntryComparisons(
   }
 }
 
+function evaluateComunicadoDocument(
+  meterRetirado: string | null,
+  expectedMeter: string,
+): InspectionEvaluation {
+  if (!meterRetirado) {
+    return {
+      blocked: true,
+      reason: 'Número do medidor retirado não informado no comunicado.',
+    }
+  }
+  if (normalizeMeter(meterRetirado) !== normalizeMeter(expectedMeter)) {
+    return {
+      blocked: true,
+      reason: `Medidor retirado no documento (${meterRetirado}) diverge do medidor agendado (${expectedMeter}).`,
+    }
+  }
+  return { blocked: false, reason: null }
+}
+
 function evaluateInspectionDocument(
   lacre: string | null,
   meterEncontrado: string | null,
@@ -717,11 +764,21 @@ async function listEntradaScheduleIdsForSchedule(meterScheduleId: string): Promi
 async function loadDocTypePresence(meterScheduleId: string) {
   const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
   const ids = scheduleIds.length ? scheduleIds : [meterScheduleId]
-  const result = await query<{ doc_type: InspectionDocumentType }>(
-    `SELECT doc_type FROM meter_inspection_documents WHERE meter_schedule_id = ANY($1::text[])`,
+  const result = await query<
+    Pick<
+      DocumentForInspectionAggregate,
+      | 'doc_type'
+      | 'extracted_meter'
+      | 'extracted_meter_retirado'
+      | 'extracted_lacre'
+      | 'extracted_cover_seal'
+    >
+  >(
+    `SELECT doc_type, extracted_meter, extracted_meter_retirado, extracted_lacre, extracted_cover_seal
+     FROM meter_inspection_documents WHERE meter_schedule_id = ANY($1::text[])`,
     [ids],
   )
-  const types = new Set(result.rows.map((row) => row.doc_type))
+  const types = new Set(result.rows.map((row) => effectiveInspectionDocType(row)))
   const hasToi = types.has('toi') || types.has('ambos')
   const hasComunicado = types.has('comunicado') || types.has('ambos')
   return { hasToi, hasComunicado, complete: hasToi && hasComunicado }
@@ -847,11 +904,9 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     )
   } else if (docType === 'comunicado') {
     extractedLacre = parsed.lacre
-    evaluation = evaluateInspectionDocument(
-      parsed.lacre,
+    evaluation = evaluateComunicadoDocument(
       parsed.meterRetirado,
       schedule.rows[0].meter,
-      schedule.rows[0].envelope_seal || null,
     )
   }
 
@@ -906,18 +961,24 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     ],
   )
 
-  const presence = await loadDocTypePresence(meterScheduleId)
-
   const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
   const documentScheduleIds = scheduleIds.length ? scheduleIds : [meterScheduleId]
-  const allDocuments = await query<DocumentForInspectionAggregate>(
-    `SELECT doc_type, extracted_meter, extracted_meter_retirado, extracted_lacre, extracted_cover_seal, extracted_reading,
-            extracted_installation, extracted_toi, extracted_note
+  const storedDocuments = await query<Omit<InspectionDocumentRow, 'file_data'>>(
+    `SELECT id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_meter_retirado,
+            extracted_lacre, extracted_cover_seal, extracted_reading, extracted_scheduled_at,
+            extracted_installation, extracted_toi, extracted_note,
+            extracted_fields_manual, blocked, block_reason, created_at, created_by_user_id
      FROM meter_inspection_documents
      WHERE meter_schedule_id = ANY($1::text[])`,
     [documentScheduleIds],
   )
-  const aggregate = aggregateInspectionForSchedule(schedule.rows[0], allDocuments.rows)
+  await repairMisclassifiedInspectionDocuments(
+    storedDocuments.rows,
+    schedule.rows[0].meter,
+    schedule.rows[0].envelope_seal || null,
+  )
+  const presence = await loadDocTypePresence(meterScheduleId)
+  const aggregate = aggregateInspectionForSchedule(schedule.rows[0], storedDocuments.rows)
 
   const registeredMeter = schedule.rows[0].meter
   const registeredLacre = schedule.rows[0].envelope_seal || null
@@ -983,12 +1044,7 @@ function mapInspectionDocumentRow(
           registeredLacre,
         )
       : row.doc_type === 'comunicado' && registeredMeter
-        ? evaluateInspectionDocument(
-            row.extracted_lacre,
-            row.extracted_meter_retirado,
-            registeredMeter,
-            registeredLacre,
-          )
+        ? evaluateComunicadoDocument(row.extracted_meter_retirado, registeredMeter)
         : { blocked: row.blocked, reason: row.block_reason }
 
   return {
@@ -1085,6 +1141,7 @@ async function repairMeterToiCollisions(
 ) {
   for (const row of rows) {
     if (row.extracted_fields_manual) continue
+    if (row.doc_type === 'comunicado') continue
     const meterLooksLikeToi = sameNumericId(row.extracted_meter, row.extracted_toi)
     const retiradoLooksLikeToi = sameNumericId(row.extracted_meter_retirado, row.extracted_toi)
     const blockedByMeter = Boolean(
@@ -1129,6 +1186,87 @@ async function repairMeterToiCollisions(
       row.block_reason = evaluation.reason
     } catch (error) {
       console.error('Falha ao corrigir medidor extraído do documento de inspeção:', error)
+    }
+  }
+}
+
+async function repairMisclassifiedInspectionDocuments(
+  rows: Array<Omit<InspectionDocumentRow, 'file_data'>>,
+  expectedMeter: string,
+  expectedLacre: string | null,
+) {
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    const row = rows[index]
+    if (row.doc_type !== 'ambos') continue
+
+    const file = await query<{ file_data: Buffer }>(
+      `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
+      [row.id],
+    )
+    if (!file.rows[0]?.file_data) continue
+
+    try {
+      const text = await extractInspectionPdfText(file.rows[0].file_data)
+      const actualType = classifyInspectionDocument(text)
+      if (actualType === 'desconhecido' || actualType === row.doc_type) continue
+
+      const parsed = parseInspectionText(text)
+      const evaluation =
+        actualType === 'comunicado'
+          ? evaluateComunicadoDocument(
+              parsed.meterRetirado ?? row.extracted_meter_retirado,
+              expectedMeter,
+            )
+          : evaluateInspectionDocument(
+              parsed.lacre ?? row.extracted_lacre,
+              parsed.meterEncontrado ?? row.extracted_meter,
+              expectedMeter,
+              expectedLacre,
+            )
+
+      const conflict = await query<{ id: string }>(
+        `SELECT id FROM meter_inspection_documents
+         WHERE meter_schedule_id = $1 AND doc_type = $2 AND id <> $3
+         LIMIT 1`,
+        [row.meter_schedule_id, actualType, row.id],
+      )
+      if (conflict.rows[0]) {
+        await query(`DELETE FROM meter_inspection_documents WHERE id = $1`, [row.id])
+        rows.splice(index, 1)
+        continue
+      }
+
+      await query(
+        `UPDATE meter_inspection_documents
+         SET doc_type = $1,
+             extracted_meter = COALESCE($2, extracted_meter),
+             extracted_meter_retirado = COALESCE($3, extracted_meter_retirado),
+             extracted_lacre = COALESCE($4, extracted_lacre),
+             blocked = $5,
+             block_reason = $6
+         WHERE id = $7`,
+        [
+          actualType,
+          actualType === 'comunicado' ? null : parsed.meterEncontrado,
+          parsed.meterRetirado,
+          actualType === 'comunicado' ? row.extracted_lacre : parsed.lacre,
+          evaluation.blocked,
+          evaluation.reason,
+          row.id,
+        ],
+      )
+      row.doc_type = actualType
+      row.blocked = evaluation.blocked
+      row.block_reason = evaluation.reason
+      if (parsed.meterRetirado) row.extracted_meter_retirado = parsed.meterRetirado
+      if (actualType !== 'comunicado' && parsed.meterEncontrado) {
+        row.extracted_meter = parsed.meterEncontrado
+      }
+      if (actualType !== 'comunicado' && parsed.lacre) {
+        row.extracted_lacre = parsed.lacre
+      }
+    } catch (error) {
+      console.error('Falha ao reclassificar documento de inspeção:', error)
     }
   }
 }
@@ -1195,7 +1333,6 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     [documentScheduleIds],
   )
 
-  const presence = await loadDocTypePresence(meterScheduleId)
   const userCanManage = await canManageInspectionDocuments(req)
   const deletable = await assertInspectionDocumentDeletable(meterScheduleId)
   const canDelete = userCanManage && deletable.ok
@@ -1217,6 +1354,12 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     registeredMeter,
     registeredLacre,
   )
+  await repairMisclassifiedInspectionDocuments(
+    result.rows,
+    registeredMeter,
+    registeredLacre,
+  )
+  const presence = await loadDocTypePresence(meterScheduleId)
 
   res.json({
     meter: registeredMeter,
@@ -1895,12 +2038,15 @@ export async function updateInspectionExtracted(req: Request, res: Response) {
   const reading = readField(req.body?.reading) || null
   const scheduledAt = readField(req.body?.scheduledAt) || null
 
-  const evaluation = evaluateInspectionDocument(
-    lacre,
-    meter,
-    currentSchedule.meter,
-    currentSchedule.envelope_seal || null,
-  )
+  const evaluation =
+    docType === 'comunicado'
+      ? evaluateComunicadoDocument(meter, currentSchedule.meter)
+      : evaluateInspectionDocument(
+          lacre,
+          meter,
+          currentSchedule.meter,
+          currentSchedule.envelope_seal || null,
+        )
 
   const updated = await query<{
     extracted_meter: string | null

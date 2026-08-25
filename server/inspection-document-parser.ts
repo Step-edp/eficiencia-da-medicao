@@ -41,13 +41,11 @@ const NOTA_VALUE_PATTERN = /\b\d{8,12}\b/
 const TOI_MARKER = /termo\s+de\s+ocorr[eêê]ncia\s+e\s+inspe/i
 const COMUNICADO_MARKER = /comunicado\s+de\s+substitui[cçãa\u00e7\u00e3]{0,4}[oõ\u00f5]\s+de\s+medidor/i
 const TOI_PARTIAL_MARKER = /termo\s+de\s+ocorr[eêê]/i
-const INSPECAO_MARKER = /inspe[cçãa\u00e7\u00e3]/i
 const MEDIDOR_ENCONTRADO_MARKER = /medidor\s+encontrado/i
 const SUBSTITUICAO_MEDIDOR_MARKER = /substitui[cç][aã]o\s+de\s+medidor/i
 const COMUNICADO_GENERIC_MARKER = /comunicado/i
 const MEDIDOR_RETIRADO_MARKER = /medidor\s+retirado/i
 const MEDIDOR_INSTALADO_MARKER = /medidor\s+instalado/i
-const ORDEM_INSPECAO_MARKER = /ordem\s+de\s+inspe[cçãa\u00e7\u00e3]/i
 
 const CSM_MEDIDOR_RETIRADO_PATTERN =
   /medidor\s+retirado[\s\S]{0,450}?do\s*medidor\s*:?\s*(\d{7,9})/i
@@ -74,22 +72,19 @@ function compactInspectionText(text: string): string {
     .replace(/[^a-z0-9]/g, '')
 }
 
-function hasToiStructure(text: string, compact: string): boolean {
+function hasToiTitle(text: string, compact: string): boolean {
   if (TOI_MARKER.test(text)) return true
   if (TOI_PARTIAL_MARKER.test(text) && /inspe/i.test(text)) return true
+  return compact.includes('termodeocorrencia') && compact.includes('inspecao')
+}
 
+function hasToiFormStructure(text: string, compact: string): boolean {
   if (DADOS_MEDICAO_START.test(text) && DADOS_MEDICAO_END.test(text)) return true
   if (MEDIDOR_ENCONTRADO_MARKER.test(text) && /selagem/i.test(text)) return true
   if (TOI_LABEL_PATTERN.test(text) && DADOS_MEDICAO_START.test(text)) return true
-  if (ORDEM_INSPECAO_MARKER.test(text) && TOI_VALUE_PATTERN.test(text)) return true
-
-  if (compact.includes('termodeocorrencia') && compact.includes('inspecao')) return true
   if (compact.includes('dadosdamedicao') && compact.includes('selagem')) return true
   if (compact.includes('medidorencontrado') && compact.includes('selagem')) return true
-  if (compact.includes('numerodotoi') || compact.includes('numerotoi')) return true
-
-  const parsed = parseInspectionText(text)
-  return Boolean(parsed.meterEncontrado || parsed.toi || parsed.lacre)
+  return false
 }
 
 function hasComunicadoStructure(text: string, compact: string): boolean {
@@ -101,16 +96,12 @@ function hasComunicadoStructure(text: string, compact: string): boolean {
   ) {
     return true
   }
-  if (SUBSTITUICAO_MEDIDOR_MARKER.test(text)) return true
   if (MEDIDOR_RETIRADO_MARKER.test(text) && MEDIDOR_INSTALADO_MARKER.test(text)) {
     return true
   }
 
   if (compact.includes('comunicadodesubstituicaodemedidor')) return true
   if (compact.includes('substituicaodemedidor') && compact.includes('comunicado')) {
-    return true
-  }
-  if (compact.includes('substituicaodemedidor') && compact.includes('medidor')) {
     return true
   }
   if (compact.includes('medidorretirado') && compact.includes('medidorinstalado')) {
@@ -217,11 +208,15 @@ export function classifyInspectionDocument(text: string): InspectionDocumentType
   if (!normalized) return 'desconhecido'
 
   const compact = compactInspectionText(normalized)
-  const hasToi = hasToiStructure(normalized, compact)
+  const toiForm = hasToiFormStructure(normalized, compact)
+  const toiTitle = hasToiTitle(normalized, compact)
   const hasComunicado = hasComunicadoStructure(normalized, compact)
-  if (hasToi && hasComunicado) return 'ambos'
-  if (hasToi) return 'toi'
+
+  // CSM cita TOI nº / "Termo de Ocorrência" com frequência; isso não faz dele um TOI.
+  // Só é "ambos" quando o PDF tem a ficha do TOI (dados da medição / selagem) e o comunicado.
+  if (toiForm && hasComunicado) return 'ambos'
   if (hasComunicado) return 'comunicado'
+  if (toiForm || toiTitle) return 'toi'
   return 'desconhecido'
 }
 

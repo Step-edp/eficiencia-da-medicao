@@ -2114,6 +2114,16 @@ button {
   color: #ffb3aa;
 }
 
+.inspection-missing-docs {
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(241, 196, 15, 0.35);
+  background: rgba(241, 196, 15, 0.12);
+  color: #f8e08e;
+  font-size: 0.92rem;
+}
+
 .inspection-document-card-actions {
   display: flex;
   flex-wrap: wrap;

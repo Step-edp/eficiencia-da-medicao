@@ -304,6 +304,8 @@ export function InspectionDocumentAnalysisModal({
   const [documents, setDocuments] = useState<InspectionDocumentRecord[]>([])
   const [canDelete, setCanDelete] = useState(false)
   const [deleteBlockedReason, setDeleteBlockedReason] = useState<string | null>(null)
+  const [hasToi, setHasToi] = useState(false)
+  const [hasComunicado, setHasComunicado] = useState(false)
   const [registeredMeter, setRegisteredMeter] = useState(meter)
   const [conference, setConference] = useState<InspectionDocumentConference | null>(null)
   const [canEditWpa, setCanEditWpa] = useState(false)
@@ -340,6 +342,8 @@ export function InspectionDocumentAnalysisModal({
       setDocuments(response.documents)
       setCanDelete(response.canDelete)
       setDeleteBlockedReason(response.deleteBlockedReason)
+      setHasToi(response.hasToi)
+      setHasComunicado(response.hasComunicado)
       setRegisteredMeter(response.meter)
       const nextConference = response.conference ?? {
         campoMeter: null,
@@ -380,6 +384,8 @@ export function InspectionDocumentAnalysisModal({
       setDocuments([])
       setCanDelete(false)
       setDeleteBlockedReason(null)
+      setHasToi(false)
+      setHasComunicado(false)
       setRegisteredMeter(meter)
       setConference(null)
       setWpaDraft({ meter: '', lacre: '', coverSeal: '', reading: '' })
@@ -721,6 +727,16 @@ export function InspectionDocumentAnalysisModal({
           </p>
         ) : null}
 
+        {!loading && documents.length > 0 && (!hasToi || !hasComunicado) ? (
+          <p className="inspection-missing-docs" role="status">
+            {!hasToi && !hasComunicado
+              ? 'Faltam o TOI e o CSM.'
+              : !hasToi
+                ? 'Falta o TOI. O arquivo anexado é o Comunicado de Substituição (CSM).'
+                : 'Falta o Comunicado de Substituição (CSM).'}
+          </p>
+        ) : null}
+
         {loading ? (
           <p className="entrada-panel-empty">Carregando documentos...</p>
         ) : documents.length === 0 ? (
@@ -762,11 +778,19 @@ export function InspectionDocumentAnalysisModal({
                 documentoScheduledAt,
                 conference?.scheduleScheduleDate,
               ])
+              const missingReason = !hasToi
+                ? 'Falta o TOI.'
+                : !hasComunicado
+                  ? 'Falta o Comunicado de Substituição (CSM).'
+                  : null
+              const displayReason = document.blockReason || missingReason
               const status = document.blocked
                 ? 'blocked'
-                : analysisComplete
-                  ? 'ok'
-                  : 'pending'
+                : missingReason
+                  ? 'pending'
+                  : analysisComplete
+                    ? 'ok'
+                    : 'pending'
 
               return (
               <article key={document.id} className="inspection-document-card">
@@ -869,10 +893,10 @@ export function InspectionDocumentAnalysisModal({
                     adjusting={adjustingDocType === document.docType}
                     onAdjust={() => void handleAdjustScheduleDate(document)}
                   />
-                  {document.blockReason ? (
+                  {displayReason ? (
                     <div className="user-detail-full">
-                      <dt>Motivo do bloqueio</dt>
-                      <dd>{document.blockReason}</dd>
+                      <dt>{document.blocked ? 'Motivo do bloqueio' : 'Pendência'}</dt>
+                      <dd>{displayReason}</dd>
                     </div>
                   ) : null}
                 </dl>

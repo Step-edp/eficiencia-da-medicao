@@ -15,7 +15,7 @@ import {
   type WeekMeterStatus,
 } from './api'
 import { useCsdsOptions } from './useCsdsOptions'
-import { readFileAsBase64 } from './fileUtils'
+import { inspectionPdfFilesFromList, readFileAsBase64 } from './fileUtils'
 import { UserDetailModal } from './UserDetailModal'
 import { EntradaCsdDashboard } from './EntradaCsdDashboard'
 import { MeterDetailModal } from './MeterDetailModal'
@@ -1097,17 +1097,32 @@ export function EntradaPanel({
 
   const handleUploadInspectionDocument = async (
     target: { id: string; meter: string },
-    file: File,
+    files: File[],
   ) => {
+    const pdfs = files.filter(
+      (file) =>
+        file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'),
+    )
+    if (!pdfs.length) {
+      setFeedback({ type: 'error', message: 'Envie um ou mais arquivos PDF (TOI e/ou CSM).' })
+      return
+    }
+
     setUploadingInspectionId(target.id)
     setFeedback(null)
 
     try {
-      const fileBase64 = await readFileAsBase64(file)
-      const { document } = await api.uploadInspectionDocument(target.id, {
-        fileName: file.name,
-        fileBase64,
-      })
+      let document: Awaited<ReturnType<typeof api.uploadInspectionDocument>>['document'] | null =
+        null
+      for (const file of pdfs) {
+        const fileBase64 = await readFileAsBase64(file)
+        const response = await api.uploadInspectionDocument(target.id, {
+          fileName: file.name,
+          fileBase64,
+        })
+        document = response.document
+      }
+      if (!document) return
 
       const docTypeLabel =
         document.docType === 'toi'
@@ -1115,12 +1130,13 @@ export function EntradaPanel({
           : document.docType === 'comunicado'
             ? 'CSM'
             : 'TOI + CSM'
+      const attachedLabel = pdfs.length > 1 ? 'Documentos anexados' : `${docTypeLabel} anexado`
 
       if (!document.complete) {
         const missing = !document.hasToi ? 'TOI' : 'CSM'
         setFeedback({
           type: 'success',
-          message: `${docTypeLabel} anexado ao medidor ${target.meter}. Ainda falta anexar o ${missing}.`,
+          message: `${attachedLabel} ao medidor ${target.meter}. Ainda falta anexar o ${missing}.`,
         })
       } else if (document.blocked) {
         setFeedback({
@@ -2342,12 +2358,14 @@ export function EntradaPanel({
                           <input
                             id={`inspection-upload-${pendencia.id}`}
                             type="file"
+                            accept="application/pdf,.pdf"
+                            multiple
                             className="file-picker-input"
                             disabled={uploadingInspectionId === pendencia.id}
                             onChange={(event) => {
-                              const file = event.target.files?.[0]
+                              const files = inspectionPdfFilesFromList(event.target.files)
                               event.target.value = ''
-                              if (file) void handleUploadInspectionDocument(pendencia, file)
+                              if (files.length) void handleUploadInspectionDocument(pendencia, files)
                             }}
                           />
                           <label
@@ -2541,15 +2559,16 @@ export function EntradaPanel({
                                   id={`week-meter-inspection-${item.scheduleId}`}
                                   type="file"
                                   accept="application/pdf,.pdf"
+                                  multiple
                                   className="file-picker-input"
                                   disabled={uploadingInspectionId === item.scheduleId}
                                   onChange={(event) => {
-                                    const file = event.target.files?.[0]
+                                    const files = inspectionPdfFilesFromList(event.target.files)
                                     event.target.value = ''
-                                    if (file && item.scheduleId) {
+                                    if (files.length && item.scheduleId) {
                                       void handleUploadInspectionDocument(
                                         { id: item.scheduleId, meter: item.meter },
-                                        file,
+                                        files,
                                       )
                                     }
                                   }}

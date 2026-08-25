@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, ApiError, type MeterInspectionSummary, type MeterScheduleRecord } from './api'
-import { readFileAsBase64 } from './fileUtils'
+import { inspectionPdfFilesFromList, readFileAsBase64 } from './fileUtils'
 import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
 import { LoginFeedback } from './LoginFeedback'
 import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, scheduleAuditSearchText } from './schedulePartnerLabel'
@@ -364,17 +364,32 @@ export function FieldTeamConsultarPanel({
 
   const handleUploadInspectionDocument = async (
     target: { id: string; meter: string },
-    file: File,
+    files: File[],
   ) => {
+    const pdfs = files.filter(
+      (file) =>
+        file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'),
+    )
+    if (!pdfs.length) {
+      setFeedback({ type: 'error', message: 'Envie um ou mais arquivos PDF (TOI e/ou CSM).' })
+      return
+    }
+
     setUploadingInspectionId(target.id)
     setFeedback(null)
 
     try {
-      const fileBase64 = await readFileAsBase64(file)
-      const { document } = await api.uploadInspectionDocument(target.id, {
-        fileName: file.name,
-        fileBase64,
-      })
+      let document: Awaited<ReturnType<typeof api.uploadInspectionDocument>>['document'] | null =
+        null
+      for (const file of pdfs) {
+        const fileBase64 = await readFileAsBase64(file)
+        const response = await api.uploadInspectionDocument(target.id, {
+          fileName: file.name,
+          fileBase64,
+        })
+        document = response.document
+      }
+      if (!document) return
 
       const docTypeLabel =
         document.docType === 'toi'
@@ -382,12 +397,13 @@ export function FieldTeamConsultarPanel({
           : document.docType === 'comunicado'
             ? 'CSM'
             : 'TOI + CSM'
+      const attachedLabel = pdfs.length > 1 ? 'Documentos anexados' : `${docTypeLabel} anexado`
 
       if (!document.complete) {
         const missing = !document.hasToi ? 'TOI' : 'CSM'
         setFeedback({
           type: 'success',
-          message: `${docTypeLabel} anexado ao medidor ${target.meter}. Ainda falta anexar o ${missing}.`,
+          message: `${attachedLabel} ao medidor ${target.meter}. Ainda falta anexar o ${missing}.`,
         })
       } else if (document.blocked) {
         setFeedback({
@@ -683,15 +699,16 @@ export function FieldTeamConsultarPanel({
                               id={`consultar-inspection-${item.id}`}
                               type="file"
                               accept="application/pdf,.pdf"
+                              multiple
                               className="file-picker-input"
                               disabled={uploadingInspectionId === item.id}
                               onChange={(event) => {
-                                const file = event.target.files?.[0]
+                                const files = inspectionPdfFilesFromList(event.target.files)
                                 event.target.value = ''
-                                if (file) {
+                                if (files.length) {
                                   void handleUploadInspectionDocument(
                                     { id: item.id, meter: item.meter },
-                                    file,
+                                    files,
                                   )
                                 }
                               }}
