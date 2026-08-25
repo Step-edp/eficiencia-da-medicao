@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, ApiError, type MeterInspectionSummary, type MeterScheduleRecord } from './api'
 import { inspectionPdfFilesFromList, readFileAsBase64 } from './fileUtils'
+import { inspectionIssueReason } from './inspectionStatusReason'
 import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
 import { LoginFeedback } from './LoginFeedback'
 import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, scheduleAuditSearchText } from './schedulePartnerLabel'
@@ -91,21 +92,9 @@ function scheduleSourceLabel(source: string) {
 }
 
 function inspectionStatusLabel(summary: MeterInspectionSummary | undefined) {
-  if (!summary?.hasToi && !summary?.hasComunicado) return 'Sem documento de inspeção'
-  if (summary.hasToi && !summary.hasComunicado) return 'Falta CSM'
-  if (!summary.hasToi && summary.hasComunicado) return 'Falta TOI'
-  if (summary.anyBlocked) return 'Bloqueado'
-  if (summary.hasToi && summary.hasComunicado) return 'Liberado'
-  return 'Sem documento de inspeção'
-}
-
-function inspectionStatusShortLabel(summary: MeterInspectionSummary | undefined) {
-  if (!summary?.hasToi && !summary?.hasComunicado) return 'Sem doc.'
-  if (summary.hasToi && !summary.hasComunicado) return 'Falta CSM'
-  if (!summary.hasToi && summary.hasComunicado) return 'Falta TOI'
-  if (summary.anyBlocked) return 'Bloqueado'
-  if (summary.hasToi && summary.hasComunicado) return 'Liberado'
-  return 'Sem doc.'
+  if (!summary) return 'Sem documento de inspeção'
+  if (summary.hasToi && summary.hasComunicado && !summary.anyBlocked) return 'Liberado'
+  return inspectionIssueReason(summary) ?? 'Sem documento de inspeção'
 }
 
 function inspectionStatusBadgeClass(summary: MeterInspectionSummary | undefined) {
@@ -688,9 +677,11 @@ export function FieldTeamConsultarPanel({
                     <div className="table-inspection-actions">
                       <span
                         className={inspectionBadgeClass}
-                        title={summary?.blockReasons ?? inspectionStatusLabel(summary)}
+                        title={inspectionStatusLabel(summary)}
                       >
-                        {inspectionStatusShortLabel(summary)}
+                        {summary?.hasToi && summary.hasComunicado && !summary.anyBlocked
+                          ? 'Liberado'
+                          : inspectionStatusLabel(summary)}
                       </span>
                       <div className="table-inspection-actions__buttons">
                         {hideInspectionImport ? null : (

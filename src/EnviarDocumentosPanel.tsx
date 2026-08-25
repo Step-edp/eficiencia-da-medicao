@@ -7,6 +7,7 @@ import {
 } from './api'
 import { useCsdsOptions } from './useCsdsOptions'
 import { inspectionPdfFilesFromList, readFileAsBase64 } from './fileUtils'
+import { inspectionIssueReason } from './inspectionStatusReason'
 import { DemmUploadConflicts } from './EntradaPanel'
 import { LoginFeedback } from './LoginFeedback'
 
@@ -347,12 +348,13 @@ export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProp
                     <td>{pendencia.csd}</td>
                     <td>{formatDateTime(pendencia.scheduledAt)}</td>
                     <td>
-                      {[
-                        pendencia.missingToi ? 'TOI' : null,
-                        pendencia.missingComunicado ? 'CSM' : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' + ')}
+                      {inspectionIssueReason(pendencia) ??
+                        [
+                          pendencia.missingToi ? 'TOI' : null,
+                          pendencia.missingComunicado ? 'CSM' : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' + ')}
                     </td>
                     <td>
                       <input

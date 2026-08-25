@@ -10,6 +10,11 @@ import {
 } from './api'
 import { LoginFeedback } from './LoginFeedback'
 import { readImageAsDataUrl } from './readImageAsDataUrl'
+import {
+  joinInspectionReasons,
+  missingInspectionDocumentReasons,
+  uniqueInspectionReasons,
+} from './inspectionStatusReason'
 
 type InspectionDocumentAnalysisModalProps = {
   meter: string
@@ -101,6 +106,95 @@ function hasConferenceValue(value: string | null | undefined) {
 
 function inspectionAnalysisComplete(fields: Array<string | null | undefined>) {
   return fields.every((value) => hasConferenceValue(value))
+}
+
+function missingFieldReason(
+  value: string | null | undefined,
+  message: string,
+): string | null {
+  return hasConferenceValue(value) ? null : message
+}
+
+function buildInspectionAnalysisReasons({
+  hasToi,
+  hasComunicado,
+  blockReason,
+  requireToiFields,
+  campoMeter,
+  documentoMeter,
+  scheduleMeter,
+  labMeter,
+  campoLacre,
+  documentoLacre,
+  scheduleLacre,
+  labLacre,
+  campoCoverSeal,
+  documentoCoverSeal,
+  labCoverSeal,
+  campoReading,
+  documentoReading,
+  labReading,
+  documentoScheduledAt,
+  scheduleScheduleDate,
+}: {
+  hasToi: boolean
+  hasComunicado: boolean
+  blockReason: string | null
+  requireToiFields: boolean
+  campoMeter: string | null | undefined
+  documentoMeter: string | null | undefined
+  scheduleMeter: string | null | undefined
+  labMeter: string | null | undefined
+  campoLacre: string | null | undefined
+  documentoLacre: string | null | undefined
+  scheduleLacre: string | null | undefined
+  labLacre: string | null | undefined
+  campoCoverSeal: string | null | undefined
+  documentoCoverSeal: string | null | undefined
+  labCoverSeal: string | null | undefined
+  campoReading: string | null | undefined
+  documentoReading: string | null | undefined
+  labReading: string | null | undefined
+  documentoScheduledAt: string | null | undefined
+  scheduleScheduleDate: string | null | undefined
+}): string[] {
+  const missingWpa: string[] = []
+  if (!hasConferenceValue(campoMeter)) missingWpa.push('medidor')
+  if (!hasConferenceValue(campoLacre)) missingWpa.push('lacre do invólucro')
+  if (!hasConferenceValue(campoCoverSeal)) missingWpa.push('lacre da tampa')
+  if (!hasConferenceValue(campoReading)) missingWpa.push('leitura')
+
+  const missingLab: string[] = []
+  if (!hasConferenceValue(labMeter)) missingLab.push('medidor')
+  if (!hasConferenceValue(labLacre)) missingLab.push('lacre do invólucro')
+  if (!hasConferenceValue(labCoverSeal)) missingLab.push('lacre da tampa')
+  if (!hasConferenceValue(labReading)) missingLab.push('leitura')
+
+  return uniqueInspectionReasons([
+    ...missingInspectionDocumentReasons(hasToi, hasComunicado),
+    blockReason,
+    missingFieldReason(documentoMeter, 'Medidor retirado não informado no documento.'),
+    requireToiFields
+      ? missingFieldReason(documentoLacre, 'Lacre do invólucro não informado no documento.')
+      : null,
+    requireToiFields
+      ? missingFieldReason(documentoCoverSeal, 'Lacre da tampa não informado no documento.')
+      : null,
+    missingFieldReason(documentoReading, 'Leitura não informada no documento.'),
+    missingFieldReason(documentoScheduledAt, 'Data de agendamento não informada no documento.'),
+    missingFieldReason(scheduleMeter, 'Medidor não informado no agendamento.'),
+    missingFieldReason(scheduleLacre, 'Lacre do invólucro não informado no agendamento.'),
+    missingFieldReason(
+      scheduleScheduleDate,
+      'Data de agendamento não informada no cadastro.',
+    ),
+    missingWpa.length ? `Análise WPA incompleta: falta ${missingWpa.join(', ')}.` : null,
+    missingLab.length === 4
+      ? 'Medidor ainda não deu entrada no laboratório.'
+      : missingLab.length
+        ? `Laboratório incompleto: falta ${missingLab.join(', ')}.`
+        : null,
+  ])
 }
 
 function normalizeConferenceDigits(value: string | null | undefined) {
@@ -760,37 +854,56 @@ export function InspectionDocumentAnalysisModal({
               const documentoScheduledAt = canEditWpa
                 ? documentoDraft.scheduledAt
                 : document.extractedScheduledAt
-              const analysisComplete = inspectionAnalysisComplete([
+              const requireToiFields =
+                hasToi || document.docType === 'toi' || document.docType === 'ambos'
+              const completenessFields = [
                 campoMeter,
                 documentoMeter,
                 conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter,
                 conference?.labMeter,
                 campoLacre,
-                documentoLacre,
                 conference?.scheduleLacre ?? document.registeredLacre,
                 conference?.labLacre,
                 campoCoverSeal,
-                documentoCoverSeal,
                 conference?.labCoverSeal,
                 campoReading,
                 documentoReading,
                 conference?.labReading,
                 documentoScheduledAt,
                 conference?.scheduleScheduleDate,
-              ])
-              const missingReason = !hasToi
-                ? 'Falta o TOI.'
-                : !hasComunicado
-                  ? 'Falta o Comunicado de Substituição (CSM).'
-                  : null
-              const displayReason = document.blockReason || missingReason
+              ]
+              if (requireToiFields) {
+                completenessFields.push(documentoLacre, documentoCoverSeal)
+              }
+              const analysisComplete = inspectionAnalysisComplete(completenessFields)
+              const reasons = buildInspectionAnalysisReasons({
+                hasToi,
+                hasComunicado,
+                blockReason: document.blockReason,
+                requireToiFields,
+                campoMeter,
+                documentoMeter,
+                scheduleMeter: conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter,
+                labMeter: conference?.labMeter,
+                campoLacre,
+                documentoLacre,
+                scheduleLacre: conference?.scheduleLacre ?? document.registeredLacre,
+                labLacre: conference?.labLacre,
+                campoCoverSeal,
+                documentoCoverSeal,
+                labCoverSeal: conference?.labCoverSeal,
+                campoReading,
+                documentoReading,
+                labReading: conference?.labReading,
+                documentoScheduledAt,
+                scheduleScheduleDate: conference?.scheduleScheduleDate,
+              })
+              const displayReason = joinInspectionReasons(reasons)
               const status = document.blocked
                 ? 'blocked'
-                : missingReason
+                : reasons.length || !analysisComplete
                   ? 'pending'
-                  : analysisComplete
-                    ? 'ok'
-                    : 'pending'
+                  : 'ok'
 
               return (
               <article key={document.id} className="inspection-document-card">
@@ -893,10 +1006,22 @@ export function InspectionDocumentAnalysisModal({
                     adjusting={adjustingDocType === document.docType}
                     onAdjust={() => void handleAdjustScheduleDate(document)}
                   />
-                  {displayReason ? (
+                  {status !== 'ok' ? (
                     <div className="user-detail-full">
-                      <dt>{document.blocked ? 'Motivo do bloqueio' : 'Pendência'}</dt>
-                      <dd>{displayReason}</dd>
+                      <dt>
+                        {status === 'blocked' ? 'Motivo do bloqueio' : 'Motivo da pendência'}
+                      </dt>
+                      <dd>
+                        {reasons.length > 1 ? (
+                          <ul className="inspection-status-reason-list">
+                            {reasons.map((reason) => (
+                              <li key={reason}>{reason}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          displayReason ?? 'A análise ainda não está completa.'
+                        )}
+                      </dd>
                     </div>
                   ) : null}
                 </dl>

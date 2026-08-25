@@ -16,6 +16,7 @@ import {
 } from './api'
 import { useCsdsOptions } from './useCsdsOptions'
 import { inspectionPdfFilesFromList, readFileAsBase64 } from './fileUtils'
+import { inspectionIssueReason } from './inspectionStatusReason'
 import { UserDetailModal } from './UserDetailModal'
 import { EntradaCsdDashboard } from './EntradaCsdDashboard'
 import { MeterDetailModal } from './MeterDetailModal'
@@ -130,8 +131,7 @@ function hasWpaDocument(item: MeterInspectionDocumentadoRecord) {
 }
 
 function wpaDocumentationLabel(item: MeterInspectionDocumentadoRecord) {
-  if (item.anyBlocked || !item.hasToi || !item.hasComunicado) return 'Pendente'
-  return 'OK'
+  return inspectionIssueReason(item) ?? 'OK'
 }
 
 function normalizeWpaSearch(value: string) {
@@ -167,12 +167,13 @@ function wpaMeterMatchesQuery(item: MeterInspectionDocumentadoRecord, query: str
 }
 
 function weekMeterInspectionLabel(item: WeekMeterRecord) {
-  if (item.status === 'bloqueado') return 'Bloqueado'
   if (item.status === 'liberado') return 'Liberado'
   if (item.status === 'nao_agendado') return 'Não agendado'
-  if (item.hasToi && !item.hasComunicado) return 'Falta CSM'
-  if (!item.hasToi && item.hasComunicado) return 'Falta TOI'
-  return 'Sem documento de inspeção'
+  if (item.status === 'bloqueado') {
+    const reason = inspectionIssueReason(item)
+    return reason ? `Bloqueado: ${reason}` : 'Bloqueado'
+  }
+  return inspectionIssueReason(item) ?? 'Sem documento de inspeção'
 }
 
 function MeterLink({
@@ -1947,7 +1948,7 @@ export function EntradaPanel({
                                 ? 'schedule-pending-badge'
                                 : 'schedule-ok-badge'
                             }
-                            title={item.blockReasons ?? undefined}
+                            title={wpaDocumentationLabel(item)}
                           >
                             {wpaDocumentationLabel(item)}
                           </span>
@@ -2347,12 +2348,13 @@ export function EntradaPanel({
                         </td>
                         <td>{formatWorkSubtypeLabel(pendencia.responsibleWorkSubtype)}</td>
                         <td>
-                          {[
-                            pendencia.missingToi ? 'TOI' : null,
-                            pendencia.missingComunicado ? 'CSM' : null,
-                          ]
-                            .filter(Boolean)
-                            .join(' + ')}
+                          {inspectionIssueReason(pendencia) ??
+                            [
+                              pendencia.missingToi ? 'TOI' : null,
+                              pendencia.missingComunicado ? 'CSM' : null,
+                            ]
+                              .filter(Boolean)
+                              .join(' + ')}
                         </td>
                         <td>
                           <input
@@ -2534,7 +2536,7 @@ export function EntradaPanel({
                         <td>
                           <span
                             className={`week-meter-status-badge is-${item.status}`}
-                            title={item.status === 'bloqueado' ? item.blockReason ?? undefined : undefined}
+                            title={weekMeterInspectionLabel(item)}
                           >
                             {weekMeterInspectionLabel(item)}
                           </span>
