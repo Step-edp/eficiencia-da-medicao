@@ -134,6 +134,38 @@ function wpaDocumentationLabel(item: MeterInspectionDocumentadoRecord) {
   return 'OK'
 }
 
+function normalizeWpaSearch(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function wpaMeterMatchesQuery(item: MeterInspectionDocumentadoRecord, query: string) {
+  const haystack = normalizeWpaSearch(
+    [
+      item.meter,
+      item.installation,
+      item.toi,
+      item.note,
+      item.csd,
+      item.trailStep,
+      wpaDocumentationLabel(item),
+      formatDateTime(item.scheduledAt),
+    ].join(' '),
+  )
+  if (haystack.includes(query)) return true
+  const queryDigits = query.replace(/\D/g, '')
+  if (queryDigits.length < 3) return false
+  return (
+    item.meter.replace(/\D/g, '').includes(queryDigits) ||
+    item.installation.replace(/\D/g, '').includes(queryDigits) ||
+    (item.toi ?? '').replace(/\D/g, '').includes(queryDigits) ||
+    (item.note ?? '').replace(/\D/g, '').includes(queryDigits)
+  )
+}
+
 function weekMeterInspectionLabel(item: WeekMeterRecord) {
   if (item.status === 'bloqueado') return 'Bloqueado'
   if (item.status === 'liberado') return 'Liberado'
@@ -757,6 +789,7 @@ export function EntradaPanel({
   >([])
   const [wpaMeters, setWpaMeters] = useState<MeterInspectionDocumentadoRecord[]>([])
   const [wpaMetersLoading, setWpaMetersLoading] = useState(false)
+  const [wpaSearchQuery, setWpaSearchQuery] = useState('')
   const [inspectionPendenciasLoading, setInspectionPendenciasLoading] = useState(false)
   const [inspectionPendenciasMeterFilter, setInspectionPendenciasMeterFilter] = useState('')
   const [inspectionPendenciasInstallationFilter, setInspectionPendenciasInstallationFilter] =
@@ -1052,6 +1085,7 @@ export function EntradaPanel({
   const openMetersBase = () => {
     setView('metersBase')
     setFeedback(null)
+    setWpaSearchQuery('')
     void loadWpaMeters()
   }
 
@@ -1794,6 +1828,11 @@ export function EntradaPanel({
 
   if (view === 'metersBase') {
     const documentedMeters = wpaMeters.filter(hasWpaDocument)
+    const wpaSearchNormalized = normalizeWpaSearch(wpaSearchQuery)
+    const filteredWpaMeters = wpaSearchNormalized
+      ? documentedMeters.filter((item) => wpaMeterMatchesQuery(item, wpaSearchNormalized))
+      : documentedMeters
+    const hasWpaSearch = Boolean(wpaSearchNormalized)
 
     return (
       <>
@@ -1808,9 +1847,46 @@ export function EntradaPanel({
               <p className="demm-analysis-summary">
                 {wpaMetersLoading && documentedMeters.length === 0
                   ? 'Carregando medidores...'
-                  : `${documentedMeters.length} medidor(es) com documento anexado`}
+                  : hasWpaSearch
+                    ? `${filteredWpaMeters.length} de ${documentedMeters.length} medidor(es) com documento anexado`
+                    : `${documentedMeters.length} medidor(es) com documento anexado`}
               </p>
             </div>
+
+            {documentedMeters.length > 0 || hasWpaSearch ? (
+              <div className="consultar-toolbar entrada-wpa-toolbar">
+                <label className="consultar-search">
+                  <span className="sr-only">Pesquisar medidores da análise WPA</span>
+                  <span className="consultar-search-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <circle
+                        cx="11"
+                        cy="11"
+                        r="7"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      />
+                      <path
+                        d="M20 20l-3.5-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </span>
+                  <input
+                    type="search"
+                    value={wpaSearchQuery}
+                    onChange={(event) => setWpaSearchQuery(event.target.value)}
+                    placeholder="Pesquisar por medidor, instalação, TOI, nota, CSD…"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </label>
+              </div>
+            ) : null}
 
             {wpaMetersLoading && documentedMeters.length === 0 ? (
               <p className="entrada-panel-empty">Carregando medidores...</p>
@@ -1818,6 +1894,8 @@ export function EntradaPanel({
               <p className="entrada-panel-empty">
                 Nenhum medidor com documento de inspeção anexado.
               </p>
+            ) : filteredWpaMeters.length === 0 ? (
+              <p className="entrada-panel-empty">Nenhum medidor encontrado para esta pesquisa.</p>
             ) : (
               <div className="entrada-table-wrap">
                 <table className="data-table entrada-table">
@@ -1835,7 +1913,7 @@ export function EntradaPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {documentedMeters.map((item) => (
+                    {filteredWpaMeters.map((item) => (
                       <tr key={item.id}>
                         <td>
                           <MeterLink meter={item.meter} onOpen={openMeterDetail} />
