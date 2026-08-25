@@ -46,7 +46,6 @@ import { orgCellRoutes } from './routes/org-cells.js'
 import { vacationRoutes } from './routes/vacation.js'
 import { listAuditLogs } from './routes/audit-logs.js'
 import { rejectLabMedicaoViewOnlyMutations } from './lab-view-only.js'
-import { warmupInspectionOcr } from './inspection-pdf-ocr.js'
 import {
   countMeterSchedules,
   createMeterSchedule,
@@ -132,13 +131,6 @@ async function start() {
     console.error('DATABASE_URL não configurada.')
     process.exit(1)
   }
-
-  await migrate()
-  await seed()
-
-  void warmupInspectionOcr()
-    .then(() => console.info('OCR de documentos de inspeção pronto.'))
-    .catch((error) => console.warn('OCR de inspeção indisponível na inicialização:', error))
 
   const app = express()
 
@@ -567,9 +559,17 @@ async function start() {
     },
   )
 
-  app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`)
+  await new Promise<void>((resolve, reject) => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Servidor rodando na porta ${PORT}`)
+      resolve()
+    })
+    server.on('error', reject)
   })
+
+  await migrate()
+  await seed()
+  console.log('Banco de dados pronto.')
 }
 
 start().catch((error) => {

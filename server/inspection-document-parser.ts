@@ -1,6 +1,18 @@
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
-import { extractInspectionPdfTextViaOcr, isUnreadablePdfText } from './inspection-pdf-ocr.js'
 import { formatAvailableSlot } from './schedule-slots.js'
+
+function isUnreadablePdfText(text: string): boolean {
+  const normalized = text.replace(/\s+/g, ' ').trim()
+  if (!normalized) return true
+
+  const controlChars = (normalized.match(/[\u0000-\u001f\u007f-\u009f]/g) ?? []).length
+  if (controlChars / normalized.length > 0.12) return true
+
+  const letters = (normalized.match(/[a-zA-ZÀ-ÿ]/g) ?? []).length
+  if (letters / normalized.length < 0.04) return true
+
+  return false
+}
 
 // "5.Dados da Medição" até "6. Selagem": faixa do TOI com medidor encontrado/instalado.
 // O PDF em tabela pode embaralhar a ordem das células, então o número do TOI às vezes
@@ -681,6 +693,7 @@ export async function extractInspectionPdfText(buffer: Buffer): Promise<string> 
   if (isUnreadablePdfText(body)) {
     console.info('PDF de inspeção com camada de texto ilegível; tentando OCR.')
     try {
+      const { extractInspectionPdfTextViaOcr } = await import('./inspection-pdf-ocr.js')
       const ocrText = await extractInspectionPdfTextViaOcr(buffer)
       const normalizedOcr = normalizeInspectionText(ocrText)
       if (normalizedOcr && !isUnreadablePdfText(normalizedOcr)) {
