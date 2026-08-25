@@ -185,6 +185,7 @@ async function start() {
   app.patch('/api/users/:id/pending', ...wrap(authRoutes.resetUserToPending))
   app.patch('/api/users/:id', ...wrap(authRoutes.updateUser))
   app.delete('/api/users/:id', ...wrap(authRoutes.deleteUser))
+  app.delete('/api/users/:id/permanent', ...wrap(authRoutes.permanentlyDeleteRejectedUser))
 
   app.get('/api/homologation-requests', ...wrap(homologationRoutes.list))
   app.post('/api/homologation-requests', ...wrap(homologationRoutes.create))

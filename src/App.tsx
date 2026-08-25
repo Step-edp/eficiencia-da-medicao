@@ -160,21 +160,6 @@ export default function App() {
   const loadUsersDirectory = useCallback(async () => {
     const usersResponse = await api.listUsers()
     setRegisteredUsers(usersResponse.users)
-
-    const photoIds = usersResponse.users
-      .filter((user) => user.hasProfilePhoto)
-      .map((user) => user.id)
-    if (!photoIds.length) {
-      setUserProfilePhotos({})
-      return
-    }
-
-    void api
-      .listUserProfilePhotos(photoIds)
-      .then(({ photos }) => setUserProfilePhotos(photos))
-      .catch(() => {
-        setUserProfilePhotos({})
-      })
   }, [])
 
   const loadAdminData = useCallback(async () => {
@@ -184,21 +169,22 @@ export default function App() {
     ])
     setRegisteredUsers(usersResponse.users)
     setHomologationRequests(requestsResponse.requests)
+  }, [])
 
-    const photoIds = usersResponse.users
-      .filter((user) => user.hasProfilePhoto)
-      .map((user) => user.id)
-    if (!photoIds.length) {
-      setUserProfilePhotos({})
-      return
-    }
+  const loadUserProfilePhotos = useCallback((userIds: string[]) => {
+    setUserProfilePhotos((current) => {
+      const missingIds = userIds.filter((id) => !(id in current))
+      if (!missingIds.length) return current
 
-    void api
-      .listUserProfilePhotos(photoIds)
-      .then(({ photos }) => setUserProfilePhotos(photos))
-      .catch(() => {
-        setUserProfilePhotos({})
-      })
+      void api
+        .listUserProfilePhotos(missingIds)
+        .then(({ photos }) => {
+          setUserProfilePhotos((prev) => ({ ...prev, ...photos }))
+        })
+        .catch(() => {})
+
+      return current
+    })
   }, [])
 
   useEffect(() => {
@@ -387,6 +373,15 @@ export default function App() {
             prev.map((item) => (item.id === user.id ? user : item)),
           )
         }}
+        onPermanentlyDeleteUser={(userId) => {
+          setRegisteredUsers((prev) => prev.filter((item) => item.id !== userId))
+          setUserProfilePhotos((prev) => {
+            if (!(userId in prev)) return prev
+            const next = { ...prev }
+            delete next[userId]
+            return next
+          })
+        }}
         onCurrentUserChange={setAuthenticatedUser}
         onCreateHomologationRequest={handleCreateHomologationRequest}
         onLogout={handleLogout}
@@ -398,6 +393,7 @@ export default function App() {
               : undefined
         }
         userProfilePhotos={userProfilePhotos}
+        onLoadUserProfilePhotos={loadUserProfilePhotos}
       />
     )
   }
@@ -871,7 +867,9 @@ type HomePanelProps = {
   ) => Promise<void>
   onLogout: () => Promise<void>
   onRefreshAdminData?: () => Promise<void>
+  onPermanentlyDeleteUser: (userId: string) => void
   userProfilePhotos: Record<string, string>
+  onLoadUserProfilePhotos: (userIds: string[]) => void
 }
 
 type Area = {
@@ -1833,10 +1831,16 @@ function RejectedUserItem({
   user,
   showPassword = false,
   userProfilePhotos,
+  allowManage = false,
+  deleting = false,
+  onPermanentDelete,
 }: {
   user: AppUser
   showPassword?: boolean
   userProfilePhotos: Record<string, string>
+  allowManage?: boolean
+  deleting?: boolean
+  onPermanentDelete?: (user: AppUser) => void
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -1860,26 +1864,40 @@ function RejectedUserItem({
       </button>
 
       {expanded ? (
-        <UserRegistrationDetailsGrid
-          user={user}
-          showPassword={showPassword}
-          statusLabel="Reprovado"
-          profilePhotoSrc={userProfilePhotos[user.id] ?? user.profilePhoto}
-          trailingFields={
-            <>
-              <div>
-                <dt>Reprovado em</dt>
-                <dd>
-                  {user.rejectedAt ? new Date(user.rejectedAt).toLocaleString('pt-BR') : '—'}
-                </dd>
-              </div>
-              <div className="user-detail-full">
-                <dt>Justificativa</dt>
-                <dd>{user.rejectionReason || '—'}</dd>
-              </div>
-            </>
-          }
-        />
+        <>
+          <UserRegistrationDetailsGrid
+            user={user}
+            showPassword={showPassword}
+            statusLabel="Reprovado"
+            profilePhotoSrc={userProfilePhotos[user.id] ?? user.profilePhoto}
+            trailingFields={
+              <>
+                <div>
+                  <dt>Reprovado em</dt>
+                  <dd>
+                    {user.rejectedAt ? new Date(user.rejectedAt).toLocaleString('pt-BR') : '—'}
+                  </dd>
+                </div>
+                <div className="user-detail-full">
+                  <dt>Justificativa</dt>
+                  <dd>{user.rejectionReason || '—'}</dd>
+                </div>
+              </>
+            }
+          />
+          {allowManage && onPermanentDelete ? (
+            <div className="approval-item-actions">
+              <button
+                type="button"
+                className="danger-button compact-button"
+                disabled={deleting}
+                onClick={() => onPermanentDelete(user)}
+              >
+                {deleting ? 'Apagando...' : 'Apagar definitivamente'}
+              </button>
+            </div>
+          ) : null}
+        </>
       ) : null}
     </article>
   )
@@ -1899,7 +1917,9 @@ function HomePanel({
   onCreateHomologationRequest,
   onLogout,
   onRefreshAdminData,
+  onPermanentlyDeleteUser,
   userProfilePhotos,
+  onLoadUserProfilePhotos,
 }: HomePanelProps) {
   const savedNav = useMemo(() => loadHomeNavState(currentUser.id), [currentUser.id])
   const [navReady, setNavReady] = useState(() => !savedNav?.selectedAreaTitle)
@@ -2163,6 +2183,12 @@ function HomePanel({
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [userPendingDelete, setUserPendingDelete] = useState<AppUser | null>(null)
   const [deleteReason, setDeleteReason] = useState('')
+  const [permanentlyDeletingUserId, setPermanentlyDeletingUserId] = useState<string | null>(
+    null,
+  )
+  const [userPendingPermanentDelete, setUserPendingPermanentDelete] = useState<AppUser | null>(
+    null,
+  )
   const [userSearchFilter, setUserSearchFilter] = useState('')
   const isAdmin = currentUser.role === 'admin'
   const canAccessUsers = isAdmin || isLabMedicaoOperator(currentUser)
@@ -2173,6 +2199,30 @@ function HomePanel({
       void onRefreshAdminData()
     }
   }, [selectedArea?.title, canAccessUsers, onRefreshAdminData])
+
+  useEffect(() => {
+    if (selectedArea?.title !== 'Usuários' || !canAccessUsers) return
+
+    const idsForTab = users
+      .filter((user) => {
+        if (!user.hasProfilePhoto) return false
+        if (usersView === 'pendentes') {
+          return user.role === 'compras' && user.approvalStatus === 'pending'
+        }
+        if (usersView === 'reprovados') {
+          return user.role === 'compras' && user.approvalStatus === 'rejected'
+        }
+        if (usersView === 'usuarios') {
+          return user.role !== 'admin' && user.approvalStatus === 'approved'
+        }
+        return false
+      })
+      .map((user) => user.id)
+
+    if (idsForTab.length) {
+      onLoadUserProfilePhotos(idsForTab)
+    }
+  }, [selectedArea?.title, canAccessUsers, usersView, users, onLoadUserProfilePhotos])
 
   const pendingApprovalUsers = users.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'pending',
@@ -4200,6 +4250,31 @@ function HomePanel({
         }
       }
 
+      const handlePermanentlyDeleteUser = async (user: AppUser) => {
+        if (permanentlyDeletingUserId) return
+
+        setPermanentlyDeletingUserId(user.id)
+        try {
+          await api.permanentlyDeleteUser(user.id)
+          onPermanentlyDeleteUser(user.id)
+          setUserPendingPermanentDelete(null)
+          setPasswordFeedback({
+            type: 'success',
+            message: 'Cadastro apagado definitivamente.',
+          })
+        } catch (error) {
+          setPasswordFeedback({
+            type: 'error',
+            message:
+              error instanceof ApiError
+                ? error.message
+                : 'Não foi possível apagar o cadastro definitivamente.',
+          })
+        } finally {
+          setPermanentlyDeletingUserId(null)
+        }
+      }
+
       return (
         <main className="shell">
           <section className="home-card area-screen-card">
@@ -4319,6 +4394,9 @@ function HomePanel({
                           user={user}
                           showPassword={canViewUserPasswords}
                           userProfilePhotos={userProfilePhotos}
+                          allowManage={canManageUsers}
+                          deleting={permanentlyDeletingUserId === user.id}
+                          onPermanentDelete={setUserPendingPermanentDelete}
                         />
                       ))
                     ) : (
@@ -4596,6 +4674,59 @@ function HomePanel({
                           {deletingUserId === userPendingDelete.id
                             ? 'Excluindo...'
                             : 'Excluir'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>,
+                  document.body,
+                )
+              : null}
+
+            {userPendingPermanentDelete && canManageUsers
+              ? createPortal(
+                  <div
+                    className="ensaios-block-modal-overlay"
+                    role="presentation"
+                    onClick={() => {
+                      if (permanentlyDeletingUserId) return
+                      setUserPendingPermanentDelete(null)
+                    }}
+                  >
+                    <div
+                      className="ensaios-block-modal"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="permanent-delete-user-title"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <h3 id="permanent-delete-user-title">Apagar definitivamente</h3>
+                      <p className="ensaios-unblock-message">
+                        Apagar definitivamente o cadastro de{' '}
+                        <strong>{userPendingPermanentDelete.name}</strong> (
+                        {userPendingPermanentDelete.registration})? Esta ação não pode ser
+                        desfeita: o cadastro será removido por completo, e não apenas
+                        movido para Reprovados.
+                      </p>
+                      <div className="ensaios-block-modal-actions">
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          disabled={Boolean(permanentlyDeletingUserId)}
+                          onClick={() => setUserPendingPermanentDelete(null)}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          className="danger-button"
+                          disabled={Boolean(permanentlyDeletingUserId)}
+                          onClick={() =>
+                            void handlePermanentlyDeleteUser(userPendingPermanentDelete)
+                          }
+                        >
+                          {permanentlyDeletingUserId === userPendingPermanentDelete.id
+                            ? 'Apagando...'
+                            : 'Apagar definitivamente'}
                         </button>
                       </div>
                     </div>

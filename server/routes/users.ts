@@ -1634,6 +1634,61 @@ export async function deleteUser(req: Request, res: Response) {
   res.json({ ok: true, id, user })
 }
 
+export async function permanentlyDeleteRejectedUser(req: Request, res: Response) {
+  const { id } = req.params
+
+  const previous = await query<UserRow>(`SELECT * FROM users WHERE id = $1`, [id])
+  if (!previous.rows[0]) {
+    res.status(404).json({ error: 'Usuário não encontrado.' })
+    return
+  }
+
+  if (previous.rows[0].role === 'admin') {
+    res.status(403).json({ error: 'O administrador não pode ser excluído.' })
+    return
+  }
+
+  if (req.user?.id === id) {
+    res.status(400).json({ error: 'Você não pode excluir o próprio usuário.' })
+    return
+  }
+
+  if (previous.rows[0].approval_status !== 'rejected') {
+    res.status(400).json({
+      error: 'Apenas cadastros reprovados podem ser apagados definitivamente.',
+    })
+    return
+  }
+
+  const target = mapUser(previous.rows[0])
+
+  try {
+    await query(`DELETE FROM users WHERE id = $1`, [id])
+  } catch (error) {
+    if ((error as { code?: string }).code === '23503') {
+      res.status(409).json({
+        error:
+          'Este cadastro possui registros vinculados no sistema (documentos, agendamentos ou histórico) e não pode ser apagado definitivamente.',
+      })
+      return
+    }
+    throw error
+  }
+
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'user',
+    entityId: target.id,
+    summary: `Cadastro reprovado apagado definitivamente: ${target.registration}`,
+    oldData: {
+      ...target,
+      profilePhoto: target.profilePhoto ? '[imagem anexada]' : '',
+    },
+  })
+
+  res.json({ ok: true, id })
+}
+
 export const authRoutes = {
   login,
   register,
@@ -1648,4 +1703,5 @@ export const authRoutes = {
   rejectUser: [requireAuth, requireAdmin, rejectUser],
   resetUserToPending: [requireAuth, requireAdmin, resetUserToPending],
   deleteUser: [requireAuth, requireAdmin, deleteUser],
+  permanentlyDeleteRejectedUser: [requireAuth, requireAdmin, permanentlyDeleteRejectedUser],
 }

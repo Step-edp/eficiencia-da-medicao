@@ -1301,7 +1301,7 @@ export function EntradaPanel({
           className={view === 'metersBase' ? 'active' : ''}
           onClick={() => openMetersBase()}
         >
-          Análise WPA
+          Análise
         </button>
         <button
           type="button"

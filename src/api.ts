@@ -1042,6 +1042,10 @@ export const api = {
       method: 'DELETE',
       body: JSON.stringify(payload),
     }),
+  permanentlyDeleteUser: (id: string) =>
+    request<{ ok: boolean; id: string }>(`/api/users/${id}/permanent`, {
+      method: 'DELETE',
+    }),
   listProcessAssignments: () =>
     request<{ assignments: ProcessAssignment[] }>('/api/process-assignments'),
   listAssignedProcessesForUser: (userId?: string) => {

@@ -285,6 +285,7 @@ type DocumentForInspectionAggregate = Pick<
   InspectionDocumentRow,
   | 'doc_type'
   | 'extracted_meter'
+  | 'extracted_meter_retirado'
   | 'extracted_lacre'
   | 'extracted_cover_seal'
   | 'extracted_reading'
@@ -307,6 +308,19 @@ export function aggregateInspectionForSchedule(
     const evaluation = evaluateInspectionDocument(
       doc.extracted_lacre,
       doc.extracted_meter,
+      schedule.meter,
+      schedule.envelope_seal,
+    )
+    if (evaluation.blocked && evaluation.reason) {
+      reasons.push(evaluation.reason)
+    }
+  }
+
+  for (const doc of documents) {
+    if (doc.doc_type !== 'comunicado') continue
+    const evaluation = evaluateInspectionDocument(
+      doc.extracted_lacre,
+      doc.extracted_meter_retirado,
       schedule.meter,
       schedule.envelope_seal,
     )
@@ -393,6 +407,7 @@ export async function loadInspectionSummariesByNorm(
     created_at: Date
     doc_type: InspectionDocumentType | null
     extracted_meter: string | null
+    extracted_meter_retirado: string | null
     extracted_lacre: string | null
     extracted_cover_seal: string | null
     extracted_reading: string | null
@@ -413,6 +428,7 @@ export async function loadInspectionSummariesByNorm(
             ms.created_at,
             d.doc_type,
             d.extracted_meter,
+            d.extracted_meter_retirado,
             d.extracted_lacre,
             d.extracted_cover_seal,
             d.extracted_reading,
@@ -460,6 +476,7 @@ export async function loadInspectionSummariesByNorm(
       group.documents.push({
         doc_type: row.doc_type,
         extracted_meter: row.extracted_meter,
+        extracted_meter_retirado: row.extracted_meter_retirado,
         extracted_lacre: row.extracted_lacre,
         extracted_cover_seal: row.extracted_cover_seal,
         extracted_reading: row.extracted_reading,
@@ -828,6 +845,14 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
       schedule.rows[0].meter,
       schedule.rows[0].envelope_seal || null,
     )
+  } else if (docType === 'comunicado') {
+    extractedLacre = parsed.lacre
+    evaluation = evaluateInspectionDocument(
+      parsed.lacre,
+      parsed.meterRetirado,
+      schedule.rows[0].meter,
+      schedule.rows[0].envelope_seal || null,
+    )
   }
 
   const id = `inspdoc-${Date.now()}-${meterScheduleId}-${docType}`
@@ -886,7 +911,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
   const documentScheduleIds = scheduleIds.length ? scheduleIds : [meterScheduleId]
   const allDocuments = await query<DocumentForInspectionAggregate>(
-    `SELECT doc_type, extracted_meter, extracted_lacre, extracted_cover_seal, extracted_reading,
+    `SELECT doc_type, extracted_meter, extracted_meter_retirado, extracted_lacre, extracted_cover_seal, extracted_reading,
             extracted_installation, extracted_toi, extracted_note
      FROM meter_inspection_documents
      WHERE meter_schedule_id = ANY($1::text[])`,
@@ -957,7 +982,14 @@ function mapInspectionDocumentRow(
           registeredMeter,
           registeredLacre,
         )
-      : { blocked: row.blocked, reason: row.block_reason }
+      : row.doc_type === 'comunicado' && registeredMeter
+        ? evaluateInspectionDocument(
+            row.extracted_lacre,
+            row.extracted_meter_retirado,
+            registeredMeter,
+            registeredLacre,
+          )
+        : { blocked: row.blocked, reason: row.block_reason }
 
   return {
     id: row.id,
@@ -1443,7 +1475,7 @@ export async function listInspectionPendencias(req: Request, res: Response) {
           meter_schedule_id: string
         }
       >(
-        `SELECT meter_schedule_id, doc_type, extracted_meter, extracted_lacre,
+        `SELECT meter_schedule_id, doc_type, extracted_meter, extracted_meter_retirado, extracted_lacre,
                 extracted_cover_seal, extracted_reading,
                 extracted_installation, extracted_toi, extracted_note
          FROM meter_inspection_documents
@@ -1582,7 +1614,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
           meter_schedule_id: string
         }
       >(
-        `SELECT meter_schedule_id, doc_type, extracted_meter, extracted_lacre,
+        `SELECT meter_schedule_id, doc_type, extracted_meter, extracted_meter_retirado, extracted_lacre,
                 extracted_cover_seal, extracted_reading,
                 extracted_installation, extracted_toi, extracted_note
          FROM meter_inspection_documents
