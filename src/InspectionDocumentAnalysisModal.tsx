@@ -16,6 +16,48 @@ import {
   uniqueInspectionReasons,
 } from './inspectionStatusReason'
 
+const WPA_CONFERENCE_OPTIONS = [
+  { id: 'compativel', label: 'Compatível com documento', matches: true },
+  { id: 'nao_compativel', label: 'Não compatível com documento', matches: false },
+  { id: 'nao_aplicavel', label: 'Não aplicável', matches: true },
+  { id: 'nao_visivel', label: 'Não visível', matches: true },
+] as const
+
+type WpaConferenceOptionId = (typeof WPA_CONFERENCE_OPTIONS)[number]['id']
+
+const WPA_CONFERENCE_OPTION_IDS = new Set<string>(
+  WPA_CONFERENCE_OPTIONS.map((option) => option.id),
+)
+
+function parseWpaConferenceOption(
+  value: string | null | undefined,
+): WpaConferenceOptionId | null {
+  const trimmed = value?.trim()
+  if (!trimmed || !WPA_CONFERENCE_OPTION_IDS.has(trimmed)) return null
+  return trimmed as WpaConferenceOptionId
+}
+
+function wpaConferenceLabel(value: string | null | undefined, emptyLabel = '—') {
+  const optionId = parseWpaConferenceOption(value)
+  if (!optionId) return emptyLabel
+  return WPA_CONFERENCE_OPTIONS.find((option) => option.id === optionId)?.label ?? emptyLabel
+}
+
+function wpaConferenceMatches(value: string | null | undefined): boolean | null {
+  const optionId = parseWpaConferenceOption(value)
+  if (!optionId) return null
+  return WPA_CONFERENCE_OPTIONS.find((option) => option.id === optionId)?.matches ?? null
+}
+
+function wpaIncompatibleReason(
+  value: string | null | undefined,
+  fieldLabel: string,
+): string | null {
+  return parseWpaConferenceOption(value) === 'nao_compativel'
+    ? `WPA não compatível com o documento (${fieldLabel}).`
+    : null
+}
+
 type InspectionDocumentAnalysisModalProps = {
   meter: string
   scheduleId: string
@@ -157,10 +199,10 @@ function buildInspectionAnalysisReasons({
   scheduleScheduleDate: string | null | undefined
 }): string[] {
   const missingWpa: string[] = []
-  if (!hasConferenceValue(campoMeter)) missingWpa.push('medidor')
-  if (!hasConferenceValue(campoLacre)) missingWpa.push('lacre do invólucro')
-  if (!hasConferenceValue(campoCoverSeal)) missingWpa.push('lacre da tampa')
-  if (!hasConferenceValue(campoReading)) missingWpa.push('leitura')
+  if (!parseWpaConferenceOption(campoMeter)) missingWpa.push('medidor')
+  if (!parseWpaConferenceOption(campoLacre)) missingWpa.push('lacre do invólucro')
+  if (!parseWpaConferenceOption(campoCoverSeal)) missingWpa.push('lacre da tampa')
+  if (!parseWpaConferenceOption(campoReading)) missingWpa.push('leitura')
 
   const missingLab: string[] = []
   if (!hasConferenceValue(labMeter)) missingLab.push('medidor')
@@ -186,6 +228,10 @@ function buildInspectionAnalysisReasons({
       'Data de agendamento não informada no cadastro.',
     ),
     missingWpa.length ? `Análise WPA incompleta: falta ${missingWpa.join(', ')}.` : null,
+    wpaIncompatibleReason(campoMeter, 'medidor'),
+    wpaIncompatibleReason(campoLacre, 'lacre do invólucro'),
+    wpaIncompatibleReason(campoCoverSeal, 'lacre da tampa'),
+    wpaIncompatibleReason(campoReading, 'leitura'),
     missingLab.length === 3
       ? 'Medidor ainda não deu entrada no laboratório.'
       : missingLab.length
@@ -291,10 +337,9 @@ function ComparisonField({
   onPreviewAgendamentoPhoto?: () => void
 }) {
   const wpaRequired = campoEmpty !== 'Não aplicável'
-  const matches =
-    wpaRequired && !hasConferenceValue(campo)
-      ? null
-      : conferenceMatches([campo, documento, agendamento, laboratorio], kind)
+  const matches = wpaRequired
+    ? wpaConferenceMatches(campo)
+    : conferenceMatches([campo, documento, agendamento, laboratorio], kind)
   return (
     <div className="inspection-document-comparison">
       <dt>{label}</dt>
@@ -302,18 +347,26 @@ function ComparisonField({
         <div className="inspection-document-comparison-grid is-four">
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">WPA</span>
-            {campoEditable ? (
-              <input
-                type="text"
-                className="inspection-document-wpa-input"
-                value={campo ?? ''}
-                placeholder={campoEmpty}
-                inputMode={kind === 'digits' ? 'numeric' : 'text'}
+            {campoEditable && wpaRequired ? (
+              <select
+                className="inspection-document-wpa-input inspection-document-wpa-select"
+                value={parseWpaConferenceOption(campo) ?? ''}
                 aria-label={`${label} no WPA`}
                 onChange={(event) => onCampoChange?.(event.target.value)}
-              />
+              >
+                <option value="">Selecione</option>
+                {WPA_CONFERENCE_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             ) : (
-              <strong>{displayConferenceValue(campo, campoEmpty)}</strong>
+              <strong>
+                {wpaRequired
+                  ? wpaConferenceLabel(campo, campoEmpty || 'Selecione')
+                  : displayConferenceValue(campo, campoEmpty)}
+              </strong>
             )}
           </div>
           <div className="inspection-document-comparison-item">
@@ -514,10 +567,9 @@ export function InspectionDocumentAnalysisModal({
         const next = { ...current, [field]: value }
         if (wpaSaveTimerRef.current != null) {
           window.clearTimeout(wpaSaveTimerRef.current)
+          wpaSaveTimerRef.current = null
         }
-        wpaSaveTimerRef.current = window.setTimeout(() => {
-          void persistWpaDraft(next)
-        }, 400)
+        void persistWpaDraft(next)
         return next
       })
     },
@@ -854,15 +906,15 @@ export function InspectionDocumentAnalysisModal({
               const requireToiFields =
                 hasToi || document.docType === 'toi' || document.docType === 'ambos'
               const completenessFields = [
-                campoMeter,
+                parseWpaConferenceOption(campoMeter),
                 documentoMeter,
                 conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter,
                 conference?.labMeter,
-                campoLacre,
+                parseWpaConferenceOption(campoLacre),
                 conference?.scheduleLacre ?? document.registeredLacre,
                 conference?.labLacre,
-                campoCoverSeal,
-                campoReading,
+                parseWpaConferenceOption(campoCoverSeal),
+                parseWpaConferenceOption(campoReading),
                 documentoReading,
                 conference?.labReading,
                 documentoScheduledAt,

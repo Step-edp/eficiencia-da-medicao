@@ -660,13 +660,21 @@ function evaluateInspectionDocument(
   return { blocked: false, reason: null }
 }
 
+const WPA_CONFERENCE_VALUES = new Set([
+  'compativel',
+  'nao_compativel',
+  'nao_aplicavel',
+  'nao_visivel',
+])
+
 function pickSavedWpa(saved: string | null | undefined) {
   const trimmed = saved?.trim()
-  return trimmed ? trimmed : null
+  return trimmed && WPA_CONFERENCE_VALUES.has(trimmed) ? trimmed : null
 }
 
 function readWpaText(value: unknown) {
-  return typeof value === 'string' ? value.trim() : ''
+  const trimmed = typeof value === 'string' ? value.trim() : ''
+  return WPA_CONFERENCE_VALUES.has(trimmed) ? trimmed : ''
 }
 
 const VALID_INSPECTION_DOC_TYPES = new Set<InspectionDocumentType>(['toi', 'comunicado', 'ambos'])
