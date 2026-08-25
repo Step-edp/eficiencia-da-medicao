@@ -381,19 +381,19 @@ function looksLikeCoverSealValue(value: string): boolean {
 }
 
 function extractDescriptiveCoverSeal(text: string): string | null {
-  const labeledStatus = text.match(
+  const meterCover = text.match(
     new RegExp(
-      `\\btampa(?:\\s+do)?(?:\\s+medidor)?\\s*[:\\-–]?\\s*(.{0,80}?(?:${COVER_STATUS_PATTERN}))`,
+      `\\btampa\\s+do\\s+medidor\\s*[:\\-–]?\\s*(.{0,80}?(?:${COVER_STATUS_PATTERN}))`,
       'i',
     ),
   )
-  if (labeledStatus?.[1]) {
-    return normalizeCoverSealValue(labeledStatus[1])
+  if (meterCover?.[1]) {
+    return normalizeCoverSealValue(meterCover[1])
   }
 
   const labeled = text.match(
     new RegExp(
-      `\\btampa(?:\\s+do)?(?:\\s+medidor)?\\s*[:\\-–]?\\s*((?:${COVER_COLOR_PATTERN})[a-z]*)\\s*[-–—:]?\\s*(${COVER_STATUS_PATTERN})`,
+      `\\btampa\\s+do\\s+medidor\\s*[:\\-–]?\\s*((?:${COVER_COLOR_PATTERN})[a-z]*)\\s*[-–—:]?\\s*(${COVER_STATUS_PATTERN})`,
       'i',
     ),
   )
@@ -403,7 +403,7 @@ function extractDescriptiveCoverSeal(text: string): string | null {
 
   const colorStatus = text.match(
     new RegExp(
-      `\\b([A-Za-z0-9]{0,16}(?:${COVER_COLOR_PATTERN})[A-Za-z0-9]{0,16})\\s*[-–—]\\s*(${COVER_STATUS_PATTERN})\\b`,
+      `tampa\\s+do\\s+medidor[\\s\\S]{0,40}?\\b([A-Za-z0-9]{0,16}(?:${COVER_COLOR_PATTERN})[A-Za-z0-9]{0,16})\\s*[-–—]\\s*(${COVER_STATUS_PATTERN})\\b`,
       'i',
     ),
   )
