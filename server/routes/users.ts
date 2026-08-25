@@ -176,22 +176,33 @@ function parseAccessAreas(value: unknown): string[] {
   return []
 }
 
+function dateOnly(value: unknown) {
+  if (!value) return ''
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10)
+  }
+  const match = String(value).match(/^(\d{4}-\d{2}-\d{2})/)
+  return match?.[1] ?? ''
+}
+
 function mapUser(row: UserRow, options?: { includePassword?: boolean }) {
   return {
     id: row.id,
-    name: row.name,
-    registration: row.registration,
-    email: row.email,
+    name: row.name ?? '',
+    registration: row.registration ?? '',
+    email: row.email ?? '',
     role: row.role,
     approvalStatus: row.approval_status,
-    requestedAt: row.requested_at.toISOString(),
-    approvedAt: row.approved_at?.toISOString(),
-    rejectedAt: row.rejected_at?.toISOString() ?? null,
+    requestedAt: row.requested_at
+      ? new Date(row.requested_at).toISOString()
+      : new Date().toISOString(),
+    approvedAt: row.approved_at ? new Date(row.approved_at).toISOString() : undefined,
+    rejectedAt: row.rejected_at ? new Date(row.rejected_at).toISOString() : null,
     rejectionReason: row.rejection_reason || '',
     approvedByUserId: row.approved_by_user_id ?? null,
     approvedByName: row.approved_by_name || '',
     approvedByRegistration: row.approved_by_registration || '',
-    birthDate: row.birth_date,
+    birthDate: dateOnly(row.birth_date),
     jobTitle: row.job_title,
     cpf: row.cpf,
     personalDescription: row.personal_description,

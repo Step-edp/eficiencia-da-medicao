@@ -11,6 +11,7 @@ import { ScheduleDateAdjustmentsPanel } from './ScheduleDateAdjustmentsPanel'
 import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
+import { ErrorBoundary } from './ErrorBoundary'
 import { UserProfilePhoto } from './UserProfilePhoto'
 import { UsersDashboard } from './UsersDashboard'
 import { GestaoDashboard, CellResponsibleEditor, CreateOrgAreaForm, AreaLeadershipEditor, GestaoPessoasPanel } from './GestaoDashboard'
@@ -350,6 +351,7 @@ export default function App() {
 
   if (authenticatedUser) {
     return (
+      <ErrorBoundary>
       <HomePanel
         currentUser={authenticatedUser}
         activeRoute={activeRoute}
@@ -395,6 +397,7 @@ export default function App() {
         userProfilePhotos={userProfilePhotos}
         onLoadUserProfilePhotos={loadUserProfilePhotos}
       />
+      </ErrorBoundary>
     )
   }
 
@@ -1617,7 +1620,7 @@ function PendingApprovalItem({
                     <div key={area} className="approval-process-group">
                       <p className="approval-process-group-title">Processos de {area}</p>
                       <div className="approval-subareas-grid">
-                        {group.processes.map((process) => {
+                        {group.processes?.map((process) => {
                           const encoded = encodeAccessProcess(area, process)
                           return (
                             <label key={encoded} className="approval-subarea-option">
@@ -2245,7 +2248,9 @@ function HomePanel({
   }, [registeredUsers, userSearchFilter])
   const previewUserOptions = useMemo(
     () =>
-      [...registeredUsers].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+      [...registeredUsers].sort((a, b) =>
+        (a.name ?? '').localeCompare(b.name ?? '', 'pt-BR'),
+      ),
     [registeredUsers],
   )
   const previewUser =
@@ -4406,11 +4411,13 @@ function HomePanel({
                     )}
                   </div>
                 ) : usersView === 'dashboard' ? (
-                  <UsersDashboard
-                    users={users.filter((user) => user.role !== 'admin')}
-                    pendingCount={pendingApprovalUsers.length}
-                    approvedCount={registeredUsers.length}
-                  />
+                  <ErrorBoundary fallbackTitle="Não foi possível carregar o dashboard de usuários">
+                    <UsersDashboard
+                      users={users.filter((user) => user.role !== 'admin')}
+                      pendingCount={pendingApprovalUsers.length}
+                      approvedCount={registeredUsers.length}
+                    />
+                  </ErrorBoundary>
                 ) : (
                   <>
                     <div className="consultar-toolbar">
@@ -4737,33 +4744,35 @@ function HomePanel({
 
             {selectedUserDetail
               ? createPortal(
-                  <UserDetailModal
-                    user={selectedUserDetail}
-                    profilePhotoSrc={userProfilePhotos[selectedUserDetail.id]}
-                    approvedUsers={registeredUsers}
-                    orgCells={orgCells}
-                    terceiraOptions={terceiraOptions}
-                    showPassword={canViewUserPasswords}
-                    allowProfilePhotoEdit={canManageUsers}
-                    allowEdit={canManageUsers}
-                    startInEditMode={userDetailStartEditing && canManageUsers}
-                    onClose={() => {
-                      setSelectedUserDetail(null)
-                      setUserDetailStartEditing(false)
-                    }}
-                    onSaved={(user) => {
-                      onUpdateUser(user)
-                      setSelectedUserDetail(user)
-                      setUserDetailStartEditing(false)
-                    }}
-                    onDeleted={(rejectedUser) => {
-                      onDeleteUser(rejectedUser)
-                      setSelectedUserDetail(null)
-                      setUserDetailStartEditing(false)
-                      setUsersView('reprovados')
-                    }}
-                    onFeedback={setPasswordFeedback}
-                  />,
+                  <ErrorBoundary fallbackTitle="Não foi possível abrir o cadastro deste usuário">
+                    <UserDetailModal
+                      user={selectedUserDetail}
+                      profilePhotoSrc={userProfilePhotos[selectedUserDetail.id]}
+                      approvedUsers={registeredUsers}
+                      orgCells={orgCells}
+                      terceiraOptions={terceiraOptions}
+                      showPassword={canViewUserPasswords}
+                      allowProfilePhotoEdit={canManageUsers}
+                      allowEdit={canManageUsers}
+                      startInEditMode={userDetailStartEditing && canManageUsers}
+                      onClose={() => {
+                        setSelectedUserDetail(null)
+                        setUserDetailStartEditing(false)
+                      }}
+                      onSaved={(user) => {
+                        onUpdateUser(user)
+                        setSelectedUserDetail(user)
+                        setUserDetailStartEditing(false)
+                      }}
+                      onDeleted={(rejectedUser) => {
+                        onDeleteUser(rejectedUser)
+                        setSelectedUserDetail(null)
+                        setUserDetailStartEditing(false)
+                        setUsersView('reprovados')
+                      }}
+                      onFeedback={setPasswordFeedback}
+                    />
+                  </ErrorBoundary>,
                   document.body,
                 )
               : null}
@@ -6245,7 +6254,7 @@ function HomePanel({
         <p className="section-tag">Home</p>
         <h2>
           Bem-vindo,{' '}
-          {(previewUser?.name ?? currentUser.name).trim().split(/\s+/)[0] ||
+          {(previewUser?.name ?? currentUser.name ?? '').trim().split(/\s+/)[0] ||
             previewUser?.name ||
             currentUser.name}
           !
@@ -6260,7 +6269,7 @@ function HomePanel({
                   {index > 0 ? '; ' : null}
                   <strong>{item.name}</strong>
                   {item.absenceTypeLabel ? ` (${item.absenceTypeLabel})` : ''}
-                  {` ${item.vacationStart.slice(8, 10)}/${item.vacationStart.slice(5, 7)} a ${item.vacationEnd.slice(8, 10)}/${item.vacationEnd.slice(5, 7)}`}
+                  {` ${String(item.vacationStart ?? '').slice(8, 10)}/${String(item.vacationStart ?? '').slice(5, 7)} a ${String(item.vacationEnd ?? '').slice(8, 10)}/${String(item.vacationEnd ?? '').slice(5, 7)}`}
                 </span>
               ))}
               . As atividades desses titulares estão atreladas a você neste período.

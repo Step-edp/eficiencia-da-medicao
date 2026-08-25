@@ -215,11 +215,11 @@ export function UsersDashboard({
   const assignedSlots = assignments.reduce((total, item) => {
     return (
       total +
-      EXECUTOR_SLOTS.filter((slot) => item[slot.key].userId).length
+      EXECUTOR_SLOTS.filter((slot) => item[slot.key]?.userId).length
     )
   }, 0)
   const processesWithExecutor = assignments.filter((item) =>
-    EXECUTOR_SLOTS.some((slot) => item[slot.key].userId),
+    EXECUTOR_SLOTS.some((slot) => item[slot.key]?.userId),
   ).length
 
   const executorRanking = (() => {
@@ -227,7 +227,7 @@ export function UsersDashboard({
     for (const item of assignments) {
       for (const slot of EXECUTOR_SLOTS) {
         const assignment = item[slot.key]
-        const userId = assignment.actingUserId ?? assignment.userId
+        const userId = assignment?.actingUserId ?? assignment?.userId
         if (!userId) continue
         counts.set(userId, (counts.get(userId) ?? 0) + 1)
       }
@@ -246,7 +246,7 @@ export function UsersDashboard({
       .filter((item) => item.count > 0)
       .sort(
         (a, b) =>
-          b.count - a.count || a.name.localeCompare(b.name, 'pt-BR'),
+          b.count - a.count || (a.name ?? '').localeCompare(b.name ?? '', 'pt-BR'),
       )
   })()
 
@@ -393,7 +393,7 @@ export function UsersDashboard({
                         <td key={slot.role}>
                           <select
                             className="users-dashboard-assign-select"
-                            value={assignment.userId ?? ''}
+                            value={assignment?.userId ?? ''}
                             disabled={savingKey === `${item.processKey}:${slot.role}`}
                             onChange={(event) => {
                               void handleAssign(
@@ -410,7 +410,7 @@ export function UsersDashboard({
                               </option>
                             ))}
                           </select>
-                          {assignment.coveredBySubstitute && assignment.actingName ? (
+                          {assignment?.coveredBySubstitute && assignment.actingName ? (
                             <p className="users-dashboard-cover-note">
                               Em férias → {assignment.actingName}
                             </p>

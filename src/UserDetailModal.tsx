@@ -79,6 +79,13 @@ function formatValue(value?: string | null) {
   return trimmed ? trimmed : '—'
 }
 
+function toDateInputValue(value?: string | null) {
+  const match = String(value ?? '')
+    .trim()
+    .match(/^(\d{4}-\d{2}-\d{2})/)
+  return match?.[1] ?? ''
+}
+
 function buildUserUpdatePayload(user: AppUser, profilePhoto: string): UserUpdatePayload {
   return {
     name: user.name ?? '',
@@ -157,11 +164,11 @@ export function UserDetailModal({
   const [tipoOptions, setTipoOptions] = useState<string[]>(['Própria', 'Terceira'])
   const [localityOptions, setLocalityOptions] = useState<string[]>([...DEFAULT_LOCALITIES])
 
-  const [name, setName] = useState(user.name)
-  const [registration, setRegistration] = useState(user.registration)
-  const [email, setEmail] = useState(user.email)
+  const [name, setName] = useState(user.name ?? '')
+  const [registration, setRegistration] = useState(user.registration ?? '')
+  const [email, setEmail] = useState(user.email ?? '')
   const [whatsapp, setWhatsapp] = useState(user.whatsapp ?? '')
-  const [birthDate, setBirthDate] = useState(user.birthDate ?? '')
+  const [birthDate, setBirthDate] = useState(toDateInputValue(user.birthDate))
   const [cpf, setCpf] = useState(user.cpf ?? '')
   const [jobTitle, setJobTitle] = useState(user.jobTitle ?? '')
   const [workArea, setWorkArea] = useState(user.workArea ?? '')
@@ -220,11 +227,11 @@ export function UserDetailModal({
   }, [])
 
   useEffect(() => {
-    setName(user.name)
-    setRegistration(user.registration)
-    setEmail(user.email)
+    setName(user.name ?? '')
+    setRegistration(user.registration ?? '')
+    setEmail(user.email ?? '')
     setWhatsapp(user.whatsapp ?? '')
-    setBirthDate(user.birthDate ?? '')
+    setBirthDate(toDateInputValue(user.birthDate))
     setCpf(user.cpf ?? '')
     setJobTitle(user.jobTitle ?? '')
     setWorkArea(user.workArea ?? '')
@@ -288,11 +295,11 @@ export function UserDetailModal({
   const homeSubareaProcesses = getHomeSubareaProcessGroups()
 
   const resetDraft = () => {
-    setName(user.name)
-    setRegistration(user.registration)
-    setEmail(user.email)
+    setName(user.name ?? '')
+    setRegistration(user.registration ?? '')
+    setEmail(user.email ?? '')
     setWhatsapp(user.whatsapp ?? '')
-    setBirthDate(user.birthDate ?? '')
+    setBirthDate(toDateInputValue(user.birthDate))
     setCpf(user.cpf ?? '')
     setJobTitle(user.jobTitle ?? '')
     setWorkArea(user.workArea ?? '')
@@ -899,7 +906,7 @@ export function UserDetailModal({
                         <div key={area} className="approval-process-group">
                           <p className="approval-process-group-title">Processos de {area}</p>
                           <div className="approval-subareas-grid">
-                            {group.processes.map((process) => {
+                            {(group.processes ?? []).map((process) => {
                               const encoded = encodeAccessProcess(area, process)
                               return (
                                 <label key={encoded} className="approval-subarea-option">
