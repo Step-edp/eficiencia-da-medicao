@@ -373,10 +373,27 @@ function normalizeCoverSealValue(value: string | null | undefined): string | nul
   return trimmed.slice(0, 120)
 }
 
+function looksLikeCoverSealValue(value: string): boolean {
+  return (
+    new RegExp(COVER_STATUS_PATTERN, 'i').test(value) &&
+    new RegExp(COVER_COLOR_PATTERN, 'i').test(value)
+  )
+}
+
 function extractDescriptiveCoverSeal(text: string): string | null {
+  const labeledStatus = text.match(
+    new RegExp(
+      `\\btampa(?:\\s+do)?(?:\\s+medidor)?\\s*[:\\-–]?\\s*(.{0,80}?(?:${COVER_STATUS_PATTERN}))`,
+      'i',
+    ),
+  )
+  if (labeledStatus?.[1]) {
+    return normalizeCoverSealValue(labeledStatus[1])
+  }
+
   const labeled = text.match(
     new RegExp(
-      `tampa(?:\\s+do)?(?:\\s+medidor)?\\s*[:\\-–]?\\s*((?:${COVER_COLOR_PATTERN})[a-z]*)\\s*[-–—:]?\\s*(${COVER_STATUS_PATTERN})`,
+      `\\btampa(?:\\s+do)?(?:\\s+medidor)?\\s*[:\\-–]?\\s*((?:${COVER_COLOR_PATTERN})[a-z]*)\\s*[-–—:]?\\s*(${COVER_STATUS_PATTERN})`,
       'i',
     ),
   )
@@ -385,9 +402,14 @@ function extractDescriptiveCoverSeal(text: string): string | null {
   }
 
   const colorStatus = text.match(
-    new RegExp(`\\b((?:${COVER_COLOR_PATTERN})[a-z]*)\\s*[-–—]\\s*(${COVER_STATUS_PATTERN})\\b`, 'i'),
+    new RegExp(
+      `\\b([A-Za-z0-9]{0,16}(?:${COVER_COLOR_PATTERN})[A-Za-z0-9]{0,16})\\s*[-–—]\\s*(${COVER_STATUS_PATTERN})\\b`,
+      'i',
+    ),
   )
-  if (colorStatus?.[0]) return normalizeCoverSealValue(colorStatus[0])
+  if (colorStatus?.[1] && colorStatus[2]) {
+    return normalizeCoverSealValue(`${colorStatus[1]} - ${colorStatus[2]}`)
+  }
 
   return null
 }
@@ -624,6 +646,9 @@ async function extractPdfFormFieldText(pdf: {
     lines.push(`${trimmedName}: ${trimmedValue}`)
     if (READING_LABEL_PATTERN.test(trimmedName) && /^\d{3,8}$/.test(trimmedValue.replace(/\D/g, ''))) {
       lines.push(`Leitura: ${trimmedValue.replace(/\D/g, '')}`)
+    }
+    if (/tampa/i.test(trimmedName) || looksLikeCoverSealValue(trimmedValue)) {
+      lines.push(`Tampa do Medidor: ${trimmedValue}`)
     }
   }
 
