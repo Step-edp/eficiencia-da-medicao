@@ -33,6 +33,7 @@ export function ScheduleDateAdjustmentsPanel({
   title,
   intro,
   allowPhysicalAdjust = false,
+  includeFillingDeviations = false,
   readOnly = false,
   onPendingCountChange,
 }: {
@@ -40,6 +41,7 @@ export function ScheduleDateAdjustmentsPanel({
   title: string
   intro: string
   allowPhysicalAdjust?: boolean
+  includeFillingDeviations?: boolean
   readOnly?: boolean
   onPendingCountChange?: (count: number) => void
 }) {
@@ -50,12 +52,16 @@ export function ScheduleDateAdjustmentsPanel({
   const [error, setError] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
   const [meterDetail, setMeterDetail] = useState<string | null>(null)
+  const dateOnly = !includeFillingDeviations
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const response = await api.listScheduleDateAdjustments(scope)
+      const response = await api.listScheduleDateAdjustments(
+        scope,
+        dateOnly ? 'schedule_date_mismatch' : undefined,
+      )
       setItems(response.adjustments)
       setHistory(response.history ?? [])
       onPendingCountChange?.(response.total)
@@ -66,12 +72,12 @@ export function ScheduleDateAdjustmentsPanel({
       setError(
         err instanceof ApiError
           ? err.message
-          : 'Não foi possível carregar as alterações de data.',
+          : 'Não foi possível carregar os apontamentos de desvio.',
       )
     } finally {
       setLoading(false)
     }
-  }, [onPendingCountChange, scope])
+  }, [dateOnly, onPendingCountChange, scope])
 
   useEffect(() => {
     void load()
@@ -109,8 +115,12 @@ export function ScheduleDateAdjustmentsPanel({
     loading
       ? 'Carregando...'
       : listTab === 'pending'
-        ? `${items.length} medidor(es) com data de agendamento alterada`
-        : `${history.length} medidor(es) ajustado(s) fisicamente`
+        ? dateOnly
+          ? `${items.length} medidor(es) com data de agendamento alterada`
+          : `${items.length} apontamento(s) de desvio`
+        : dateOnly
+          ? `${history.length} medidor(es) ajustado(s) fisicamente`
+          : `${history.length} apontamento(s) no histórico`
 
   return (
     <section className="entrada-section" aria-label={title}>
@@ -125,7 +135,7 @@ export function ScheduleDateAdjustmentsPanel({
       <div
         className="panel-switch users-view-switch"
         role="tablist"
-        aria-label="Lista de alterações de data"
+        aria-label={dateOnly ? 'Lista de alterações de data' : 'Lista de apontamentos de desvio'}
       >
         <button
           type="button"
@@ -156,8 +166,12 @@ export function ScheduleDateAdjustmentsPanel({
       ) : visibleItems.length === 0 ? (
         <p className="entrada-panel-empty">
           {listTab === 'history'
-            ? 'Nenhum ajuste físico registrado.'
-            : 'Nenhuma alteração de data pendente.'}
+            ? dateOnly
+              ? 'Nenhum ajuste físico registrado.'
+              : 'Nenhum apontamento no histórico.'
+            : dateOnly
+              ? 'Nenhuma alteração de data pendente.'
+              : 'Nenhum apontamento de desvio pendente.'}
         </p>
       ) : (
         <div className="entrada-table-wrap">
@@ -165,8 +179,9 @@ export function ScheduleDateAdjustmentsPanel({
             <thead>
               <tr>
                 <th>Medidor</th>
-                <th>Agendado no sistema</th>
-                <th>No documento</th>
+                {dateOnly ? null : <th>Tipo</th>}
+                <th>{dateOnly ? 'Agendado no sistema' : 'Valor anterior'}</th>
+                <th>{dateOnly ? 'No documento' : 'Valor corrigido'}</th>
                 {showPhysicalColumns ? <th>Ajustado fisicamente por</th> : null}
                 {showPhysicalColumns ? <th>Ajuste físico em</th> : null}
                 {showPhysicalButton ? <th>Ação</th> : null}
@@ -184,6 +199,7 @@ export function ScheduleDateAdjustmentsPanel({
                       {item.meter}
                     </button>
                   </td>
+                  {dateOnly ? null : <td>{item.description}</td>}
                   <td>{item.scheduledLabel}</td>
                   <td>{item.documentLabel}</td>
                   {showPhysicalColumns ? <td>{formatPhysicallyAdjustedBy(item)}</td> : null}
@@ -192,7 +208,7 @@ export function ScheduleDateAdjustmentsPanel({
                       {item.physicallyAdjustedAt ? formatWhen(item.physicallyAdjustedAt) : '—'}
                     </td>
                   ) : null}
-                  {showPhysicalButton ? (
+                  {showPhysicalButton && item.kind === 'schedule_date_mismatch' ? (
                     <td>
                       <button
                         type="button"
@@ -203,6 +219,8 @@ export function ScheduleDateAdjustmentsPanel({
                         {savingId === item.id ? 'Salvando...' : 'Ajustado fisicamente'}
                       </button>
                     </td>
+                  ) : showPhysicalButton ? (
+                    <td>—</td>
                   ) : null}
                 </tr>
               ))}

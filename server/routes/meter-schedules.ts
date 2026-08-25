@@ -153,6 +153,58 @@ function resolveFillingCorrection(
   return { wrong, previous: wrong ? original : '', changed, original }
 }
 
+const FILLING_DEVIATION_LABELS = {
+  installation: {
+    kind: 'filling_installation',
+    description: 'Instalação digitada errada',
+  },
+  toi: { kind: 'filling_toi', description: 'TOI digitado errado' },
+  note: { kind: 'filling_note', description: 'Nota digitada errada' },
+  csd: { kind: 'filling_csd', description: 'CSD digitado errado' },
+} as const
+
+async function insertFillingDeviations(params: {
+  scheduleId: string
+  meter: string
+  collaborator1Name: string
+  collaborator1Registration: string
+  collaborator2Name: string
+  collaborator2Registration: string
+  createdByUserId: string | null
+  corrections: Array<{
+    kind: string
+    description: string
+    previous: string
+    next: string
+  }>
+}) {
+  for (const item of params.corrections) {
+    const deviationId = `${item.kind}-${Date.now()}-${params.meter}`
+    await query(
+      `INSERT INTO toi_schedule_deviations (
+         id, meter_schedule_id, meter, kind, description,
+         scheduled_label, document_label, previous_scheduled_at, adjusted_scheduled_at,
+         collaborator1_name, collaborator1_registration,
+         collaborator2_name, collaborator2_registration, created_by_user_id
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW(),$8,$9,$10,$11,$12)`,
+      [
+        deviationId,
+        params.scheduleId,
+        params.meter,
+        item.kind,
+        item.description,
+        item.previous,
+        item.next,
+        params.collaborator1Name,
+        params.collaborator1Registration,
+        params.collaborator2Name,
+        params.collaborator2Registration,
+        params.createdByUserId,
+      ],
+    )
+  }
+}
+
 function normalizeRegistration(value?: string | null) {
   return (value ?? '').trim().toUpperCase()
 }
@@ -1552,6 +1604,54 @@ export async function updateMeterSchedule(req: Request, res: Response) {
       : correctionSummaries.length === 1
         ? `${correctionSummaries[0]} no medidor ${schedule.meter}`
         : `${correctionSummaries.slice(0, -1).join(', ')} e ${correctionSummaries.at(-1)} no medidor ${schedule.meter}`
+
+  const fillingCorrections = [
+    installationCorrection.changed && installationCorrection.wrong
+      ? {
+          kind: FILLING_DEVIATION_LABELS.installation.kind,
+          description: FILLING_DEVIATION_LABELS.installation.description,
+          previous: installationCorrection.original,
+          next: normalized.installation,
+        }
+      : null,
+    toiCorrection.changed && toiCorrection.wrong
+      ? {
+          kind: FILLING_DEVIATION_LABELS.toi.kind,
+          description: FILLING_DEVIATION_LABELS.toi.description,
+          previous: toiCorrection.original,
+          next: normalized.toi,
+        }
+      : null,
+    noteCorrection.changed && noteCorrection.wrong
+      ? {
+          kind: FILLING_DEVIATION_LABELS.note.kind,
+          description: FILLING_DEVIATION_LABELS.note.description,
+          previous: noteCorrection.original,
+          next: normalized.note,
+        }
+      : null,
+    csdCorrection.changed && csdCorrection.wrong
+      ? {
+          kind: FILLING_DEVIATION_LABELS.csd.kind,
+          description: FILLING_DEVIATION_LABELS.csd.description,
+          previous: csdCorrection.original,
+          next: normalized.csd,
+        }
+      : null,
+  ].filter((item): item is NonNullable<typeof item> => Boolean(item))
+
+  if (fillingCorrections.length > 0) {
+    await insertFillingDeviations({
+      scheduleId: schedule.id,
+      meter: schedule.meter,
+      collaborator1Name: current.toi_collaborator1_name ?? '',
+      collaborator1Registration: current.toi_collaborator1_registration ?? '',
+      collaborator2Name: current.toi_collaborator2_name ?? '',
+      collaborator2Registration: current.toi_collaborator2_registration ?? '',
+      createdByUserId: req.user?.id ?? null,
+      corrections: fillingCorrections,
+    })
+  }
 
   await writeAuditLog(req, {
     action: 'update',

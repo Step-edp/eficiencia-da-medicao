@@ -2234,8 +2234,8 @@ function mapScheduleDateAdjustment(row: ToiScheduleDeviationRow) {
     description: row.description,
     scheduledLabel: row.scheduled_label,
     documentLabel: row.document_label,
-    previousScheduledAt: row.previous_scheduled_at.toISOString(),
-    adjustedScheduledAt: row.adjusted_scheduled_at.toISOString(),
+    previousScheduledAt: toIsoOrNull(row.previous_scheduled_at) ?? '',
+    adjustedScheduledAt: toIsoOrNull(row.adjusted_scheduled_at) ?? '',
     collaborator1Name: row.collaborator1_name,
     collaborator1Registration: row.collaborator1_registration,
     collaborator2Name: row.collaborator2_name,
@@ -2412,6 +2412,10 @@ export async function listScheduleDateAdjustments(req: Request, res: Response) {
   const scope = typeof req.query.scope === 'string' ? req.query.scope.trim() : 'all'
   const mine = scope === 'mine'
   const registration = (req.user?.registration ?? '').trim().toUpperCase()
+  const kind =
+    typeof req.query.kind === 'string' && req.query.kind.trim()
+      ? req.query.kind.trim()
+      : ''
 
   if (mine && !registration) {
     res.json({ adjustments: [], history: [], total: 0, historyTotal: 0 })
@@ -2423,7 +2427,8 @@ export async function listScheduleDateAdjustments(req: Request, res: Response) {
        $1 = false
        OR UPPER(TRIM(d.collaborator1_registration)) = $2
        OR UPPER(TRIM(d.collaborator2_registration)) = $2
-     )`
+     )
+       AND ($3 = '' OR d.kind = $3)`
 
   const [pendingResult, historyResult] = await Promise.all([
     query<ToiScheduleDeviationRow>(
@@ -2432,7 +2437,7 @@ export async function listScheduleDateAdjustments(req: Request, res: Response) {
          AND d.physically_adjusted_at IS NULL
        ORDER BY d.created_at DESC
        LIMIT 500`,
-      [mine, registration],
+      [mine, registration, kind],
     ),
     query<ToiScheduleDeviationRow>(
       `${SCHEDULE_DATE_DEVIATION_SELECT}
@@ -2440,7 +2445,7 @@ export async function listScheduleDateAdjustments(req: Request, res: Response) {
          AND d.physically_adjusted_at IS NOT NULL
        ORDER BY d.physically_adjusted_at DESC
        LIMIT 500`,
-      [mine, registration],
+      [mine, registration, kind],
     ),
   ])
 

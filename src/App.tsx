@@ -2045,7 +2045,7 @@ function HomePanel({
 
     const refreshLabDateAdjustments = async () => {
       try {
-        const response = await api.listScheduleDateAdjustments('all')
+        const response = await api.listScheduleDateAdjustments('all', 'schedule_date_mismatch')
         if (!cancelled) setLabDateAdjustmentCount(response.total)
       } catch {
         if (!cancelled) setLabDateAdjustmentCount(0)
@@ -5488,7 +5488,8 @@ function HomePanel({
               <ScheduleDateAdjustmentsPanel
                 scope="mine"
                 title="Apontamentos de desvio"
-                intro="Data/horário de agendamento cadastrado no sistema diferente do inserido no documento. Confira o horário agendado no sistema e o horário que consta no documento."
+                intro="Desvios de preenchimento (instalação, TOI, nota ou CSD corrigidos pelo laboratório) e data/horário de agendamento diferente do documento. Confira o valor informado no cadastro e o valor corrigido."
+                includeFillingDeviations
                 onPendingCountChange={setScheduleDateDeviationCount}
               />
             ) : selectedFieldTeamSection === 'Enviar documentos' ? (

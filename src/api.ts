@@ -1813,13 +1813,16 @@ export const api = {
         body: JSON.stringify({ docType }),
       },
     ),
-  listScheduleDateAdjustments: (scope: 'all' | 'mine' = 'all') =>
-    request<{
+  listScheduleDateAdjustments: (scope: 'all' | 'mine' = 'all', kind?: string) => {
+    const search = new URLSearchParams({ scope })
+    if (kind) search.set('kind', kind)
+    return request<{
       adjustments: ScheduleDateAdjustmentRecord[]
       history: ScheduleDateAdjustmentRecord[]
       total: number
       historyTotal: number
-    }>(`/api/meter-schedules/date-adjustments?scope=${scope}`),
+    }>(`/api/meter-schedules/date-adjustments?${search.toString()}`)
+  },
   markScheduleDatePhysicallyAdjusted: (id: string) =>
     request<{ ok: true; adjustment: ScheduleDateAdjustmentRecord }>(
       `/api/meter-schedules/date-adjustments/${encodeURIComponent(id)}/physical`,
