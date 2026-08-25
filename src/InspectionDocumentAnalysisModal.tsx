@@ -128,6 +128,7 @@ function buildInspectionAnalysisReasons({
   documentoLacre,
   scheduleLacre,
   labLacre,
+  campoCoverSeal,
   documentoCoverSeal,
   campoReading,
   documentoReading,
@@ -147,6 +148,7 @@ function buildInspectionAnalysisReasons({
   documentoLacre: string | null | undefined
   scheduleLacre: string | null | undefined
   labLacre: string | null | undefined
+  campoCoverSeal: string | null | undefined
   documentoCoverSeal: string | null | undefined
   campoReading: string | null | undefined
   documentoReading: string | null | undefined
@@ -157,6 +159,7 @@ function buildInspectionAnalysisReasons({
   const missingWpa: string[] = []
   if (!hasConferenceValue(campoMeter)) missingWpa.push('medidor')
   if (!hasConferenceValue(campoLacre)) missingWpa.push('lacre do invólucro')
+  if (!hasConferenceValue(campoCoverSeal)) missingWpa.push('lacre da tampa')
   if (!hasConferenceValue(campoReading)) missingWpa.push('leitura')
 
   const missingLab: string[] = []
@@ -265,7 +268,6 @@ function ComparisonField({
   onAdjust,
   agendamentoPhoto,
   onPreviewAgendamentoPhoto,
-  matchOnDocumentValue = false,
 }: {
   label: string
   campo?: string | null
@@ -287,19 +289,12 @@ function ComparisonField({
   onAdjust?: () => void
   agendamentoPhoto?: string | null
   onPreviewAgendamentoPhoto?: () => void
-  matchOnDocumentValue?: boolean
 }) {
   const wpaRequired = campoEmpty !== 'Não aplicável'
-  const comparable = [campo, documento, agendamento, laboratorio]
-  const matches = matchOnDocumentValue
-    ? hasConferenceValue(documento)
-      ? comparable.filter((value) => hasConferenceValue(value)).length < 2
-        ? true
-        : conferenceMatches(comparable, kind)
-      : null
-    : wpaRequired && !hasConferenceValue(campo)
+  const matches =
+    wpaRequired && !hasConferenceValue(campo)
       ? null
-      : conferenceMatches(comparable, kind)
+      : conferenceMatches([campo, documento, agendamento, laboratorio], kind)
   return (
     <div className="inspection-document-comparison">
       <dt>{label}</dt>
@@ -842,6 +837,7 @@ export function InspectionDocumentAnalysisModal({
             {documents.map((document) => {
               const campoMeter = canEditWpa ? wpaDraft.meter : conference?.campoMeter
               const campoLacre = canEditWpa ? wpaDraft.lacre : conference?.campoLacre
+              const campoCoverSeal = canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal
               const campoReading = canEditWpa ? wpaDraft.reading : conference?.campoReading
               const documentoDraft = documentDrafts[document.docType] ?? draftFromDocument(document)
               const documentoMeter = canEditWpa
@@ -865,6 +861,7 @@ export function InspectionDocumentAnalysisModal({
                 campoLacre,
                 conference?.scheduleLacre ?? document.registeredLacre,
                 conference?.labLacre,
+                campoCoverSeal,
                 campoReading,
                 documentoReading,
                 conference?.labReading,
@@ -888,6 +885,7 @@ export function InspectionDocumentAnalysisModal({
                 documentoLacre,
                 scheduleLacre: conference?.scheduleLacre ?? document.registeredLacre,
                 labLacre: conference?.labLacre,
+                campoCoverSeal,
                 documentoCoverSeal,
                 campoReading,
                 documentoReading,
@@ -967,7 +965,6 @@ export function InspectionDocumentAnalysisModal({
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
-                    matchOnDocumentValue
                     onCampoChange={(value) => handleWpaChange('coverSeal', value)}
                     onDocumentoChange={(value) =>
                       handleDocumentoChange(document.docType, 'coverSeal', value)
