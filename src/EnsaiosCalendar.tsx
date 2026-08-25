@@ -88,7 +88,13 @@ function buildMonthGrid(year: number, month: number): CalendarCell[] {
   })
 }
 
-export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
+export function EnsaiosCalendar({
+  readOnly = false,
+  onEnsaiar,
+}: {
+  readOnly?: boolean
+  onEnsaiar?: (meter: EnsaiosCalendarMeter) => void
+}) {
   const today = new Date()
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
@@ -419,11 +425,25 @@ export function EnsaiosCalendar({ readOnly = false }: { readOnly?: boolean }) {
                           <strong>{meter.meter}</strong>
                           <span className="ensaios-day-meter-csd">{meter.csd || '—'}</span>
                         </div>
-                        <span
-                          className={`ensaios-day-meter-status is-${meter.status.toLowerCase()}`}
-                        >
-                          {calendarMeterStatusLabel(meter.status)}
-                        </span>
+                        <div className="ensaios-day-meter-actions">
+                          <span
+                            className={`ensaios-day-meter-status is-${meter.status.toLowerCase()}`}
+                          >
+                            {calendarMeterStatusLabel(meter.status)}
+                          </span>
+                          {!readOnly && meter.status === 'Recebido' && onEnsaiar ? (
+                            <button
+                              type="button"
+                              className="primary-button compact-button"
+                              onClick={() => {
+                                closeDayModal()
+                                onEnsaiar(meter)
+                              }}
+                            >
+                              Ensaiar
+                            </button>
+                          ) : null}
+                        </div>
                       </li>
                     ))}
                   </ul>

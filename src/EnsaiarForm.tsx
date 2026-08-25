@@ -8,12 +8,15 @@ const ratmOptions = Array.from({ length: maxRatmCount }, (_, index) => index + 1
 
 type EnsaiarFormProps = {
   onFinish: (forms: RatmFormData[]) => void | Promise<void>
+  initialMeter?: string
 }
 
-export function EnsaiarForm({ onFinish }: EnsaiarFormProps) {
-  const draft = loadRatmDraft()
-  const [ratmCount, setRatmCount] = useState(draft ? String(draft.count) : '')
-  const [startedCount, setStartedCount] = useState<number | null>(draft?.count ?? null)
+export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
+  const draft = initialMeter ? null : loadRatmDraft()
+  const [ratmCount, setRatmCount] = useState(initialMeter ? '1' : draft ? String(draft.count) : '')
+  const [startedCount, setStartedCount] = useState<number | null>(
+    initialMeter ? 1 : draft?.count ?? null,
+  )
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -38,6 +41,7 @@ export function EnsaiarForm({ onFinish }: EnsaiarFormProps) {
     return (
       <RatmWorkflow
         count={startedCount}
+        initialMeter={initialMeter}
         onBack={() => {
           setStartedCount(null)
           setFeedback(null)

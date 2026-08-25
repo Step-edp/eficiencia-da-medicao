@@ -10,16 +10,26 @@ import { createEmptyRatmForm, normalizeRatmForm, type RatmFormData } from './typ
 
 type RatmWorkflowProps = {
   count: number
+  initialMeter?: string
   onBack: () => void
   onFinish: (forms: RatmFormData[]) => void | Promise<void>
 }
 
-export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
+export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWorkflowProps) {
   const [activeIndex, setActiveIndex] = useState(() => {
+    if (initialMeter) return 0
     const draft = loadRatmDraft()
     return draft?.count === count ? draft.activeIndex : 0
   })
   const [forms, setForms] = useState<RatmFormData[]>(() => {
+    if (initialMeter) {
+      const form = createEmptyRatmForm()
+      form.meterSearch = initialMeter
+      form.meter = initialMeter
+      return Array.from({ length: count }, (_, index) =>
+        index === 0 ? form : createEmptyRatmForm(),
+      )
+    }
     const draft = loadRatmDraft()
     if (draft?.count === count) {
       return draft.forms.map((form) => normalizeRatmForm(form))
@@ -28,6 +38,7 @@ export function RatmWorkflow({ count, onBack, onFinish }: RatmWorkflowProps) {
     return Array.from({ length: count }, () => createEmptyRatmForm())
   })
   const [showRestoredDraft, setShowRestoredDraft] = useState(() => {
+    if (initialMeter) return false
     const draft = loadRatmDraft()
     return draft?.count === count
   })

@@ -1947,6 +1947,7 @@ function HomePanel({
   const [lateMetersCount, setLateMetersCount] = useState(0)
   const [scheduleDateDeviationCount, setScheduleDateDeviationCount] = useState(0)
   const [labDateAdjustmentCount, setLabDateAdjustmentCount] = useState(0)
+  const [ensaiarPrefillMeter, setEnsaiarPrefillMeter] = useState<string | null>(null)
   const [selectedHomologationSection, setSelectedHomologationSection] = useState<string | null>(
     () => savedNav?.selectedHomologationSection ?? null,
   )
@@ -3272,6 +3273,12 @@ function HomePanel({
   useEffect(() => {
     if (selectedLabMeasurementSection === 'Aprovação de RATM') {
       void loadRatmLaudos()
+    }
+  }, [selectedLabMeasurementSection])
+
+  useEffect(() => {
+    if (selectedLabMeasurementSection !== ENSAIAR_TRAIL_STEP) {
+      setEnsaiarPrefillMeter(null)
     }
   }, [selectedLabMeasurementSection])
 
@@ -5569,7 +5576,13 @@ function HomePanel({
               />
             ) : null}
             {selectedLabMeasurementSection === ENSAIOS_CALENDAR_SECTION ? (
-              <EnsaiosCalendar readOnly={labMedicaoReadOnly} />
+              <EnsaiosCalendar
+                readOnly={labMedicaoReadOnly}
+                onEnsaiar={(meter) => {
+                  setEnsaiarPrefillMeter(meter.meter)
+                  setSelectedLabMeasurementSection(ENSAIAR_TRAIL_STEP)
+                }}
+              />
             ) : selectedLabMeasurementSection === 'Reagendar' ? (
               <ReagendarPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Alteração de data' ? (
@@ -5659,7 +5672,14 @@ function HomePanel({
                   em <strong>Consultar RATM</strong> e medidores nas demais etapas da trilha.
                 </p>
               ) : (
-                <EnsaiarForm onFinish={handleRatmFinish} />
+                <EnsaiarForm
+                  key={ensaiarPrefillMeter ?? 'ensaiar'}
+                  initialMeter={ensaiarPrefillMeter ?? undefined}
+                  onFinish={async (forms) => {
+                    setEnsaiarPrefillMeter(null)
+                    await handleRatmFinish(forms)
+                  }}
+                />
               )
             ) : selectedLabMeasurementSection === 'Aprovação de RATM' ? (
               <RatmAprovacaoPanel

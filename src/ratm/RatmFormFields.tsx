@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type ReactNode } from 'react'
+import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react'
 import { api, ApiError, type EntryFieldMatch } from '../api'
 import { formatSchedulePartnerAndTeamLabel } from '../schedulePartnerLabel'
 import {
@@ -554,6 +554,13 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       setSearchingMeter(false)
     }
   }
+
+  useEffect(() => {
+    if (!data.meterSearch.trim() || data.scheduleId) return
+    void handleMeterSearch()
+    // Busca automática só na abertura com medidor já preenchido.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="ratm-form-panel">
