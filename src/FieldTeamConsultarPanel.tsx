@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, ApiError, type MeterInspectionSummary, type MeterScheduleRecord } from './api'
+import { FormFieldError } from './FormFieldError'
 import { inspectionPdfFilesFromList, readFileAsBase64 } from './fileUtils'
 import { inspectionIssueReason } from './inspectionStatusReason'
 import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
 import { LoginFeedback } from './LoginFeedback'
+import {
+  NUMERIC_FIELD_LIMITS,
+  sanitizeNumericInput,
+  validateNumericField,
+} from './numericFieldValidation'
 import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, scheduleAuditSearchText } from './schedulePartnerLabel'
 import { getLabTrailLabel } from './labTrailSteps'
+import { useCsdsOptions } from './useCsdsOptions'
 
 type FieldTeamSchedulesPanelProps = {
   mode?: 'all' | 'mine'
@@ -18,6 +25,8 @@ type FieldTeamSchedulesPanelProps = {
   allowDelayJustification?: boolean
   /** Consultar Medidor: lista todas as etapas da trilha, não só Entrada. */
   allTrailSteps?: boolean
+  /** Laboratório pode corrigir dados do agendamento. */
+  allowEdit?: boolean
 }
 
 type EnvelopePreview = {
@@ -66,6 +75,7 @@ function scheduleSearchText(item: MeterScheduleRecord) {
       item.toiCollaborator2Name,
       item.toiCollaborator2Registration,
       item.schedulingNotes,
+      item.installationTypedWrong ? 'instalação digitada errada' : '',
     ]
       .filter(Boolean)
       .join(' '),
@@ -104,18 +114,85 @@ function inspectionStatusBadgeClass(summary: MeterInspectionSummary | undefined)
   return 'schedule-late-badge'
 }
 
-type ScheduleDetailModalProps = {
-  schedule: MeterScheduleRecord
-  onClose: () => void
-  onPreviewEnvelope: (preview: EnvelopePreview) => void
+function InstallationWrongBadge() {
+  return <span className="schedule-wrong-install-badge">Instalação digitada errada</span>
 }
 
-function ScheduleDetailModal({ schedule, onClose, onPreviewEnvelope }: ScheduleDetailModalProps) {
+type ScheduleDetailModalProps = {
+  schedule: MeterScheduleRecord
+  allowEdit?: boolean
+  onClose: () => void
+  onPreviewEnvelope: (preview: EnvelopePreview) => void
+  onSaved?: (schedule: MeterScheduleRecord) => void
+}
+
+function ScheduleDetailModal({
+  schedule,
+  allowEdit = false,
+  onClose,
+  onPreviewEnvelope,
+  onSaved,
+}: ScheduleDetailModalProps) {
   const deliveryStatus = deliveryStatusLabel(schedule)
   const collaborator1 = formatScheduleCollaborator1Label(schedule)
   const collaborator2 = formatScheduleCollaborator2Label(schedule)
   const scheduledBy = formatScheduleCreatedByLabel(schedule)
   const createdAtLabel = formatScheduleCreatedAtLabel(schedule.createdAt)
+  const { options: csdOptions, loading: csdLoading, error: csdError } = useCsdsOptions()
+  const [meter, setMeter] = useState(schedule.meter)
+  const [installation, setInstallation] = useState(schedule.installation)
+  const [toi, setToi] = useState(schedule.toi)
+  const [note, setNote] = useState(schedule.note)
+  const [csd, setCsd] = useState(schedule.csd)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<'medidor' | 'instalacao' | 'toi' | 'nota' | 'csd', string>>>({})
+
+  useEffect(() => {
+    setMeter(schedule.meter)
+    setInstallation(schedule.installation)
+    setToi(schedule.toi)
+    setNote(schedule.note)
+    setCsd(schedule.csd)
+    setFormError('')
+    setFieldErrors({})
+  }, [schedule])
+
+  const handleSave = async () => {
+    const nextErrors: typeof fieldErrors = {}
+    for (const [value, field] of [
+      [meter, 'medidor'],
+      [installation, 'instalacao'],
+      [toi, 'toi'],
+      [note, 'nota'],
+    ] as const) {
+      const error = validateNumericField(value, field, true)
+      if (error) nextErrors[field] = error
+    }
+    if (!csd.trim()) nextErrors.csd = 'Selecione um CSD.'
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors)
+      return
+    }
+    setSaving(true)
+    setFormError('')
+    try {
+      const { schedule: updated } = await api.updateMeterSchedule(schedule.id, {
+        meter,
+        installation,
+        toi,
+        note,
+        csd,
+      })
+      onSaved?.(updated)
+    } catch (error) {
+      setFormError(
+        error instanceof ApiError ? error.message : 'Não foi possível salvar as alterações.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return createPortal(
     <div className="ensaios-block-modal-overlay" role="presentation" onClick={onClose}>
@@ -150,23 +227,121 @@ function ScheduleDetailModal({ schedule, onClose, onPreviewEnvelope }: ScheduleD
         <dl className="user-detail-grid schedule-detail-grid">
           <div>
             <dt>Medidor</dt>
-            <dd>{schedule.meter}</dd>
+            <dd>
+              {allowEdit ? (
+                <>
+                  <input
+                    value={meter}
+                    inputMode="numeric"
+                    maxLength={NUMERIC_FIELD_LIMITS.medidor}
+                    aria-invalid={Boolean(fieldErrors.medidor)}
+                    onChange={(event) =>
+                      setMeter(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.medidor))
+                    }
+                  />
+                  <FormFieldError message={fieldErrors.medidor} />
+                </>
+              ) : (
+                schedule.meter
+              )}
+            </dd>
           </div>
           <div>
             <dt>Instalação</dt>
-            <dd>{displayValue(schedule.installation)}</dd>
+            <dd>
+              {allowEdit ? (
+                <>
+                  <input
+                    value={installation}
+                    inputMode="numeric"
+                    maxLength={NUMERIC_FIELD_LIMITS.instalacao}
+                    aria-invalid={Boolean(fieldErrors.instalacao)}
+                    onChange={(event) =>
+                      setInstallation(
+                        sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.instalacao),
+                      )
+                    }
+                  />
+                  <FormFieldError message={fieldErrors.instalacao} />
+                </>
+              ) : (
+                displayValue(schedule.installation)
+              )}
+              {schedule.installationTypedWrong ? (
+                <p className="schedule-wrong-install-note">
+                  <InstallationWrongBadge />
+                  {schedule.previousInstallation
+                    ? ` Anterior: ${schedule.previousInstallation}`
+                    : null}
+                </p>
+              ) : null}
+            </dd>
           </div>
           <div>
             <dt>TOI</dt>
-            <dd>{displayValue(schedule.toi)}</dd>
+            <dd>
+              {allowEdit ? (
+                <>
+                  <input
+                    value={toi}
+                    inputMode="numeric"
+                    maxLength={NUMERIC_FIELD_LIMITS.toi}
+                    aria-invalid={Boolean(fieldErrors.toi)}
+                    onChange={(event) =>
+                      setToi(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.toi))
+                    }
+                  />
+                  <FormFieldError message={fieldErrors.toi} />
+                </>
+              ) : (
+                displayValue(schedule.toi)
+              )}
+            </dd>
           </div>
           <div>
             <dt>Nota</dt>
-            <dd>{displayValue(schedule.note)}</dd>
+            <dd>
+              {allowEdit ? (
+                <>
+                  <input
+                    value={note}
+                    inputMode="numeric"
+                    maxLength={NUMERIC_FIELD_LIMITS.nota}
+                    aria-invalid={Boolean(fieldErrors.nota)}
+                    onChange={(event) =>
+                      setNote(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.nota))
+                    }
+                  />
+                  <FormFieldError message={fieldErrors.nota} />
+                </>
+              ) : (
+                displayValue(schedule.note)
+              )}
+            </dd>
           </div>
           <div>
             <dt>CSD</dt>
-            <dd>{displayValue(schedule.csd)}</dd>
+            <dd>
+              {allowEdit ? (
+                <>
+                  <select
+                    value={csd}
+                    aria-invalid={Boolean(fieldErrors.csd)}
+                    onChange={(event) => setCsd(event.target.value)}
+                  >
+                    <option value="">{csdLoading ? 'Carregando CSDs...' : 'Selecione'}</option>
+                    {csdOptions.map((option) => (
+                      <option key={option.id} value={option.label}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <FormFieldError message={fieldErrors.csd ?? csdError ?? undefined} />
+                </>
+              ) : (
+                displayValue(schedule.csd)
+              )}
+            </dd>
           </div>
           <div>
             <dt>Agendado por</dt>
@@ -269,9 +444,21 @@ function ScheduleDetailModal({ schedule, onClose, onPreviewEnvelope }: ScheduleD
           ) : null}
         </dl>
 
+        {formError ? <LoginFeedback type="error" message={formError} /> : null}
+
         <div className="ensaios-block-modal-actions">
-          <button type="button" className="primary-button" onClick={onClose}>
-            Fechar
+          {allowEdit ? (
+            <button
+              type="button"
+              className="primary-button"
+              disabled={saving}
+              onClick={() => void handleSave()}
+            >
+              {saving ? 'Salvando...' : 'Salvar alterações'}
+            </button>
+          ) : null}
+          <button type="button" className={allowEdit ? 'secondary-button' : 'primary-button'} onClick={onClose}>
+            {allowEdit ? 'Cancelar' : 'Fechar'}
           </button>
         </div>
       </div>
@@ -286,6 +473,7 @@ export function FieldTeamConsultarPanel({
   hideInspectionImport = false,
   allowDelayJustification = false,
   allTrailSteps = false,
+  allowEdit = false,
 }: FieldTeamSchedulesPanelProps) {
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -609,7 +797,12 @@ export function FieldTeamConsultarPanel({
                     </button>
                   </td>
                   {allTrailSteps ? <td>{getLabTrailLabel(item.trailStep)}</td> : null}
-                  <td>{item.installation || '—'}</td>
+                  <td>
+                    <div className="table-installation-cell">
+                      <span>{item.installation || '—'}</span>
+                      {item.installationTypedWrong ? <InstallationWrongBadge /> : null}
+                    </div>
+                  </td>
                   <td>{item.toi || '—'}</td>
                   <td>
                     {item.envelopePhoto ? (
@@ -742,8 +935,21 @@ export function FieldTeamConsultarPanel({
       {selectedSchedule ? (
         <ScheduleDetailModal
           schedule={selectedSchedule}
+          allowEdit={allowEdit}
           onClose={() => setSelectedSchedule(null)}
           onPreviewEnvelope={setEnvelopePreview}
+          onSaved={(updated) => {
+            setSchedules((current) =>
+              current.map((item) => (item.id === updated.id ? updated : item)),
+            )
+            setSelectedSchedule(updated)
+            setFeedback({
+              type: 'success',
+              message: updated.installationTypedWrong
+                ? 'Dados salvos. A instalação corrigida consta como "Instalação digitada errada" em Meus TOIs.'
+                : 'Dados do agendamento atualizados.',
+            })
+          }}
         />
       ) : null}
 

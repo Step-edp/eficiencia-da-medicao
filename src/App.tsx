@@ -5620,7 +5620,10 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Consultar RATM' ? (
               <ConsultarRatmPanel />
             ) : selectedLabMeasurementSection === 'Consultar Medidor' ? (
-              <FieldTeamConsultarPanel allTrailSteps />
+              <FieldTeamConsultarPanel
+                allTrailSteps
+                allowEdit={!labMedicaoReadOnly}
+              />
             ) : selectedLabMeasurementSection === 'Adicionar passivo' ? (
               labMedicaoReadOnly ? (
                 <>

@@ -129,6 +129,8 @@ type MeterScheduleRow = {
   delay_dismissed_at?: Date | null
   delay_dismissed_by?: string | null
   delay_dismissed_days?: number | null
+  installation_wrong?: boolean | null
+  previous_installation?: string | null
 }
 
 function mapMeterSchedule(row: MeterScheduleRow) {
@@ -176,6 +178,8 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     demmMeterCount: Number(row.demm_meter_count ?? 0),
     registryStatus: row.registry_status || '',
     delayJustification: (row.delay_justification ?? '').trim(),
+    installationTypedWrong: Boolean(row.installation_wrong),
+    previousInstallation: (row.previous_installation ?? '').trim(),
   }
 }
 
@@ -1279,6 +1283,177 @@ export async function dismissDelayMeter(req: Request, res: Response) {
     summary: `Medidor atrasado ${schedule.meter} excluído da lista de justificativas`,
     oldData: { delayDismissedAt: null },
     newData: { delayDismissedAt: updated.rows[0].delay_dismissed_at },
+  })
+
+  res.json({ schedule })
+}
+
+async function canEditLabSchedule(req: Request): Promise<boolean> {
+  if (req.user?.role === 'admin') return true
+  const userId = req.user?.id
+  if (!userId) return false
+  const result = await query<{ work_area: string; work_subtype: string }>(
+    `SELECT work_area, work_subtype FROM users WHERE id = $1`,
+    [userId],
+  )
+  const row = result.rows[0]
+  if (!row) return false
+  const area = row.work_area?.trim() ?? ''
+  const subtype = (row.work_subtype?.trim() ?? '')
+    .replace(/\u2013/g, '-')
+    .replace(/\u2014/g, '-')
+  return area === 'Medição' && subtype === 'Laboratório de Medição'
+}
+
+export async function updateMeterSchedule(req: Request, res: Response) {
+  if (!(await canEditLabSchedule(req))) {
+    res.status(403).json({
+      error: 'Somente administradores e usuários do Laboratório de Medição podem editar o agendamento.',
+    })
+    return
+  }
+
+  const id = typeof req.params.id === 'string' ? req.params.id.trim() : ''
+  if (!id) {
+    res.status(400).json({ error: 'Informe o agendamento.' })
+    return
+  }
+
+  const existing = await query<MeterScheduleRow>(
+    `SELECT ms.*, ms.scheduling_date::text AS scheduling_date,
+            u.name AS created_by_name, u.registration AS created_by_registration
+     FROM meter_schedules ms
+     LEFT JOIN users u ON u.id = ms.created_by_user_id
+     WHERE ms.id = $1`,
+    [id],
+  )
+  const current = existing.rows[0]
+  if (!current) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  const body = req.body as {
+    meter?: string
+    installation?: string
+    toi?: string
+    note?: string
+    csd?: string
+  }
+
+  const normalized = {
+    meter: body.meter?.trim() ?? current.meter,
+    installation: body.installation?.trim() ?? current.installation,
+    toi: body.toi?.trim() ?? current.toi,
+    note: body.note?.trim() ?? current.note,
+    csd: body.csd?.trim() ?? current.csd,
+  }
+
+  for (const [value, field] of [
+    [normalized.meter, 'medidor'],
+    [normalized.installation, 'instalacao'],
+    [normalized.toi, 'toi'],
+    [normalized.note, 'nota'],
+  ] as const) {
+    const error = validateScheduleNumericField(value, field)
+    if (error) {
+      res.status(400).json({ error })
+      return
+    }
+  }
+
+  if (!normalized.csd) {
+    res.status(400).json({ error: 'Selecione um CSD.' })
+    return
+  }
+
+  if (normalized.meter !== current.meter) {
+    const duplicate = await query<{ id: string }>(
+      `SELECT id FROM meter_schedules
+       WHERE meter = $1 AND id <> $2 AND delay_dismissed_at IS NULL
+       LIMIT 1`,
+      [normalized.meter, id],
+    )
+    if (duplicate.rows[0]) {
+      res.status(409).json({
+        error: `O medidor ${normalized.meter} já possui outro agendamento ativo.`,
+      })
+      return
+    }
+  }
+
+  const installationChanged = normalized.installation !== current.installation
+  const originalInstallation = current.installation_wrong
+    ? (current.previous_installation || '').trim() || current.installation
+    : current.installation
+  const installationWrong = installationChanged
+    ? normalized.installation !== originalInstallation
+    : Boolean(current.installation_wrong) && normalized.installation !== originalInstallation
+  const previousInstallation = installationWrong ? originalInstallation : ''
+
+  const updated = await query<MeterScheduleRow>(
+    `UPDATE meter_schedules
+     SET meter = $2,
+         installation = $3,
+         toi = $4,
+         note = $5,
+         csd = $6,
+         installation_wrong = $7,
+         previous_installation = $8,
+         installation_corrected_at = CASE
+           WHEN $7 AND $3 <> $9 THEN NOW()
+           WHEN $7 THEN installation_corrected_at
+           ELSE NULL
+         END,
+         installation_corrected_by_user_id = CASE
+           WHEN $7 AND $3 <> $9 THEN $10
+           WHEN $7 THEN installation_corrected_by_user_id
+           ELSE NULL
+         END
+     WHERE id = $1
+     RETURNING *, scheduling_date::text AS scheduling_date`,
+    [
+      id,
+      normalized.meter,
+      normalized.installation,
+      normalized.toi,
+      normalized.note,
+      normalized.csd,
+      installationWrong,
+      previousInstallation,
+      current.installation,
+      req.user?.id ?? null,
+    ],
+  )
+
+  const schedule = mapMeterSchedule({
+    ...updated.rows[0],
+    created_by_name: current.created_by_name,
+    created_by_registration: current.created_by_registration,
+  })
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: schedule.id,
+    summary: installationChanged
+      ? `Instalação do medidor ${schedule.meter} corrigida (${originalInstallation} → ${normalized.installation})`
+      : `Dados do agendamento do medidor ${schedule.meter} atualizados`,
+    oldData: {
+      meter: current.meter,
+      installation: current.installation,
+      toi: current.toi,
+      note: current.note,
+      csd: current.csd,
+    },
+    newData: {
+      meter: schedule.meter,
+      installation: schedule.installation,
+      toi: schedule.toi,
+      note: schedule.note,
+      csd: schedule.csd,
+      installationTypedWrong: schedule.installationTypedWrong,
+    },
   })
 
   res.json({ schedule })

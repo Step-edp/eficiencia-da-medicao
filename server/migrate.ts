@@ -1034,4 +1034,12 @@ export async function migrate() {
       AND REPLACE(REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-'), '—', '-') = 'Laboratório de Medição'
       AND NOT COALESCE(access_areas, '[]'::jsonb) @> '["Usuários"]'::jsonb
   `)
+
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS installation_wrong BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS previous_installation TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS installation_corrected_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS installation_corrected_by_user_id TEXT REFERENCES users(id)
+  `)
 }

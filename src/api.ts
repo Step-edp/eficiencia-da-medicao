@@ -533,6 +533,8 @@ export type MeterScheduleRecord = {
   demmFileName: string | null
   demmMeterCount: number
   registryStatus?: string
+  installationTypedWrong?: boolean
+  previousInstallation?: string
 }
 
 export type FieldPartnerOption = {
@@ -1557,6 +1559,20 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
       timeoutMs: 10 * 60 * 1000,
+    }),
+  updateMeterSchedule: (
+    id: string,
+    payload: {
+      meter: string
+      installation: string
+      toi: string
+      note: string
+      csd: string
+    },
+  ) =>
+    request<{ schedule: MeterScheduleRecord }>(`/api/meter-schedules/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
     }),
   saveDelayJustification: (id: string, justification: string) =>
     request<{ schedule: MeterScheduleRecord }>(`/api/meter-schedules/${id}/delay-justification`, {

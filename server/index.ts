@@ -65,6 +65,7 @@ import {
   listMeterScheduleHistory,
   listMeterSchedules,
   rescheduleMeterSchedule,
+  updateMeterSchedule,
   saveDelayJustification,
   dismissDelayMeter,
 } from './routes/meter-schedules.js'
@@ -385,6 +386,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     rescheduleMeterSchedule,
+  )
+  app.patch(
+    '/api/meter-schedules/:id',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    updateMeterSchedule,
   )
   app.put(
     '/api/meter-schedules/:id/delay-justification',
