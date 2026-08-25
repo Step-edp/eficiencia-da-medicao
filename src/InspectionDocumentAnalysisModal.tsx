@@ -128,9 +128,7 @@ function buildInspectionAnalysisReasons({
   documentoLacre,
   scheduleLacre,
   labLacre,
-  campoCoverSeal,
   documentoCoverSeal,
-  labCoverSeal,
   campoReading,
   documentoReading,
   labReading,
@@ -149,9 +147,7 @@ function buildInspectionAnalysisReasons({
   documentoLacre: string | null | undefined
   scheduleLacre: string | null | undefined
   labLacre: string | null | undefined
-  campoCoverSeal: string | null | undefined
   documentoCoverSeal: string | null | undefined
-  labCoverSeal: string | null | undefined
   campoReading: string | null | undefined
   documentoReading: string | null | undefined
   labReading: string | null | undefined
@@ -161,13 +157,11 @@ function buildInspectionAnalysisReasons({
   const missingWpa: string[] = []
   if (!hasConferenceValue(campoMeter)) missingWpa.push('medidor')
   if (!hasConferenceValue(campoLacre)) missingWpa.push('lacre do invólucro')
-  if (!hasConferenceValue(campoCoverSeal)) missingWpa.push('lacre da tampa')
   if (!hasConferenceValue(campoReading)) missingWpa.push('leitura')
 
   const missingLab: string[] = []
   if (!hasConferenceValue(labMeter)) missingLab.push('medidor')
   if (!hasConferenceValue(labLacre)) missingLab.push('lacre do invólucro')
-  if (!hasConferenceValue(labCoverSeal)) missingLab.push('lacre da tampa')
   if (!hasConferenceValue(labReading)) missingLab.push('leitura')
 
   return uniqueInspectionReasons([
@@ -189,7 +183,7 @@ function buildInspectionAnalysisReasons({
       'Data de agendamento não informada no cadastro.',
     ),
     missingWpa.length ? `Análise WPA incompleta: falta ${missingWpa.join(', ')}.` : null,
-    missingLab.length === 4
+    missingLab.length === 3
       ? 'Medidor ainda não deu entrada no laboratório.'
       : missingLab.length
         ? `Laboratório incompleto: falta ${missingLab.join(', ')}.`
@@ -271,6 +265,7 @@ function ComparisonField({
   onAdjust,
   agendamentoPhoto,
   onPreviewAgendamentoPhoto,
+  matchOnDocumentValue = false,
 }: {
   label: string
   campo?: string | null
@@ -292,12 +287,19 @@ function ComparisonField({
   onAdjust?: () => void
   agendamentoPhoto?: string | null
   onPreviewAgendamentoPhoto?: () => void
+  matchOnDocumentValue?: boolean
 }) {
   const wpaRequired = campoEmpty !== 'Não aplicável'
-  const matches =
-    wpaRequired && !hasConferenceValue(campo)
+  const comparable = [campo, documento, agendamento, laboratorio]
+  const matches = matchOnDocumentValue
+    ? hasConferenceValue(documento)
+      ? comparable.filter((value) => hasConferenceValue(value)).length < 2
+        ? true
+        : conferenceMatches(comparable, kind)
+      : null
+    : wpaRequired && !hasConferenceValue(campo)
       ? null
-      : conferenceMatches([campo, documento, agendamento, laboratorio], kind)
+      : conferenceMatches(comparable, kind)
   return (
     <div className="inspection-document-comparison">
       <dt>{label}</dt>
@@ -840,7 +842,6 @@ export function InspectionDocumentAnalysisModal({
             {documents.map((document) => {
               const campoMeter = canEditWpa ? wpaDraft.meter : conference?.campoMeter
               const campoLacre = canEditWpa ? wpaDraft.lacre : conference?.campoLacre
-              const campoCoverSeal = canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal
               const campoReading = canEditWpa ? wpaDraft.reading : conference?.campoReading
               const documentoDraft = documentDrafts[document.docType] ?? draftFromDocument(document)
               const documentoMeter = canEditWpa
@@ -864,8 +865,6 @@ export function InspectionDocumentAnalysisModal({
                 campoLacre,
                 conference?.scheduleLacre ?? document.registeredLacre,
                 conference?.labLacre,
-                campoCoverSeal,
-                conference?.labCoverSeal,
                 campoReading,
                 documentoReading,
                 conference?.labReading,
@@ -889,9 +888,7 @@ export function InspectionDocumentAnalysisModal({
                 documentoLacre,
                 scheduleLacre: conference?.scheduleLacre ?? document.registeredLacre,
                 labLacre: conference?.labLacre,
-                campoCoverSeal,
                 documentoCoverSeal,
-                labCoverSeal: conference?.labCoverSeal,
                 campoReading,
                 documentoReading,
                 labReading: conference?.labReading,
@@ -970,6 +967,7 @@ export function InspectionDocumentAnalysisModal({
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
+                    matchOnDocumentValue
                     onCampoChange={(value) => handleWpaChange('coverSeal', value)}
                     onDocumentoChange={(value) =>
                       handleDocumentoChange(document.docType, 'coverSeal', value)

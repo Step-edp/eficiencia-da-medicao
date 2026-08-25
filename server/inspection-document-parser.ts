@@ -357,66 +357,41 @@ function extractSelagemSection(text: string): string | null {
   return text.slice(from, to)
 }
 
-const COVER_COLOR_PATTERN =
-  'azul|vermelho|amarelo|verde|branco|preto|laranja|cinza|roxo'
-const COVER_STATUS_PATTERN =
-  'em ordem|violado|sem lacre|n[aã]o aplic[aá]vel'
-
 function normalizeCoverSealValue(value: string | null | undefined): string | null {
-  const trimmed = value?.replace(/\s+/g, ' ').trim()
+  const trimmed = value
+    ?.replace(/\s+/g, ' ')
+    .replace(/[|:;]+$/g, '')
+    .trim()
   if (!trimmed) return null
+  if (/^(tampa|lacre|observa)/i.test(trimmed)) return null
   return trimmed.slice(0, 120)
 }
 
-function looksLikeCoverSealValue(value: string): boolean {
-  return (
-    new RegExp(COVER_STATUS_PATTERN, 'i').test(value) &&
-    new RegExp(COVER_COLOR_PATTERN, 'i').test(value)
-  )
-}
-
 function extractDescriptiveCoverSeal(text: string): string | null {
-  const meterCover = text.match(
-    new RegExp(
-      `\\btampa\\s+do\\s+medidor\\s*[:\\-–]?\\s*(.{0,80}?(?:${COVER_STATUS_PATTERN}))`,
-      'i',
-    ),
-  )
-  if (meterCover?.[1]) {
-    return normalizeCoverSealValue(meterCover[1])
+  const pattern =
+    /\btampa\s+do\s+medidor\s*[:\-–]?\s*(.+?)(?=\s*(?:tampa\s+d[oa]\s+|7\s*\.|observa[cç]|n[uú]mero\s+do|$))/gi
+  let last: string | null = null
+  for (const match of text.matchAll(pattern)) {
+    const value = normalizeCoverSealValue(match[1])
+    if (value) last = value
   }
+  if (last) return last
 
-  const labeled = text.match(
-    new RegExp(
-      `\\btampa\\s+do\\s+medidor\\s*[:\\-–]?\\s*((?:${COVER_COLOR_PATTERN})[a-z]*)\\s*[-–—:]?\\s*(${COVER_STATUS_PATTERN})`,
-      'i',
-    ),
-  )
-  if (labeled?.[1] && labeled[2]) {
-    return normalizeCoverSealValue(`${labeled[1]} - ${labeled[2]}`)
-  }
-
-  const colorStatus = text.match(
-    new RegExp(
-      `tampa\\s+do\\s+medidor[\\s\\S]{0,40}?\\b([A-Za-z0-9]{0,16}(?:${COVER_COLOR_PATTERN})[A-Za-z0-9]{0,16})\\s*[-–—]\\s*(${COVER_STATUS_PATTERN})\\b`,
-      'i',
-    ),
-  )
-  if (colorStatus?.[1] && colorStatus[2]) {
-    return normalizeCoverSealValue(`${colorStatus[1]} - ${colorStatus[2]}`)
-  }
-
-  return null
+  const fallback = text.match(/\btampa\s+do\s+medidor\s*[:\-–]?\s*(\S.{0,100}?)(?:\s{2,}|\n|$)/i)
+  return normalizeCoverSealValue(fallback?.[1] ?? null)
 }
 
 function extractNumericCoverSeal(text: string): string | null {
   const section = extractSelagemSection(text) ?? text
-  const labeled = section.match(
-    /lacre(?:\(s\))?\s*(?:da\s+)?tampa[\s\S]{0,100}?(\d{4,12})/i,
+  const meterCover = section.match(
+    /tampa\s+do\s+medidor[\s\S]{0,120}?(\d{4,12})/i,
   )?.[1]
-  if (labeled) return labeled
+  if (meterCover) return meterCover
 
-  return section.match(/tampa[\s\S]{0,100}?lacre[\s\S]{0,60}?(\d{4,12})/i)?.[1] ?? null
+  const labeled = section.match(
+    /lacre(?:\(s\))?\s*(?:da\s+)?tampa\s+do\s+medidor[\s\S]{0,100}?(\d{4,12})/i,
+  )?.[1]
+  return labeled ?? null
 }
 
 function extractCoverSeal(text: string): string | null {
@@ -642,7 +617,8 @@ async function extractPdfFormFieldText(pdf: {
     if (READING_LABEL_PATTERN.test(trimmedName) && /^\d{3,8}$/.test(trimmedValue.replace(/\D/g, ''))) {
       lines.push(`Leitura: ${trimmedValue.replace(/\D/g, '')}`)
     }
-    if (/tampa/i.test(trimmedName) || looksLikeCoverSealValue(trimmedValue)) {
+    const compactFieldName = trimmedName.replace(/[\s_-]/g, '')
+    if (/tampa.*medidor/i.test(compactFieldName) && !/caixa/i.test(compactFieldName)) {
       lines.push(`Tampa do Medidor: ${trimmedValue}`)
     }
   }
