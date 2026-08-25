@@ -335,7 +335,7 @@ export function EnsaiosCalendar({
                 inMonth && !hasMeters ? 'is-no-ensaio' : '',
                 isBlocked ? 'is-blocked' : '',
                 !isBlocked && hasMeters && !allEnsaiados ? 'is-available' : '',
-                autoReason ? 'is-auto-blocked' : '',
+                autoReason && autoReason !== 'Fim de Semana' ? 'is-auto-blocked' : '',
                 isManual ? 'is-manual-blocked' : '',
                 allEnsaiados ? 'is-all-ensaiado' : '',
                 isToday ? 'is-today' : '',
@@ -394,7 +394,7 @@ export function EnsaiosCalendar({
         </li>
         <li>
           <span className="ensaios-calendar-swatch is-auto-blocked" /> Sexta
-          (Recebimento de Medidores), sábado e domingo (Fim de Semana) ou feriado
+          (Recebimento de Medidores) ou feriado
         </li>
       </ul>
 
