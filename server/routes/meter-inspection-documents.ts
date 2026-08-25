@@ -756,6 +756,26 @@ async function resolveCanonicalEntradaScheduleId(meterScheduleId: string): Promi
   return result.rows[0]?.id ?? null
 }
 
+async function loadEnvelopeEvidenceForSchedule(meterScheduleId: string) {
+  const result = await query<{ envelope_photo: string; envelope_seal: string }>(
+    `SELECT envelope_photo, envelope_seal
+     FROM meter_schedules
+     WHERE ${NORMALIZED_METER_SQL} = (
+         SELECT ${NORMALIZED_METER_SQL} FROM meter_schedules WHERE id = $1
+       )
+       AND COALESCE(btrim(envelope_photo), '') <> ''
+     ORDER BY CASE WHEN id = $1 THEN 0 ELSE 1 END, created_at DESC
+     LIMIT 1`,
+    [meterScheduleId],
+  )
+  const row = result.rows[0]
+  if (!row) return { photo: null, seal: null }
+  return {
+    photo: row.envelope_photo.trim() || null,
+    seal: row.envelope_seal?.trim() || null,
+  }
+}
+
 async function listEntradaScheduleIdsForSchedule(meterScheduleId: string): Promise<string[]> {
   const result = await query<{ id: string }>(
     `SELECT id
@@ -1308,8 +1328,12 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     return
   }
 
+  const envelopeEvidence = await loadEnvelopeEvidenceForSchedule(meterScheduleId)
   const registeredMeter = schedule.rows[0].meter
-  const registeredLacre = schedule.rows[0].envelope_seal || null
+  const registeredLacre =
+    schedule.rows[0].envelope_seal?.trim() || envelopeEvidence.seal || null
+  const envelopePhoto =
+    schedule.rows[0].envelope_photo?.trim() || envelopeEvidence.photo || null
   const registeredCoverSeal = schedule.rows[0].cover_seal || null
   const registeredReading = schedule.rows[0].meter_reading || null
   const registry = await query<{ meter: string; status: string; received_at: Date | null }>(
@@ -1374,7 +1398,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     registeredLacre,
     registeredCoverSeal,
     registeredReading,
-    envelopePhoto: schedule.rows[0].envelope_photo?.trim() || null,
+    envelopePhoto,
     conference: {
       campoMeter: pickSavedWpa(schedule.rows[0].inspection_wpa_meter),
       campoLacre: pickSavedWpa(schedule.rows[0].inspection_wpa_lacre),

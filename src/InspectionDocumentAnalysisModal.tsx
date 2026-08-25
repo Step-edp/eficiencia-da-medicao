@@ -388,9 +388,7 @@ function ComparisonField({
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">Agendamento</span>
             <div className="inspection-document-comparison-value-row">
-              {hasConferenceValue(agendamento) || !agendamentoPhoto ? (
-                <strong>{displayConferenceValue(agendamento, agendamentoEmpty)}</strong>
-              ) : null}
+              <strong>{displayConferenceValue(agendamento, agendamentoEmpty)}</strong>
               {agendamentoPhoto ? (
                 <button
                   type="button"
