@@ -535,12 +535,16 @@ export type MeterScheduleRecord = {
   registryStatus?: string
   installationTypedWrong?: boolean
   previousInstallation?: string
+  installationMark?: 'wrong' | 'adjusted' | null
   toiTypedWrong?: boolean
   previousToi?: string
+  toiMark?: 'wrong' | 'adjusted' | null
   noteTypedWrong?: boolean
   previousNote?: string
+  noteMark?: 'wrong' | 'adjusted' | null
   csdTypedWrong?: boolean
   previousCsd?: string
+  csdMark?: 'wrong' | 'adjusted' | null
 }
 
 export type FieldPartnerOption = {

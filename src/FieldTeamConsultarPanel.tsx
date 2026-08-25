@@ -13,7 +13,7 @@ import {
 } from './numericFieldValidation'
 import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, scheduleAuditSearchText } from './schedulePartnerLabel'
 import { getLabTrailLabel } from './labTrailSteps'
-import { useCsdsOptions } from './useCsdsOptions'
+import { FillingCorrectionBadge, FillingCorrectionNote } from './fillingCorrection'
 
 type FieldTeamSchedulesPanelProps = {
   mode?: 'all' | 'mine'
@@ -75,10 +75,14 @@ function scheduleSearchText(item: MeterScheduleRecord) {
       item.toiCollaborator2Name,
       item.toiCollaborator2Registration,
       item.schedulingNotes,
-      item.installationTypedWrong ? 'instalação digitada errada erro de preenchimento' : '',
-      item.toiTypedWrong ? 'toi digitado errado erro de preenchimento' : '',
-      item.noteTypedWrong ? 'nota digitada errada erro de preenchimento' : '',
-      item.csdTypedWrong ? 'csd digitado errado erro de preenchimento' : '',
+      item.installationMark === 'wrong' ? 'instalação digitada errada erro de preenchimento' : '',
+      item.installationMark === 'adjusted' ? 'instalação ajustada' : '',
+      item.toiMark === 'wrong' ? 'toi digitado errado erro de preenchimento' : '',
+      item.toiMark === 'adjusted' ? 'toi ajustado' : '',
+      item.noteMark === 'wrong' ? 'nota digitada errada erro de preenchimento' : '',
+      item.noteMark === 'adjusted' ? 'nota ajustada' : '',
+      item.csdMark === 'wrong' ? 'csd digitado errado erro de preenchimento' : '',
+      item.csdMark === 'adjusted' ? 'csd ajustado' : '',
     ]
       .filter(Boolean)
       .join(' '),
@@ -117,32 +121,8 @@ function inspectionStatusBadgeClass(summary: MeterInspectionSummary | undefined)
   return 'schedule-late-badge'
 }
 
-function FillingErrorBadge({ label }: { label: string }) {
-  return <span className="schedule-wrong-install-badge">{label}</span>
-}
-
-function FillingErrorNote({
-  wrong,
-  previous,
-  label,
-}: {
-  wrong?: boolean
-  previous?: string
-  label: string
-}) {
-  if (!wrong) return null
-  return (
-    <p className="schedule-wrong-install-note">
-      <FillingErrorBadge label={label} />
-      {previous ? ` Anterior: ${previous}` : null}
-    </p>
-  )
-}
-
-function scheduleHasFillingError(item: MeterScheduleRecord) {
-  return Boolean(
-    item.installationTypedWrong || item.toiTypedWrong || item.noteTypedWrong || item.csdTypedWrong,
-  )
+function scheduleHasFillingCorrection(item: MeterScheduleRecord) {
+  return Boolean(item.installationMark || item.toiMark || item.noteMark || item.csdMark)
 }
 
 type ScheduleDetailModalProps = {
@@ -273,10 +253,10 @@ function ScheduleDetailModal({
               ) : (
                 displayValue(schedule.installation)
               )}
-              <FillingErrorNote
-                wrong={schedule.installationTypedWrong}
+              <FillingCorrectionNote
+                field="installation"
+                mark={schedule.installationMark}
                 previous={schedule.previousInstallation}
-                label="Instalação digitada errada"
               />
             </dd>
           </div>
@@ -299,10 +279,10 @@ function ScheduleDetailModal({
               ) : (
                 displayValue(schedule.toi)
               )}
-              <FillingErrorNote
-                wrong={schedule.toiTypedWrong}
+              <FillingCorrectionNote
+                field="toi"
+                mark={schedule.toiMark}
                 previous={schedule.previousToi}
-                label="TOI digitado errado"
               />
             </dd>
           </div>
@@ -325,10 +305,10 @@ function ScheduleDetailModal({
               ) : (
                 displayValue(schedule.note)
               )}
-              <FillingErrorNote
-                wrong={schedule.noteTypedWrong}
+              <FillingCorrectionNote
+                field="note"
+                mark={schedule.noteMark}
                 previous={schedule.previousNote}
-                label="Nota digitada errada"
               />
             </dd>
           </div>
@@ -354,10 +334,10 @@ function ScheduleDetailModal({
               ) : (
                 displayValue(schedule.csd)
               )}
-              <FillingErrorNote
-                wrong={schedule.csdTypedWrong}
+              <FillingCorrectionNote
+                field="csd"
+                mark={schedule.csdMark}
                 previous={schedule.previousCsd}
-                label="CSD digitado errado"
               />
             </dd>
           </div>
@@ -818,15 +798,13 @@ export function FieldTeamConsultarPanel({
                   <td>
                     <div className="table-installation-cell">
                       <span>{item.installation || '—'}</span>
-                      {item.installationTypedWrong ? (
-                        <FillingErrorBadge label="Instalação digitada errada" />
-                      ) : null}
+                      <FillingCorrectionBadge field="installation" mark={item.installationMark} />
                     </div>
                   </td>
                   <td>
                     <div className="table-installation-cell">
                       <span>{item.toi || '—'}</span>
-                      {item.toiTypedWrong ? <FillingErrorBadge label="TOI digitado errado" /> : null}
+                      <FillingCorrectionBadge field="toi" mark={item.toiMark} />
                     </div>
                   </td>
                   <td>
@@ -858,13 +836,13 @@ export function FieldTeamConsultarPanel({
                   <td>
                     <div className="table-installation-cell">
                       <span>{item.note || '—'}</span>
-                      {item.noteTypedWrong ? <FillingErrorBadge label="Nota digitada errada" /> : null}
+                      <FillingCorrectionBadge field="note" mark={item.noteMark} />
                     </div>
                   </td>
                   <td>
                     <div className="table-installation-cell">
                       <span>{item.csd || '—'}</span>
-                      {item.csdTypedWrong ? <FillingErrorBadge label="CSD digitado errado" /> : null}
+                      <FillingCorrectionBadge field="csd" mark={item.csdMark} />
                     </div>
                   </td>
                   <td>{formatScheduleCreatedByLabel(item) || '—'}</td>
@@ -980,8 +958,8 @@ export function FieldTeamConsultarPanel({
             setSelectedSchedule(updated)
             setFeedback({
               type: 'success',
-              message: scheduleHasFillingError(updated)
-                ? 'Dados salvos. A correção consta como erro de preenchimento em Meus TOIs.'
+              message: scheduleHasFillingCorrection(updated)
+                ? 'Dados salvos. A correção ficou marcada como ajustada e consta no histórico do medidor. Os colaboradores do TOI veem como preenchimento digitado errado em Meus TOIs.'
                 : 'Dados do agendamento atualizados.',
             })
           }}

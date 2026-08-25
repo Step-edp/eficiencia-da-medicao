@@ -7,12 +7,7 @@ import {
   type MeterScheduleRecord,
 } from './api'
 import { formatAuditAction, formatAuditDate } from './auditLabels'
-import {
-  formatScheduleCollaborator1Label,
-  formatScheduleCollaborator2Label,
-  formatScheduleCreatedAtLabel,
-  formatScheduleCreatedByLabel,
-} from './schedulePartnerLabel'
+import { FillingCorrectionNote } from './fillingCorrection'
 
 type MeterDetailModalProps = {
   meter: string
@@ -140,19 +135,47 @@ export function MeterDetailModal({ meter, onClose }: MeterDetailModalProps) {
                   </div>
                   <div>
                     <dt>Instalação</dt>
-                    <dd>{displayValue(registry.installation)}</dd>
+                    <dd>
+                      {displayValue(registry.installation)}
+                      <FillingCorrectionNote
+                        field="installation"
+                        mark={latestSchedule?.installationMark}
+                        previous={latestSchedule?.previousInstallation}
+                      />
+                    </dd>
                   </div>
                   <div>
                     <dt>TOI</dt>
-                    <dd>{displayValue(registry.toi)}</dd>
+                    <dd>
+                      {displayValue(registry.toi)}
+                      <FillingCorrectionNote
+                        field="toi"
+                        mark={latestSchedule?.toiMark}
+                        previous={latestSchedule?.previousToi}
+                      />
+                    </dd>
                   </div>
                   <div>
                     <dt>Nota</dt>
-                    <dd>{displayValue(registry.note)}</dd>
+                    <dd>
+                      {displayValue(registry.note)}
+                      <FillingCorrectionNote
+                        field="note"
+                        mark={latestSchedule?.noteMark}
+                        previous={latestSchedule?.previousNote}
+                      />
+                    </dd>
                   </div>
                   <div>
                     <dt>CSD</dt>
-                    <dd>{displayValue(registry.csd)}</dd>
+                    <dd>
+                      {displayValue(registry.csd)}
+                      <FillingCorrectionNote
+                        field="csd"
+                        mark={latestSchedule?.csdMark}
+                        previous={latestSchedule?.previousCsd}
+                      />
+                    </dd>
                   </div>
                   <div>
                     <dt>Cliente</dt>

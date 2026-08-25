@@ -2873,19 +2873,29 @@ button {
   justify-items: start;
 }
 
-.schedule-wrong-install-badge {
+.schedule-wrong-install-badge,
+.schedule-adjusted-badge {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
   border-radius: 8px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #ffe7c2;
-  background: rgba(196, 120, 24, 0.38);
-  border: 1px solid rgba(240, 168, 64, 0.55);
   white-space: normal;
   max-width: 16rem;
   line-height: 1.3;
+}
+
+.schedule-wrong-install-badge {
+  color: #ffe7c2;
+  background: rgba(196, 120, 24, 0.38);
+  border: 1px solid rgba(240, 168, 64, 0.55);
+}
+
+.schedule-adjusted-badge {
+  color: #d7f3e4;
+  background: rgba(46, 140, 90, 0.38);
+  border: 1px solid rgba(90, 190, 130, 0.55);
 }
 
 .schedule-wrong-install-note {

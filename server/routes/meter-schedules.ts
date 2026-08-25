@@ -153,13 +153,45 @@ function resolveFillingCorrection(
   return { wrong, previous: wrong ? original : '', changed, original }
 }
 
-function mapMeterSchedule(row: MeterScheduleRow) {
+function normalizeRegistration(value?: string | null) {
+  return (value ?? '').trim().toUpperCase()
+}
+
+function isToiCollaboratorViewer(
+  row: MeterScheduleRow,
+  viewer?: { registration?: string | null } | null,
+) {
+  const registration = normalizeRegistration(viewer?.registration)
+  if (!registration) return false
+  return (
+    registration === normalizeRegistration(row.toi_collaborator1_registration) ||
+    registration === normalizeRegistration(row.toi_collaborator2_registration)
+  )
+}
+
+function fillingMarkForViewer(
+  wrong: boolean,
+  viewerIsToiCollaborator: boolean,
+): 'wrong' | 'adjusted' | null {
+  if (!wrong) return null
+  return viewerIsToiCollaborator ? 'wrong' : 'adjusted'
+}
+
+function mapMeterSchedule(
+  row: MeterScheduleRow,
+  viewer?: { id?: string; registration?: string | null } | null,
+) {
   const deliveryDeadlineAt = lastFridayBeforeAssay(row.scheduled_at)
   const isLate = isMeterDeliveryLate({
     scheduledAt: row.scheduled_at,
     trailStep: row.trail_step,
     entradaTrailStep: ENTRADA_TRAIL_STEP,
   })
+  const viewerIsToiCollaborator = isToiCollaboratorViewer(row, viewer)
+  const installationTypedWrong = Boolean(row.installation_wrong)
+  const toiTypedWrong = Boolean(row.toi_wrong)
+  const noteTypedWrong = Boolean(row.note_wrong)
+  const csdTypedWrong = Boolean(row.csd_wrong)
 
   return {
     id: row.id,
@@ -198,14 +230,18 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     demmMeterCount: Number(row.demm_meter_count ?? 0),
     registryStatus: row.registry_status || '',
     delayJustification: (row.delay_justification ?? '').trim(),
-    installationTypedWrong: Boolean(row.installation_wrong),
+    installationTypedWrong,
     previousInstallation: (row.previous_installation ?? '').trim(),
-    toiTypedWrong: Boolean(row.toi_wrong),
+    installationMark: fillingMarkForViewer(installationTypedWrong, viewerIsToiCollaborator),
+    toiTypedWrong,
     previousToi: (row.previous_toi ?? '').trim(),
-    noteTypedWrong: Boolean(row.note_wrong),
+    toiMark: fillingMarkForViewer(toiTypedWrong, viewerIsToiCollaborator),
+    noteTypedWrong,
     previousNote: (row.previous_note ?? '').trim(),
-    csdTypedWrong: Boolean(row.csd_wrong),
+    noteMark: fillingMarkForViewer(noteTypedWrong, viewerIsToiCollaborator),
+    csdTypedWrong,
     previousCsd: (row.previous_csd ?? '').trim(),
+    csdMark: fillingMarkForViewer(csdTypedWrong, viewerIsToiCollaborator),
   }
 }
 
@@ -313,7 +349,10 @@ export async function listMeterSchedules(req: Request, res: Response) {
     params,
   )
 
-  const schedules = result.rows.map(mapMeterSchedule)
+  const viewer = req.user
+    ? { id: req.user.id, registration: req.user.registration }
+    : undefined
+  const schedules = result.rows.map((row) => mapMeterSchedule(row, viewer))
   schedules.sort((a, b) => {
     if (a.isLate !== b.isLate) return a.isLate ? -1 : 1
     return (
@@ -1497,31 +1536,37 @@ export async function updateMeterSchedule(req: Request, res: Response) {
     ...updated.rows[0],
     created_by_name: current.created_by_name,
     created_by_registration: current.created_by_registration,
-  })
+  }, req.user)
 
   const correctionSummaries = [
     installationCorrection.changed
-      ? `instalação (${installationCorrection.original} → ${normalized.installation})`
+      ? `Instalação ajustada (${installationCorrection.original} → ${normalized.installation})`
       : '',
-    toiCorrection.changed ? `TOI (${toiCorrection.original} → ${normalized.toi})` : '',
-    noteCorrection.changed ? `nota (${noteCorrection.original} → ${normalized.note})` : '',
-    csdCorrection.changed ? `CSD (${csdCorrection.original} → ${normalized.csd})` : '',
+    toiCorrection.changed ? `TOI ajustado (${toiCorrection.original} → ${normalized.toi})` : '',
+    noteCorrection.changed ? `Nota ajustada (${noteCorrection.original} → ${normalized.note})` : '',
+    csdCorrection.changed ? `CSD ajustado (${csdCorrection.original} → ${normalized.csd})` : '',
   ].filter(Boolean)
+  const summary =
+    correctionSummaries.length === 0
+      ? `Dados do agendamento do medidor ${schedule.meter} atualizados`
+      : correctionSummaries.length === 1
+        ? `${correctionSummaries[0]} no medidor ${schedule.meter}`
+        : `${correctionSummaries.slice(0, -1).join(', ')} e ${correctionSummaries.at(-1)} no medidor ${schedule.meter}`
 
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'meter_schedule',
     entityId: schedule.id,
-    summary: correctionSummaries.length
-      ? `Preenchimento do medidor ${schedule.meter} corrigido: ${correctionSummaries.join(', ')}`
-      : `Dados do agendamento do medidor ${schedule.meter} atualizados`,
+    summary,
     oldData: {
+      meter: current.meter,
       installation: current.installation,
       toi: current.toi,
       note: current.note,
       csd: current.csd,
     },
     newData: {
+      meter: schedule.meter,
       installation: schedule.installation,
       toi: schedule.toi,
       note: schedule.note,
@@ -1530,6 +1575,10 @@ export async function updateMeterSchedule(req: Request, res: Response) {
       toiTypedWrong: schedule.toiTypedWrong,
       noteTypedWrong: schedule.noteTypedWrong,
       csdTypedWrong: schedule.csdTypedWrong,
+    },
+    metadata: {
+      meter: schedule.meter,
+      fillingAdjusted: correctionSummaries.length > 0,
     },
   })
 
