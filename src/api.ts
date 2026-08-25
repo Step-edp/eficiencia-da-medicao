@@ -866,18 +866,22 @@ class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  options: RequestInit & { timeoutMs?: number } = {},
+): Promise<T> {
+  const { timeoutMs = 60_000, ...fetchOptions } = options
   const controller = new AbortController()
-  const timeoutId = window.setTimeout(() => controller.abort(), 25_000)
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const response = await fetch(path, {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        ...(options.headers ?? {}),
+        ...(fetchOptions.headers ?? {}),
       },
-      ...options,
+      ...fetchOptions,
       signal: controller.signal,
     })
 
@@ -1529,6 +1533,7 @@ export const api = {
     request<{ schedule: MeterScheduleRecord }>(`/api/meter-schedules/${id}/reschedule`, {
       method: 'POST',
       body: JSON.stringify(payload),
+      timeoutMs: 10 * 60 * 1000,
     }),
   saveDelayJustification: (id: string, justification: string) =>
     request<{ schedule: MeterScheduleRecord }>(`/api/meter-schedules/${id}/delay-justification`, {
@@ -1575,6 +1580,7 @@ export const api = {
     request<{ schedule: MeterScheduleRecord }>('/api/meter-schedules', {
       method: 'POST',
       body: JSON.stringify(payload),
+      timeoutMs: 10 * 60 * 1000,
     }),
   createPassiveMeterSchedule: (payload: {
     meter: string
@@ -1594,6 +1600,7 @@ export const api = {
     request<{ schedule: MeterScheduleRecord }>('/api/meter-schedules/passivo', {
       method: 'POST',
       body: JSON.stringify(payload),
+      timeoutMs: 10 * 60 * 1000,
     }),
   listFieldPartners: () =>
     request<{ partners: FieldPartnerOption[] }>('/api/meter-schedules/partners'),
@@ -1658,6 +1665,7 @@ export const api = {
       {
         method: 'POST',
         body: JSON.stringify(payload),
+        timeoutMs: 10 * 60 * 1000,
       },
     ),
   deleteInspectionDocument: (meterScheduleId: string, docType: InspectionDocumentType) =>
