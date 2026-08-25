@@ -75,7 +75,10 @@ function scheduleSearchText(item: MeterScheduleRecord) {
       item.toiCollaborator2Name,
       item.toiCollaborator2Registration,
       item.schedulingNotes,
-      item.installationTypedWrong ? 'instalação digitada errada' : '',
+      item.installationTypedWrong ? 'instalação digitada errada erro de preenchimento' : '',
+      item.toiTypedWrong ? 'toi digitado errado erro de preenchimento' : '',
+      item.noteTypedWrong ? 'nota digitada errada erro de preenchimento' : '',
+      item.csdTypedWrong ? 'csd digitado errado erro de preenchimento' : '',
     ]
       .filter(Boolean)
       .join(' '),
@@ -114,8 +117,32 @@ function inspectionStatusBadgeClass(summary: MeterInspectionSummary | undefined)
   return 'schedule-late-badge'
 }
 
-function InstallationWrongBadge() {
-  return <span className="schedule-wrong-install-badge">Instalação digitada errada</span>
+function FillingErrorBadge({ label }: { label: string }) {
+  return <span className="schedule-wrong-install-badge">{label}</span>
+}
+
+function FillingErrorNote({
+  wrong,
+  previous,
+  label,
+}: {
+  wrong?: boolean
+  previous?: string
+  label: string
+}) {
+  if (!wrong) return null
+  return (
+    <p className="schedule-wrong-install-note">
+      <FillingErrorBadge label={label} />
+      {previous ? ` Anterior: ${previous}` : null}
+    </p>
+  )
+}
+
+function scheduleHasFillingError(item: MeterScheduleRecord) {
+  return Boolean(
+    item.installationTypedWrong || item.toiTypedWrong || item.noteTypedWrong || item.csdTypedWrong,
+  )
 }
 
 type ScheduleDetailModalProps = {
@@ -139,17 +166,15 @@ function ScheduleDetailModal({
   const scheduledBy = formatScheduleCreatedByLabel(schedule)
   const createdAtLabel = formatScheduleCreatedAtLabel(schedule.createdAt)
   const { options: csdOptions, loading: csdLoading, error: csdError } = useCsdsOptions()
-  const [meter, setMeter] = useState(schedule.meter)
   const [installation, setInstallation] = useState(schedule.installation)
   const [toi, setToi] = useState(schedule.toi)
   const [note, setNote] = useState(schedule.note)
   const [csd, setCsd] = useState(schedule.csd)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
-  const [fieldErrors, setFieldErrors] = useState<Partial<Record<'medidor' | 'instalacao' | 'toi' | 'nota' | 'csd', string>>>({})
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<'instalacao' | 'toi' | 'nota' | 'csd', string>>>({})
 
   useEffect(() => {
-    setMeter(schedule.meter)
     setInstallation(schedule.installation)
     setToi(schedule.toi)
     setNote(schedule.note)
@@ -161,7 +186,6 @@ function ScheduleDetailModal({
   const handleSave = async () => {
     const nextErrors: typeof fieldErrors = {}
     for (const [value, field] of [
-      [meter, 'medidor'],
       [installation, 'instalacao'],
       [toi, 'toi'],
       [note, 'nota'],
@@ -178,7 +202,6 @@ function ScheduleDetailModal({
     setFormError('')
     try {
       const { schedule: updated } = await api.updateMeterSchedule(schedule.id, {
-        meter,
         installation,
         toi,
         note,
@@ -227,24 +250,7 @@ function ScheduleDetailModal({
         <dl className="user-detail-grid schedule-detail-grid">
           <div>
             <dt>Medidor</dt>
-            <dd>
-              {allowEdit ? (
-                <>
-                  <input
-                    value={meter}
-                    inputMode="numeric"
-                    maxLength={NUMERIC_FIELD_LIMITS.medidor}
-                    aria-invalid={Boolean(fieldErrors.medidor)}
-                    onChange={(event) =>
-                      setMeter(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS.medidor))
-                    }
-                  />
-                  <FormFieldError message={fieldErrors.medidor} />
-                </>
-              ) : (
-                schedule.meter
-              )}
-            </dd>
+            <dd>{schedule.meter}</dd>
           </div>
           <div>
             <dt>Instalação</dt>
@@ -267,14 +273,11 @@ function ScheduleDetailModal({
               ) : (
                 displayValue(schedule.installation)
               )}
-              {schedule.installationTypedWrong ? (
-                <p className="schedule-wrong-install-note">
-                  <InstallationWrongBadge />
-                  {schedule.previousInstallation
-                    ? ` Anterior: ${schedule.previousInstallation}`
-                    : null}
-                </p>
-              ) : null}
+              <FillingErrorNote
+                wrong={schedule.installationTypedWrong}
+                previous={schedule.previousInstallation}
+                label="Instalação digitada errada"
+              />
             </dd>
           </div>
           <div>
@@ -296,6 +299,11 @@ function ScheduleDetailModal({
               ) : (
                 displayValue(schedule.toi)
               )}
+              <FillingErrorNote
+                wrong={schedule.toiTypedWrong}
+                previous={schedule.previousToi}
+                label="TOI digitado errado"
+              />
             </dd>
           </div>
           <div>
@@ -317,6 +325,11 @@ function ScheduleDetailModal({
               ) : (
                 displayValue(schedule.note)
               )}
+              <FillingErrorNote
+                wrong={schedule.noteTypedWrong}
+                previous={schedule.previousNote}
+                label="Nota digitada errada"
+              />
             </dd>
           </div>
           <div>
@@ -341,6 +354,11 @@ function ScheduleDetailModal({
               ) : (
                 displayValue(schedule.csd)
               )}
+              <FillingErrorNote
+                wrong={schedule.csdTypedWrong}
+                previous={schedule.previousCsd}
+                label="CSD digitado errado"
+              />
             </dd>
           </div>
           <div>
@@ -800,10 +818,17 @@ export function FieldTeamConsultarPanel({
                   <td>
                     <div className="table-installation-cell">
                       <span>{item.installation || '—'}</span>
-                      {item.installationTypedWrong ? <InstallationWrongBadge /> : null}
+                      {item.installationTypedWrong ? (
+                        <FillingErrorBadge label="Instalação digitada errada" />
+                      ) : null}
                     </div>
                   </td>
-                  <td>{item.toi || '—'}</td>
+                  <td>
+                    <div className="table-installation-cell">
+                      <span>{item.toi || '—'}</span>
+                      {item.toiTypedWrong ? <FillingErrorBadge label="TOI digitado errado" /> : null}
+                    </div>
+                  </td>
                   <td>
                     {item.envelopePhoto ? (
                       <button
@@ -830,8 +855,18 @@ export function FieldTeamConsultarPanel({
                       '—'
                     )}
                   </td>
-                  <td>{item.note || '—'}</td>
-                  <td>{item.csd || '—'}</td>
+                  <td>
+                    <div className="table-installation-cell">
+                      <span>{item.note || '—'}</span>
+                      {item.noteTypedWrong ? <FillingErrorBadge label="Nota digitada errada" /> : null}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="table-installation-cell">
+                      <span>{item.csd || '—'}</span>
+                      {item.csdTypedWrong ? <FillingErrorBadge label="CSD digitado errado" /> : null}
+                    </div>
+                  </td>
                   <td>{formatScheduleCreatedByLabel(item) || '—'}</td>
                   <td>{formatScheduleCollaborator1Label(item) || '—'}</td>
                   <td>{formatScheduleCollaborator2Label(item) || '—'}</td>
@@ -945,8 +980,8 @@ export function FieldTeamConsultarPanel({
             setSelectedSchedule(updated)
             setFeedback({
               type: 'success',
-              message: updated.installationTypedWrong
-                ? 'Dados salvos. A instalação corrigida consta como "Instalação digitada errada" em Meus TOIs.'
+              message: scheduleHasFillingError(updated)
+                ? 'Dados salvos. A correção consta como erro de preenchimento em Meus TOIs.'
                 : 'Dados do agendamento atualizados.',
             })
           }}

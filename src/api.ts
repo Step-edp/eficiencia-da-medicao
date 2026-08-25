@@ -535,6 +535,12 @@ export type MeterScheduleRecord = {
   registryStatus?: string
   installationTypedWrong?: boolean
   previousInstallation?: string
+  toiTypedWrong?: boolean
+  previousToi?: string
+  noteTypedWrong?: boolean
+  previousNote?: string
+  csdTypedWrong?: boolean
+  previousCsd?: string
 }
 
 export type FieldPartnerOption = {
@@ -1563,7 +1569,6 @@ export const api = {
   updateMeterSchedule: (
     id: string,
     payload: {
-      meter: string
       installation: string
       toi: string
       note: string

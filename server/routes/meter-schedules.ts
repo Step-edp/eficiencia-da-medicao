@@ -131,6 +131,26 @@ type MeterScheduleRow = {
   delay_dismissed_days?: number | null
   installation_wrong?: boolean | null
   previous_installation?: string | null
+  toi_wrong?: boolean | null
+  previous_toi?: string | null
+  note_wrong?: boolean | null
+  previous_note?: string | null
+  csd_wrong?: boolean | null
+  previous_csd?: string | null
+}
+
+function resolveFillingCorrection(
+  currentValue: string,
+  nextValue: string,
+  currentlyWrong: boolean,
+  previousStored?: string | null,
+) {
+  const current = (currentValue ?? '').trim()
+  const next = (nextValue ?? '').trim()
+  const original = currentlyWrong ? (previousStored ?? '').trim() || current : current
+  const changed = next !== current
+  const wrong = changed ? next !== original : currentlyWrong && next !== original
+  return { wrong, previous: wrong ? original : '', changed, original }
 }
 
 function mapMeterSchedule(row: MeterScheduleRow) {
@@ -180,6 +200,12 @@ function mapMeterSchedule(row: MeterScheduleRow) {
     delayJustification: (row.delay_justification ?? '').trim(),
     installationTypedWrong: Boolean(row.installation_wrong),
     previousInstallation: (row.previous_installation ?? '').trim(),
+    toiTypedWrong: Boolean(row.toi_wrong),
+    previousToi: (row.previous_toi ?? '').trim(),
+    noteTypedWrong: Boolean(row.note_wrong),
+    previousNote: (row.previous_note ?? '').trim(),
+    csdTypedWrong: Boolean(row.csd_wrong),
+    previousCsd: (row.previous_csd ?? '').trim(),
   }
 }
 
@@ -1334,7 +1360,6 @@ export async function updateMeterSchedule(req: Request, res: Response) {
   }
 
   const body = req.body as {
-    meter?: string
     installation?: string
     toi?: string
     note?: string
@@ -1342,7 +1367,6 @@ export async function updateMeterSchedule(req: Request, res: Response) {
   }
 
   const normalized = {
-    meter: body.meter?.trim() ?? current.meter,
     installation: body.installation?.trim() ?? current.installation,
     toi: body.toi?.trim() ?? current.toi,
     note: body.note?.trim() ?? current.note,
@@ -1350,7 +1374,6 @@ export async function updateMeterSchedule(req: Request, res: Response) {
   }
 
   for (const [value, field] of [
-    [normalized.meter, 'medidor'],
     [normalized.installation, 'instalacao'],
     [normalized.toi, 'toi'],
     [normalized.note, 'nota'],
@@ -1367,62 +1390,106 @@ export async function updateMeterSchedule(req: Request, res: Response) {
     return
   }
 
-  if (normalized.meter !== current.meter) {
-    const duplicate = await query<{ id: string }>(
-      `SELECT id FROM meter_schedules
-       WHERE meter = $1 AND id <> $2 AND delay_dismissed_at IS NULL
-       LIMIT 1`,
-      [normalized.meter, id],
-    )
-    if (duplicate.rows[0]) {
-      res.status(409).json({
-        error: `O medidor ${normalized.meter} já possui outro agendamento ativo.`,
-      })
-      return
-    }
-  }
-
-  const installationChanged = normalized.installation !== current.installation
-  const originalInstallation = current.installation_wrong
-    ? (current.previous_installation || '').trim() || current.installation
-    : current.installation
-  const installationWrong = installationChanged
-    ? normalized.installation !== originalInstallation
-    : Boolean(current.installation_wrong) && normalized.installation !== originalInstallation
-  const previousInstallation = installationWrong ? originalInstallation : ''
+  const installationCorrection = resolveFillingCorrection(
+    current.installation,
+    normalized.installation,
+    Boolean(current.installation_wrong),
+    current.previous_installation,
+  )
+  const toiCorrection = resolveFillingCorrection(
+    current.toi,
+    normalized.toi,
+    Boolean(current.toi_wrong),
+    current.previous_toi,
+  )
+  const noteCorrection = resolveFillingCorrection(
+    current.note,
+    normalized.note,
+    Boolean(current.note_wrong),
+    current.previous_note,
+  )
+  const csdCorrection = resolveFillingCorrection(
+    current.csd,
+    normalized.csd,
+    Boolean(current.csd_wrong),
+    current.previous_csd,
+  )
 
   const updated = await query<MeterScheduleRow>(
     `UPDATE meter_schedules
-     SET meter = $2,
-         installation = $3,
-         toi = $4,
-         note = $5,
-         csd = $6,
-         installation_wrong = $7,
-         previous_installation = $8,
+     SET installation = $2,
+         toi = $3,
+         note = $4,
+         csd = $5,
+         installation_wrong = $6,
+         previous_installation = $7,
          installation_corrected_at = CASE
-           WHEN $7 AND $3 <> $9 THEN NOW()
-           WHEN $7 THEN installation_corrected_at
+           WHEN $6 AND $2 <> $8 THEN NOW()
+           WHEN $6 THEN installation_corrected_at
            ELSE NULL
          END,
          installation_corrected_by_user_id = CASE
-           WHEN $7 AND $3 <> $9 THEN $10
-           WHEN $7 THEN installation_corrected_by_user_id
+           WHEN $6 AND $2 <> $8 THEN $9
+           WHEN $6 THEN installation_corrected_by_user_id
+           ELSE NULL
+         END,
+         toi_wrong = $10,
+         previous_toi = $11,
+         toi_corrected_at = CASE
+           WHEN $10 AND $3 <> $12 THEN NOW()
+           WHEN $10 THEN toi_corrected_at
+           ELSE NULL
+         END,
+         toi_corrected_by_user_id = CASE
+           WHEN $10 AND $3 <> $12 THEN $9
+           WHEN $10 THEN toi_corrected_by_user_id
+           ELSE NULL
+         END,
+         note_wrong = $13,
+         previous_note = $14,
+         note_corrected_at = CASE
+           WHEN $13 AND $4 <> $15 THEN NOW()
+           WHEN $13 THEN note_corrected_at
+           ELSE NULL
+         END,
+         note_corrected_by_user_id = CASE
+           WHEN $13 AND $4 <> $15 THEN $9
+           WHEN $13 THEN note_corrected_by_user_id
+           ELSE NULL
+         END,
+         csd_wrong = $16,
+         previous_csd = $17,
+         csd_corrected_at = CASE
+           WHEN $16 AND $5 <> $18 THEN NOW()
+           WHEN $16 THEN csd_corrected_at
+           ELSE NULL
+         END,
+         csd_corrected_by_user_id = CASE
+           WHEN $16 AND $5 <> $18 THEN $9
+           WHEN $16 THEN csd_corrected_by_user_id
            ELSE NULL
          END
      WHERE id = $1
      RETURNING *, scheduling_date::text AS scheduling_date`,
     [
       id,
-      normalized.meter,
       normalized.installation,
       normalized.toi,
       normalized.note,
       normalized.csd,
-      installationWrong,
-      previousInstallation,
+      installationCorrection.wrong,
+      installationCorrection.previous,
       current.installation,
       req.user?.id ?? null,
+      toiCorrection.wrong,
+      toiCorrection.previous,
+      current.toi,
+      noteCorrection.wrong,
+      noteCorrection.previous,
+      current.note,
+      csdCorrection.wrong,
+      csdCorrection.previous,
+      current.csd,
     ],
   )
 
@@ -1432,27 +1499,37 @@ export async function updateMeterSchedule(req: Request, res: Response) {
     created_by_registration: current.created_by_registration,
   })
 
+  const correctionSummaries = [
+    installationCorrection.changed
+      ? `instalação (${installationCorrection.original} → ${normalized.installation})`
+      : '',
+    toiCorrection.changed ? `TOI (${toiCorrection.original} → ${normalized.toi})` : '',
+    noteCorrection.changed ? `nota (${noteCorrection.original} → ${normalized.note})` : '',
+    csdCorrection.changed ? `CSD (${csdCorrection.original} → ${normalized.csd})` : '',
+  ].filter(Boolean)
+
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'meter_schedule',
     entityId: schedule.id,
-    summary: installationChanged
-      ? `Instalação do medidor ${schedule.meter} corrigida (${originalInstallation} → ${normalized.installation})`
+    summary: correctionSummaries.length
+      ? `Preenchimento do medidor ${schedule.meter} corrigido: ${correctionSummaries.join(', ')}`
       : `Dados do agendamento do medidor ${schedule.meter} atualizados`,
     oldData: {
-      meter: current.meter,
       installation: current.installation,
       toi: current.toi,
       note: current.note,
       csd: current.csd,
     },
     newData: {
-      meter: schedule.meter,
       installation: schedule.installation,
       toi: schedule.toi,
       note: schedule.note,
       csd: schedule.csd,
       installationTypedWrong: schedule.installationTypedWrong,
+      toiTypedWrong: schedule.toiTypedWrong,
+      noteTypedWrong: schedule.noteTypedWrong,
+      csdTypedWrong: schedule.csdTypedWrong,
     },
   })
 

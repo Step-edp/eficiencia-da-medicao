@@ -1040,6 +1040,18 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS installation_wrong BOOLEAN NOT NULL DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS previous_installation TEXT NOT NULL DEFAULT '',
       ADD COLUMN IF NOT EXISTS installation_corrected_at TIMESTAMPTZ,
-      ADD COLUMN IF NOT EXISTS installation_corrected_by_user_id TEXT REFERENCES users(id)
+      ADD COLUMN IF NOT EXISTS installation_corrected_by_user_id TEXT REFERENCES users(id),
+      ADD COLUMN IF NOT EXISTS toi_wrong BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS previous_toi TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS toi_corrected_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS toi_corrected_by_user_id TEXT REFERENCES users(id),
+      ADD COLUMN IF NOT EXISTS note_wrong BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS previous_note TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS note_corrected_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS note_corrected_by_user_id TEXT REFERENCES users(id),
+      ADD COLUMN IF NOT EXISTS csd_wrong BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS previous_csd TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS csd_corrected_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS csd_corrected_by_user_id TEXT REFERENCES users(id)
   `)
 }
