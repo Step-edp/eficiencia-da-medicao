@@ -428,11 +428,11 @@ export async function createMeterSchedule(req: Request, res: Response) {
   if (
     !normalized.envelopePhoto ||
     !normalized.envelopePhoto.startsWith('data:image/') ||
-    normalized.envelopePhoto.length > 3_500_000
+    normalized.envelopePhoto.length > 12_000_000
   ) {
     res.status(400).json({
       error:
-        'Anexe uma foto nítida do número do invólucro (até cerca de 2 MB), com o medidor visível dentro dele.',
+        'Anexe uma foto nítida do número do invólucro (até 20 MB), com o medidor visível dentro dele.',
     })
     return
   }

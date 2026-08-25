@@ -8,7 +8,7 @@ import {
   sanitizeNumericInput,
   validateNumericField,
 } from './numericFieldValidation'
-import { readImageAsDataUrl } from './readImageAsDataUrl'
+import { readEnvelopePhotoAsDataUrl } from './readImageAsDataUrl'
 import { useCsdsOptions } from './useCsdsOptions'
 
 type RequiredLabelProps = {
@@ -524,7 +524,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                   setEnvelopePhotoName('')
                   return
                 }
-                void readImageAsDataUrl(file)
+                void readEnvelopePhotoAsDataUrl(file)
                   .then((dataUrl) => {
                     setEnvelopePhoto(dataUrl)
                     setEnvelopePhotoName(file.name)
