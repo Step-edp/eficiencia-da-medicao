@@ -334,8 +334,12 @@ export function EnsaiosCalendar({
                 !inMonth ? 'is-outside' : '',
                 inMonth && !hasMeters ? 'is-no-ensaio' : '',
                 isBlocked ? 'is-blocked' : '',
-                !isBlocked && hasMeters && !allEnsaiados ? 'is-available' : '',
-                autoReason && autoReason !== 'Fim de Semana' ? 'is-auto-blocked' : '',
+                hasMeters && !allEnsaiados ? 'is-available' : '',
+                autoReason &&
+                autoReason !== 'Fim de Semana' &&
+                autoReason !== 'Recebimento de Medidores'
+                  ? 'is-auto-blocked'
+                  : '',
                 isManual ? 'is-manual-blocked' : '',
                 allEnsaiados ? 'is-all-ensaiado' : '',
                 isToday ? 'is-today' : '',
@@ -379,7 +383,7 @@ export function EnsaiosCalendar({
 
       <ul className="ensaios-calendar-legend" aria-label="Legenda do calendário">
         <li>
-          <span className="ensaios-calendar-swatch is-available" /> Com ensaio programado
+          <span className="ensaios-calendar-swatch is-available" /> Com medidor para ensaiar
         </li>
         <li>
           <span className="ensaios-calendar-swatch is-no-ensaio" /> Sem ensaio programado
@@ -393,8 +397,7 @@ export function EnsaiosCalendar({
           manual (com motivo)
         </li>
         <li>
-          <span className="ensaios-calendar-swatch is-auto-blocked" /> Sexta
-          (Recebimento de Medidores) ou feriado
+          <span className="ensaios-calendar-swatch is-auto-blocked" /> Feriado
         </li>
       </ul>
 

@@ -3026,10 +3026,15 @@ button {
   opacity: 0.28;
 }
 
+.ensaios-calendar-day.is-available {
+  border-color: rgba(57, 255, 0, 0.55);
+  background: rgba(57, 255, 0, 0.12);
+}
+
 .ensaios-calendar-day.is-available:hover:not(:disabled),
 .ensaios-calendar-day.is-available:focus-visible:not(:disabled) {
-  border-color: rgba(57, 255, 0, 0.55);
-  background: rgba(57, 255, 0, 0.08);
+  border-color: rgba(57, 255, 0, 0.78);
+  background: rgba(57, 255, 0, 0.18);
   transform: translateY(-1px);
 }
 
