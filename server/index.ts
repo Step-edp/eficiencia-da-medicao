@@ -2,6 +2,7 @@ import express from 'express'
 import cookieParser from 'cookie-parser'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { query } from './db.js'
 import { migrate } from './migrate.js'
 import { seed } from './seed.js'
 import { authRoutes } from './routes/users.js'
@@ -567,9 +568,34 @@ async function start() {
     server.on('error', reject)
   })
 
-  await migrate()
-  await seed()
-  console.log('Banco de dados pronto.')
+  try {
+    await migrate()
+    await seed()
+    console.log('Banco de dados pronto.')
+  } catch (error) {
+    const code =
+      error && typeof error === 'object' && 'code' in error
+        ? String((error as { code?: unknown }).code)
+        : ''
+    if (code !== '53100') {
+      throw error
+    }
+    console.error(
+      'Disco do Postgres cheio (53100). O site continua no ar em leitura; aumente o volume no Railway.',
+      error,
+    )
+    try {
+      const sizes = await query<{ table: string; total: string }>(
+        `SELECT relname AS table, pg_size_pretty(pg_total_relation_size(relid)) AS total
+         FROM pg_catalog.pg_statio_user_tables
+         ORDER BY pg_total_relation_size(relid) DESC
+         LIMIT 15`,
+      )
+      console.error('Uso das tabelas:', sizes.rows)
+    } catch (sizeError) {
+      console.error('Não foi possível listar o tamanho das tabelas:', sizeError)
+    }
+  }
 }
 
 start().catch((error) => {
