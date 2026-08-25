@@ -1024,7 +1024,6 @@ async function backfillMissingExtractions(
   rows: Array<Omit<InspectionDocumentRow, 'file_data'>>,
 ) {
   for (const row of rows) {
-    if (row.extracted_fields_manual) continue
     const needsSchedule = !row.extracted_scheduled_at?.trim()
     const needsRetirado = !row.extracted_meter_retirado?.trim()
     const needsCoverSeal = !row.extracted_cover_seal?.trim()
