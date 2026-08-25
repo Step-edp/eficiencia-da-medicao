@@ -1813,9 +1813,14 @@ export const api = {
         body: JSON.stringify({ docType }),
       },
     ),
-  listScheduleDateAdjustments: (scope: 'all' | 'mine' = 'all', kind?: string) => {
+  listScheduleDateAdjustments: (
+    scope: 'all' | 'mine' = 'all',
+    kind?: string,
+    forUserId?: string,
+  ) => {
     const search = new URLSearchParams({ scope })
     if (kind) search.set('kind', kind)
+    if (forUserId) search.set('forUserId', forUserId)
     return request<{
       adjustments: ScheduleDateAdjustmentRecord[]
       history: ScheduleDateAdjustmentRecord[]

@@ -21,6 +21,7 @@ import {
   normalizeScheduleNote,
 } from '../numeric-field-validation.js'
 import { pontoFocalScopeUserId, resolvePontoFocalCsdNames } from '../ponto-focal-csds.js'
+import { ensureFillingDeviationsFromSchedules } from '../filling-deviations.js'
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024
 
@@ -2215,6 +2216,7 @@ const SCHEDULE_DATE_DEVIATION_SELECT = `
          p.name AS physically_adjusted_by_name,
          p.registration AS physically_adjusted_by_registration
   FROM toi_schedule_deviations d
+  LEFT JOIN meter_schedules ms ON ms.id = d.meter_schedule_id
   LEFT JOIN users u ON u.id = d.created_by_user_id
   LEFT JOIN users p ON p.id = d.physically_adjusted_by_user_id
 `
@@ -2409,15 +2411,39 @@ export async function adjustScheduleDateFromDocument(req: Request, res: Response
 }
 
 export async function listScheduleDateAdjustments(req: Request, res: Response) {
+  try {
+    await ensureFillingDeviationsFromSchedules()
+  } catch (error) {
+    console.error('Não foi possível sincronizar desvios de preenchimento.', error)
+  }
+
   const scope = typeof req.query.scope === 'string' ? req.query.scope.trim() : 'all'
   const mine = scope === 'mine'
-  const registration = (req.user?.registration ?? '').trim().toUpperCase()
   const kind =
     typeof req.query.kind === 'string' && req.query.kind.trim()
       ? req.query.kind.trim()
       : ''
+  const forUserId =
+    typeof req.query.forUserId === 'string' && req.query.forUserId.trim()
+      ? req.query.forUserId.trim()
+      : ''
 
-  if (mine && !registration) {
+  let userId = req.user?.id ?? ''
+  let registration = (req.user?.registration ?? '').trim().toUpperCase()
+
+  if (mine && forUserId && req.user?.role === 'admin') {
+    const scoped = await query<{ id: string; registration: string }>(
+      `SELECT id, registration FROM users WHERE id = $1`,
+      [forUserId],
+    )
+    const row = scoped.rows[0]
+    if (row) {
+      userId = row.id
+      registration = (row.registration ?? '').trim().toUpperCase()
+    }
+  }
+
+  if (mine && !registration && !userId) {
     res.json({ adjustments: [], history: [], total: 0, historyTotal: 0 })
     return
   }
@@ -2425,8 +2451,29 @@ export async function listScheduleDateAdjustments(req: Request, res: Response) {
   const scopeFilter = `
      WHERE (
        $1 = false
-       OR UPPER(TRIM(d.collaborator1_registration)) = $2
-       OR UPPER(TRIM(d.collaborator2_registration)) = $2
+       OR ms.created_by_user_id = $4
+       OR (
+         $2 <> ''
+         AND (
+           UPPER(TRIM(COALESCE(d.collaborator1_registration, ''))) = $2
+           OR UPPER(TRIM(COALESCE(d.collaborator2_registration, ''))) = $2
+           OR UPPER(TRIM(COALESCE(ms.toi_collaborator1_registration, ''))) = $2
+           OR UPPER(TRIM(COALESCE(ms.toi_collaborator2_registration, ''))) = $2
+           OR (
+             regexp_replace($2, '[^0-9]', '', 'g') <> ''
+             AND (
+               regexp_replace(COALESCE(d.collaborator1_registration, ''), '[^0-9]', '', 'g')
+                 = regexp_replace($2, '[^0-9]', '', 'g')
+               OR regexp_replace(COALESCE(d.collaborator2_registration, ''), '[^0-9]', '', 'g')
+                 = regexp_replace($2, '[^0-9]', '', 'g')
+               OR regexp_replace(COALESCE(ms.toi_collaborator1_registration, ''), '[^0-9]', '', 'g')
+                 = regexp_replace($2, '[^0-9]', '', 'g')
+               OR regexp_replace(COALESCE(ms.toi_collaborator2_registration, ''), '[^0-9]', '', 'g')
+                 = regexp_replace($2, '[^0-9]', '', 'g')
+             )
+           )
+         )
+       )
      )
        AND ($3 = '' OR d.kind = $3)`
 
@@ -2437,7 +2484,7 @@ export async function listScheduleDateAdjustments(req: Request, res: Response) {
          AND d.physically_adjusted_at IS NULL
        ORDER BY d.created_at DESC
        LIMIT 500`,
-      [mine, registration, kind],
+      [mine, registration, kind, userId || null],
     ),
     query<ToiScheduleDeviationRow>(
       `${SCHEDULE_DATE_DEVIATION_SELECT}
@@ -2445,7 +2492,7 @@ export async function listScheduleDateAdjustments(req: Request, res: Response) {
          AND d.physically_adjusted_at IS NOT NULL
        ORDER BY d.physically_adjusted_at DESC
        LIMIT 500`,
-      [mine, registration, kind],
+      [mine, registration, kind, userId || null],
     ),
   ])
 

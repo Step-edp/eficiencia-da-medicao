@@ -34,6 +34,7 @@ export function ScheduleDateAdjustmentsPanel({
   intro,
   allowPhysicalAdjust = false,
   includeFillingDeviations = false,
+  forUserId,
   readOnly = false,
   onPendingCountChange,
 }: {
@@ -42,6 +43,7 @@ export function ScheduleDateAdjustmentsPanel({
   intro: string
   allowPhysicalAdjust?: boolean
   includeFillingDeviations?: boolean
+  forUserId?: string
   readOnly?: boolean
   onPendingCountChange?: (count: number) => void
 }) {
@@ -61,6 +63,7 @@ export function ScheduleDateAdjustmentsPanel({
       const response = await api.listScheduleDateAdjustments(
         scope,
         dateOnly ? 'schedule_date_mismatch' : undefined,
+        forUserId,
       )
       setItems(response.adjustments)
       setHistory(response.history ?? [])
@@ -77,7 +80,7 @@ export function ScheduleDateAdjustmentsPanel({
     } finally {
       setLoading(false)
     }
-  }, [dateOnly, onPendingCountChange, scope])
+  }, [dateOnly, forUserId, onPendingCountChange, scope])
 
   useEffect(() => {
     void load()

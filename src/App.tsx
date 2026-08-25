@@ -2045,7 +2045,7 @@ function HomePanel({
 
     const refreshLabDateAdjustments = async () => {
       try {
-        const response = await api.listScheduleDateAdjustments('all', 'schedule_date_mismatch')
+        const response = await api.listScheduleDateAdjustments('all')
         if (!cancelled) setLabDateAdjustmentCount(response.total)
       } catch {
         if (!cancelled) setLabDateAdjustmentCount(0)
@@ -2321,8 +2321,9 @@ function HomePanel({
 
   useEffect(() => {
     let cancelled = false
+    const forUserId = isAdmin && previewUser ? previewUser.id : undefined
     void api
-      .listScheduleDateAdjustments('mine')
+      .listScheduleDateAdjustments('mine', undefined, forUserId)
       .then((response) => {
         if (!cancelled) setScheduleDateDeviationCount(response.total)
       })
@@ -2333,7 +2334,7 @@ function HomePanel({
     return () => {
       cancelled = true
     }
-  }, [currentUser.id, selectedArea, selectedFieldTeamSection])
+  }, [currentUser.id, isAdmin, previewUser, selectedArea, selectedFieldTeamSection])
   const isAdminFullPreview =
     isAdmin &&
     ((previewMode === 'profile' &&
@@ -5490,6 +5491,7 @@ function HomePanel({
                 title="Apontamentos de desvio"
                 intro="Desvios de preenchimento (instalação, TOI, nota ou CSD corrigidos pelo laboratório) e data/horário de agendamento diferente do documento. Confira o valor informado no cadastro e o valor corrigido."
                 includeFillingDeviations
+                forUserId={isAdmin && previewUser ? previewUser.id : undefined}
                 onPendingCountChange={setScheduleDateDeviationCount}
               />
             ) : selectedFieldTeamSection === 'Enviar documentos' ? (
@@ -5590,8 +5592,9 @@ function HomePanel({
               <ScheduleDateAdjustmentsPanel
                 scope="all"
                 title="Alteração de data"
-                intro="Medidores cuja data/horário de agendamento foi ajustada para conferir com o documento. Cada ajuste também gera apontamento de desvio para os colaboradores 1 e 2 do TOI. Marque Ajustado fisicamente quando a correção no documento estiver concluída."
+                intro="Medidores com data/horário de agendamento ajustada ou com instalação, TOI, nota ou CSD corrigidos. Cada ajuste gera apontamento de desvio para os colaboradores 1 e 2 do TOI. Marque Ajustado fisicamente quando a correção da data no documento estiver concluída."
                 allowPhysicalAdjust
+                includeFillingDeviations
                 readOnly={labMedicaoReadOnly}
                 onPendingCountChange={setLabDateAdjustmentCount}
               />
