@@ -542,6 +542,10 @@ export type FieldPartnerOption = {
   label: string
 }
 
+export type FieldPartnerLookupResult =
+  | { ok: true; partner: FieldPartnerOption }
+  | { ok: false; reason: string; message: string }
+
 export type SupportTicketRecord = {
   id: string
   ticketNumber: string
@@ -1623,6 +1627,12 @@ export const api = {
     }),
   listFieldPartners: () =>
     request<{ partners: FieldPartnerOption[] }>('/api/meter-schedules/partners'),
+  lookupFieldPartner: (registration: string) => {
+    const search = new URLSearchParams({ registration })
+    return request<FieldPartnerLookupResult>(
+      `/api/meter-schedules/partners/lookup?${search.toString()}`,
+    )
+  },
   listToiCollaborators: () =>
     request<{ users: FieldPartnerOption[] }>('/api/meter-schedules/toi-collaborators'),
   createDemmDocument: (payload: {

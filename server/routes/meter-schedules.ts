@@ -24,7 +24,17 @@ import {
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 const BACKOFFICE_SCOPE = 'Lavratura de TOI - Backoffice'
-const LAVRATURA_SUBTYPE_SQL = `REPLACE(REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-'), '—', '-')`
+const LAVRATURA_SUBTYPE_SQL = `REPLACE(REPLACE(REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-'), '—', '-'), '−', '-')`
+
+function isLavraturaToiSubtype(workSubtype: string | null | undefined) {
+  const normalized = (workSubtype ?? '')
+    .replace(/[–—−‑]/g, '-')
+    .replace(/[^a-zA-Z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+  return normalized.startsWith('lavratura de toi') || /\blavratura\b.*\btoi\b/.test(normalized)
+}
 
 type LavraturaCollaborator = {
   id: string
@@ -60,7 +70,10 @@ async function resolveLavraturaCollaborators(
      FROM users
      WHERE approval_status = 'approved'
        AND role <> 'admin'
-       AND ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'
+       AND (
+         ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'
+         OR regexp_replace(${LAVRATURA_SUBTYPE_SQL}, '[^a-zA-Z0-9 ]', ' ', 'g') ILIKE '%Lavratura%TOI%'
+       )
        AND UPPER(TRIM(registration)) = ANY($1::text[])`,
     [[first, second]],
   )
@@ -313,7 +326,10 @@ export async function listFieldPartners(req: Request, res: Response) {
      FROM users
      WHERE approval_status = 'approved'
        AND role <> 'admin'
-       AND ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'
+       AND (
+         ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'
+         OR regexp_replace(${LAVRATURA_SUBTYPE_SQL}, '[^a-zA-Z0-9 ]', ' ', 'g') ILIKE '%Lavratura%TOI%'
+       )
        AND ($1::text IS NULL OR id <> $1)
      ORDER BY registration ASC, name ASC`,
     [req.user?.id ?? null],
@@ -340,7 +356,10 @@ export async function listToiCollaborators(_req: Request, res: Response) {
      FROM users
      WHERE approval_status = 'approved'
        AND role <> 'admin'
-       AND ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'
+       AND (
+         ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'
+         OR regexp_replace(${LAVRATURA_SUBTYPE_SQL}, '[^a-zA-Z0-9 ]', ' ', 'g') ILIKE '%Lavratura%TOI%'
+       )
      ORDER BY registration ASC, name ASC`,
   )
 
@@ -351,6 +370,102 @@ export async function listToiCollaborators(_req: Request, res: Response) {
       registration: row.registration,
       label: `${row.registration} — ${row.name}`,
     })),
+  })
+}
+
+/** Explica por que uma matrícula não entra na lista de parceiros. */
+export async function lookupFieldPartner(req: Request, res: Response) {
+  const raw = typeof req.query.registration === 'string' ? req.query.registration.trim() : ''
+  if (!raw) {
+    res.status(400).json({ error: 'Informe a matrícula.' })
+    return
+  }
+
+  const digits = raw.replace(/\D/g, '')
+  const result = await query<{
+    id: string
+    name: string
+    registration: string
+    approval_status: string
+    role: string
+    work_subtype: string
+  }>(
+    `SELECT id, name, registration, approval_status, role, work_subtype
+     FROM users
+     WHERE UPPER(TRIM(registration)) = UPPER($1)
+        OR ($2 <> '' AND regexp_replace(registration, '[^0-9]', '', 'g') = $2)
+     ORDER BY CASE WHEN UPPER(TRIM(registration)) = UPPER($1) THEN 0 ELSE 1 END, requested_at DESC
+     LIMIT 8`,
+    [raw, digits],
+  )
+
+  const row = result.rows[0]
+  if (!row) {
+    res.json({
+      ok: false,
+      reason: 'not_found',
+      message:
+        'Não há cadastro no portal com essa matrícula. O parceiro precisa se cadastrar e ser aprovado pelo ADM.',
+    })
+    return
+  }
+
+  if (req.user?.id && row.id === req.user.id) {
+    res.json({
+      ok: false,
+      reason: 'self',
+      message: 'Você não pode se selecionar como parceiro. Escolha outro usuário com perfil Lavratura de TOI.',
+    })
+    return
+  }
+
+  if (row.role === 'admin') {
+    res.json({
+      ok: false,
+      reason: 'admin',
+      message: 'O administrador do portal não pode ser selecionado como parceiro.',
+    })
+    return
+  }
+
+  if (row.approval_status === 'pending') {
+    res.json({
+      ok: false,
+      reason: 'pending',
+      message:
+        'O cadastro dessa matrícula ainda está pendente de aprovação do ADM. Depois de aprovado, o perfil Lavratura de TOI passa a aparecer na lista.',
+    })
+    return
+  }
+
+  if (row.approval_status === 'rejected') {
+    res.json({
+      ok: false,
+      reason: 'rejected',
+      message:
+        'O cadastro dessa matrícula foi reprovado. É preciso enviar um novo cadastro no portal para nova análise do ADM.',
+    })
+    return
+  }
+
+  if (!isLavraturaToiSubtype(row.work_subtype)) {
+    const current = row.work_subtype.trim() || 'não informado'
+    res.json({
+      ok: false,
+      reason: 'wrong_profile',
+      message: `O cadastro está aprovado, mas o escopo não é Lavratura de TOI (escopo atual: ${current}). Peça ao ADM para ajustar o perfil.`,
+    })
+    return
+  }
+
+  res.json({
+    ok: true,
+    partner: {
+      id: row.id,
+      name: row.name,
+      registration: row.registration,
+      label: `${row.registration} — ${row.name}`,
+    },
   })
 }
 
@@ -524,7 +639,10 @@ export async function createMeterSchedule(req: Request, res: Response) {
        WHERE id = $1
          AND approval_status = 'approved'
          AND role <> 'admin'
-         AND ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'`,
+         AND (
+           ${LAVRATURA_SUBTYPE_SQL} ILIKE 'Lavratura de TOI%'
+           OR regexp_replace(${LAVRATURA_SUBTYPE_SQL}, '[^a-zA-Z0-9 ]', ' ', 'g') ILIKE '%Lavratura%TOI%'
+         )`,
       [normalized.partnerUserId],
     )
     partner = partnerResult.rows[0] ?? null

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, type FieldPartnerOption } from './api'
 import { FormFieldError } from './FormFieldError'
+import { resolveRegisteredUser } from './resolveRegisteredUser'
 
 function RequiredLabel({ children }: { children: string }) {
   return (
@@ -48,10 +49,12 @@ function matchUsers(queryValue: string, source: FieldPartnerOption[], excludeId?
   return source.filter((user) => {
     if (excludeId && user.id === excludeId) return false
     if (!query) return true
+    const digits = query.replace(/\D/g, '')
     return (
       user.registration.toUpperCase().includes(query) ||
       user.name.toUpperCase().includes(query) ||
-      user.label.toUpperCase().includes(query)
+      user.label.toUpperCase().includes(query) ||
+      (digits.length >= 3 && user.registration.replace(/\D/g, '').includes(digits))
     )
   })
 }
@@ -61,14 +64,7 @@ function resolveUserFromQuery(
   selectedId: string,
   source: FieldPartnerOption[],
 ) {
-  const query = queryValue.trim().toUpperCase()
-  if (!query) return null
-  const exact = source.find((user) => user.registration.toUpperCase() === query)
-  if (exact) return exact
-  if (selectedId) {
-    return source.find((user) => user.id === selectedId) ?? null
-  }
-  return null
+  return resolveRegisteredUser(queryValue, selectedId, source)
 }
 
 type CollaboratorSearchProps = {
@@ -144,7 +140,7 @@ function CollaboratorSearch({
                         ? 'partner-search-option is-selected'
                         : 'partner-search-option'
                     }
-                    onMouseDown={(event) => event.preventDefault()}
+                    onPointerDown={(event) => event.preventDefault()}
                     onClick={() => onSelect(user)}
                   >
                     <strong>{user.registration}</strong>

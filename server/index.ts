@@ -59,6 +59,7 @@ import {
   fixBulkMeterSchedulesUsers,
   getAgendamentoDashboard,
   getPontoFocalDashboard,
+  lookupFieldPartner,
   listFieldPartners,
   listToiCollaborators,
   listMeterScheduleHistory,
@@ -331,6 +332,7 @@ async function start() {
   app.get('/api/meter-schedules', requireAuth, listMeterSchedules)
   app.get('/api/meter-schedules/count', requireAuth, countMeterSchedules)
   app.get('/api/meter-schedules/partners', requireAuth, listFieldPartners)
+  app.get('/api/meter-schedules/partners/lookup', requireAuth, lookupFieldPartner)
   app.get('/api/meter-schedules/toi-collaborators', requireAuth, listToiCollaborators)
   app.get('/api/meter-schedules/history', requireAuth, listMeterScheduleHistory)
   app.get('/api/meter-schedules/ponto-focal-dashboard', requireAuth, getPontoFocalDashboard)

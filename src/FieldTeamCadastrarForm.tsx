@@ -9,6 +9,7 @@ import {
   validateNumericField,
 } from './numericFieldValidation'
 import { readEnvelopePhotoAsDataUrl } from './readImageAsDataUrl'
+import { resolveRegisteredUser } from './resolveRegisteredUser'
 import { useCsdsOptions } from './useCsdsOptions'
 
 type RequiredLabelProps = {
@@ -154,10 +155,12 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       const registration = partner.registration.toUpperCase()
       const name = partner.name.toUpperCase()
       const label = partner.label.toUpperCase()
+      const queryDigits = query.replace(/\D/g, '')
       return (
         registration.includes(query) ||
         name.includes(query) ||
-        label.includes(query)
+        label.includes(query) ||
+        (queryDigits.length >= 3 && registration.replace(/\D/g, '').includes(queryDigits))
       )
     })
   }
@@ -201,18 +204,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
     queryValue: string,
     selectedId: string,
     source: FieldPartnerOption[],
-  ) => {
-    const query = queryValue.trim().toUpperCase()
-    if (!query) return null
-    const exact = source.find(
-      (partner) => partner.registration.toUpperCase() === query,
-    )
-    if (exact) return exact
-    if (selectedId) {
-      return source.find((partner) => partner.id === selectedId) ?? null
-    }
-    return null
-  }
+  ) => resolveRegisteredUser(queryValue, selectedId, source)
 
   const resolvePartnerFromQuery = () =>
     resolveUserFromQuery(partnerQuery, partnerUserId, partners)
@@ -247,11 +239,29 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
       nextErrors.envelopeSeal = 'Informe o número do invólucro.'
     }
 
-    const resolvedPartner = requireToiTeam ? null : resolvePartnerFromQuery()
+    const resolvedPartner = requireToiTeam
+      ? null
+      : resolvePartnerFromQuery() ??
+        (partnerQuery.trim()
+          ? await api
+              .lookupFieldPartner(partnerQuery.trim())
+              .then((result) => {
+                if (result.ok) return result.partner
+                nextErrors.partner = result.message
+                return null
+              })
+              .catch(() => {
+                nextErrors.partner =
+                  'Selecione um usuário com perfil Lavratura de TOI. Se o parceiro não estiver na lista, solicite que ele faça o cadastro no portal.'
+                return null
+              })
+          : null)
     if (!requireToiTeam) {
       if (!resolvedPartner) {
-        nextErrors.partner =
-          'Selecione um usuário com perfil Lavratura de TOI. Se o parceiro não estiver na lista, solicite que ele faça o cadastro no portal.'
+        if (!nextErrors.partner) {
+          nextErrors.partner =
+            'Selecione um usuário com perfil Lavratura de TOI. Se o parceiro não estiver na lista, solicite que ele faça o cadastro no portal.'
+        }
       } else {
         setPartnerUserId(resolvedPartner.id)
         setPartnerQuery(resolvedPartner.registration)
@@ -612,7 +622,12 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                 }}
                 onFocus={() => setPartnerMenuOpen(true)}
                 onBlur={() => {
-                  window.setTimeout(() => setPartnerMenuOpen(false), 150)
+                  const resolved = resolvePartnerFromQuery()
+                  if (resolved) {
+                    setPartnerUserId(resolved.id)
+                    setPartnerQuery(resolved.registration)
+                  }
+                  window.setTimeout(() => setPartnerMenuOpen(false), 180)
                 }}
                 aria-invalid={Boolean(fieldErrors.partner)}
                 aria-autocomplete="list"
@@ -637,7 +652,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                               ? 'partner-search-option is-selected'
                               : 'partner-search-option'
                           }
-                          onMouseDown={(event) => event.preventDefault()}
+                          onPointerDown={(event) => event.preventDefault()}
                           onClick={() => selectPartner(partner)}
                         >
                           <strong>{partner.registration}</strong>
@@ -721,7 +736,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                                 ? 'partner-search-option is-selected'
                                 : 'partner-search-option'
                             }
-                            onMouseDown={(event) => event.preventDefault()}
+                            onPointerDown={(event) => event.preventDefault()}
                             onClick={() => selectCollaborator1(user)}
                           >
                             <strong>{user.registration}</strong>
@@ -799,7 +814,7 @@ export function FieldTeamCadastrarForm({ requireToiTeam = false }: FieldTeamCada
                                 ? 'partner-search-option is-selected'
                                 : 'partner-search-option'
                             }
-                            onMouseDown={(event) => event.preventDefault()}
+                            onPointerDown={(event) => event.preventDefault()}
                             onClick={() => selectCollaborator2(user)}
                           >
                             <strong>{user.registration}</strong>
