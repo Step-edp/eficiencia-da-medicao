@@ -5474,11 +5474,6 @@ function HomePanel({
               <FieldTeamConsultarPanel
                 mode="mine"
                 allowDelayJustification={csdResponsible}
-                allowCancelSchedule={
-                  isAdmin ||
-                  isLavraturaPontoFocalScope(activeFieldTeamSubtype) ||
-                  csdResponsible
-                }
                 hideInspectionImport={csdResponsible}
               />
             ) : selectedFieldTeamSection === 'Dashboard' ? (
@@ -5508,11 +5503,6 @@ function HomePanel({
                 }
                 allowDelayJustification={
                   isLavraturaPontoFocalScope(activeFieldTeamSubtype) || csdResponsible
-                }
-                allowCancelSchedule={
-                  isAdmin ||
-                  isLavraturaPontoFocalScope(activeFieldTeamSubtype) ||
-                  csdResponsible
                 }
                 scopeUserId={isAdmin && previewUser ? previewUser.id : undefined}
               />
@@ -5637,6 +5627,7 @@ function HomePanel({
               <FieldTeamConsultarPanel
                 allTrailSteps
                 allowEdit={!labMedicaoReadOnly}
+                allowCancelSchedule={false}
               />
             ) : selectedLabMeasurementSection === 'Adicionar passivo' ? (
               labMedicaoReadOnly ? (
@@ -5645,7 +5636,7 @@ function HomePanel({
                     Cadastro de agendamentos passivos (medidores que não foram
                     agendados em campo) — apenas visualização.
                   </p>
-                  <FieldTeamConsultarPanel />
+                  <FieldTeamConsultarPanel allowCancelSchedule={false} />
                 </>
               ) : (
                 <>

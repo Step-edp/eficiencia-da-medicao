@@ -61,7 +61,7 @@ export function LabAgendarPanel({ readOnly = false }: LabAgendarPanelProps) {
       ) : (
         <>
           {readOnly ? <p>Agendamentos realizados (visualização).</p> : null}
-          <FieldTeamConsultarPanel />
+          <FieldTeamConsultarPanel allowCancelSchedule={false} />
         </>
       )}
     </>

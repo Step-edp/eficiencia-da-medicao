@@ -1989,6 +1989,10 @@ button {
   overflow: auto;
 }
 
+.schedule-detail-toolbar {
+  margin: 4px 0 12px;
+}
+
 .schedule-detail-modal .ensaios-block-modal-actions {
   position: sticky;
   bottom: -22px;
