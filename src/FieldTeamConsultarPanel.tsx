@@ -13,7 +13,9 @@ import {
 } from './numericFieldValidation'
 import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, scheduleAuditSearchText } from './schedulePartnerLabel'
 import { getLabTrailLabel } from './labTrailSteps'
+import { useCsdsOptions } from './useCsdsOptions'
 import { FillingCorrectionBadge, FillingCorrectionNote } from './fillingCorrection'
+import { isLavraturaPontoFocalScope } from './profilesAccess'
 
 type FieldTeamSchedulesPanelProps = {
   mode?: 'all' | 'mine'
@@ -512,7 +514,31 @@ export function FieldTeamConsultarPanel({
   const [cancelTarget, setCancelTarget] = useState<MeterScheduleRecord | null>(null)
   const [cancelDraft, setCancelDraft] = useState('')
   const [savingCancel, setSavingCancel] = useState(false)
+  const [canCancelSchedule, setCanCancelSchedule] = useState(allowCancelSchedule)
   const isMine = mode === 'mine'
+
+  useEffect(() => {
+    if (allowCancelSchedule) {
+      setCanCancelSchedule(true)
+      return
+    }
+    let cancelled = false
+    void Promise.all([api.me(), api.listCsds()])
+      .then(([{ user }, { csds }]) => {
+        if (cancelled) return
+        setCanCancelSchedule(
+          user.role === 'admin' ||
+            isLavraturaPontoFocalScope(user.workSubtype) ||
+            csds.some((csd) => csd.responsibleUserId === user.id),
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setCanCancelSchedule(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [allowCancelSchedule])
 
   const loadInspectionPendencias = useCallback(async () => {
     try {
@@ -1009,7 +1035,7 @@ export function FieldTeamConsultarPanel({
         <ScheduleDetailModal
           schedule={selectedSchedule}
           allowEdit={allowEdit}
-          allowCancel={allowCancelSchedule}
+          allowCancel={canCancelSchedule}
           onClose={() => setSelectedSchedule(null)}
           onPreviewEnvelope={setEnvelopePreview}
           onRequestCancel={() => {

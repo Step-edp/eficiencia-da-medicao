@@ -544,7 +544,11 @@ export function isLavraturaEquipeCampoScope(workSubtype?: string | null) {
 
 /** Escopo CSD – Ponto Focal – Inspeção. */
 export function isLavraturaPontoFocalScope(workSubtype?: string | null) {
-  return normalizeWorkSubtype(workSubtype) === 'Lavratura de TOI - Ponto Focal'
+  const normalized = normalizeWorkSubtype(workSubtype)
+  return (
+    normalized === 'Lavratura de TOI - Ponto Focal' ||
+    /lavratura de toi.*ponto focal/i.test(normalized)
+  )
 }
 
 /** Backoffice agenda em nome da equipe e exige colaboradores no formulário. */

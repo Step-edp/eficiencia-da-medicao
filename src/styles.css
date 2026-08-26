@@ -1989,6 +1989,17 @@ button {
   overflow: auto;
 }
 
+.schedule-detail-modal .ensaios-block-modal-actions {
+  position: sticky;
+  bottom: -22px;
+  z-index: 2;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin: 0 -22px -22px;
+  padding: 14px 22px 22px;
+  background: linear-gradient(180deg, rgba(5, 26, 44, 0), rgba(5, 26, 44, 0.98) 28%);
+}
+
 .schedule-detail-grid {
   margin-top: 8px;
 }
