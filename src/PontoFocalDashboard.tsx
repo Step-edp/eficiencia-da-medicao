@@ -494,7 +494,7 @@ export function PontoFocalDashboard({
                   <th>Data de ensaio</th>
                   <th>Prazo entrega</th>
                   <th>Dias de atraso</th>
-                  <th>Motivo do atraso</th>
+                  <th>Justificativa</th>
                 </tr>
               </thead>
               <tbody>
@@ -506,7 +506,11 @@ export function PontoFocalDashboard({
                     <td>{item.scheduledAtLabel}</td>
                     <td>{item.deliveryDeadlineLabel}</td>
                     <td>
-                      <span className="schedule-late-badge">{item.daysLate} dia(s)</span>
+                      {item.daysLate > 0 ? (
+                        <span className="schedule-late-badge">{item.daysLate} dia(s)</span>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td>{item.delayJustification || '—'}</td>
                   </tr>

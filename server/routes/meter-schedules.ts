@@ -1405,6 +1405,103 @@ export async function dismissDelayMeter(req: Request, res: Response) {
   res.json({ schedule })
 }
 
+export async function cancelMeterSchedule(req: Request, res: Response) {
+  const id = typeof req.params.id === 'string' ? req.params.id.trim() : ''
+  if (!id) {
+    res.status(400).json({ error: 'Informe o agendamento.' })
+    return
+  }
+
+  const justification =
+    typeof req.body?.justification === 'string' ? req.body.justification.trim() : ''
+  if (justification.length < MIN_JUSTIFICATION_LENGTH) {
+    res.status(400).json({
+      error: `Informe a justificativa da exclusão (mínimo ${MIN_JUSTIFICATION_LENGTH} caracteres).`,
+    })
+    return
+  }
+
+  const existing = await query<MeterScheduleRow>(
+    `SELECT ms.*, ms.scheduling_date::text AS scheduling_date,
+            u.name AS created_by_name, u.registration AS created_by_registration
+     FROM meter_schedules ms
+     LEFT JOIN users u ON u.id = ms.created_by_user_id
+     WHERE ms.id = $1`,
+    [id],
+  )
+  const row = existing.rows[0]
+  if (!row) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  if (row.delay_dismissed_at) {
+    res.status(400).json({ error: 'Este agendamento já foi excluído.' })
+    return
+  }
+
+  if (req.user?.role !== 'admin') {
+    const userId = req.user?.id ?? ''
+    const allowedCsdNames = userId ? await resolvePontoFocalCsdNames(userId) : []
+    if (allowedCsdNames === null) {
+      if (!(userId && (await isBackofficeScopeUser(userId)))) {
+        res.status(403).json({
+          error: 'Apenas o ponto focal responsável do CSD pode excluir o agendamento.',
+        })
+        return
+      }
+    } else {
+      const scheduleCsd = row.csd.trim().toUpperCase()
+      if (!allowedCsdNames.some((name) => name.toUpperCase() === scheduleCsd)) {
+        res.status(403).json({
+          error: 'Você só pode excluir agendamentos dos CSDs em que é responsável.',
+        })
+        return
+      }
+    }
+  }
+
+  const isLate = isMeterDeliveryLate({
+    scheduledAt: row.scheduled_at,
+    trailStep: row.trail_step,
+    entradaTrailStep: ENTRADA_TRAIL_STEP,
+  })
+  const deadline = lastFridayBeforeAssay(row.scheduled_at)
+  const frozenDaysLate = isLate ? calendarDaysBetween(deadline, new Date()) : 0
+
+  const updated = await query<MeterScheduleRow>(
+    `UPDATE meter_schedules
+     SET delay_justification = $2,
+         delay_dismissed_at = NOW(),
+         delay_dismissed_by = $3,
+         delay_dismissed_days = $4
+     WHERE id = $1
+     RETURNING *, scheduling_date::text AS scheduling_date`,
+    [id, justification, req.user?.id ?? null, frozenDaysLate],
+  )
+
+  const schedule = mapMeterSchedule({
+    ...updated.rows[0],
+    created_by_name: row.created_by_name,
+    created_by_registration: row.created_by_registration,
+  })
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: schedule.id,
+    summary: `Agendamento do medidor ${schedule.meter} excluído pelo ponto focal`,
+    oldData: { delayDismissedAt: null, delayJustification: row.delay_justification ?? '' },
+    newData: {
+      delayDismissedAt: updated.rows[0].delay_dismissed_at,
+      delayJustification: justification,
+    },
+    metadata: { meter: schedule.meter, kind: 'schedule_cancelled' },
+  })
+
+  res.json({ schedule })
+}
+
 async function canEditLabSchedule(req: Request): Promise<boolean> {
   if (req.user?.role === 'admin') return true
   const userId = req.user?.id
@@ -1841,38 +1938,41 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
       entradaTrailStep: ENTRADA_TRAIL_STEP,
       now,
     })
+    const frozenDays =
+      row.delay_dismissed_days != null
+        ? Number(row.delay_dismissed_days)
+        : row.delay_dismissed_at
+          ? calendarDaysBetween(deadline, row.delay_dismissed_at)
+          : null
+    const daysLate =
+      frozenDays ?? (currentlyLate ? calendarDaysBetween(deadline, now) : 0)
+    const lateRecord = {
+      id: row.id,
+      meter: row.meter,
+      installation: row.installation,
+      toi: row.toi,
+      note: row.note,
+      csd: row.csd,
+      scheduledAt: row.scheduled_at.toISOString(),
+      scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
+      deliveryDeadlineLabel: formatDeliveryDeadlineLabel(deadline),
+      daysLate,
+      delayJustification: (row.delay_justification ?? '').trim(),
+      dismissedAt: row.delay_dismissed_at ? row.delay_dismissed_at.toISOString() : null,
+    }
+
+    if (row.delay_dismissed_at) {
+      if ((row.delay_dismissed_by ?? '').trim() === scopeUserId) {
+        dismissedLateMeters.push(lateRecord)
+      }
+      continue
+    }
+
     if (currentlyLate) {
-      const frozenDays =
-        row.delay_dismissed_days != null
-          ? Number(row.delay_dismissed_days)
-          : row.delay_dismissed_at
-            ? calendarDaysBetween(deadline, row.delay_dismissed_at)
-            : null
-      const daysLate = frozenDays ?? calendarDaysBetween(deadline, now)
-      const lateRecord = {
-        id: row.id,
-        meter: row.meter,
-        installation: row.installation,
-        toi: row.toi,
-        note: row.note,
-        csd: row.csd,
-        scheduledAt: row.scheduled_at.toISOString(),
-        scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
-        deliveryDeadlineLabel: formatDeliveryDeadlineLabel(deadline),
-        daysLate,
-        delayJustification: (row.delay_justification ?? '').trim(),
-        dismissedAt: row.delay_dismissed_at ? row.delay_dismissed_at.toISOString() : null,
-      }
-      if (row.delay_dismissed_at) {
-        if ((row.delay_dismissed_by ?? '').trim() === scopeUserId) {
-          dismissedLateMeters.push(lateRecord)
-        }
-      } else {
-        late += 1
-        delayDaysSamples.push(daysLate)
-        bumpMonth(monthKey, 'late')
-        lateMeters.push(lateRecord)
-      }
+      late += 1
+      delayDaysSamples.push(daysLate)
+      bumpMonth(monthKey, 'late')
+      lateMeters.push(lateRecord)
     } else {
       onTimePending += 1
       bumpMonth(monthKey, 'onTimePending')

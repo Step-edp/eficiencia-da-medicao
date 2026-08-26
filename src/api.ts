@@ -1592,6 +1592,11 @@ export const api = {
     request<{ schedule: MeterScheduleRecord }>(`/api/meter-schedules/${id}/delay-dismissal`, {
       method: 'PUT',
     }),
+  cancelMeterSchedule: (id: string, justification: string) =>
+    request<{ schedule: MeterScheduleRecord }>(`/api/meter-schedules/${id}/cancel`, {
+      method: 'PUT',
+      body: JSON.stringify({ justification }),
+    }),
   countMeterSchedules: (trailStep?: string) => {
     const search = new URLSearchParams()
     if (trailStep) search.set('trailStep', trailStep)

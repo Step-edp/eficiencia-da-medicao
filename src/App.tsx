@@ -5474,6 +5474,7 @@ function HomePanel({
               <FieldTeamConsultarPanel
                 mode="mine"
                 allowDelayJustification={csdResponsible}
+                allowCancelSchedule={csdResponsible}
                 hideInspectionImport={csdResponsible}
               />
             ) : selectedFieldTeamSection === 'Dashboard' ? (
@@ -5502,6 +5503,9 @@ function HomePanel({
                   isLavraturaPontoFocalScope(activeFieldTeamSubtype) || csdResponsible
                 }
                 allowDelayJustification={
+                  isLavraturaPontoFocalScope(activeFieldTeamSubtype) || csdResponsible
+                }
+                allowCancelSchedule={
                   isLavraturaPontoFocalScope(activeFieldTeamSubtype) || csdResponsible
                 }
                 scopeUserId={isAdmin && previewUser ? previewUser.id : undefined}

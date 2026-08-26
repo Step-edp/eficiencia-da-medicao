@@ -23,6 +23,8 @@ type FieldTeamSchedulesPanelProps = {
   hideInspectionImport?: boolean
   /** Ponto Focal justifica atraso de entrega. */
   allowDelayJustification?: boolean
+  /** Ponto Focal pode excluir o agendamento com justificativa. */
+  allowCancelSchedule?: boolean
   /** Consultar Medidor: lista todas as etapas da trilha, não só Entrada. */
   allTrailSteps?: boolean
   /** Laboratório pode corrigir dados do agendamento. */
@@ -128,17 +130,21 @@ function scheduleHasFillingCorrection(item: MeterScheduleRecord) {
 type ScheduleDetailModalProps = {
   schedule: MeterScheduleRecord
   allowEdit?: boolean
+  allowCancel?: boolean
   onClose: () => void
   onPreviewEnvelope: (preview: EnvelopePreview) => void
   onSaved?: (schedule: MeterScheduleRecord) => void
+  onRequestCancel?: () => void
 }
 
 function ScheduleDetailModal({
   schedule,
   allowEdit = false,
+  allowCancel = false,
   onClose,
   onPreviewEnvelope,
   onSaved,
+  onRequestCancel,
 }: ScheduleDetailModalProps) {
   const deliveryStatus = deliveryStatusLabel(schedule)
   const collaborator1 = formatScheduleCollaborator1Label(schedule)
@@ -455,6 +461,16 @@ function ScheduleDetailModal({
               {saving ? 'Salvando...' : 'Salvar alterações'}
             </button>
           ) : null}
+          {allowCancel ? (
+            <button
+              type="button"
+              className="danger-button"
+              disabled={saving}
+              onClick={() => onRequestCancel?.()}
+            >
+              Excluir agendamento
+            </button>
+          ) : null}
           <button type="button" className={allowEdit ? 'secondary-button' : 'primary-button'} onClick={onClose}>
             {allowEdit ? 'Cancelar' : 'Fechar'}
           </button>
@@ -470,6 +486,7 @@ export function FieldTeamConsultarPanel({
   scopeUserId,
   hideInspectionImport = false,
   allowDelayJustification = false,
+  allowCancelSchedule = false,
   allTrailSteps = false,
   allowEdit = false,
 }: FieldTeamSchedulesPanelProps) {
@@ -492,6 +509,9 @@ export function FieldTeamConsultarPanel({
   const [delayTarget, setDelayTarget] = useState<MeterScheduleRecord | null>(null)
   const [delayDraft, setDelayDraft] = useState('')
   const [savingDelay, setSavingDelay] = useState(false)
+  const [cancelTarget, setCancelTarget] = useState<MeterScheduleRecord | null>(null)
+  const [cancelDraft, setCancelDraft] = useState('')
+  const [savingCancel, setSavingCancel] = useState(false)
   const isMine = mode === 'mine'
 
   const loadInspectionPendencias = useCallback(async () => {
@@ -635,8 +655,44 @@ export function FieldTeamConsultarPanel({
     }
   }
 
+  const handleCancelSchedule = async () => {
+    if (!cancelTarget) return
+    const justification = cancelDraft.trim()
+    setSavingCancel(true)
+    setFeedback(null)
+    try {
+      const { schedule } = await api.cancelMeterSchedule(cancelTarget.id, justification)
+      setSchedules((current) => current.filter((item) => item.id !== schedule.id))
+      setCancelTarget(null)
+      setCancelDraft('')
+      setSelectedSchedule(null)
+      setFeedback({
+        type: 'success',
+        message: `Agendamento do medidor ${schedule.meter} excluído. O registro foi para Medidores atrasados → Excluídos.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível excluir o agendamento.',
+      })
+    } finally {
+      setSavingCancel(false)
+    }
+  }
+
   useEffect(() => {
-    if (!envelopePreview && !selectedSchedule && !inspectionDocumentTarget && !delayTarget) return
+    if (
+      !envelopePreview &&
+      !selectedSchedule &&
+      !inspectionDocumentTarget &&
+      !delayTarget &&
+      !cancelTarget
+    ) {
+      return
+    }
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -646,6 +702,10 @@ export function FieldTeamConsultarPanel({
         }
         if (inspectionDocumentTarget) {
           setInspectionDocumentTarget(null)
+          return
+        }
+        if (cancelTarget && !savingCancel) {
+          setCancelTarget(null)
           return
         }
         if (delayTarget) {
@@ -658,7 +718,7 @@ export function FieldTeamConsultarPanel({
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [envelopePreview, selectedSchedule, inspectionDocumentTarget, delayTarget])
+  }, [envelopePreview, selectedSchedule, inspectionDocumentTarget, delayTarget, cancelTarget, savingCancel])
 
   const filteredSchedules = useMemo(() => {
     const query = normalizeSearch(searchQuery)
@@ -949,8 +1009,14 @@ export function FieldTeamConsultarPanel({
         <ScheduleDetailModal
           schedule={selectedSchedule}
           allowEdit={allowEdit}
+          allowCancel={allowCancelSchedule}
           onClose={() => setSelectedSchedule(null)}
           onPreviewEnvelope={setEnvelopePreview}
+          onRequestCancel={() => {
+            setCancelTarget(selectedSchedule)
+            setCancelDraft('')
+            setSelectedSchedule(null)
+          }}
           onSaved={(updated) => {
             setSchedules((current) =>
               current.map((item) => (item.id === updated.id ? updated : item)),
@@ -1068,6 +1134,62 @@ export function FieldTeamConsultarPanel({
                     onClick={() => void handleSaveDelayJustification()}
                   >
                     {savingDelay ? 'Salvando...' : 'Salvar justificativa'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+
+      {cancelTarget
+        ? createPortal(
+            <div
+              className="ensaios-block-modal-overlay"
+              role="presentation"
+              onClick={() => {
+                if (!savingCancel) setCancelTarget(null)
+              }}
+            >
+              <div
+                className="ensaios-block-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="cancel-schedule-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="cancel-schedule-title">Excluir agendamento</h3>
+                <p className="csds-form-hint">
+                  Medidor {cancelTarget.meter}. Informe o motivo da exclusão. O medidor sai da
+                  consulta e passa a constar em Medidores atrasados → Excluídos.
+                </p>
+                <label>
+                  Justificativa
+                  <textarea
+                    value={cancelDraft}
+                    onChange={(event) => setCancelDraft(event.target.value)}
+                    rows={4}
+                    placeholder="Descreva o motivo da exclusão do agendamento"
+                    disabled={savingCancel}
+                    required
+                  />
+                </label>
+                <div className="ensaios-block-modal-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setCancelTarget(null)}
+                    disabled={savingCancel}
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    disabled={savingCancel || cancelDraft.trim().length < 5}
+                    onClick={() => void handleCancelSchedule()}
+                  >
+                    {savingCancel ? 'Excluindo...' : 'Excluir agendamento'}
                   </button>
                 </div>
               </div>
