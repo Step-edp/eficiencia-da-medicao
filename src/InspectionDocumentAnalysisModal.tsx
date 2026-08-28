@@ -497,6 +497,7 @@ export function InspectionDocumentAnalysisModal({
   const [hasToi, setHasToi] = useState(false)
   const [hasComunicado, setHasComunicado] = useState(false)
   const [registeredMeter, setRegisteredMeter] = useState(meter)
+  const [registeredInstallation, setRegisteredInstallation] = useState<string | null>(null)
   const [conference, setConference] = useState<InspectionDocumentConference | null>(null)
   const [canEditWpa, setCanEditWpa] = useState(false)
   const [wpaDraft, setWpaDraft] = useState({
@@ -537,6 +538,7 @@ export function InspectionDocumentAnalysisModal({
       setHasToi(response.hasToi)
       setHasComunicado(response.hasComunicado)
       setRegisteredMeter(response.meter)
+      setRegisteredInstallation(response.registeredInstallation?.trim() || null)
       const nextConference = response.conference ?? {
         campoMeter: null,
         campoLacre: null,
@@ -582,6 +584,7 @@ export function InspectionDocumentAnalysisModal({
       setHasToi(false)
       setHasComunicado(false)
       setRegisteredMeter(meter)
+      setRegisteredInstallation(null)
       setConference(null)
       setWpaDraft({
         meter: '',
@@ -1041,6 +1044,11 @@ export function InspectionDocumentAnalysisModal({
                     {status === 'blocked' ? 'Bloqueado' : status === 'ok' ? 'OK' : 'Pendente'}
                   </span>
                 </div>
+
+                <p className="inspection-document-card-installation">
+                  <span>Instalação</span>
+                  <span>{registeredInstallation || '—'}</span>
+                </p>
 
                 <dl className="user-detail-grid schedule-detail-grid">
                   <div>

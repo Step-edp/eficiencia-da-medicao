@@ -1508,6 +1508,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   const schedule = await query<{
     id: string
     meter: string
+    installation: string
     envelope_seal: string
     cover_seal: string
     meter_reading: string
@@ -1522,7 +1523,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     envelope_photo: string | null
     inspection_schedule_lacre: string | null
   }>(
-    `SELECT id, meter, envelope_seal, cover_seal, meter_reading, source, scheduled_at,
+    `SELECT id, meter, installation, envelope_seal, cover_seal, meter_reading, source, scheduled_at,
             envelope_photo, inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
             inspection_wpa_cover_seal_2, inspection_wpa_reading, inspection_observations,
             inspection_schedule_lacre
@@ -1602,6 +1603,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
 
   res.json({
     meter: registeredMeter,
+    registeredInstallation: schedule.rows[0].installation?.trim() || null,
     registeredLacre,
     registeredCoverSeal,
     registeredReading,

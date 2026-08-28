@@ -1744,6 +1744,7 @@ export const api = {
   listInspectionDocuments: (meterScheduleId: string) =>
     request<{
       meter: string
+      registeredInstallation?: string | null
       registeredLacre: string | null
       registeredCoverSeal: string | null
       registeredReading: string | null
