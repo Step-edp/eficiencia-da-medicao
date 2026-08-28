@@ -1068,5 +1068,11 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS inspection_wpa_cover_seal_2 TEXT;
   `)
 
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS inspection_analysis_completed_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS inspection_analysis_completed_by_user_id TEXT REFERENCES users(id);
+  `)
+
   await ensureFillingDeviationsFromSchedules()
 }

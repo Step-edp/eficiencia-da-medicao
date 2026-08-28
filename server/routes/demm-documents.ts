@@ -3,7 +3,7 @@ import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 import { parseDemmPdf } from '../demm-pdf-parser.js'
 import { analyzeDemmMeters, NORMALIZED_METER_SQL, type DemmMeterAnalysis } from '../demm-meter-analysis.js'
-import { loadInspectionSummariesByNorm, type InspectionSummary } from './meter-inspection-documents.js'
+import { loadInspectionSummariesByNorm, loadInspectionAnalysisStatusByMeter, type InspectionSummary } from './meter-inspection-documents.js'
 import { normalizeScheduleMeter } from '../numeric-field-validation.js'
 import { validateDemmUploadMeters } from '../demm-upload-validation.js'
 import { resolvePontoFocalCsdNames } from '../ponto-focal-csds.js'
@@ -145,10 +145,11 @@ export async function listDemmDocuments(_req: Request, res: Response) {
       result.rows.flatMap((row) => (row.extracted_meters ?? []).map((item) => item.meter)),
     ),
   ]
-  const [statusByMeter, entradaGivenMeters, analysisByMeter] = await Promise.all([
+  const [statusByMeter, entradaGivenMeters, analysisByMeter, analysisStatusByNorm] = await Promise.all([
     buildMeterWeekStatusMap(allMeters),
     loadMetersWithEntradaGiven(allMeters),
     analyzeDemmMeters(allMeters),
+    loadInspectionAnalysisStatusByMeter(allMeters),
   ])
   const analysisByNorm = new Map(
     analysisByMeter.map((item) => [normalizeScheduleMeter(item.meter), item]),
@@ -158,17 +159,27 @@ export async function listDemmDocuments(_req: Request, res: Response) {
     documents: result.rows.map((row) => {
       const mapped = mapDemmDocument({ ...row, file_data: Buffer.alloc(0) })
       const meterNumbers = (row.extracted_meters ?? []).map((item) => item.meter)
-      const liberadoCount = meterNumbers.filter(
-        (meter) => statusByMeter.get(meter) === 'liberado',
-      ).length
-      const bulkEntryReady =
-        meterNumbers.length > 0 && liberadoCount === meterNumbers.length
       const entryGivenCount = meterNumbers.filter((meter) =>
         entradaGivenMeters.has(meter),
       ).length
       const allEntryGiven = meterNumbers.length > 0 && entryGivenCount === meterNumbers.length
       const scheduledCount = meterNumbers.filter(
         (meter) => analysisByNorm.get(normalizeScheduleMeter(meter))?.appStatus === 'agendado',
+      ).length
+      const bulkEntryReady =
+        meterNumbers.length > 0 &&
+        meterNumbers.every((meter) => {
+          const norm = normalizeScheduleMeter(meter)
+          const analysisStatus = analysisStatusByNorm.get(norm)
+          const appStatus = analysisByNorm.get(norm)?.appStatus
+          return (
+            analysisStatus?.analyzed === true &&
+            !analysisStatus?.blocked &&
+            appStatus === 'agendado'
+          )
+        })
+      const liberadoCount = meterNumbers.filter(
+        (meter) => statusByMeter.get(meter) === 'liberado',
       ).length
 
       return {
@@ -1159,6 +1170,43 @@ export async function receiveDemmDocumentBulk(req: Request, res: Response) {
   }
 
   const statusByMeter = await buildMeterWeekStatusMap(meterNumbers)
+  const analysisStatusByNorm = await loadInspectionAnalysisStatusByMeter(meterNumbers)
+  const analyzedMeters = await analyzeDemmMeters(meterNumbers)
+  const analyzedByNorm = new Map(
+    analyzedMeters.map((item) => [normalizeScheduleMeter(item.meter), item]),
+  )
+  const notAnalyzed = meterNumbers.filter(
+    (meter) => !analysisStatusByNorm.get(normalizeScheduleMeter(meter))?.analyzed,
+  )
+  const blockedMeters = meterNumbers.filter(
+    (meter) => analysisStatusByNorm.get(normalizeScheduleMeter(meter))?.blocked,
+  )
+  const notAwaitingEntry = meterNumbers.filter(
+    (meter) => analyzedByNorm.get(normalizeScheduleMeter(meter))?.appStatus !== 'agendado',
+  )
+
+  if (notAnalyzed.length) {
+    res.status(409).json({
+      error: 'Nem todos os medidores desta DEMM tiveram a análise salva.',
+      meters: notAnalyzed,
+    })
+    return
+  }
+  if (blockedMeters.length) {
+    res.status(409).json({
+      error: 'Esta DEMM possui medidor(es) bloqueado(s).',
+      meters: blockedMeters,
+    })
+    return
+  }
+  if (notAwaitingEntry.length) {
+    res.status(409).json({
+      error: 'Nem todos os medidores desta DEMM estão aguardando entrada.',
+      meters: notAwaitingEntry,
+    })
+    return
+  }
+
   const notReady = meterNumbers.filter((meter) => statusByMeter.get(meter) !== 'liberado')
   if (notReady.length) {
     res.status(409).json({

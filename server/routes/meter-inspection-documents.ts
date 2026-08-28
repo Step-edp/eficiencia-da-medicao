@@ -1709,11 +1709,12 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     envelope_photo: string | null
     inspection_schedule_lacre: string | null
     inspection_schedule_meter: string | null
+    inspection_analysis_completed_at: Date | null
   }>(
     `SELECT id, meter, installation, envelope_seal, cover_seal, meter_reading, source, scheduled_at,
             envelope_photo, inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
             inspection_wpa_cover_seal_2, inspection_wpa_reading, inspection_observations,
-            inspection_schedule_lacre, inspection_schedule_meter
+            inspection_schedule_lacre, inspection_schedule_meter, inspection_analysis_completed_at
      FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
@@ -1843,6 +1844,8 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     canManagePhotos: userCanManage,
     canEditWpa: userCanManage,
     observations: schedule.rows[0].inspection_observations ?? '',
+    analysisCompleted: Boolean(schedule.rows[0].inspection_analysis_completed_at),
+    analysisCompletedAt: schedule.rows[0].inspection_analysis_completed_at?.toISOString() ?? null,
   })
 }
 
@@ -2182,6 +2185,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
        WHERE d.meter_schedule_id = ms.id
      )
      AND ms.delay_dismissed_at IS NULL
+     AND ms.inspection_analysis_completed_at IS NULL
      ${csdFilter}
      ORDER BY ms.scheduled_at ASC`,
     params,
@@ -2238,6 +2242,221 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
   }
 
   res.json({ meters })
+}
+
+function isWpaIncompatible(value: string | null | undefined) {
+  return value?.trim() === 'nao_compativel'
+}
+
+function hasInspectionText(value: string | null | undefined) {
+  return Boolean(value?.trim())
+}
+
+export async function loadInspectionAnalysisStatusByMeter(meters: string[]) {
+  const normalizedMeters = [
+    ...new Set(meters.map((meter) => normalizeScheduleMeter(meter)).filter(Boolean)),
+  ]
+  const result = new Map<string, { analyzed: boolean; blocked: boolean }>()
+  if (!normalizedMeters.length) return result
+
+  const schedules = await query<{
+    norm: string
+    inspection_analysis_completed_at: Date | null
+  }>(
+    `SELECT DISTINCT ON (${NORMALIZED_METER_SQL})
+            ${NORMALIZED_METER_SQL} AS norm,
+            inspection_analysis_completed_at
+     FROM meter_schedules
+     WHERE delay_dismissed_at IS NULL
+       AND ${NORMALIZED_METER_SQL} = ANY($1::text[])
+     ORDER BY ${NORMALIZED_METER_SQL}, created_at DESC`,
+    [normalizedMeters],
+  )
+  const summaries = await loadInspectionSummariesByNorm(normalizedMeters)
+
+  for (const row of schedules.rows) {
+    const summary = summaries.get(row.norm)
+    result.set(row.norm, {
+      analyzed: Boolean(row.inspection_analysis_completed_at),
+      blocked: Boolean(summary?.anyBlocked),
+    })
+  }
+
+  for (const norm of normalizedMeters) {
+    if (!result.has(norm)) {
+      result.set(norm, { analyzed: false, blocked: true })
+    }
+  }
+
+  return result
+}
+
+async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
+  const schedule = await query<{
+    id: string
+    meter: string
+    installation: string
+    envelope_seal: string
+    cover_seal: string
+    meter_reading: string
+    toi: string
+    note: string
+    source: string
+    scheduled_at: Date
+    inspection_wpa_meter: string | null
+    inspection_wpa_lacre: string | null
+    inspection_wpa_cover_seal: string | null
+    inspection_wpa_cover_seal_2: string | null
+    inspection_wpa_reading: string | null
+    inspection_schedule_lacre: string | null
+    inspection_schedule_meter: string | null
+    inspection_analysis_completed_at: Date | null
+  }>(
+    `SELECT id, meter, installation, envelope_seal, cover_seal, meter_reading, toi, note, source, scheduled_at,
+            inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
+            inspection_wpa_cover_seal_2, inspection_wpa_reading, inspection_schedule_lacre,
+            inspection_schedule_meter, inspection_analysis_completed_at
+     FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  const row = schedule.rows[0]
+  if (!row) {
+    return { ready: false, reasons: ['Agendamento não encontrado.'] }
+  }
+  if (row.inspection_analysis_completed_at) {
+    return { ready: true, reasons: [] as string[] }
+  }
+
+  const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
+  const documentScheduleIds = scheduleIds.length ? scheduleIds : [meterScheduleId]
+  const documents = await query<
+    DocumentForInspectionAggregate & {
+      extracted_cover_seal_2: string | null
+      extracted_scheduled_at: string | null
+      blocked: boolean
+      block_reason: string | null
+    }
+  >(
+    `SELECT DISTINCT ON (doc_type)
+            doc_type, extracted_meter, extracted_meter_retirado, extracted_lacre,
+            extracted_cover_seal, extracted_cover_seal_2, extracted_reading, extracted_scheduled_at,
+            extracted_installation, extracted_toi, extracted_note, blocked, block_reason
+     FROM meter_inspection_documents
+     WHERE meter_schedule_id = ANY($1::text[])
+     ORDER BY doc_type, created_at DESC`,
+    [documentScheduleIds],
+  )
+
+  const presence = await loadDocTypePresence(meterScheduleId)
+  const reasons: string[] = []
+  if (!presence.hasToi) reasons.push('Anexe o TOI.')
+  if (!presence.hasComunicado) reasons.push('Anexe o CSM.')
+
+  const summary = aggregateInspectionForSchedule(row, documents.rows)
+  if (summary.anyBlocked && summary.blockReasons) {
+    reasons.push(summary.blockReasons)
+  }
+
+  const scheduleMeterFields = await loadScheduleMeterConferenceFields(
+    meterScheduleId,
+    row.meter,
+    row.inspection_schedule_meter,
+  )
+  const scheduleLacre =
+    pickSavedWpa(row.inspection_schedule_lacre) ?? row.envelope_seal?.trim() ?? null
+  const scheduleDateLabel = formatAvailableSlot(row.scheduled_at)
+
+  const wpaFields: Array<[string, string | null]> = [
+    ['medidor', pickSavedWpa(row.inspection_wpa_meter)],
+    ['lacre do invólucro', pickSavedWpa(row.inspection_wpa_lacre)],
+    ['lacre da tampa', pickSavedWpa(row.inspection_wpa_cover_seal)],
+    ['leitura', pickSavedWpa(row.inspection_wpa_reading)],
+  ]
+  const coverSeal2Document = documents.rows.find((doc) => doc.extracted_cover_seal_2?.trim())
+  if (coverSeal2Document) {
+    wpaFields.push(['lacre da tampa (2)', pickSavedWpa(row.inspection_wpa_cover_seal_2)])
+  }
+  for (const [label, value] of wpaFields) {
+    if (!value) reasons.push(`Análise WPA incompleta: falta ${label}.`)
+    else if (isWpaIncompatible(value)) reasons.push(`WPA incompatível: ${label}.`)
+  }
+
+  for (const doc of documents.rows) {
+    const docType = effectiveInspectionDocType(doc)
+    const documentoMeter = doc.extracted_meter_retirado?.trim() || doc.extracted_meter?.trim() || null
+    if (!hasInspectionText(documentoMeter)) {
+      reasons.push('Medidor retirado não informado no documento.')
+    }
+    if (docType === 'toi' || docType === 'ambos') {
+      if (!hasInspectionText(doc.extracted_lacre)) {
+        reasons.push('Lacre do invólucro não informado no documento.')
+      }
+      if (!hasInspectionText(doc.extracted_cover_seal)) {
+        reasons.push('Lacre da tampa não informado no documento.')
+      }
+    }
+    if (!hasInspectionText(doc.extracted_reading)) {
+      reasons.push('Leitura não informada no documento.')
+    }
+    if (!hasInspectionText(doc.extracted_scheduled_at)) {
+      reasons.push('Data de agendamento não informada no documento.')
+    }
+    if (doc.blocked && doc.block_reason) {
+      reasons.push(doc.block_reason)
+    }
+  }
+
+  if (!hasInspectionText(scheduleMeterFields.scheduleMeter)) {
+    reasons.push('Medidor não informado no agendamento.')
+  }
+  if (!hasInspectionText(scheduleLacre)) {
+    reasons.push('Lacre do invólucro não informado no agendamento.')
+  }
+  if (!hasInspectionText(scheduleDateLabel)) {
+    reasons.push('Data de agendamento não informada no cadastro.')
+  }
+
+  const uniqueReasons = [...new Set(reasons.map((item) => item.trim()).filter(Boolean))]
+  return { ready: uniqueReasons.length === 0, reasons: uniqueReasons }
+}
+
+export async function completeInspectionAnalysis(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error: 'Somente administradores e usuários do Laboratório de Medição podem salvar a análise.',
+    })
+    return
+  }
+
+  const evaluation = await evaluateInspectionAnalysisCompletion(meterScheduleId)
+  if (!evaluation.ready) {
+    res.status(409).json({
+      error: evaluation.reasons[0] ?? 'A análise ainda não está completa.',
+      reasons: evaluation.reasons,
+    })
+    return
+  }
+
+  const completedAt = new Date()
+  await query(
+    `UPDATE meter_schedules
+     SET inspection_analysis_completed_at = $2,
+         inspection_analysis_completed_by_user_id = $3
+     WHERE id = $1`,
+    [meterScheduleId, completedAt.toISOString(), req.user?.id ?? null],
+  )
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: meterScheduleId,
+    summary: `Análise de documentos concluída para o agendamento ${meterScheduleId}`,
+    newData: { completedAt: completedAt.toISOString() },
+  })
+
+  res.json({ ok: true, completedAt: completedAt.toISOString() })
 }
 
 const MAX_INSPECTION_PHOTOS = 20

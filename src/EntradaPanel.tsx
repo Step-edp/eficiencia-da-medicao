@@ -1814,7 +1814,7 @@ export function EntradaPanel({
                             onClick={() => setBulkReceiveConfirmDocument(document)}
                             title={
                               !document.bulkEntryReady
-                                ? 'Todos os medidores precisam estar liberados (TOI, CSM e análise OK)'
+                                ? 'Todos os medidores precisam ter análise salva, estar aguardando entrada e sem bloqueio'
                                 : bulkReceivingDemmId === document.id
                                   ? 'Registrando entrada...'
                                   : 'Dar entrada em massa para todos os medidores desta DEMM'

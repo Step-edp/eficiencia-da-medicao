@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   api,
@@ -247,6 +247,114 @@ function buildInspectionAnalysisReasons({
       : null,
     wpaIncompatibleReason(campoReading, 'leitura'),
   ])
+}
+
+type InspectionDocumentAnalysisContext = {
+  hasToi: boolean
+  hasComunicado: boolean
+  registeredMeter: string
+  conference: InspectionDocumentConference | null
+  wpaDraft: {
+    meter: string
+    lacre: string
+    coverSeal: string
+    coverSeal2: string
+    reading: string
+    scheduleLacre: string
+    scheduleMeter: string
+  }
+  documentDrafts: Record<string, DocumentFieldsDraft>
+  canEditWpa: boolean
+}
+
+function resolveDocumentAnalysisStatus(
+  document: InspectionDocumentRecord,
+  context: InspectionDocumentAnalysisContext,
+) {
+  const {
+    hasToi,
+    hasComunicado,
+    registeredMeter,
+    conference,
+    wpaDraft,
+    documentDrafts,
+    canEditWpa,
+  } = context
+  const campoMeter = canEditWpa ? wpaDraft.meter : conference?.campoMeter
+  const campoLacre = canEditWpa ? wpaDraft.lacre : conference?.campoLacre
+  const campoCoverSeal = canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal
+  const campoCoverSeal2 = canEditWpa ? wpaDraft.coverSeal2 : conference?.campoCoverSeal2
+  const campoReading = canEditWpa ? wpaDraft.reading : conference?.campoReading
+  const documentoDraft = documentDrafts[document.docType] ?? draftFromDocument(document)
+  const documentoMeter = canEditWpa
+    ? documentoDraft.meter
+    : (document.extractedMeterRetirado ?? document.extractedMeter)
+  const documentoLacre = canEditWpa ? documentoDraft.lacre : document.extractedLacre
+  const documentoCoverSeal = canEditWpa ? documentoDraft.coverSeal : document.extractedCoverSeal
+  const documentoCoverSeal2 = canEditWpa ? documentoDraft.coverSeal2 : document.extractedCoverSeal2
+  const documentoReading = canEditWpa ? documentoDraft.reading : document.extractedReading
+  const documentoScheduledAt = canEditWpa ? documentoDraft.scheduledAt : document.extractedScheduledAt
+  const scheduleLacreValue = canEditWpa
+    ? wpaDraft.scheduleLacre || document.registeredLacre
+    : (conference?.scheduleLacre ?? document.registeredLacre)
+  const scheduleMeterValue = canEditWpa
+    ? wpaDraft.scheduleMeter
+    : (conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter)
+  const requireToiFields = hasToi || document.docType === 'toi' || document.docType === 'ambos'
+  const effectiveBlockReason = shouldSuppressMeterBlockReason(
+    document.blockReason,
+    documentoMeter,
+    scheduleMeterValue,
+  )
+    ? null
+    : document.blockReason
+  const completenessFields = [
+    parseWpaConferenceOption(campoMeter),
+    documentoMeter,
+    scheduleMeterValue,
+    parseWpaConferenceOption(campoLacre),
+    scheduleLacreValue,
+    parseWpaConferenceOption(campoCoverSeal),
+    parseWpaConferenceOption(campoReading),
+    documentoReading,
+    documentoScheduledAt,
+    conference?.scheduleScheduleDate,
+  ]
+  if (requireToiFields) {
+    completenessFields.push(documentoLacre, documentoCoverSeal)
+  }
+  if (documentoCoverSeal2) {
+    completenessFields.push(parseWpaConferenceOption(campoCoverSeal2), documentoCoverSeal2)
+  }
+  const analysisComplete = inspectionAnalysisComplete(completenessFields)
+  const reasons = buildInspectionAnalysisReasons({
+    hasToi,
+    hasComunicado,
+    blockReason: effectiveBlockReason,
+    requireToiFields,
+    campoMeter,
+    documentoMeter,
+    scheduleMeter: scheduleMeterValue,
+    campoLacre,
+    documentoLacre,
+    scheduleLacre: scheduleLacreValue,
+    campoCoverSeal,
+    documentoCoverSeal,
+    campoCoverSeal2,
+    documentoCoverSeal2,
+    campoReading,
+    documentoReading,
+    documentoScheduledAt,
+    scheduleScheduleDate: conference?.scheduleScheduleDate,
+  })
+  const effectivelyBlocked = document.blocked && Boolean(effectiveBlockReason)
+  const status = effectivelyBlocked
+    ? 'blocked'
+    : reasons.length || !analysisComplete
+      ? 'pending'
+      : 'ok'
+
+  return { status, displayReason: joinInspectionReasons(reasons), reasons }
 }
 
 function normalizeConferenceDigits(value: string | null | undefined) {
@@ -558,6 +666,8 @@ export function InspectionDocumentAnalysisModal({
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
+  const [analysisCompleted, setAnalysisCompleted] = useState(false)
+  const [savingAnalysis, setSavingAnalysis] = useState(false)
 
   const loadDocuments = useCallback(async () => {
     setLoading(true)
@@ -615,6 +725,7 @@ export function InspectionDocumentAnalysisModal({
       setCanManagePhotos(response.canManagePhotos !== false)
       setCanEditWpa(response.canEditWpa === true || response.canManagePhotos === true)
       setObservations(response.observations ?? '')
+      setAnalysisCompleted(response.analysisCompleted === true)
     } catch {
       setDocuments([])
       setCanDelete(false)
@@ -640,6 +751,7 @@ export function InspectionDocumentAnalysisModal({
       setCanManagePhotos(false)
       setCanEditWpa(false)
       setObservations('')
+      setAnalysisCompleted(false)
     } finally {
       setLoading(false)
     }
@@ -703,6 +815,50 @@ export function InspectionDocumentAnalysisModal({
     },
     [persistWpaDraft],
   )
+
+  const analysisContext = useMemo(
+    (): InspectionDocumentAnalysisContext => ({
+      hasToi,
+      hasComunicado,
+      registeredMeter,
+      conference,
+      wpaDraft,
+      documentDrafts,
+      canEditWpa,
+    }),
+    [hasToi, hasComunicado, registeredMeter, conference, wpaDraft, documentDrafts, canEditWpa],
+  )
+
+  const canSaveAnalysis = useMemo(() => {
+    if (!canEditWpa || analysisCompleted || loading || documents.length === 0 || !hasToi || !hasComunicado) {
+      return false
+    }
+    return documents.every(
+      (document) => resolveDocumentAnalysisStatus(document, analysisContext).status === 'ok',
+    )
+  }, [analysisCompleted, analysisContext, canEditWpa, documents, hasComunicado, hasToi, loading])
+
+  const handleSaveAnalysis = async () => {
+    setSavingAnalysis(true)
+    setFeedback(null)
+    try {
+      await api.updateInspectionWpa(scheduleId, wpaDraft)
+      await api.completeInspectionAnalysis(scheduleId)
+      setAnalysisCompleted(true)
+      onDocumentsChanged?.()
+      onClose()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível salvar a análise.',
+      })
+    } finally {
+      setSavingAnalysis(false)
+    }
+  }
 
   const persistDocumentDraft = useCallback(
     async (docType: InspectionDocumentType, next: DocumentFieldsDraft) => {
@@ -1017,11 +1173,10 @@ export function InspectionDocumentAnalysisModal({
         ) : (
           <div className="inspection-document-list">
             {documents.map((document) => {
-              const campoMeter = canEditWpa ? wpaDraft.meter : conference?.campoMeter
-              const campoLacre = canEditWpa ? wpaDraft.lacre : conference?.campoLacre
-              const campoCoverSeal = canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal
-              const campoCoverSeal2 = canEditWpa ? wpaDraft.coverSeal2 : conference?.campoCoverSeal2
-              const campoReading = canEditWpa ? wpaDraft.reading : conference?.campoReading
+              const { status, displayReason, reasons } = resolveDocumentAnalysisStatus(
+                document,
+                analysisContext,
+              )
               const documentoDraft = documentDrafts[document.docType] ?? draftFromDocument(document)
               const documentoMeter = canEditWpa
                 ? documentoDraft.meter
@@ -1037,68 +1192,9 @@ export function InspectionDocumentAnalysisModal({
               const documentoScheduledAt = canEditWpa
                 ? documentoDraft.scheduledAt
                 : document.extractedScheduledAt
-              const scheduleLacreValue = canEditWpa
-                ? wpaDraft.scheduleLacre || document.registeredLacre
-                : (conference?.scheduleLacre ?? document.registeredLacre)
               const scheduleMeterValue = canEditWpa
                 ? wpaDraft.scheduleMeter
                 : (conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter)
-              const requireToiFields =
-                hasToi || document.docType === 'toi' || document.docType === 'ambos'
-              const effectiveBlockReason = shouldSuppressMeterBlockReason(
-                document.blockReason,
-                documentoMeter,
-                scheduleMeterValue,
-              )
-                ? null
-                : document.blockReason
-              const completenessFields = [
-                parseWpaConferenceOption(campoMeter),
-                documentoMeter,
-                scheduleMeterValue,
-                parseWpaConferenceOption(campoLacre),
-                scheduleLacreValue,
-                parseWpaConferenceOption(campoCoverSeal),
-                parseWpaConferenceOption(campoReading),
-                documentoReading,
-                documentoScheduledAt,
-                conference?.scheduleScheduleDate,
-              ]
-              if (requireToiFields) {
-                completenessFields.push(documentoLacre, documentoCoverSeal)
-              }
-              if (documentoCoverSeal2) {
-                completenessFields.push(parseWpaConferenceOption(campoCoverSeal2), documentoCoverSeal2)
-              }
-              const analysisComplete = inspectionAnalysisComplete(completenessFields)
-              const reasons = buildInspectionAnalysisReasons({
-                hasToi,
-                hasComunicado,
-                blockReason: effectiveBlockReason,
-                requireToiFields,
-                campoMeter,
-                documentoMeter,
-                scheduleMeter: scheduleMeterValue,
-                campoLacre,
-                documentoLacre,
-                scheduleLacre: scheduleLacreValue,
-                campoCoverSeal,
-                documentoCoverSeal,
-                campoCoverSeal2,
-                documentoCoverSeal2,
-                campoReading,
-                documentoReading,
-                documentoScheduledAt,
-                scheduleScheduleDate: conference?.scheduleScheduleDate,
-              })
-              const displayReason = joinInspectionReasons(reasons)
-              const effectivelyBlocked = document.blocked && Boolean(effectiveBlockReason)
-              const status = effectivelyBlocked
-                ? 'blocked'
-                : reasons.length || !analysisComplete
-                  ? 'pending'
-                  : 'ok'
-
               const scheduleMeterOriginalValue =
                 conference?.scheduleMeterOriginal?.trim() || originalScheduleMeter
               const scheduleMeterAdjustedValue =
@@ -1394,7 +1490,24 @@ export function InspectionDocumentAnalysisModal({
         />
 
         <div className="inspection-analysis-screen-actions">
-          <button type="button" className="primary-button" onClick={onClose}>
+          {canEditWpa && !analysisCompleted ? (
+            <button
+              type="button"
+              className="primary-button"
+              disabled={!canSaveAnalysis || savingAnalysis}
+              onClick={() => void handleSaveAnalysis()}
+              title={
+                canSaveAnalysis
+                  ? 'Salvar análise e remover da fila'
+                  : 'Complete todos os campos com status OK antes de salvar'
+              }
+            >
+              {savingAnalysis ? 'Salvando...' : 'Salvar análise'}
+            </button>
+          ) : analysisCompleted ? (
+            <span className="inspection-analysis-saved-badge">Análise salva</span>
+          ) : null}
+          <button type="button" className="secondary-button" onClick={onClose}>
             Voltar
           </button>
         </div>

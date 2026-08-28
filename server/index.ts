@@ -106,6 +106,7 @@ import {
   adjustScheduleDateFromDocument,
   listScheduleDateAdjustments,
   markScheduleDatePhysicallyAdjusted,
+  completeInspectionAnalysis,
 } from './routes/meter-inspection-documents.js'
 import {
   createSupportTicket,
@@ -488,6 +489,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     updateInspectionObservations,
+  )
+  app.post(
+    '/api/meter-schedules/:id/complete-inspection-analysis',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    completeInspectionAnalysis,
   )
   app.post(
     '/api/meter-schedules/:id/adjust-schedule-date',

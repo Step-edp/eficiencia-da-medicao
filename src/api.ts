@@ -1778,6 +1778,8 @@ export const api = {
       canManagePhotos?: boolean
       canEditWpa?: boolean
       observations?: string
+      analysisCompleted?: boolean
+      analysisCompletedAt?: string | null
     }>(`/api/meter-schedules/${meterScheduleId}/inspection-documents`),
   updateInspectionObservations: (meterScheduleId: string, observations: string) =>
     request<{ ok: true; observations: string }>(
@@ -1816,6 +1818,11 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+  completeInspectionAnalysis: (meterScheduleId: string) =>
+    request<{ ok: true; completedAt: string }>(
+      `/api/meter-schedules/${meterScheduleId}/complete-inspection-analysis`,
+      { method: 'POST' },
+    ),
   updateInspectionExtracted: (
     meterScheduleId: string,
     payload: {

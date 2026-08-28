@@ -2077,8 +2077,20 @@ button {
 .inspection-analysis-screen-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 10px;
   padding-top: 8px;
+}
+
+.inspection-analysis-saved-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(85, 219, 136, 0.16);
+  color: #d6ffe7;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .inspection-document-modal {
