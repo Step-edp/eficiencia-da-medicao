@@ -146,41 +146,118 @@ function positionedItemsFromContent(content: { items: unknown[] }): PositionedTe
   return items
 }
 
+function readingLabels(items: PositionedText[]): PositionedText[] {
+  return items.filter((item) => READING_LABEL_PATTERN.test(item.str) && !/\d{3,}/.test(item.str))
+}
+
+function topmostLabel(items: PositionedText[], pattern: RegExp): PositionedText | null {
+  const matches = items.filter((item) => pattern.test(item.str))
+  if (!matches.length) return null
+  return [...matches].sort((left, right) => right.y - left.y || left.x - right.x)[0]
+}
+
+function valueUnderReadingLabel(
+  items: PositionedText[],
+  label: PositionedText,
+  floorY: number,
+): string | null {
+  const cellWidth = Math.max(56, label.width * 2.2)
+  const ranked = items
+    .filter((item) => /^\d{3,8}$/.test(item.str.replace(/\s/g, '')))
+    .map((candidate) => {
+      const digits = candidate.str.replace(/\D/g, '')
+      const sameColumn =
+        candidate.x + candidate.width > label.x - 10 && candidate.x < label.x + cellWidth
+      const below =
+        candidate.y < label.y - Math.max(2, label.height * 0.2) && candidate.y > floorY
+      const toTheRight =
+        candidate.x >= label.x + Math.max(label.width - 4, 8) &&
+        Math.abs(candidate.y - label.y) < Math.max(12, label.height) &&
+        candidate.y > floorY
+      if (!(sameColumn && below) && !toTheRight) return null
+      const distance = below ? label.y - candidate.y : candidate.x - label.x
+      return { digits, below, distance }
+    })
+    .filter((row): row is { digits: string; below: boolean; distance: number } => Boolean(row))
+    .sort((left, right) => {
+      if (left.below !== right.below) return left.below ? -1 : 1
+      return left.distance - right.distance
+    })
+
+  return ranked[0]?.digits ?? null
+}
+
+function readingLabelBesideAnchor(
+  labels: PositionedText[],
+  anchor: PositionedText,
+  instalado: PositionedText | null,
+): PositionedText | null {
+  const rowTolerance = Math.max(14, anchor.height * 1.8)
+  const sameRow = labels
+    .filter(
+      (item) =>
+        Math.abs(item.y - anchor.y) <= rowTolerance && item.x > anchor.x - 8,
+    )
+    .sort(
+      (left, right) =>
+        Math.abs(left.y - anchor.y) - Math.abs(right.y - anchor.y) ||
+        left.x - right.x,
+    )
+  if (sameRow[0]) return sameRow[0]
+
+  const columnWidth = Math.max(anchor.width, 120)
+  const sameColumn = labels
+    .filter((item) => {
+      const aligned =
+        item.x + item.width > anchor.x - 24 && item.x < anchor.x + columnWidth
+      const below = item.y < anchor.y - Math.max(4, anchor.height * 0.3)
+      const beforeInstalado =
+        !instalado ||
+        instalado.x > anchor.x + columnWidth * 0.6 ||
+        item.y > instalado.y + Math.max(2, instalado.height * 0.2)
+      return aligned && below && beforeInstalado
+    })
+    .sort((left, right) => right.y - left.y)
+  return sameColumn[0] ?? null
+}
+
+function floorYForReadingLabel(
+  label: PositionedText,
+  nextRow: PositionedText | null,
+): number {
+  if (nextRow && nextRow.y < label.y) {
+    return nextRow.y + Math.max(2, nextRow.height * 0.15)
+  }
+  return label.y - Math.max(24, label.height * 2.8)
+}
+
+/**
+ * No TOI a tabela tem duas linhas (encontrado em cima, instalado embaixo).
+ * Sempre usamos só a leitura da linha de cima, ao lado de "Medidor Encontrado".
+ */
 function readingsFromPositionedItems(items: PositionedText[]): string[] {
-  const labels = items
-    .filter((item) => READING_LABEL_PATTERN.test(item.str) && !/\d{3,}/.test(item.str))
-    .sort((left, right) => left.x - right.x || right.y - left.y)
-  const numbers = items.filter((item) => /^\d{3,8}$/.test(item.str.replace(/\s/g, '')))
-  const values: string[] = []
+  const labels = readingLabels(items)
+  if (!labels.length) return []
 
-  for (const label of labels) {
-    const cellWidth = Math.max(72, label.width * 2.4)
-    const belowLimit = Math.max(42, label.height * 4.5)
-    const ranked = numbers
-      .map((candidate) => {
-        const digits = candidate.str.replace(/\D/g, '')
-        const sameColumn =
-          candidate.x + candidate.width > label.x - 10 && candidate.x < label.x + cellWidth
-        const below =
-          candidate.y < label.y - Math.max(2, label.height * 0.25) &&
-          label.y - candidate.y < belowLimit
-        const toTheRight =
-          candidate.x >= label.x + Math.max(label.width - 4, 8) &&
-          Math.abs(candidate.y - label.y) < Math.max(12, label.height)
-        if (!(sameColumn && below) && !toTheRight) return null
-        const distance = below ? label.y - candidate.y : candidate.x - label.x
-        return { digits, below, distance }
-      })
-      .filter((row): row is { digits: string; below: boolean; distance: number } => Boolean(row))
-      .sort((left, right) => {
-        if (left.below !== right.below) return left.below ? -1 : 1
-        return left.distance - right.distance
-      })
+  const encontrado = topmostLabel(items, MEDIDOR_ENCONTRADO_LABEL_PATTERN)
+  const retirado = topmostLabel(items, MEDIDOR_RETIRADO_MARKER)
+  const instalado = topmostLabel(items, MEDIDOR_INSTALADO_MARKER)
+  const anchor = encontrado ?? retirado
 
-    if (ranked[0]?.digits) values.push(ranked[0].digits)
+  if (anchor) {
+    const label = readingLabelBesideAnchor(labels, anchor, instalado)
+    if (!label) return []
+    const value = valueUnderReadingLabel(items, label, floorYForReadingLabel(label, instalado))
+    return value ? [value] : []
   }
 
-  return values
+  const stacked = [...labels].sort((left, right) => right.y - left.y || left.x - right.x)
+  const top = stacked[0]
+  const nextBelow = stacked.find(
+    (item) => item.y < top.y - 8 && Math.abs(item.x - top.x) < 48,
+  )
+  const value = valueUnderReadingLabel(items, top, floorYForReadingLabel(top, nextBelow ?? instalado))
+  return value ? [value] : []
 }
 
 export type InspectionDocumentParseResult = {
@@ -398,6 +475,33 @@ function extractCoverSeal(text: string): string | null {
   return extractDescriptiveCoverSeal(text) ?? extractNumericCoverSeal(text)
 }
 
+const ENCONTRADO_READING_TAG = /leitura\s+encontrado\s*:\s*(\d{3,8})/gi
+
+function stripNonReadingFields(text: string): string {
+  return text
+    .replace(/constante\s*[:\-]?\s*\d{1,6}/gi, ' ')
+    .replace(/tens[aã]o\s*[:\-]?\s*\d{1,6}/gi, ' ')
+}
+
+function sliceAfterLabelUntil(text: string, start: RegExp, end: RegExp, fallback = 500): string | null {
+  const startMatch = text.match(start)
+  if (!startMatch || startMatch.index === undefined) return null
+  const from = startMatch.index + startMatch[0].length
+  const rest = text.slice(from)
+  const endMatch = rest.match(end)
+  const to = endMatch?.index !== undefined ? endMatch.index : fallback
+  return rest.slice(0, to)
+}
+
+function addReadingMatches(text: string, add: (value: string | null | undefined) => void) {
+  for (const match of text.matchAll(new RegExp(READING_LABELED_VALUE_PATTERN.source, 'gi'))) {
+    add(match[1])
+  }
+  for (const match of text.matchAll(new RegExp(READING_LABELED_GAP_PATTERN.source, 'gi'))) {
+    add(match[1])
+  }
+}
+
 function collectReadingCandidates(text: string): string[] {
   const values: string[] = []
   const add = (value: string | null | undefined) => {
@@ -406,11 +510,19 @@ function collectReadingCandidates(text: string): string[] {
     values.push(digits)
   }
 
-  for (const match of text.matchAll(new RegExp(READING_LABELED_VALUE_PATTERN.source, 'gi'))) {
+  for (const match of text.matchAll(new RegExp(ENCONTRADO_READING_TAG.source, 'gi'))) {
     add(match[1])
   }
-  for (const match of text.matchAll(new RegExp(READING_LABELED_GAP_PATTERN.source, 'gi'))) {
-    add(match[1])
+  if (values.length) return values
+
+  const encontradoWindow = sliceAfterLabelUntil(
+    text,
+    MEDIDOR_ENCONTRADO_LABEL_PATTERN,
+    MEDIDOR_INSTALADO_MARKER,
+  )
+  if (encontradoWindow != null) {
+    addReadingMatches(stripNonReadingFields(encontradoWindow), add)
+    return values
   }
 
   const startMatch = text.match(DADOS_MEDICAO_START)
@@ -425,11 +537,17 @@ function collectReadingCandidates(text: string): string[] {
   const search = comunicadoStart >= 0 ? text.slice(comunicadoStart, comunicadoStart + 3000) : text
   const retirado = search.match(/medidor\s+retirado[\s\S]{0,700}/i)?.[0]
   if (retirado) {
-    for (const match of retirado.matchAll(new RegExp(READING_LABELED_GAP_PATTERN.source, 'gi'))) {
-      add(match[1])
-    }
+    const untilInstalado = sliceAfterLabelUntil(
+      retirado,
+      MEDIDOR_RETIRADO_MARKER,
+      MEDIDOR_INSTALADO_MARKER,
+      700,
+    )
+    addReadingMatches(stripNonReadingFields(untilInstalado ?? retirado), add)
+    if (untilInstalado != null) return values
   }
 
+  addReadingMatches(text, add)
   return values
 }
 
@@ -673,6 +791,7 @@ async function extractInspectionPdfTextLayer(buffer: Buffer): Promise<{ body: st
       .join(' ')
     parts.push(pageText)
     for (const reading of readingsFromPositionedItems(positionedItemsFromContent(content))) {
+      spatialReadings.push(`Leitura encontrado: ${reading}`)
       spatialReadings.push(`Leitura: ${reading}`)
     }
   }

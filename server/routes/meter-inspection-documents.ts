@@ -1105,6 +1105,34 @@ function mapInspectionDocumentRow(
   }
 }
 
+async function repairEncontradoReading(
+  rows: Array<Omit<InspectionDocumentRow, 'file_data'>>,
+) {
+  for (const row of rows) {
+    if (row.extracted_fields_manual) continue
+
+    const file = await query<{ file_data: Buffer }>(
+      `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
+      [row.id],
+    )
+    if (!file.rows[0]?.file_data) continue
+    try {
+      const parsed = parseInspectionText(await extractInspectionPdfText(file.rows[0].file_data))
+      const nextReading = parsed.reading?.trim() ? parsed.reading : null
+      if (normalizeReading(nextReading) === normalizeReading(row.extracted_reading)) continue
+      if (!nextReading && !parsed.meterEncontrado && !parsed.meterRetirado) continue
+
+      await query(
+        `UPDATE meter_inspection_documents SET extracted_reading = $1 WHERE id = $2`,
+        [nextReading, row.id],
+      )
+      row.extracted_reading = nextReading
+    } catch (error) {
+      console.error('Falha ao corrigir leitura do medidor encontrado:', error)
+    }
+  }
+}
+
 async function backfillMissingExtractions(
   rows: Array<Omit<InspectionDocumentRow, 'file_data'>>,
 ) {
@@ -1382,6 +1410,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   const scheduleDateAdjusted = Boolean(scheduleDateAdjustment.rows[0]?.adjusted)
 
   await backfillMissingExtractions(result.rows)
+  await repairEncontradoReading(result.rows)
   await repairMeterToiCollisions(
     result.rows,
     registeredMeter,
