@@ -16,7 +16,7 @@ export type DemmMeterAnalysis = {
 }
 
 function resolveDemmMeterAppStatus(
-  schedule: { trail_step: string } | undefined,
+  schedule: { trail_step: string; received_at: Date | null } | undefined,
   registryStatus: string | null | undefined,
 ): DemmMeterAppStatus {
   if (!schedule) return 'nao_agendado'
@@ -25,8 +25,15 @@ function resolveDemmMeterAppStatus(
   if (status === 'Aprovado') return 'aprovado'
   if (status === 'Ensaiado') return 'ensaiado'
   if (status === 'Recebido' || hasMeterEntradaGiven(status ?? '')) return 'recebido'
+  if (schedule.received_at) return 'recebido'
   if (schedule.trail_step.trim() !== ENTRADA_TRAIL_STEP) return 'recebido'
   return 'agendado'
+}
+
+export function countDemmMetersAwaitingEntry(
+  meters: Array<{ appStatus?: DemmMeterAppStatus; scheduled?: boolean }>,
+) {
+  return meters.filter((item) => item.appStatus === 'agendado').length
 }
 
 export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnalysis[]> {
@@ -40,8 +47,9 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
       meter: string
       scheduled_at: Date
       trail_step: string
+      received_at: Date | null
     }>(
-      `SELECT DISTINCT ON (${NORMALIZED_METER_SQL}) id, meter, scheduled_at, trail_step
+      `SELECT DISTINCT ON (${NORMALIZED_METER_SQL}) id, meter, scheduled_at, trail_step, received_at
        FROM meter_schedules
        WHERE delay_dismissed_at IS NULL
          AND ${NORMALIZED_METER_SQL} = ANY($1::text[])
@@ -62,6 +70,7 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
       {
         id: row.id,
         trailStep: row.trail_step,
+        receivedAt: row.received_at,
         scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
       },
     ]),
@@ -72,7 +81,9 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
     const norm = normalizeScheduleMeter(meter)
     const schedule = scheduleByMeter.get(norm)
     const appStatus = resolveDemmMeterAppStatus(
-      schedule ? { trail_step: schedule.trailStep } : undefined,
+      schedule
+        ? { trail_step: schedule.trailStep, received_at: schedule.receivedAt }
+        : undefined,
       registryByMeter.get(norm),
     )
 

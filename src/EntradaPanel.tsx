@@ -227,6 +227,21 @@ function demmMeterAppStatusClass(item: DemmMeterAnalysisRecord) {
   }
 }
 
+function demmMetersStatusSummary(meters: DemmMeterAnalysisRecord[]) {
+  const counts = new Map<string, number>()
+  for (const item of meters) {
+    const label = demmMeterAppStatusLabel(item)
+    counts.set(label, (counts.get(label) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .map(([label, count]) => `${count} ${label.toLowerCase()}`)
+    .join(', ')
+}
+
+function countDemmMetersAwaitingEntry(meters: DemmMeterAnalysisRecord[]) {
+  return meters.filter((item) => item.appStatus === 'agendado').length
+}
+
 function MeterLink({
   meter,
   onOpen,
@@ -341,9 +356,10 @@ function DemmAnalysisModal({
   onOpenMeter,
   onClose,
 }: DemmAnalysisModalProps) {
-  const scheduledCount = meters.length
-    ? meters.filter((item) => item.scheduled).length
+  const awaitingEntryCount = meters.length
+    ? countDemmMetersAwaitingEntry(meters)
     : (details?.scheduledCount ?? 0)
+  const statusSummary = meters.length ? demmMetersStatusSummary(meters) : null
 
   return createPortal(
     <div className="ensaios-block-modal-overlay" role="presentation" onClick={onClose}>
@@ -394,13 +410,15 @@ function DemmAnalysisModal({
               <dd>{details.meterCount}</dd>
             </div>
             <div>
-              <dt>Agendados</dt>
-              <dd>{details.scheduledCount}</dd>
+              <dt>Aguardando entrada</dt>
+              <dd>{awaitingEntryCount}</dd>
             </div>
             <div>
               <dt>Status</dt>
               <dd>
-                {details.bulkEntryReady ? (
+                {statusSummary ? (
+                  <span className="demm-analysis-status-summary">{statusSummary}</span>
+                ) : details.bulkEntryReady ? (
                   <span className="demm-bulk-ready-badge">
                     DEMM liberada para entrada em massa
                   </span>
@@ -436,7 +454,9 @@ function DemmAnalysisModal({
         <p className="demm-analysis-summary">
           {loading
             ? 'Carregando medidores...'
-            : `${details?.meterCount ?? meters.length} medidor(es) · ${scheduledCount} agendado(s) no aplicativo`}
+            : statusSummary
+              ? `${details?.meterCount ?? meters.length} medidor(es) · ${statusSummary}`
+              : `${details?.meterCount ?? meters.length} medidor(es)`}
         </p>
 
         <DemmMetersTable
@@ -1103,7 +1123,8 @@ export function EntradaPanel({
         details: {
           ...details,
           meterCount: response.analysis.meters.length,
-          scheduledCount: response.analysis.meters.filter((item) => item.scheduled).length,
+          scheduledCount: response.analysis.meters.filter((item) => item.appStatus === 'agendado')
+            .length,
         },
         meters: response.analysis.meters,
         loading: false,
@@ -2958,8 +2979,8 @@ export function EntradaPanel({
                 demmDocuments.length > 0
                   ? 'Todas as DEMMs cadastradas já tiveram entrada. Veja a aba DEMMs com entrada.'
                   : 'Nenhuma DEMM cadastrada.',
-              countHeader: 'Agendados',
-              countSummary: 'agendado(s)',
+              countHeader: 'Aguardando entrada',
+              countSummary: 'aguardando entrada',
               countValue: (document) => document.scheduledCount,
               showBulkReceive: true,
             })}

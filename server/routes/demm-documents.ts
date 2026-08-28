@@ -65,7 +65,7 @@ function mapDemmDocument(row: DemmDocumentRow) {
     csdName: row.csd_name,
     extractedMeters,
     meterCount: extractedMeters.length,
-    scheduledCount: extractedMeters.filter((item) => item.scheduled).length,
+    scheduledCount: extractedMeters.filter((item) => item.appStatus === 'agendado').length,
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
     createdByRegistration: row.created_by_registration,
@@ -168,7 +168,7 @@ export async function listDemmDocuments(_req: Request, res: Response) {
       ).length
       const allEntryGiven = meterNumbers.length > 0 && entryGivenCount === meterNumbers.length
       const scheduledCount = meterNumbers.filter(
-        (meter) => analysisByNorm.get(normalizeScheduleMeter(meter))?.scheduled,
+        (meter) => analysisByNorm.get(normalizeScheduleMeter(meter))?.appStatus === 'agendado',
       ).length
 
       return {
@@ -211,7 +211,7 @@ export async function getDemmMetersBase(_req: Request, res: Response) {
   res.json({
     meters,
     total: meters.length,
-    scheduledCount: meters.filter((item) => item.scheduled).length,
+    scheduledCount: meters.filter((item) => item.appStatus === 'agendado').length,
   })
 }
 
@@ -381,7 +381,7 @@ export async function createDemmDocument(req: Request, res: Response) {
     summary: `DEMM com ${extractedMeters.length} medidor(es) identificado(s)`,
     newData: {
       ...document,
-      scheduledCount: extractedMeters.filter((item) => item.scheduled).length,
+      scheduledCount: extractedMeters.filter((item) => item.appStatus === 'agendado').length,
     },
   })
 
@@ -400,7 +400,7 @@ export async function createDemmDocument(req: Request, res: Response) {
     analysis: {
       meters: extractedMeters,
       total: extractedMeters.length,
-      scheduledCount: extractedMeters.filter((item) => item.scheduled).length,
+      scheduledCount: extractedMeters.filter((item) => item.appStatus === 'agendado').length,
     },
   })
 }
@@ -444,7 +444,7 @@ export async function getDemmDocumentAnalysis(req: Request, res: Response) {
     analysis: {
       meters,
       total: meters.length,
-      scheduledCount: meters.filter((item) => item.scheduled).length,
+      scheduledCount: meters.filter((item) => item.appStatus === 'agendado').length,
     },
   })
 }
