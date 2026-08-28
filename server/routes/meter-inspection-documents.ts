@@ -20,6 +20,7 @@ import {
   formatScheduleNumericField,
   normalizeScheduleMeter,
   normalizeScheduleNote,
+  validateScheduleNumericField,
 } from '../numeric-field-validation.js'
 import { pontoFocalScopeUserId, resolvePontoFocalCsdNames } from '../ponto-focal-csds.js'
 import { ensureFillingDeviationsFromSchedules } from '../filling-deviations.js'
@@ -697,6 +698,21 @@ const WPA_PHOTO_DEVIATIONS = [
   },
 ] as const
 
+const SCHEDULE_METER_WRONG_KIND = 'schedule_meter_wrong'
+const SCHEDULE_METER_WRONG_DESCRIPTION = 'Medidor agendado errado'
+
+function pickSavedScheduleMeter(saved: string | null | undefined) {
+  const trimmed = saved?.trim()
+  if (!trimmed || WPA_CONFERENCE_VALUES.has(trimmed)) return null
+  return trimmed
+}
+
+function readScheduleMeterText(value: unknown) {
+  const trimmed = typeof value === 'string' ? value.trim().slice(0, 80) : ''
+  if (!trimmed) return ''
+  return normalizeScheduleMeter(trimmed) || trimmed.replace(/\D/g, '')
+}
+
 function pickSavedWpa(saved: string | null | undefined) {
   const trimmed = saved?.trim()
   return trimmed && WPA_CONFERENCE_VALUES.has(trimmed) ? trimmed : null
@@ -786,6 +802,85 @@ async function syncWpaPhotoDeviations(params: {
       ],
     )
   }
+}
+
+async function syncScheduleMeterDeviation(params: {
+  scheduleId: string
+  meter: string
+  originalMeter: string
+  correctedMeter: string
+  collaborator1Name: string
+  collaborator1Registration: string
+  collaborator2Name: string
+  collaborator2Registration: string
+  createdByUserId: string | null
+}) {
+  const original = normalizeMeter(params.originalMeter)
+  const corrected = normalizeMeter(params.correctedMeter)
+  if (!original || !corrected || original === corrected) {
+    await query(
+      `DELETE FROM toi_schedule_deviations
+       WHERE meter_schedule_id = $1 AND kind = $2 AND physically_adjusted_at IS NULL`,
+      [params.scheduleId, SCHEDULE_METER_WRONG_KIND],
+    )
+    return
+  }
+
+  const hasCollaborators =
+    params.collaborator1Registration.trim() || params.collaborator2Registration.trim()
+  if (!hasCollaborators) return
+
+  const existing = await query<{ id: string }>(
+    `SELECT id FROM toi_schedule_deviations
+     WHERE meter_schedule_id = $1 AND kind = $2 AND physically_adjusted_at IS NULL
+     LIMIT 1`,
+    [params.scheduleId, SCHEDULE_METER_WRONG_KIND],
+  )
+
+  const scheduledLabel = params.originalMeter.trim()
+  const documentLabel = params.correctedMeter.trim()
+
+  if (existing.rows[0]) {
+    await query(
+      `UPDATE toi_schedule_deviations
+       SET meter = $1,
+           scheduled_label = $2,
+           document_label = $3,
+           description = $4
+       WHERE id = $5`,
+      [
+        params.meter,
+        scheduledLabel,
+        documentLabel,
+        SCHEDULE_METER_WRONG_DESCRIPTION,
+        existing.rows[0].id,
+      ],
+    )
+    return
+  }
+
+  await query(
+    `INSERT INTO toi_schedule_deviations (
+       id, meter_schedule_id, meter, kind, description,
+       scheduled_label, document_label, previous_scheduled_at, adjusted_scheduled_at,
+       collaborator1_name, collaborator1_registration,
+       collaborator2_name, collaborator2_registration, created_by_user_id
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW(),$8,$9,$10,$11,$12)`,
+    [
+      `sched-meter-${Date.now()}-${params.scheduleId}`,
+      params.scheduleId,
+      params.meter,
+      SCHEDULE_METER_WRONG_KIND,
+      SCHEDULE_METER_WRONG_DESCRIPTION,
+      scheduledLabel,
+      documentLabel,
+      params.collaborator1Name,
+      params.collaborator1Registration,
+      params.collaborator2Name,
+      params.collaborator2Registration,
+      params.createdByUserId,
+    ],
+  )
 }
 
 const VALID_INSPECTION_DOC_TYPES = new Set<InspectionDocumentType>(['toi', 'comunicado', 'ambos'])
@@ -1522,11 +1617,12 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     inspection_observations: string | null
     envelope_photo: string | null
     inspection_schedule_lacre: string | null
+    inspection_schedule_meter: string | null
   }>(
     `SELECT id, meter, installation, envelope_seal, cover_seal, meter_reading, source, scheduled_at,
             envelope_photo, inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
             inspection_wpa_cover_seal_2, inspection_wpa_reading, inspection_observations,
-            inspection_schedule_lacre
+            inspection_schedule_lacre, inspection_schedule_meter
      FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
@@ -1615,7 +1711,8 @@ export async function listInspectionDocuments(req: Request, res: Response) {
       campoCoverSeal2: pickSavedWpa(schedule.rows[0].inspection_wpa_cover_seal_2),
       campoReading: pickSavedWpa(schedule.rows[0].inspection_wpa_reading),
       campoScheduleDate: null,
-      scheduleMeter: registeredMeter,
+      scheduleMeter:
+        pickSavedScheduleMeter(schedule.rows[0].inspection_schedule_meter) ?? registeredMeter,
       scheduleLacre:
         pickSavedWpa(schedule.rows[0].inspection_schedule_lacre) ?? registeredLacre,
       scheduleCoverSeal: registeredCoverSeal,
@@ -2213,12 +2310,40 @@ export async function updateInspectionWpa(req: Request, res: Response) {
     return
   }
 
+  const originalMeter = existing.rows[0].meter.trim()
   const meter = readWpaText(req.body?.meter)
   const lacre = readWpaText(req.body?.lacre)
   const coverSeal = readWpaText(req.body?.coverSeal)
   const coverSeal2 = readWpaText(req.body?.coverSeal2)
   const reading = readWpaText(req.body?.reading)
   const scheduleLacre = readWpaText(req.body?.scheduleLacre)
+  const scheduleMeterInput = readScheduleMeterText(req.body?.scheduleMeter)
+
+  if (scheduleMeterInput) {
+    const meterError = validateScheduleNumericField(scheduleMeterInput, 'medidor')
+    if (meterError) {
+      res.status(400).json({ error: meterError })
+      return
+    }
+  }
+
+  const preservedOriginal = await query<{ scheduled_label: string }>(
+    `SELECT scheduled_label
+     FROM toi_schedule_deviations
+     WHERE meter_schedule_id = $1 AND kind = $2
+     ORDER BY created_at ASC
+     LIMIT 1`,
+    [meterScheduleId, SCHEDULE_METER_WRONG_KIND],
+  )
+  const baselineMeter =
+    preservedOriginal.rows[0]?.scheduled_label?.trim() || originalMeter
+  const nextScheduleMeter = scheduleMeterInput
+    ? formatScheduleNumericField(scheduleMeterInput, 'medidor') || scheduleMeterInput
+    : originalMeter
+  const inspectionScheduleMeter =
+    scheduleMeterInput && normalizeMeter(scheduleMeterInput) !== normalizeMeter(baselineMeter)
+      ? nextScheduleMeter
+      : null
 
   await query(
     `UPDATE meter_schedules
@@ -2227,14 +2352,26 @@ export async function updateInspectionWpa(req: Request, res: Response) {
          inspection_wpa_cover_seal = $4,
          inspection_wpa_cover_seal_2 = $5,
          inspection_wpa_reading = $6,
-         inspection_schedule_lacre = $7
+         inspection_schedule_lacre = $7,
+         inspection_schedule_meter = $8,
+         meter = $9
      WHERE id = $1`,
-    [meterScheduleId, meter, lacre, coverSeal, coverSeal2, reading, scheduleLacre],
+    [
+      meterScheduleId,
+      meter,
+      lacre,
+      coverSeal,
+      coverSeal2,
+      reading,
+      scheduleLacre,
+      inspectionScheduleMeter,
+      nextScheduleMeter,
+    ],
   )
 
   await syncWpaPhotoDeviations({
     scheduleId: meterScheduleId,
-    meter: existing.rows[0].meter,
+    meter: nextScheduleMeter,
     collaborator1Name: existing.rows[0].toi_collaborator1_name ?? '',
     collaborator1Registration: existing.rows[0].toi_collaborator1_registration ?? '',
     collaborator2Name: existing.rows[0].toi_collaborator2_name ?? '',
@@ -2243,12 +2380,24 @@ export async function updateInspectionWpa(req: Request, res: Response) {
     wpa: { meter, lacre, coverSeal, coverSeal2, reading, scheduleLacre },
   })
 
+  await syncScheduleMeterDeviation({
+    scheduleId: meterScheduleId,
+    meter: nextScheduleMeter,
+    originalMeter: baselineMeter,
+    correctedMeter: inspectionScheduleMeter ?? baselineMeter,
+    collaborator1Name: existing.rows[0].toi_collaborator1_name ?? '',
+    collaborator1Registration: existing.rows[0].toi_collaborator1_registration ?? '',
+    collaborator2Name: existing.rows[0].toi_collaborator2_name ?? '',
+    collaborator2Registration: existing.rows[0].toi_collaborator2_registration ?? '',
+    createdByUserId: req.user?.id ?? null,
+  })
+
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'meter_schedule',
     entityId: meterScheduleId,
     summary: `WPA informado na análise do agendamento ${meterScheduleId}`,
-    metadata: { meter, lacre, coverSeal, coverSeal2, reading, scheduleLacre },
+    metadata: { meter, lacre, coverSeal, coverSeal2, reading, scheduleLacre, scheduleMeter: nextScheduleMeter },
   })
 
   res.json({
@@ -2260,6 +2409,7 @@ export async function updateInspectionWpa(req: Request, res: Response) {
       campoCoverSeal2: coverSeal2 || null,
       campoReading: reading || null,
       scheduleLacre: scheduleLacre || null,
+      scheduleMeter: nextScheduleMeter || null,
     },
   })
 }

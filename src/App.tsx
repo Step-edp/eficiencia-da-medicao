@@ -5502,7 +5502,7 @@ function HomePanel({
               <ScheduleDateAdjustmentsPanel
                 scope="mine"
                 title="Apontamentos de desvio"
-                intro="Desvios de preenchimento (instalação, TOI, nota ou CSD corrigidos pelo laboratório), data/horário de agendamento diferente do documento, medidor não agendado em campo, ausência de registro fotográfico e registro fotográfico com baixa qualidade. Confira o valor informado no cadastro e o valor corrigido."
+                intro="Desvios de preenchimento (instalação, TOI, nota ou CSD corrigidos pelo laboratório), medidor agendado errado, data/horário de agendamento diferente do documento, medidor não agendado em campo, ausência de registro fotográfico e registro fotográfico com baixa qualidade. Confira o valor informado no cadastro e o valor corrigido."
                 includeFillingDeviations
                 forUserId={isAdmin && previewUser ? previewUser.id : undefined}
                 onPendingCountChange={setScheduleDateDeviationCount}

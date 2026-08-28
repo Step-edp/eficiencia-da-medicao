@@ -98,7 +98,7 @@ export function DeviationsPanel({
           embedded
           scope="all"
           title="Apontamentos de desvio"
-          intro="Desvios de preenchimento (instalação, TOI, nota ou CSD corrigidos), data/horário de agendamento diferente do documento, medidor não agendado em campo, ausência de registro fotográfico e registro fotográfico com baixa qualidade."
+          intro="Desvios de preenchimento (instalação, TOI, nota ou CSD corrigidos), medidor agendado errado, data/horário de agendamento diferente do documento, medidor não agendado em campo, ausência de registro fotográfico e registro fotográfico com baixa qualidade."
           includeFillingDeviations
           readOnly={readOnly}
           onPendingCountChange={onPendingCountChange}

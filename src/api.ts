@@ -1793,6 +1793,7 @@ export const api = {
       coverSeal2?: string
       reading: string
       scheduleLacre: string
+      scheduleMeter?: string
     },
   ) =>
     request<{
@@ -1804,6 +1805,7 @@ export const api = {
         campoCoverSeal2?: string | null
         campoReading: string | null
         scheduleLacre: string | null
+        scheduleMeter?: string | null
       }
     }>(`/api/meter-schedules/${meterScheduleId}/inspection-wpa`, {
       method: 'PATCH',
