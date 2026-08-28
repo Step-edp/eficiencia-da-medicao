@@ -8,6 +8,7 @@ import {
 } from './api'
 import { formatAuditAction, formatAuditDate } from './auditLabels'
 import { FillingCorrectionNote } from './fillingCorrection'
+import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
 import {
   formatScheduleCollaborator1Label,
   formatScheduleCollaborator2Label,
@@ -18,6 +19,7 @@ import {
 type MeterDetailModalProps = {
   meter: string
   onClose: () => void
+  onDocumentsChanged?: () => void
 }
 
 function displayValue(value: string | null | undefined) {
@@ -51,11 +53,12 @@ function scheduleSourceLabel(source: string) {
   return source || '—'
 }
 
-export function MeterDetailModal({ meter, onClose }: MeterDetailModalProps) {
+export function MeterDetailModal({ meter, onClose, onDocumentsChanged }: MeterDetailModalProps) {
   const [loading, setLoading] = useState(true)
   const [registry, setRegistry] = useState<MeterRegistryRecord | null>(null)
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [history, setHistory] = useState<MeterScheduleHistoryRecord[]>([])
+  const [analysisOpen, setAnalysisOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -93,7 +96,9 @@ export function MeterDetailModal({ meter, onClose }: MeterDetailModalProps) {
 
   const latestSchedule = schedules[0] ?? null
 
-  return createPortal(
+  return (
+    <>
+      {createPortal(
     <div className="ensaios-block-modal-overlay" role="presentation" onClick={onClose}>
       <div
         className="ensaios-block-modal demm-modal schedule-detail-modal meter-detail-modal"
@@ -316,6 +321,15 @@ export function MeterDetailModal({ meter, onClose }: MeterDetailModalProps) {
         )}
 
         <div className="ensaios-block-modal-actions">
+          {latestSchedule?.id ? (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => setAnalysisOpen(true)}
+            >
+              Ir para análise
+            </button>
+          ) : null}
           <button type="button" className="primary-button" onClick={onClose}>
             Fechar
           </button>
@@ -323,5 +337,16 @@ export function MeterDetailModal({ meter, onClose }: MeterDetailModalProps) {
       </div>
     </div>,
     document.body,
+      )}
+
+      {analysisOpen && latestSchedule?.id ? (
+        <InspectionDocumentAnalysisModal
+          meter={meter}
+          scheduleId={latestSchedule.id}
+          onClose={() => setAnalysisOpen(false)}
+          onDocumentsChanged={onDocumentsChanged}
+        />
+      ) : null}
+    </>
   )
 }

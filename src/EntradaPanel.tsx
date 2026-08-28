@@ -1991,7 +1991,17 @@ export function EntradaPanel({
     : null
 
   const meterDetailModal = meterDetailTarget ? (
-    <MeterDetailModal meter={meterDetailTarget} onClose={() => setMeterDetailTarget(null)} />
+    <MeterDetailModal
+      meter={meterDetailTarget}
+      onClose={() => setMeterDetailTarget(null)}
+      onDocumentsChanged={() => {
+        void loadInspectionPendencias()
+        void loadWpaMeters()
+        void loadWeekMeters()
+        void loadData()
+        refreshTrailCounts()
+      }}
+    />
   ) : null
 
   const openMeterDetail = (meter: string) => setMeterDetailTarget(meter)
