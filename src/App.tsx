@@ -6213,14 +6213,11 @@ function HomePanel({
                       <span className="item-with-icon measurement-item-row">
                         <ItemIcon title={section} />
                         <span>{section}</span>
-                        {section === 'Suporte' && openSupportCount > 0 ? (
-                          <span
-                            className="support-alert-badge"
-                            aria-label={`${openSupportCount} solicitação(ões) de suporte em aberto`}
-                          >
-                            Alerta
-                            {openSupportCount > 1 ? ` · ${openSupportCount}` : ''}
-                          </span>
+                        {section === 'Suporte' ? (
+                          <LateMetersCountBadge
+                            count={openSupportCount}
+                            label={`${openSupportCount} chamado(s) pendente(s) de resposta`}
+                          />
                         ) : null}
                         {section === 'Alteração de data' ? (
                           <LateMetersCountBadge
