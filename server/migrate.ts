@@ -1057,5 +1057,15 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS csd_corrected_by_user_id TEXT REFERENCES users(id)
   `)
 
+  await query(`
+    ALTER TABLE meter_inspection_documents
+      ADD COLUMN IF NOT EXISTS extracted_cover_seal_2 TEXT;
+  `)
+
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS inspection_wpa_cover_seal_2 TEXT;
+  `)
+
   await ensureFillingDeviationsFromSchedules()
 }

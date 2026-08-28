@@ -280,6 +280,7 @@ export type InspectionDocumentParseResult = {
   meterRetirado: string | null
   lacre: string | null
   coverSeal: string | null
+  coverSeal2: string | null
   reading: string | null
   installation: string | null
   toi: string | null
@@ -456,6 +457,8 @@ const COVER_SEAL_STOP_PATTERN =
   /tampa\s+d[oa]\s+|bloco\s+de\s+|chave\s+de\s+calibra|lacres\s+instal|7\s*\.|observa[cç]/i
 const ENCONTRADO_COVER_SEAL_TAG =
   /tampa\s+do\s+medidor\s+encontrado\s*:\s*(.{1,80}?)(?=\s+(?:tampa\s+do\s+medidor|leitura)|$)/i
+const ENCONTRADO_COVER_SEAL_TAG_2 =
+  /tampa\s+do\s+medidor\s+encontrado\s*2\s*:\s*(.{1,80}?)(?=\s+(?:tampa\s+do\s+medidor|leitura)|$)/i
 
 function normalizeCoverSealValue(value: string | null | undefined): string | null {
   const trimmed = value
@@ -510,20 +513,39 @@ function coverSealFromChunk(chunk: string): string | null {
   return null
 }
 
-function extractDescriptiveCoverSeal(text: string): string | null {
-  const tagged = text.match(ENCONTRADO_COVER_SEAL_TAG)?.[1]
+function taggedCoverSeal(text: string, pattern: RegExp): string | null {
+  const tagged = text.match(pattern)?.[1]
   const taggedValue = tagged ? normalizeCoverSealValue(tagged) : null
-  if (taggedValue && isPlausibleCoverSeal(taggedValue)) return taggedValue
+  return taggedValue && isPlausibleCoverSeal(taggedValue) ? taggedValue : null
+}
 
+function coverSealsFromSelagemText(text: string): string[] {
   const section = sliceEncontradosSelagem(text) ?? text
   const parts = section.split(/\btampa\s+do\s+medidor\b/i)
-  if (parts.length > 1) {
-    return coverSealFromChunk(parts[1])
+  const values: string[] = []
+  for (let index = 1; index < parts.length && values.length < 2; index += 1) {
+    const value = coverSealFromChunk(parts[index])
+    if (value) values.push(value)
   }
+  return values
+}
+
+function extractDescriptiveCoverSeal(text: string): string | null {
+  const taggedValue = taggedCoverSeal(text, ENCONTRADO_COVER_SEAL_TAG)
+  if (taggedValue) return taggedValue
+
+  const listed = coverSealsFromSelagemText(text)
+  if (listed[0]) return listed[0]
 
   const fallback = text.match(/\btampa\s+do\s+medidor\s*[:\-–]?\s*(\S.{0,80}?)(?:\s{2,}|\n|$)/i)
   const fallbackValue = normalizeCoverSealValue(fallback?.[1] ?? null)
   return fallbackValue && isPlausibleCoverSeal(fallbackValue) ? fallbackValue : null
+}
+
+function extractCoverSeal2(text: string): string | null {
+  const taggedValue = taggedCoverSeal(text, ENCONTRADO_COVER_SEAL_TAG_2)
+  if (taggedValue) return taggedValue
+  return coverSealsFromSelagemText(text)[1] ?? null
 }
 
 function extractNumericCoverSeal(text: string): string | null {
@@ -597,16 +619,22 @@ function coverSealsFromPositionedItems(items: PositionedText[]): string[] {
       })
     : labels
   const pool = scoped.length ? scoped : labels
-  const top = [...pool].sort((left, right) => right.y - left.y || left.x - right.x)[0]
-  const nextBelow = labels.find(
-    (item) => item.y < top.y - 8 && Math.abs(item.x - top.x) < 48,
-  )
-  const value = textUnderCoverSealLabel(
-    items,
-    top,
-    floorYForReadingLabel(top, nextBelow ?? instalados),
-  )
-  return value ? [value] : []
+  const stacked = [...pool].sort((left, right) => right.y - left.y || left.x - right.x)
+  const top = stacked[0]
+  if (!top) return []
+  const column = stacked.filter((item) => Math.abs(item.x - top.x) < 48)
+  const values: string[] = []
+  for (let index = 0; index < column.length && values.length < 2; index += 1) {
+    const label = column[index]
+    const nextBelow = column[index + 1]
+    const value = textUnderCoverSealLabel(
+      items,
+      label,
+      floorYForReadingLabel(label, nextBelow ?? instalados),
+    )
+    if (value) values.push(value)
+  }
+  return values
 }
 
 const ENCONTRADO_READING_TAG = /leitura\s+encontrado\s*:\s*(\d{3,8})/gi
@@ -825,6 +853,7 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
     meterRetirado,
     lacre,
     coverSeal: extractCoverSeal(normalized),
+    coverSeal2: extractCoverSeal2(normalized),
     reading: extractReading(normalized, excludedReadings),
     installation: extractAfterLabel(
       normalized,
@@ -932,10 +961,15 @@ async function extractInspectionPdfTextLayer(buffer: Buffer): Promise<{ body: st
       spatialReadings.push(`Leitura encontrado: ${reading}`)
       spatialReadings.push(`Leitura: ${reading}`)
     }
-    for (const coverSeal of coverSealsFromPositionedItems(positioned)) {
-      spatialReadings.push(`Tampa do Medidor encontrado: ${coverSeal}`)
-      spatialReadings.push(`Tampa do Medidor: ${coverSeal}`)
-    }
+    const coverSeals = coverSealsFromPositionedItems(positioned)
+    coverSeals.forEach((coverSeal, index) => {
+      if (index === 0) {
+        spatialReadings.push(`Tampa do Medidor encontrado: ${coverSeal}`)
+        spatialReadings.push(`Tampa do Medidor: ${coverSeal}`)
+        return
+      }
+      spatialReadings.push(`Tampa do Medidor encontrado 2: ${coverSeal}`)
+    })
   }
 
   return {

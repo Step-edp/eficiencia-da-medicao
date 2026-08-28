@@ -70,6 +70,7 @@ type DocumentFieldsDraft = {
   meter: string
   lacre: string
   coverSeal: string
+  coverSeal2: string
   reading: string
   scheduledAt: string
 }
@@ -79,6 +80,7 @@ function draftFromDocument(document: InspectionDocumentRecord): DocumentFieldsDr
     meter: document.extractedMeterRetirado ?? document.extractedMeter ?? '',
     lacre: document.extractedLacre ?? '',
     coverSeal: document.extractedCoverSeal ?? '',
+    coverSeal2: document.extractedCoverSeal2 ?? '',
     reading: document.extractedReading ?? '',
     scheduledAt: document.extractedScheduledAt ?? '',
   }
@@ -173,6 +175,8 @@ function buildInspectionAnalysisReasons({
   labLacre,
   campoCoverSeal,
   documentoCoverSeal,
+  campoCoverSeal2,
+  documentoCoverSeal2,
   campoReading,
   documentoReading,
   labReading,
@@ -193,6 +197,8 @@ function buildInspectionAnalysisReasons({
   labLacre: string | null | undefined
   campoCoverSeal: string | null | undefined
   documentoCoverSeal: string | null | undefined
+  campoCoverSeal2: string | null | undefined
+  documentoCoverSeal2: string | null | undefined
   campoReading: string | null | undefined
   documentoReading: string | null | undefined
   labReading: string | null | undefined
@@ -203,6 +209,9 @@ function buildInspectionAnalysisReasons({
   if (!parseWpaConferenceOption(campoMeter)) missingWpa.push('medidor')
   if (!parseWpaConferenceOption(campoLacre)) missingWpa.push('lacre do invólucro')
   if (!parseWpaConferenceOption(campoCoverSeal)) missingWpa.push('lacre da tampa')
+  if (documentoCoverSeal2 && !parseWpaConferenceOption(campoCoverSeal2)) {
+    missingWpa.push('lacre da tampa (2)')
+  }
   if (!parseWpaConferenceOption(campoReading)) missingWpa.push('leitura')
 
   const missingLab: string[] = []
@@ -232,6 +241,9 @@ function buildInspectionAnalysisReasons({
     wpaIncompatibleReason(campoMeter, 'medidor'),
     wpaIncompatibleReason(campoLacre, 'lacre do invólucro'),
     wpaIncompatibleReason(campoCoverSeal, 'lacre da tampa'),
+    documentoCoverSeal2
+      ? wpaIncompatibleReason(campoCoverSeal2, 'lacre da tampa (2)')
+      : null,
     wpaIncompatibleReason(campoReading, 'leitura'),
     missingLab.length === 3
       ? 'Medidor ainda não deu entrada no laboratório.'
@@ -491,6 +503,7 @@ export function InspectionDocumentAnalysisModal({
     meter: '',
     lacre: '',
     coverSeal: '',
+    coverSeal2: '',
     reading: '',
     scheduleLacre: '',
   })
@@ -528,6 +541,7 @@ export function InspectionDocumentAnalysisModal({
         campoMeter: null,
         campoLacre: null,
         campoCoverSeal: null,
+        campoCoverSeal2: null,
         campoReading: null,
         campoScheduleDate: null,
         scheduleMeter: response.meter,
@@ -547,6 +561,7 @@ export function InspectionDocumentAnalysisModal({
         meter: nextConference.campoMeter ?? '',
         lacre: nextConference.campoLacre ?? '',
         coverSeal: nextConference.campoCoverSeal ?? '',
+        coverSeal2: nextConference.campoCoverSeal2 ?? '',
         reading: nextConference.campoReading ?? '',
         scheduleLacre: nextConference.scheduleLacre ?? '',
       })
@@ -568,7 +583,14 @@ export function InspectionDocumentAnalysisModal({
       setHasComunicado(false)
       setRegisteredMeter(meter)
       setConference(null)
-      setWpaDraft({ meter: '', lacre: '', coverSeal: '', reading: '', scheduleLacre: '' })
+      setWpaDraft({
+        meter: '',
+        lacre: '',
+        coverSeal: '',
+        coverSeal2: '',
+        reading: '',
+        scheduleLacre: '',
+      })
       setDocumentDrafts({})
       setPhotos([])
       setEnvelopePhoto(null)
@@ -585,6 +607,7 @@ export function InspectionDocumentAnalysisModal({
       meter: string
       lacre: string
       coverSeal: string
+      coverSeal2: string
       reading: string
       scheduleLacre: string
     }) => {
@@ -604,7 +627,7 @@ export function InspectionDocumentAnalysisModal({
   )
 
   const handleWpaChange = useCallback(
-    (field: 'meter' | 'lacre' | 'coverSeal' | 'reading' | 'scheduleLacre', value: string) => {
+    (field: 'meter' | 'lacre' | 'coverSeal' | 'coverSeal2' | 'reading' | 'scheduleLacre', value: string) => {
       setWpaDraft((current) => {
         const next = { ...current, [field]: value }
         if (wpaSaveTimerRef.current != null) {
@@ -634,6 +657,7 @@ export function InspectionDocumentAnalysisModal({
                   extractedMeterRetirado: response.document.extractedMeterRetirado,
                   extractedLacre: response.document.extractedLacre,
                   extractedCoverSeal: response.document.extractedCoverSeal,
+                  extractedCoverSeal2: response.document.extractedCoverSeal2,
                   extractedReading: response.document.extractedReading,
                   extractedScheduledAt: response.document.extractedScheduledAt,
                   blocked: response.document.blocked,
@@ -666,6 +690,7 @@ export function InspectionDocumentAnalysisModal({
           meter: '',
           lacre: '',
           coverSeal: '',
+          coverSeal2: '',
           reading: '',
           scheduledAt: '',
         }
@@ -932,6 +957,7 @@ export function InspectionDocumentAnalysisModal({
               const campoMeter = canEditWpa ? wpaDraft.meter : conference?.campoMeter
               const campoLacre = canEditWpa ? wpaDraft.lacre : conference?.campoLacre
               const campoCoverSeal = canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal
+              const campoCoverSeal2 = canEditWpa ? wpaDraft.coverSeal2 : conference?.campoCoverSeal2
               const campoReading = canEditWpa ? wpaDraft.reading : conference?.campoReading
               const documentoDraft = documentDrafts[document.docType] ?? draftFromDocument(document)
               const documentoMeter = canEditWpa
@@ -941,6 +967,9 @@ export function InspectionDocumentAnalysisModal({
               const documentoCoverSeal = canEditWpa
                 ? documentoDraft.coverSeal
                 : document.extractedCoverSeal
+              const documentoCoverSeal2 = canEditWpa
+                ? documentoDraft.coverSeal2
+                : document.extractedCoverSeal2
               const documentoReading = canEditWpa ? documentoDraft.reading : document.extractedReading
               const documentoScheduledAt = canEditWpa
                 ? documentoDraft.scheduledAt
@@ -968,6 +997,9 @@ export function InspectionDocumentAnalysisModal({
               if (requireToiFields) {
                 completenessFields.push(documentoLacre, documentoCoverSeal)
               }
+              if (documentoCoverSeal2) {
+                completenessFields.push(parseWpaConferenceOption(campoCoverSeal2), documentoCoverSeal2)
+              }
               const analysisComplete = inspectionAnalysisComplete(completenessFields)
               const reasons = buildInspectionAnalysisReasons({
                 hasToi,
@@ -984,6 +1016,8 @@ export function InspectionDocumentAnalysisModal({
                 labLacre: conference?.labLacre,
                 campoCoverSeal,
                 documentoCoverSeal,
+                campoCoverSeal2,
+                documentoCoverSeal2,
                 campoReading,
                 documentoReading,
                 labReading: conference?.labReading,
@@ -1080,6 +1114,20 @@ export function InspectionDocumentAnalysisModal({
                     onCampoChange={(value) => handleWpaChange('coverSeal', value)}
                     onDocumentoChange={(value) =>
                       handleDocumentoChange(document.docType, 'coverSeal', value)
+                    }
+                  />
+                  <ComparisonField
+                    label="Lacre da tampa (2)"
+                    kind="text"
+                    campo={canEditWpa ? wpaDraft.coverSeal2 : conference?.campoCoverSeal2}
+                    documento={documentoCoverSeal2}
+                    agendamentoEmpty="Não aplicável"
+                    laboratorioEmpty="Pendente"
+                    campoEditable={canEditWpa}
+                    documentoEditable={canEditWpa}
+                    onCampoChange={(value) => handleWpaChange('coverSeal2', value)}
+                    onDocumentoChange={(value) =>
+                      handleDocumentoChange(document.docType, 'coverSeal2', value)
                     }
                   />
                   <ComparisonField

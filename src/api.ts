@@ -660,6 +660,7 @@ export type InspectionDocumentConference = {
   campoMeter: string | null
   campoLacre: string | null
   campoCoverSeal: string | null
+  campoCoverSeal2?: string | null
   campoReading: string | null
   campoScheduleDate: string | null
   scheduleMeter: string | null
@@ -708,6 +709,7 @@ export type InspectionDocumentRecord = {
   extractedMeterRetirado?: string | null
   extractedLacre: string | null
   extractedCoverSeal?: string | null
+  extractedCoverSeal2?: string | null
   extractedReading?: string | null
   extractedScheduledAt?: string | null
   registeredMeter?: string | null
@@ -1773,6 +1775,7 @@ export const api = {
       meter: string
       lacre: string
       coverSeal: string
+      coverSeal2?: string
       reading: string
       scheduleLacre: string
     },
@@ -1783,6 +1786,7 @@ export const api = {
         campoMeter: string | null
         campoLacre: string | null
         campoCoverSeal: string | null
+        campoCoverSeal2?: string | null
         campoReading: string | null
         scheduleLacre: string | null
       }
@@ -1797,6 +1801,7 @@ export const api = {
       meter: string
       lacre: string
       coverSeal: string
+      coverSeal2?: string
       reading: string
       scheduledAt: string
     },
@@ -1808,6 +1813,7 @@ export const api = {
         extractedMeterRetirado: string | null
         extractedLacre: string | null
         extractedCoverSeal: string | null
+        extractedCoverSeal2?: string | null
         extractedReading: string | null
         extractedScheduledAt: string | null
         blocked: boolean
