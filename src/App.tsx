@@ -5489,7 +5489,7 @@ function HomePanel({
               <ScheduleDateAdjustmentsPanel
                 scope="mine"
                 title="Apontamentos de desvio"
-                intro="Desvios de preenchimento (instalação, TOI, nota ou CSD corrigidos pelo laboratório) e data/horário de agendamento diferente do documento. Confira o valor informado no cadastro e o valor corrigido."
+                intro="Desvios de preenchimento (instalação, TOI, nota ou CSD corrigidos pelo laboratório), data/horário de agendamento diferente do documento e ausência de registro fotográfico. Confira o valor informado no cadastro e o valor corrigido."
                 includeFillingDeviations
                 forUserId={isAdmin && previewUser ? previewUser.id : undefined}
                 onPendingCountChange={setScheduleDateDeviationCount}
@@ -5592,7 +5592,7 @@ function HomePanel({
               <ScheduleDateAdjustmentsPanel
                 scope="all"
                 title="Alteração de data"
-                intro="Medidores com data/horário de agendamento ajustada ou com instalação, TOI, nota ou CSD corrigidos. Cada ajuste gera apontamento de desvio para os colaboradores 1 e 2 do TOI. Marque Ajustado fisicamente quando a correção da data no documento estiver concluída."
+                intro="Medidores com data/horário de agendamento ajustada, instalação, TOI, nota ou CSD corrigidos, ou ausência de registro fotográfico. Cada ajuste gera apontamento de desvio para os colaboradores 1 e 2 do TOI. Marque Ajustado fisicamente quando a correção da data no documento estiver concluída."
                 allowPhysicalAdjust
                 includeFillingDeviations
                 readOnly={labMedicaoReadOnly}

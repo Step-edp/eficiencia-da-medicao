@@ -21,6 +21,7 @@ const WPA_CONFERENCE_OPTIONS = [
   { id: 'nao_compativel', label: 'Não compatível com documento', matches: false },
   { id: 'nao_aplicavel', label: 'Não aplicável', matches: true },
   { id: 'nao_visivel', label: 'Não visível', matches: true },
+  { id: 'sem_registro_fotografico', label: 'Sem registro fotográfico', matches: true },
 ] as const
 
 type WpaConferenceOptionId = (typeof WPA_CONFERENCE_OPTIONS)[number]['id']
