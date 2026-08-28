@@ -7,6 +7,7 @@ import {
   findNextAvailableSlot,
   formatAvailableSlot,
   isScheduleDayBlocked,
+  scheduleSlotKey,
 } from '../schedule-slots.js'
 import { toDateKey } from '../brazilian-holidays.js'
 import {
@@ -847,7 +848,15 @@ export async function createMeterSchedule(req: Request, res: Response) {
     `SELECT blocked_date::text FROM ensaios_manual_blocks`,
   )
   const manualBlocks = new Set(blocks.rows.map((block) => block.blocked_date.slice(0, 10)))
-  const nextSlot = findNextAvailableSlot(manualBlocks)
+  const occupied = await query<{ scheduled_at: Date }>(
+    `SELECT scheduled_at
+     FROM meter_schedules
+     WHERE delay_dismissed_at IS NULL`,
+  )
+  const occupiedSlots = new Set(
+    occupied.rows.map((row) => scheduleSlotKey(new Date(row.scheduled_at))),
+  )
+  const nextSlot = findNextAvailableSlot(manualBlocks, occupiedSlots)
 
   if (!nextSlot) {
     res.status(409).json({

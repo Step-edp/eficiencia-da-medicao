@@ -32,8 +32,13 @@ export function formatAvailableSlot(date: Date) {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} às ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
+export function scheduleSlotKey(date: Date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 export function findNextAvailableSlot(
   manualBlocks: Set<string>,
+  occupiedSlots: Set<string> = new Set(),
   from: Date = new Date(),
 ): Date | null {
   const daySlots = getDaySlots()
@@ -51,6 +56,7 @@ export function findNextAvailableSlot(
     for (const slotMinutes of daySlots) {
       const slot = new Date(day)
       slot.setHours(Math.floor(slotMinutes / 60), slotMinutes % 60, 0, 0)
+      if (occupiedSlots.has(scheduleSlotKey(slot))) continue
       return slot
     }
   }
