@@ -887,6 +887,7 @@ export type DemmMeterAnalysisRecord = {
   scheduled: boolean
   scheduleId: string | null
   scheduledAtLabel: string | null
+  appStatus?: 'nao_agendado' | 'agendado' | 'recebido' | 'ensaiado' | 'aprovado'
   sourceFiles?: string[]
 }
 

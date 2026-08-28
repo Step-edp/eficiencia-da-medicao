@@ -145,10 +145,14 @@ export async function listDemmDocuments(_req: Request, res: Response) {
       result.rows.flatMap((row) => (row.extracted_meters ?? []).map((item) => item.meter)),
     ),
   ]
-  const [statusByMeter, entradaGivenMeters] = await Promise.all([
+  const [statusByMeter, entradaGivenMeters, analysisByMeter] = await Promise.all([
     buildMeterWeekStatusMap(allMeters),
     loadMetersWithEntradaGiven(allMeters),
+    analyzeDemmMeters(allMeters),
   ])
+  const analysisByNorm = new Map(
+    analysisByMeter.map((item) => [normalizeScheduleMeter(item.meter), item]),
+  )
 
   res.json({
     documents: result.rows.map((row) => {
@@ -163,9 +167,13 @@ export async function listDemmDocuments(_req: Request, res: Response) {
         entradaGivenMeters.has(meter),
       ).length
       const allEntryGiven = meterNumbers.length > 0 && entryGivenCount === meterNumbers.length
+      const scheduledCount = meterNumbers.filter(
+        (meter) => analysisByNorm.get(normalizeScheduleMeter(meter))?.scheduled,
+      ).length
 
       return {
         ...mapped,
+        scheduledCount,
         bulkEntryReady,
         liberadoCount,
         entryGivenCount,

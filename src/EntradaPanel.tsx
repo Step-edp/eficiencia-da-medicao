@@ -193,6 +193,40 @@ function weekMeterInspectionLabel(item: WeekMeterRecord) {
   return inspectionIssueReason(item) ?? 'Sem documento de inspeção'
 }
 
+function demmMeterAppStatusLabel(item: DemmMeterAnalysisRecord) {
+  switch (item.appStatus) {
+    case 'recebido':
+      return 'Recebido'
+    case 'ensaiado':
+      return 'Ensaiado'
+    case 'aprovado':
+      return 'Aprovado'
+    case 'agendado':
+      return 'Agendado'
+    case 'nao_agendado':
+      return 'Não agendado'
+    default:
+      return item.scheduled ? 'Agendado' : 'Não agendado'
+  }
+}
+
+function demmMeterAppStatusClass(item: DemmMeterAnalysisRecord) {
+  switch (item.appStatus) {
+    case 'recebido':
+      return 'is-received'
+    case 'ensaiado':
+      return 'is-ensaiado'
+    case 'aprovado':
+      return 'is-aprovado'
+    case 'agendado':
+      return 'is-scheduled'
+    case 'nao_agendado':
+      return 'is-not-scheduled'
+    default:
+      return item.scheduled ? 'is-scheduled' : 'is-not-scheduled'
+  }
+}
+
 function MeterLink({
   meter,
   onOpen,
@@ -257,9 +291,9 @@ function DemmMetersTable({
               </td>
               <td>
                 <span
-                  className={`demm-status-badge ${item.scheduled ? 'is-scheduled' : 'is-not-scheduled'}`}
+                  className={`demm-status-badge ${demmMeterAppStatusClass(item)}`}
                 >
-                  {item.scheduled ? 'Agendado' : 'Não agendado'}
+                  {demmMeterAppStatusLabel(item)}
                 </span>
               </td>
               <td>{item.scheduledAtLabel ?? '—'}</td>

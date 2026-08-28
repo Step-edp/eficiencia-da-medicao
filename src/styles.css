@@ -2572,6 +2572,21 @@ button {
   color: #ffd7d7;
 }
 
+.demm-status-badge.is-received {
+  background: rgba(120, 176, 255, 0.18);
+  color: #d9e8ff;
+}
+
+.demm-status-badge.is-ensaiado {
+  background: rgba(196, 149, 255, 0.18);
+  color: #ead9ff;
+}
+
+.demm-status-badge.is-aprovado {
+  background: rgba(170, 170, 170, 0.18);
+  color: #ececec;
+}
+
 .week-meters-filters {
   display: flex;
   flex-wrap: wrap;
