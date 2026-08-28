@@ -315,6 +315,9 @@ function ComparisonField({
   onAdjust,
   agendamentoPhoto,
   onPreviewAgendamentoPhoto,
+  agendamentoEditable = false,
+  agendamentoExtraOption = null,
+  onAgendamentoChange,
 }: {
   label: string
   campo?: string | null
@@ -336,6 +339,9 @@ function ComparisonField({
   onAdjust?: () => void
   agendamentoPhoto?: string | null
   onPreviewAgendamentoPhoto?: () => void
+  agendamentoEditable?: boolean
+  agendamentoExtraOption?: string | null
+  onAgendamentoChange?: (value: string) => void
 }) {
   const wpaRequired = campoEmpty !== 'Não aplicável'
   const matches = wpaRequired
@@ -389,7 +395,36 @@ function ComparisonField({
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">Agendamento</span>
             <div className="inspection-document-comparison-value-row">
-              <strong>{displayConferenceValue(agendamento, agendamentoEmpty)}</strong>
+              {agendamentoEditable ? (
+                <select
+                  className="inspection-document-wpa-input inspection-document-wpa-select"
+                  value={
+                    parseWpaConferenceOption(agendamento) ??
+                    (agendamentoExtraOption && agendamento === agendamentoExtraOption
+                      ? agendamentoExtraOption
+                      : '')
+                  }
+                  aria-label={`${label} no agendamento`}
+                  onChange={(event) => onAgendamentoChange?.(event.target.value)}
+                >
+                  <option value="">Selecione</option>
+                  {agendamentoExtraOption &&
+                  !parseWpaConferenceOption(agendamentoExtraOption) ? (
+                    <option value={agendamentoExtraOption}>{agendamentoExtraOption}</option>
+                  ) : null}
+                  {WPA_CONFERENCE_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <strong>
+                  {parseWpaConferenceOption(agendamento)
+                    ? wpaConferenceLabel(agendamento)
+                    : displayConferenceValue(agendamento, agendamentoEmpty)}
+                </strong>
+              )}
               {agendamentoPhoto ? (
                 <button
                   type="button"
@@ -457,6 +492,7 @@ export function InspectionDocumentAnalysisModal({
     lacre: '',
     coverSeal: '',
     reading: '',
+    scheduleLacre: '',
   })
   const [documentDrafts, setDocumentDrafts] = useState<Record<string, DocumentFieldsDraft>>({})
   const wpaSaveTimerRef = useRef<number | null>(null)
@@ -512,6 +548,7 @@ export function InspectionDocumentAnalysisModal({
         lacre: nextConference.campoLacre ?? '',
         coverSeal: nextConference.campoCoverSeal ?? '',
         reading: nextConference.campoReading ?? '',
+        scheduleLacre: nextConference.scheduleLacre ?? '',
       })
       setDocumentDrafts(
         Object.fromEntries(
@@ -531,7 +568,7 @@ export function InspectionDocumentAnalysisModal({
       setHasComunicado(false)
       setRegisteredMeter(meter)
       setConference(null)
-      setWpaDraft({ meter: '', lacre: '', coverSeal: '', reading: '' })
+      setWpaDraft({ meter: '', lacre: '', coverSeal: '', reading: '', scheduleLacre: '' })
       setDocumentDrafts({})
       setPhotos([])
       setEnvelopePhoto(null)
@@ -544,7 +581,13 @@ export function InspectionDocumentAnalysisModal({
   }, [meter, scheduleId])
 
   const persistWpaDraft = useCallback(
-    async (next: { meter: string; lacre: string; coverSeal: string; reading: string }) => {
+    async (next: {
+      meter: string
+      lacre: string
+      coverSeal: string
+      reading: string
+      scheduleLacre: string
+    }) => {
       try {
         await api.updateInspectionWpa(scheduleId, next)
       } catch (error) {
@@ -561,7 +604,7 @@ export function InspectionDocumentAnalysisModal({
   )
 
   const handleWpaChange = useCallback(
-    (field: 'meter' | 'lacre' | 'coverSeal' | 'reading', value: string) => {
+    (field: 'meter' | 'lacre' | 'coverSeal' | 'reading' | 'scheduleLacre', value: string) => {
       setWpaDraft((current) => {
         const next = { ...current, [field]: value }
         if (wpaSaveTimerRef.current != null) {
@@ -902,6 +945,9 @@ export function InspectionDocumentAnalysisModal({
               const documentoScheduledAt = canEditWpa
                 ? documentoDraft.scheduledAt
                 : document.extractedScheduledAt
+              const scheduleLacreValue = canEditWpa
+                ? wpaDraft.scheduleLacre || document.registeredLacre
+                : (conference?.scheduleLacre ?? document.registeredLacre)
               const requireToiFields =
                 hasToi || document.docType === 'toi' || document.docType === 'ambos'
               const completenessFields = [
@@ -910,7 +956,7 @@ export function InspectionDocumentAnalysisModal({
                 conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter,
                 conference?.labMeter,
                 parseWpaConferenceOption(campoLacre),
-                conference?.scheduleLacre ?? document.registeredLacre,
+                scheduleLacreValue,
                 conference?.labLacre,
                 parseWpaConferenceOption(campoCoverSeal),
                 parseWpaConferenceOption(campoReading),
@@ -934,7 +980,7 @@ export function InspectionDocumentAnalysisModal({
                 labMeter: conference?.labMeter,
                 campoLacre,
                 documentoLacre,
-                scheduleLacre: conference?.scheduleLacre ?? document.registeredLacre,
+                scheduleLacre: scheduleLacreValue,
                 labLacre: conference?.labLacre,
                 campoCoverSeal,
                 documentoCoverSeal,
@@ -989,13 +1035,28 @@ export function InspectionDocumentAnalysisModal({
                     label="Lacre do invólucro"
                     campo={canEditWpa ? wpaDraft.lacre : conference?.campoLacre}
                     documento={documentoLacre}
-                    agendamento={conference?.scheduleLacre ?? document.registeredLacre}
+                    agendamento={
+                      canEditWpa
+                        ? wpaDraft.scheduleLacre
+                        : (conference?.scheduleLacre ?? document.registeredLacre)
+                    }
                     laboratorio={conference?.labLacre}
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
+                    agendamentoEditable={canEditWpa}
+                    agendamentoExtraOption={
+                      document.registeredLacre &&
+                      !parseWpaConferenceOption(document.registeredLacre)
+                        ? document.registeredLacre
+                        : conference?.scheduleLacre &&
+                            !parseWpaConferenceOption(conference.scheduleLacre)
+                          ? conference.scheduleLacre
+                          : null
+                    }
                     onCampoChange={(value) => handleWpaChange('lacre', value)}
                     onDocumentoChange={(value) => handleDocumentoChange(document.docType, 'lacre', value)}
+                    onAgendamentoChange={(value) => handleWpaChange('scheduleLacre', value)}
                     agendamentoPhoto={envelopePhoto}
                     onPreviewAgendamentoPhoto={() =>
                       envelopePhoto

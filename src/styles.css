@@ -2347,6 +2347,11 @@ button {
   cursor: pointer;
 }
 
+.inspection-document-comparison-value-row .inspection-document-wpa-select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .inspection-document-match {
   display: inline-flex;
   align-items: center;

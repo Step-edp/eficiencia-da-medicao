@@ -677,6 +677,7 @@ const WPA_FIELD_LABELS = {
   lacre: 'Lacre do invólucro',
   coverSeal: 'Lacre da tampa',
   reading: 'Leitura',
+  scheduleLacre: 'Lacre do invólucro (agendamento)',
 } as const
 
 function pickSavedWpa(saved: string | null | undefined) {
@@ -694,6 +695,7 @@ function wpaMissingPhotoFields(wpa: {
   lacre: string
   coverSeal: string
   reading: string
+  scheduleLacre: string
 }) {
   return (Object.keys(WPA_FIELD_LABELS) as Array<keyof typeof WPA_FIELD_LABELS>)
     .filter((field) => wpa[field] === WPA_MISSING_PHOTO)
@@ -1452,10 +1454,11 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     inspection_wpa_reading: string | null
     inspection_observations: string | null
     envelope_photo: string | null
+    inspection_schedule_lacre: string | null
   }>(
     `SELECT id, meter, envelope_seal, cover_seal, meter_reading, source, scheduled_at,
             envelope_photo, inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
-            inspection_wpa_reading, inspection_observations
+            inspection_wpa_reading, inspection_observations, inspection_schedule_lacre
      FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
@@ -1543,7 +1546,8 @@ export async function listInspectionDocuments(req: Request, res: Response) {
       campoReading: pickSavedWpa(schedule.rows[0].inspection_wpa_reading),
       campoScheduleDate: null,
       scheduleMeter: registeredMeter,
-      scheduleLacre: registeredLacre,
+      scheduleLacre:
+        pickSavedWpa(schedule.rows[0].inspection_schedule_lacre) ?? registeredLacre,
       scheduleCoverSeal: registeredCoverSeal,
       scheduleReading: registeredReading,
       scheduleScheduleDate: scheduleDateLabel,
@@ -2143,15 +2147,17 @@ export async function updateInspectionWpa(req: Request, res: Response) {
   const lacre = readWpaText(req.body?.lacre)
   const coverSeal = readWpaText(req.body?.coverSeal)
   const reading = readWpaText(req.body?.reading)
+  const scheduleLacre = readWpaText(req.body?.scheduleLacre)
 
   await query(
     `UPDATE meter_schedules
      SET inspection_wpa_meter = $2,
          inspection_wpa_lacre = $3,
          inspection_wpa_cover_seal = $4,
-         inspection_wpa_reading = $5
+         inspection_wpa_reading = $5,
+         inspection_schedule_lacre = $6
      WHERE id = $1`,
-    [meterScheduleId, meter, lacre, coverSeal, reading],
+    [meterScheduleId, meter, lacre, coverSeal, reading, scheduleLacre],
   )
 
   await syncWpaMissingPhotoDeviation({
@@ -2162,7 +2168,7 @@ export async function updateInspectionWpa(req: Request, res: Response) {
     collaborator2Name: existing.rows[0].toi_collaborator2_name ?? '',
     collaborator2Registration: existing.rows[0].toi_collaborator2_registration ?? '',
     createdByUserId: req.user?.id ?? null,
-    fields: wpaMissingPhotoFields({ meter, lacre, coverSeal, reading }),
+    fields: wpaMissingPhotoFields({ meter, lacre, coverSeal, reading, scheduleLacre }),
   })
 
   await writeAuditLog(req, {
@@ -2170,7 +2176,7 @@ export async function updateInspectionWpa(req: Request, res: Response) {
     entityType: 'meter_schedule',
     entityId: meterScheduleId,
     summary: `WPA informado na análise do agendamento ${meterScheduleId}`,
-    metadata: { meter, lacre, coverSeal, reading },
+    metadata: { meter, lacre, coverSeal, reading, scheduleLacre },
   })
 
   res.json({
@@ -2180,6 +2186,7 @@ export async function updateInspectionWpa(req: Request, res: Response) {
       campoLacre: lacre || null,
       campoCoverSeal: coverSeal || null,
       campoReading: reading || null,
+      scheduleLacre: scheduleLacre || null,
     },
   })
 }

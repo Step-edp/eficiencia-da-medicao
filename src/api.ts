@@ -1769,7 +1769,13 @@ export const api = {
     ),
   updateInspectionWpa: (
     meterScheduleId: string,
-    payload: { meter: string; lacre: string; coverSeal: string; reading: string },
+    payload: {
+      meter: string
+      lacre: string
+      coverSeal: string
+      reading: string
+      scheduleLacre: string
+    },
   ) =>
     request<{
       ok: true
@@ -1778,6 +1784,7 @@ export const api = {
         campoLacre: string | null
         campoCoverSeal: string | null
         campoReading: string | null
+        scheduleLacre: string | null
       }
     }>(`/api/meter-schedules/${meterScheduleId}/inspection-wpa`, {
       method: 'PATCH',
