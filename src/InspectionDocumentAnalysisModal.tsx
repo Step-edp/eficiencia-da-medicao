@@ -160,6 +160,18 @@ function missingFieldReason(
   return hasConferenceValue(value) ? null : message
 }
 
+function shouldSuppressMeterBlockReason(
+  blockReason: string | null | undefined,
+  documentoMeter: string | null | undefined,
+  scheduleMeter: string | null | undefined,
+) {
+  if (!blockReason?.trim()) return false
+  if (!/diverge do medidor agendado/i.test(blockReason)) return false
+  const documentMeter = normalizeConferenceDigits(documentoMeter)
+  const scheduledMeter = normalizeConferenceDigits(scheduleMeter)
+  return Boolean(documentMeter && scheduledMeter && documentMeter === scheduledMeter)
+}
+
 function buildInspectionAnalysisReasons({
   hasToi,
   hasComunicado,
@@ -168,18 +180,15 @@ function buildInspectionAnalysisReasons({
   campoMeter,
   documentoMeter,
   scheduleMeter,
-  labMeter,
   campoLacre,
   documentoLacre,
   scheduleLacre,
-  labLacre,
   campoCoverSeal,
   documentoCoverSeal,
   campoCoverSeal2,
   documentoCoverSeal2,
   campoReading,
   documentoReading,
-  labReading,
   documentoScheduledAt,
   scheduleScheduleDate,
 }: {
@@ -190,18 +199,15 @@ function buildInspectionAnalysisReasons({
   campoMeter: string | null | undefined
   documentoMeter: string | null | undefined
   scheduleMeter: string | null | undefined
-  labMeter: string | null | undefined
   campoLacre: string | null | undefined
   documentoLacre: string | null | undefined
   scheduleLacre: string | null | undefined
-  labLacre: string | null | undefined
   campoCoverSeal: string | null | undefined
   documentoCoverSeal: string | null | undefined
   campoCoverSeal2: string | null | undefined
   documentoCoverSeal2: string | null | undefined
   campoReading: string | null | undefined
   documentoReading: string | null | undefined
-  labReading: string | null | undefined
   documentoScheduledAt: string | null | undefined
   scheduleScheduleDate: string | null | undefined
 }): string[] {
@@ -213,11 +219,6 @@ function buildInspectionAnalysisReasons({
     missingWpa.push('lacre da tampa (2)')
   }
   if (!parseWpaConferenceOption(campoReading)) missingWpa.push('leitura')
-
-  const missingLab: string[] = []
-  if (!hasConferenceValue(labMeter)) missingLab.push('medidor')
-  if (!hasConferenceValue(labLacre)) missingLab.push('lacre do invólucro')
-  if (!hasConferenceValue(labReading)) missingLab.push('leitura')
 
   return uniqueInspectionReasons([
     ...missingInspectionDocumentReasons(hasToi, hasComunicado),
@@ -245,11 +246,6 @@ function buildInspectionAnalysisReasons({
       ? wpaIncompatibleReason(campoCoverSeal2, 'lacre da tampa (2)')
       : null,
     wpaIncompatibleReason(campoReading, 'leitura'),
-    missingLab.length === 3
-      ? 'Medidor ainda não deu entrada no laboratório.'
-      : missingLab.length
-        ? `Laboratório incompleto: falta ${missingLab.join(', ')}.`
-        : null,
   ])
 }
 
@@ -679,6 +675,7 @@ export function InspectionDocumentAnalysisModal({
         if (response.conference.scheduleMeterOriginal?.trim()) {
           setOriginalScheduleMeter(response.conference.scheduleMeterOriginal.trim())
         }
+        await loadDocuments()
       } catch (error) {
         setFeedback({
           type: 'error',
@@ -689,7 +686,7 @@ export function InspectionDocumentAnalysisModal({
         })
       }
     },
-    [scheduleId],
+    [loadDocuments, scheduleId],
   )
 
   const handleWpaChange = useCallback(
@@ -1043,20 +1040,27 @@ export function InspectionDocumentAnalysisModal({
               const scheduleLacreValue = canEditWpa
                 ? wpaDraft.scheduleLacre || document.registeredLacre
                 : (conference?.scheduleLacre ?? document.registeredLacre)
+              const scheduleMeterValue = canEditWpa
+                ? wpaDraft.scheduleMeter
+                : (conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter)
               const requireToiFields =
                 hasToi || document.docType === 'toi' || document.docType === 'ambos'
+              const effectiveBlockReason = shouldSuppressMeterBlockReason(
+                document.blockReason,
+                documentoMeter,
+                scheduleMeterValue,
+              )
+                ? null
+                : document.blockReason
               const completenessFields = [
                 parseWpaConferenceOption(campoMeter),
                 documentoMeter,
-                conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter,
-                conference?.labMeter,
+                scheduleMeterValue,
                 parseWpaConferenceOption(campoLacre),
                 scheduleLacreValue,
-                conference?.labLacre,
                 parseWpaConferenceOption(campoCoverSeal),
                 parseWpaConferenceOption(campoReading),
                 documentoReading,
-                conference?.labReading,
                 documentoScheduledAt,
                 conference?.scheduleScheduleDate,
               ]
@@ -1070,36 +1074,31 @@ export function InspectionDocumentAnalysisModal({
               const reasons = buildInspectionAnalysisReasons({
                 hasToi,
                 hasComunicado,
-                blockReason: document.blockReason,
+                blockReason: effectiveBlockReason,
                 requireToiFields,
                 campoMeter,
                 documentoMeter,
-                scheduleMeter: conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter,
-                labMeter: conference?.labMeter,
+                scheduleMeter: scheduleMeterValue,
                 campoLacre,
                 documentoLacre,
                 scheduleLacre: scheduleLacreValue,
-                labLacre: conference?.labLacre,
                 campoCoverSeal,
                 documentoCoverSeal,
                 campoCoverSeal2,
                 documentoCoverSeal2,
                 campoReading,
                 documentoReading,
-                labReading: conference?.labReading,
                 documentoScheduledAt,
                 scheduleScheduleDate: conference?.scheduleScheduleDate,
               })
               const displayReason = joinInspectionReasons(reasons)
-              const status = document.blocked
+              const effectivelyBlocked = document.blocked && Boolean(effectiveBlockReason)
+              const status = effectivelyBlocked
                 ? 'blocked'
                 : reasons.length || !analysisComplete
                   ? 'pending'
                   : 'ok'
 
-              const scheduleMeterValue = canEditWpa
-                ? wpaDraft.scheduleMeter
-                : (conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter)
               const scheduleMeterOriginalValue =
                 conference?.scheduleMeterOriginal?.trim() || originalScheduleMeter
               const scheduleMeterAdjustedValue =

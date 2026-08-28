@@ -617,7 +617,7 @@ function evaluateComunicadoDocument(
       reason: 'Número do medidor retirado não informado no comunicado.',
     }
   }
-  if (normalizeMeter(meterRetirado) !== normalizeMeter(expectedMeter)) {
+  if (!meterDocumentMatchesSchedule(meterRetirado, null, expectedMeter)) {
     return {
       blocked: true,
       reason: `Medidor retirado no documento (${meterRetirado}) diverge do medidor agendado (${expectedMeter}).`,
@@ -626,11 +626,25 @@ function evaluateComunicadoDocument(
   return { blocked: false, reason: null }
 }
 
+function meterDocumentMatchesSchedule(
+  extractedMeter: string | null,
+  extractedMeterRetirado: string | null,
+  expectedMeter: string,
+) {
+  const expected = normalizeMeter(expectedMeter)
+  if (!expected) return false
+  return [extractedMeter, extractedMeterRetirado]
+    .map((value) => normalizeMeter(value))
+    .filter(Boolean)
+    .some((value) => value === expected)
+}
+
 function evaluateInspectionDocument(
   lacre: string | null,
   meterEncontrado: string | null,
   expectedMeter: string,
   expectedLacre: string | null = null,
+  meterRetirado: string | null = null,
 ): InspectionEvaluation {
   if (!lacre) {
     return { blocked: true, reason: 'Lacre do invólucro não informado no documento.' }
@@ -641,16 +655,17 @@ function evaluateInspectionDocument(
   if (isSequentialDigits(lacre)) {
     return { blocked: true, reason: `Lacre com numeração sequencial (${lacre}).` }
   }
-  if (!meterEncontrado) {
+  if (!meterEncontrado && !meterRetirado?.trim()) {
     return {
       blocked: true,
       reason: 'Número do medidor encontrado não informado no documento.',
     }
   }
-  if (normalizeMeter(meterEncontrado) !== normalizeMeter(expectedMeter)) {
+  if (!meterDocumentMatchesSchedule(meterEncontrado, meterRetirado, expectedMeter)) {
+    const documentMeter = meterRetirado?.trim() || meterEncontrado || '—'
     return {
       blocked: true,
-      reason: `Medidor encontrado no documento (${meterEncontrado}) diverge do medidor agendado (${expectedMeter}).`,
+      reason: `Medidor encontrado no documento (${documentMeter}) diverge do medidor agendado (${expectedMeter}).`,
     }
   }
   const registeredLacre = normalizeSeal(expectedLacre)
@@ -908,6 +923,53 @@ async function loadScheduleMeterConferenceFields(
     scheduleMeter: savedScheduleMeter ?? currentMeter,
     scheduleMeterOriginal,
     scheduleMeterAdjusted,
+  }
+}
+
+async function refreshInspectionDocumentBlocksForSchedule(
+  meterScheduleId: string,
+  expectedMeter: string,
+  expectedLacre: string | null,
+) {
+  const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
+  const documentScheduleIds = scheduleIds.length ? scheduleIds : [meterScheduleId]
+  const docs = await query<{
+    id: string
+    doc_type: InspectionDocumentType
+    extracted_lacre: string | null
+    extracted_meter: string | null
+    extracted_meter_retirado: string | null
+    blocked: boolean
+    block_reason: string | null
+  }>(
+    `SELECT id, doc_type, extracted_lacre, extracted_meter, extracted_meter_retirado, blocked, block_reason
+     FROM meter_inspection_documents
+     WHERE meter_schedule_id = ANY($1::text[])`,
+    [documentScheduleIds],
+  )
+
+  for (const row of docs.rows) {
+    const evaluation =
+      row.doc_type === 'comunicado'
+        ? evaluateComunicadoDocument(row.extracted_meter_retirado, expectedMeter)
+        : row.doc_type === 'toi' || row.doc_type === 'ambos'
+          ? evaluateInspectionDocument(
+              row.extracted_lacre,
+              row.extracted_meter,
+              expectedMeter,
+              expectedLacre,
+              row.extracted_meter_retirado,
+            )
+          : { blocked: row.blocked, reason: row.block_reason }
+
+    if (evaluation.blocked === row.blocked && evaluation.reason === row.block_reason) continue
+
+    await query(
+      `UPDATE meter_inspection_documents
+       SET blocked = $2, block_reason = $3
+       WHERE id = $1`,
+      [row.id, evaluation.blocked, evaluation.reason],
+    )
   }
 }
 
@@ -1309,6 +1371,7 @@ function mapInspectionDocumentRow(
           row.extracted_meter,
           registeredMeter,
           registeredLacre,
+          row.extracted_meter_retirado,
         )
       : row.doc_type === 'comunicado' && registeredMeter
         ? evaluateComunicadoDocument(row.extracted_meter_retirado, registeredMeter)
@@ -1729,6 +1792,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     registeredMeter,
     schedule.rows[0].inspection_schedule_meter,
   )
+  const effectiveScheduleMeter = scheduleMeterFields.scheduleMeter || registeredMeter
 
   res.json({
     meter: registeredMeter,
@@ -1764,7 +1828,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
       mapInspectionDocumentRow(
         row,
         row.created_by_registration,
-        registeredMeter,
+        effectiveScheduleMeter,
         registeredLacre,
         registeredCoverSeal,
         registeredReading,
@@ -2426,6 +2490,21 @@ export async function updateInspectionWpa(req: Request, res: Response) {
     createdByUserId: req.user?.id ?? null,
   })
 
+  const scheduleLacreForEvaluation =
+    scheduleLacre ||
+    (
+      await query<{ envelope_seal: string }>(
+        `SELECT envelope_seal FROM meter_schedules WHERE id = $1`,
+        [meterScheduleId],
+      )
+    ).rows[0]?.envelope_seal?.trim() ||
+    null
+  await refreshInspectionDocumentBlocksForSchedule(
+    meterScheduleId,
+    nextScheduleMeter,
+    scheduleLacreForEvaluation,
+  )
+
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'meter_schedule',
@@ -2509,6 +2588,7 @@ export async function updateInspectionExtracted(req: Request, res: Response) {
           meter,
           currentSchedule.meter,
           currentSchedule.envelope_seal || null,
+          meter,
         )
 
   const updated = await query<{
