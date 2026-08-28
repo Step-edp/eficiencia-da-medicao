@@ -1119,14 +1119,39 @@ async function repairEncontradoReading(
     try {
       const parsed = parseInspectionText(await extractInspectionPdfText(file.rows[0].file_data))
       const nextReading = parsed.reading?.trim() ? parsed.reading : null
-      if (normalizeReading(nextReading) === normalizeReading(row.extracted_reading)) continue
-      if (!nextReading && !parsed.meterEncontrado && !parsed.meterRetirado) continue
+      const nextCoverSeal = parsed.coverSeal?.trim() ? parsed.coverSeal : null
+      const readingChanged =
+        normalizeReading(nextReading) !== normalizeReading(row.extracted_reading)
+      const coverChanged =
+        normalizeSeal(nextCoverSeal) !== normalizeSeal(row.extracted_cover_seal)
+      if (!readingChanged && !coverChanged) continue
+      if (
+        !nextReading &&
+        !nextCoverSeal &&
+        !parsed.meterEncontrado &&
+        !parsed.meterRetirado
+      ) {
+        continue
+      }
+
+      const assignments: string[] = []
+      const values: Array<string | null> = []
+      if (readingChanged && (nextReading || parsed.meterEncontrado || parsed.meterRetirado)) {
+        assignments.push(`extracted_reading = $${assignments.length + 1}`)
+        values.push(nextReading)
+        row.extracted_reading = nextReading
+      }
+      if (coverChanged && (nextCoverSeal || parsed.meterEncontrado)) {
+        assignments.push(`extracted_cover_seal = $${assignments.length + 1}`)
+        values.push(nextCoverSeal)
+        row.extracted_cover_seal = nextCoverSeal
+      }
+      if (!assignments.length) continue
 
       await query(
-        `UPDATE meter_inspection_documents SET extracted_reading = $1 WHERE id = $2`,
-        [nextReading, row.id],
+        `UPDATE meter_inspection_documents SET ${assignments.join(', ')} WHERE id = $${assignments.length + 1}`,
+        [...values, row.id],
       )
-      row.extracted_reading = nextReading
     } catch (error) {
       console.error('Falha ao corrigir leitura do medidor encontrado:', error)
     }

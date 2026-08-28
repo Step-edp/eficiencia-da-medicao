@@ -434,9 +434,17 @@ function extractSelagemSection(text: string): string | null {
   return text.slice(from, to)
 }
 
+const COVER_SEAL_STATUS_PATTERN =
+  /em ordem|violado|sem lacre|n[aã]o aplic[aá]vel/i
+const COVER_SEAL_STOP_PATTERN =
+  /tampa\s+d[oa]\s+|bloco\s+de\s+|chave\s+de\s+calibra|lacres\s+instal|7\s*\.|observa[cç]/i
+const ENCONTRADO_COVER_SEAL_TAG =
+  /tampa\s+do\s+medidor\s+encontrado\s*:\s*(.{1,80}?)(?=\s+(?:tampa\s+do\s+medidor|leitura)|$)/i
+
 function normalizeCoverSealValue(value: string | null | undefined): string | null {
   const trimmed = value
     ?.replace(/\s+/g, ' ')
+    .replace(/^[:\-–—\s]+/, '')
     .replace(/[|:;]+$/g, '')
     .trim()
   if (!trimmed) return null
@@ -444,35 +452,145 @@ function normalizeCoverSealValue(value: string | null | undefined): string | nul
   return trimmed.slice(0, 120)
 }
 
-function extractDescriptiveCoverSeal(text: string): string | null {
-  const pattern =
-    /\btampa\s+do\s+medidor\s*[:\-–]?\s*(.+?)(?=\s*(?:tampa\s+d[oa]\s+|7\s*\.|observa[cç]|n[uú]mero\s+do|$))/gi
-  let last: string | null = null
-  for (const match of text.matchAll(pattern)) {
-    const value = normalizeCoverSealValue(match[1])
-    if (value) last = value
-  }
-  if (last) return last
+function isCoverSealNoise(value: string): boolean {
+  const compact = value.replace(/\s+/g, ' ').trim()
+  if (!compact || /^[-–—]+$/.test(compact)) return true
+  if (/chave\s+de\s+calibra/i.test(compact)) return true
+  if (/caixa\s+de\s+passagem/i.test(compact)) return true
+  if (/bloco\s+de\s+terminais/i.test(compact)) return true
+  if (/tampa\s+d[ao]/i.test(compact)) return true
+  if (/^(tampa|lacre|observa)/i.test(compact)) return true
+  return false
+}
 
-  const fallback = text.match(/\btampa\s+do\s+medidor\s*[:\-–]?\s*(\S.{0,100}?)(?:\s{2,}|\n|$)/i)
-  return normalizeCoverSealValue(fallback?.[1] ?? null)
+function isPlausibleCoverSeal(value: string): boolean {
+  if (isCoverSealNoise(value)) return false
+  if (COVER_SEAL_STATUS_PATTERN.test(value)) return true
+  if (/fabricante/i.test(value)) return true
+  if (/[A-Za-z]{2,}\d{4,}/.test(value)) return true
+  const digits = value.replace(/\D/g, '')
+  return digits.length >= 4 && digits.length <= 12
+}
+
+function sliceEncontradosSelagem(text: string): string | null {
+  const start = text.search(/6\s*\.?\s*selagem|lacres\s+encontrados/i)
+  if (start < 0) return null
+  const rest = text.slice(start)
+  const end = rest.search(/lacres\s+instalados|7\s*\.|observa[cç]/i)
+  return end >= 0 ? rest.slice(0, end) : rest.slice(0, 1500)
+}
+
+function coverSealFromChunk(chunk: string): string | null {
+  const stopped = chunk.split(COVER_SEAL_STOP_PATTERN)[0] ?? chunk
+  const value = normalizeCoverSealValue(stopped)
+  if (value && isPlausibleCoverSeal(value)) return value
+
+  const statusMatch = chunk.match(
+    /([A-Za-z0-9][A-Za-z0-9._/-]{0,40}\s*[-–—]\s*(?:em ordem|violado|sem lacre|n[aã]o aplic[aá]vel))/i,
+  )
+  if (statusMatch?.[1] && isPlausibleCoverSeal(statusMatch[1])) {
+    return normalizeCoverSealValue(statusMatch[1])
+  }
+  return null
+}
+
+function extractDescriptiveCoverSeal(text: string): string | null {
+  const tagged = text.match(ENCONTRADO_COVER_SEAL_TAG)?.[1]
+  const taggedValue = tagged ? normalizeCoverSealValue(tagged) : null
+  if (taggedValue && isPlausibleCoverSeal(taggedValue)) return taggedValue
+
+  const section = sliceEncontradosSelagem(text) ?? text
+  const parts = section.split(/\btampa\s+do\s+medidor\b/i)
+  if (parts.length > 1) {
+    return coverSealFromChunk(parts[1])
+  }
+
+  const fallback = text.match(/\btampa\s+do\s+medidor\s*[:\-–]?\s*(\S.{0,80}?)(?:\s{2,}|\n|$)/i)
+  const fallbackValue = normalizeCoverSealValue(fallback?.[1] ?? null)
+  return fallbackValue && isPlausibleCoverSeal(fallbackValue) ? fallbackValue : null
 }
 
 function extractNumericCoverSeal(text: string): string | null {
-  const section = extractSelagemSection(text) ?? text
-  const meterCover = section.match(
-    /tampa\s+do\s+medidor[\s\S]{0,120}?(\d{4,12})/i,
-  )?.[1]
-  if (meterCover) return meterCover
-
-  const labeled = section.match(
-    /lacre(?:\(s\))?\s*(?:da\s+)?tampa\s+do\s+medidor[\s\S]{0,100}?(\d{4,12})/i,
-  )?.[1]
-  return labeled ?? null
+  const section = sliceEncontradosSelagem(text) ?? extractSelagemSection(text) ?? text
+  const afterMeterCover = section.split(/\btampa\s+do\s+medidor\b/i)[1]
+  if (afterMeterCover) {
+    const window = afterMeterCover.split(COVER_SEAL_STOP_PATTERN)[0]?.slice(0, 80) ?? ''
+    const digits = window.match(/\b(?:lac)?\d{4,12}\b/i)?.[0]
+    if (digits) return digits
+  }
+  return (
+    text.match(
+      /lacre(?:\(s\))?\s*(?:da\s+)?tampa(?:\s+do\s+medidor)?[\s\S]{0,40}?(\d{4,12})/i,
+    )?.[1] ?? null
+  )
 }
 
 function extractCoverSeal(text: string): string | null {
   return extractDescriptiveCoverSeal(text) ?? extractNumericCoverSeal(text)
+}
+
+function textUnderCoverSealLabel(
+  items: PositionedText[],
+  label: PositionedText,
+  floorY: number,
+): string | null {
+  const cellWidth = Math.max(70, label.width * 1.8)
+  const inCell = items
+    .filter((item) => {
+      if (
+        item.str === label.str &&
+        Math.abs(item.x - label.x) < 2 &&
+        Math.abs(item.y - label.y) < 2
+      ) {
+        return false
+      }
+      const sameColumn =
+        item.x + item.width > label.x - 12 && item.x < label.x + cellWidth
+      const below =
+        item.y < label.y - Math.max(1, label.height * 0.15) && item.y > floorY
+      return sameColumn && below
+    })
+    .sort((left, right) => right.y - left.y || left.x - right.x)
+
+  const joined = inCell
+    .map((item) => item.str)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const value = normalizeCoverSealValue(joined)
+  return value && isPlausibleCoverSeal(value) ? value : null
+}
+
+function coverSealsFromPositionedItems(items: PositionedText[]): string[] {
+  const labels = items.filter(
+    (item) =>
+      /tampa\s+do\s+medidor/i.test(item.str) &&
+      !/caixa/i.test(item.str) &&
+      !/\d{4,}/.test(item.str),
+  )
+  if (!labels.length) return []
+
+  const encontrados = topmostLabel(items, /lacres\s+encontrados/i)
+  const instalados = topmostLabel(items, /lacres\s+instalados/i)
+  const scoped = encontrados
+    ? labels.filter((item) => {
+        const belowHeader = item.y <= encontrados.y + Math.max(8, encontrados.height)
+        const aboveInstalados =
+          !instalados || item.y > instalados.y + instalados.height * 0.2
+        return belowHeader && aboveInstalados
+      })
+    : labels
+  const pool = scoped.length ? scoped : labels
+  const top = [...pool].sort((left, right) => right.y - left.y || left.x - right.x)[0]
+  const nextBelow = labels.find(
+    (item) => item.y < top.y - 8 && Math.abs(item.x - top.x) < 48,
+  )
+  const value = textUnderCoverSealLabel(
+    items,
+    top,
+    floorYForReadingLabel(top, nextBelow ?? instalados),
+  )
+  return value ? [value] : []
 }
 
 const ENCONTRADO_READING_TAG = /leitura\s+encontrado\s*:\s*(\d{3,8})/gi
@@ -737,7 +855,10 @@ async function extractPdfFormFieldText(pdf: {
     }
     const compactFieldName = trimmedName.replace(/[\s_-]/g, '')
     if (/tampa.*medidor/i.test(compactFieldName) && !/caixa/i.test(compactFieldName)) {
-      lines.push(`Tampa do Medidor: ${trimmedValue}`)
+      const normalized = normalizeCoverSealValue(trimmedValue)
+      if (normalized && isPlausibleCoverSeal(normalized)) {
+        lines.push(`Tampa do Medidor: ${normalized}`)
+      }
     }
   }
 
@@ -790,9 +911,14 @@ async function extractInspectionPdfTextLayer(buffer: Buffer): Promise<{ body: st
       })
       .join(' ')
     parts.push(pageText)
-    for (const reading of readingsFromPositionedItems(positionedItemsFromContent(content))) {
+    const positioned = positionedItemsFromContent(content)
+    for (const reading of readingsFromPositionedItems(positioned)) {
       spatialReadings.push(`Leitura encontrado: ${reading}`)
       spatialReadings.push(`Leitura: ${reading}`)
+    }
+    for (const coverSeal of coverSealsFromPositionedItems(positioned)) {
+      spatialReadings.push(`Tampa do Medidor encontrado: ${coverSeal}`)
+      spatialReadings.push(`Tampa do Medidor: ${coverSeal}`)
     }
   }
 
