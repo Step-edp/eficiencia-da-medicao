@@ -1925,6 +1925,16 @@ export const api = {
     request<{ ok: true; id: string; fileName: string }>(`/api/demm-documents/${id}`, {
       method: 'DELETE',
     }),
+  receiveDemmDocumentBulk: (id: string) =>
+    request<{
+      ok: true
+      documentId: string
+      receivedCount: number
+      received: string[]
+      receivedAt: string
+    }>(`/api/demm-documents/${id}/receive-bulk`, {
+      method: 'POST',
+    }),
   getDemmDocumentFileUrl: (id: string) => `/api/demm-documents/${id}/file`,
   listSupportTickets: (params?: { mine?: boolean }) => {
     const search = new URLSearchParams()

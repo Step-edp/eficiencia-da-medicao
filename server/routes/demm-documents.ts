@@ -944,13 +944,11 @@ async function resolveWeekMeterSchedule(
   return schedule
 }
 
-async function validateWeekMeterReadyToReceive(
+async function weekMeterReceiveValidationError(
   schedule: WeekMeterScheduleRow,
-  res: Response,
-): Promise<boolean> {
+): Promise<string | null> {
   if (schedule.trail_step.trim() !== ENTRADA_TRAIL_STEP) {
-    res.status(409).json({ error: 'Este medidor já teve entrada registrada.' })
-    return false
+    return 'Este medidor já teve entrada registrada.'
   }
 
   const registry = await query<{ status: string }>(
@@ -958,8 +956,7 @@ async function validateWeekMeterReadyToReceive(
     [schedule.meter],
   )
   if (registry.rows[0] && hasMeterEntradaGiven(registry.rows[0].status)) {
-    res.status(409).json({ error: 'Este medidor já teve entrada registrada.' })
-    return false
+    return 'Este medidor já teve entrada registrada.'
   }
 
   const summaries = await loadInspectionSummariesByNorm([normalizeScheduleMeter(schedule.meter)])
@@ -969,21 +966,27 @@ async function validateWeekMeterReadyToReceive(
   const status = computeWeekMeterStatus(true, inspection)
 
   if (status === 'nao_agendado') {
-    res.status(409).json({ error: 'Medidor não está agendado.' })
-    return false
+    return 'Medidor não está agendado.'
   }
   if (status === 'sem_documento_inspecao') {
-    res.status(409).json({
-      error: 'Anexe TOI e CSM antes de receber o medidor.',
-    })
-    return false
+    return 'Anexe TOI e CSM antes de receber o medidor.'
   }
   if (status === 'bloqueado') {
-    res.status(409).json({
-      error: inspection?.block_reasons
-        ? `Medidor bloqueado: ${inspection.block_reasons}`
-        : 'Medidor bloqueado pelos documentos de inspeção.',
-    })
+    return inspection?.block_reasons
+      ? `Medidor bloqueado: ${inspection.block_reasons}`
+      : 'Medidor bloqueado pelos documentos de inspeção.'
+  }
+
+  return null
+}
+
+async function validateWeekMeterReadyToReceive(
+  schedule: WeekMeterScheduleRow,
+  res: Response,
+): Promise<boolean> {
+  const error = await weekMeterReceiveValidationError(schedule)
+  if (error) {
+    res.status(409).json({ error })
     return false
   }
 
@@ -1110,6 +1113,97 @@ export async function receiveWeekMeterPassive(req: Request, res: Response) {
     scheduleId: schedule.id,
     receivedAt: receivedAt.toISOString(),
     passive: true,
+  })
+}
+
+export async function receiveDemmDocumentBulk(req: Request, res: Response) {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+
+  if (!id) {
+    res.status(400).json({ error: 'DEMM inválida.' })
+    return
+  }
+
+  const document = await query<{
+    id: string
+    document_number: string | null
+    file_name: string
+    extracted_meters: Array<{ meter: string }> | null
+  }>(
+    `SELECT id, document_number, file_name, extracted_meters
+     FROM demm_documents
+     WHERE id = $1`,
+    [id],
+  )
+
+  if (!document.rows[0]) {
+    res.status(404).json({ error: 'DEMM não encontrada.' })
+    return
+  }
+
+  const meterNumbers = (document.rows[0].extracted_meters ?? [])
+    .map((item) => item.meter.trim())
+    .filter(Boolean)
+
+  if (!meterNumbers.length) {
+    res.status(400).json({ error: 'Esta DEMM não possui medidores para receber.' })
+    return
+  }
+
+  const statusByMeter = await buildMeterWeekStatusMap(meterNumbers)
+  const notReady = meterNumbers.filter((meter) => statusByMeter.get(meter) !== 'liberado')
+  if (notReady.length) {
+    res.status(409).json({
+      error:
+        'Nem todos os medidores desta DEMM estão liberados para entrada. Verifique TOI, CSM e análise.',
+      meters: notReady,
+    })
+    return
+  }
+
+  const schedules: Array<{ meter: string; schedule: WeekMeterScheduleRow }> = []
+  for (const meter of meterNumbers) {
+    const schedule = await resolveWeekMeterSchedule(meter, '')
+    if (!schedule) {
+      res.status(409).json({ error: `Agendamento do medidor ${meter} não encontrado.` })
+      return
+    }
+
+    const validationError = await weekMeterReceiveValidationError(schedule)
+    if (validationError) {
+      res.status(409).json({ error: `Medidor ${meter}: ${validationError}` })
+      return
+    }
+
+    schedules.push({ meter, schedule })
+  }
+
+  const receivedAt = new Date()
+  const received: string[] = []
+  for (const { meter, schedule } of schedules) {
+    await applyWeekMeterReceive(schedule, receivedAt, req, ' (entrada em massa DEMM)')
+    received.push(meter)
+  }
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'demm_document',
+    entityId: id,
+    summary: `Entrada em massa registrada para DEMM ${document.rows[0].document_number ?? document.rows[0].file_name}`,
+    newData: {
+      documentId: id,
+      receivedCount: received.length,
+      received,
+      receivedAt: receivedAt.toISOString(),
+    },
+  })
+
+  res.json({
+    ok: true,
+    documentId: id,
+    receivedCount: received.length,
+    received,
+    receivedAt: receivedAt.toISOString(),
   })
 }
 

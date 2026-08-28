@@ -2663,6 +2663,17 @@ button {
   font-size: 0.82rem;
 }
 
+.entrada-demm-bulk-button {
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.entrada-demm-bulk-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .entrada-demm-delete-button {
   display: inline-flex;
   align-items: center;

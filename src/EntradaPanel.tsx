@@ -848,6 +848,7 @@ export function EntradaPanel({
   const [demmModalFeedback, setDemmModalFeedback] = useState<DemmModalFeedback | null>(null)
   const [submittingDemm, setSubmittingDemm] = useState(false)
   const [deletingDemmId, setDeletingDemmId] = useState<string | null>(null)
+  const [bulkReceivingDemmId, setBulkReceivingDemmId] = useState<string | null>(null)
   const [analysisModal, setAnalysisModal] = useState<{
     title: string
     fileName?: string
@@ -1577,6 +1578,37 @@ export function EntradaPanel({
     }
   }
 
+  const handleBulkReceiveDemm = async (document: DemmDocumentRecord) => {
+    const label = document.documentNumber ?? document.fileName
+    const confirmed = window.confirm(
+      `Dar entrada em massa para todos os ${document.meterCount} medidor(es) da DEMM ${label}? Eles ficarão disponíveis para ensaio.`,
+    )
+    if (!confirmed) return
+
+    setBulkReceivingDemmId(document.id)
+    setFeedback(null)
+
+    try {
+      const response = await api.receiveDemmDocumentBulk(document.id)
+      setFeedback({
+        type: 'success',
+        message: `Entrada em massa registrada: ${response.receivedCount} medidor(es) disponíveis para ensaio.`,
+      })
+      refreshTrailCounts()
+      void loadData()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível registrar a entrada em massa.',
+      })
+    } finally {
+      setBulkReceivingDemmId(null)
+    }
+  }
+
   const pendingDemmDocuments = demmDocuments.filter((document) => !document.allEntryGiven)
   const receivedDemmDocuments = demmDocuments.filter((document) => document.allEntryGiven)
 
@@ -1588,6 +1620,7 @@ export function EntradaPanel({
       countHeader: string
       countSummary: string
       countValue: (document: DemmDocumentRecord) => number
+      showBulkReceive?: boolean
     },
   ) => {
     const totalMeters = documents.reduce((sum, document) => sum + document.meterCount, 0)
@@ -1644,6 +1677,27 @@ export function EntradaPanel({
                     <td>{options.countValue(document)}</td>
                     <td>
                       <div className="entrada-demm-actions" onClick={(event) => event.stopPropagation()}>
+                        {options.showBulkReceive && !readOnly ? (
+                          <button
+                            type="button"
+                            className="entrada-demm-bulk-button primary-button"
+                            disabled={
+                              !document.bulkEntryReady || bulkReceivingDemmId === document.id
+                            }
+                            onClick={() => void handleBulkReceiveDemm(document)}
+                            title={
+                              !document.bulkEntryReady
+                                ? 'Todos os medidores precisam estar liberados (TOI, CSM e análise OK)'
+                                : bulkReceivingDemmId === document.id
+                                  ? 'Registrando entrada...'
+                                  : 'Dar entrada em massa para todos os medidores desta DEMM'
+                            }
+                          >
+                            {bulkReceivingDemmId === document.id
+                              ? 'Entrando...'
+                              : 'Entrada em massa'}
+                          </button>
+                        ) : null}
                         <a
                           className="entrada-demm-link"
                           href={api.getDemmDocumentFileUrl(document.id)}
@@ -2791,6 +2845,7 @@ export function EntradaPanel({
               countHeader: 'Agendados',
               countSummary: 'agendado(s)',
               countValue: (document) => document.scheduledCount,
+              showBulkReceive: true,
             })}
       </div>
 
