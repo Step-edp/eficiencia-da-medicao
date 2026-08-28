@@ -38,9 +38,11 @@ const MEDIDOR_ENCONTRADO_LABEL_PATTERN =
 const NOTA_LABEL_PATTERN = /nota(?:\s+fiscal)?\s*:?\s*/i
 const NOTA_VALUE_PATTERN = /\b\d{8,12}\b/
 
-const TOI_MARKER = /termo\s+de\s+ocorr[eêê]ncia\s+e\s+inspe/i
+const TOI_MARKER = /termo\s+de\s+ocorr[eéê]ncia\s+e\s+inspe/i
 const COMUNICADO_MARKER = /comunicado\s+de\s+substitui[cçãa\u00e7\u00e3]{0,4}[oõ\u00f5]\s+de\s+medidor/i
-const TOI_PARTIAL_MARKER = /termo\s+de\s+ocorr[eêê]/i
+const TOI_PARTIAL_MARKER = /termo\s+de\s+ocorr[eéê]/i
+const ORDEM_INSPECAO_MARKER = /ordem\s+de\s+inspe/i
+const LEVANTAMENTO_CARGA_MARKER = /levantamento\s+de\s+carga/i
 const MEDIDOR_ENCONTRADO_MARKER = /medidor\s+encontrado/i
 const SUBSTITUICAO_MEDIDOR_MARKER = /substitui[cç][aã]o\s+de\s+medidor/i
 const COMUNICADO_GENERIC_MARKER = /comunicado/i
@@ -84,7 +86,20 @@ function hasToiFormStructure(text: string, compact: string): boolean {
   if (TOI_LABEL_PATTERN.test(text) && DADOS_MEDICAO_START.test(text)) return true
   if (compact.includes('dadosdamedicao') && compact.includes('selagem')) return true
   if (compact.includes('medidorencontrado') && compact.includes('selagem')) return true
+  // OCR de TOI digitalizado costuma perder a tabela 5/6; o cabeçalho e o
+  // levantamento de carga ainda aparecem e bastam para reconhecer o formulário.
+  if (hasOcrRobustToiHeader(text, compact)) return true
   return false
+}
+
+function hasOcrRobustToiHeader(text: string, compact: string): boolean {
+  const hasTitle =
+    TOI_MARKER.test(text) || compact.includes('termodeocorrenciaeinspe')
+  const hasOrdem =
+    ORDEM_INSPECAO_MARKER.test(text) || compact.includes('ordemdeinspecao')
+  const hasCarga =
+    LEVANTAMENTO_CARGA_MARKER.test(text) || compact.includes('levantamentodecarga')
+  return [hasTitle, hasOrdem, hasCarga].filter(Boolean).length >= 2
 }
 
 function hasComunicadoStructure(text: string, compact: string): boolean {
@@ -290,7 +305,8 @@ export function classifyInspectionDocument(text: string): InspectionDocumentType
   const hasComunicado = hasComunicadoStructure(normalized, compact)
 
   // CSM cita TOI nº / "Termo de Ocorrência" com frequência; isso não faz dele um TOI.
-  // Só é "ambos" quando o PDF tem a ficha do TOI (dados da medição / selagem) e o comunicado.
+  // "ambos" exige a ficha do TOI: tabela (dados da medição / selagem) ou, no OCR,
+  // o cabeçalho próprio (título + ordem de inspeção / levantamento de carga).
   if (toiForm && hasComunicado) return 'ambos'
   if (hasComunicado) return 'comunicado'
   if (toiForm || toiTitle) return 'toi'
@@ -925,6 +941,19 @@ async function extractInspectionPdfTextLayer(buffer: Buffer): Promise<{ body: st
   return {
     body: normalizeInspectionText([...parts, ...spatialReadings].join('\n')),
     form: await extractPdfFormFieldText(pdf),
+  }
+}
+
+export async function countInspectionPdfPages(buffer: Buffer): Promise<number> {
+  const pdf = await getDocument({
+    data: new Uint8Array(buffer),
+    useSystemFonts: true,
+    disableFontFace: true,
+  }).promise
+  try {
+    return pdf.numPages
+  } finally {
+    await pdf.destroy?.()
   }
 }
 

@@ -5,6 +5,7 @@ import { NORMALIZED_METER_SQL } from '../demm-meter-analysis.js'
 import { ENTRADA_TRAIL_STEP, hasMeterEntradaGiven } from '../lab-trail-status.js'
 import {
   classifyInspectionDocument,
+  countInspectionPdfPages,
   extractInspectionPdfText,
   parseExtractedScheduleLabel,
   parseInspectionText,
@@ -1361,9 +1362,16 @@ async function repairMisclassifiedInspectionDocuments(
   expectedMeter: string,
   expectedLacre: string | null,
 ) {
+  const lackToi = !rows.some((row) => {
+    const docType = effectiveInspectionDocType(row)
+    return docType === 'toi' || docType === 'ambos'
+  })
+
   for (let index = rows.length - 1; index >= 0; index -= 1) {
     const row = rows[index]
-    if (row.doc_type !== 'ambos') continue
+    const inspectAmbos = row.doc_type === 'ambos'
+    const inspectCombinedComunicado = lackToi && row.doc_type === 'comunicado'
+    if (!inspectAmbos && !inspectCombinedComunicado) continue
 
     const file = await query<{ file_data: Buffer }>(
       `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
@@ -1372,6 +1380,12 @@ async function repairMisclassifiedInspectionDocuments(
     if (!file.rows[0]?.file_data) continue
 
     try {
+      if (inspectCombinedComunicado) {
+        const pageCount = await countInspectionPdfPages(file.rows[0].file_data)
+        // CSM sozinho costuma ter 1 página; TOI+CSM no mesmo PDF tem 2+.
+        if (pageCount < 2) continue
+      }
+
       const text = await extractInspectionPdfText(file.rows[0].file_data)
       const actualType = classifyInspectionDocument(text)
       if (actualType === 'desconhecido' || actualType === row.doc_type) continue
@@ -1408,14 +1422,16 @@ async function repairMisclassifiedInspectionDocuments(
              extracted_meter = COALESCE($2, extracted_meter),
              extracted_meter_retirado = COALESCE($3, extracted_meter_retirado),
              extracted_lacre = COALESCE($4, extracted_lacre),
-             blocked = $5,
-             block_reason = $6
-         WHERE id = $7`,
+             extracted_toi = COALESCE($5, extracted_toi),
+             blocked = $6,
+             block_reason = $7
+         WHERE id = $8`,
         [
           actualType,
           actualType === 'comunicado' ? null : parsed.meterEncontrado,
           parsed.meterRetirado,
           actualType === 'comunicado' ? row.extracted_lacre : parsed.lacre,
+          actualType === 'comunicado' ? null : parsed.toi,
           evaluation.blocked,
           evaluation.reason,
           row.id,
@@ -1430,6 +1446,9 @@ async function repairMisclassifiedInspectionDocuments(
       }
       if (actualType !== 'comunicado' && parsed.lacre) {
         row.extracted_lacre = parsed.lacre
+      }
+      if (actualType !== 'comunicado' && parsed.toi) {
+        row.extracted_toi = parsed.toi
       }
     } catch (error) {
       console.error('Falha ao reclassificar documento de inspeção:', error)
