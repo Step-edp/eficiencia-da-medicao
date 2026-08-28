@@ -166,6 +166,23 @@ function wpaMeterMatchesQuery(item: MeterInspectionDocumentadoRecord, query: str
   )
 }
 
+function weekMeterMatchesSearch(item: WeekMeterRecord, query: string) {
+  const normalizedQuery = normalizeWpaSearch(query)
+  if (!normalizedQuery) return true
+
+  const haystack = normalizeWpaSearch(
+    [item.meter, item.csdName, item.demmDocumentNumber].filter(Boolean).join(' '),
+  )
+  if (haystack.includes(normalizedQuery)) return true
+
+  const queryDigits = query.replace(/\D/g, '')
+  if (queryDigits.length < 3) return false
+  return (
+    item.meter.replace(/\D/g, '').includes(queryDigits) ||
+    (item.demmDocumentNumber ?? '').replace(/\D/g, '').includes(queryDigits)
+  )
+}
+
 function weekMeterInspectionLabel(item: WeekMeterRecord) {
   if (item.status === 'liberado') return 'Liberado'
   if (item.status === 'nao_agendado') return 'Não agendado'
@@ -810,9 +827,7 @@ export function EntradaPanel({
   const [weekMetersStatusFilter, setWeekMetersStatusFilter] = useState<'todos' | WeekMeterStatus>(
     'todos',
   )
-  const [weekMetersMeterFilter, setWeekMetersMeterFilter] = useState('')
-  const [weekMetersCsdFilter, setWeekMetersCsdFilter] = useState('')
-  const [weekMetersDemmFilter, setWeekMetersDemmFilter] = useState('')
+  const [weekMetersSearchQuery, setWeekMetersSearchQuery] = useState('')
   const [quickScheduleMeter, setQuickScheduleMeter] = useState<WeekMeterRecord | null>(null)
   const [submittingQuickSchedule, setSubmittingQuickSchedule] = useState(false)
   const [quickScheduleFeedback, setQuickScheduleFeedback] = useState<string | null>(null)
@@ -2394,34 +2409,20 @@ export function EntradaPanel({
   }
 
   if (view === 'weekMeters') {
-    const meterQuery = weekMetersMeterFilter.replace(/\D/g, '')
-    const csdQuery = weekMetersCsdFilter.trim().toLowerCase()
-    const demmQuery = weekMetersDemmFilter.replace(/\D/g, '')
+    const searchQuery = normalizeWpaSearch(weekMetersSearchQuery)
 
     const filteredWeekMeters = weekMeters.filter((item) => {
       if (weekMetersStatusFilter !== 'todos' && item.status !== weekMetersStatusFilter) {
         return false
       }
-      if (meterQuery && !item.meter.replace(/\D/g, '').includes(meterQuery)) {
-        return false
-      }
-      if (csdQuery && !(item.csdName ?? '').toLowerCase().includes(csdQuery)) {
-        return false
-      }
-      if (
-        demmQuery &&
-        !(item.demmDocumentNumber ?? '').replace(/\D/g, '').includes(demmQuery)
-      ) {
+      if (!weekMeterMatchesSearch(item, weekMetersSearchQuery)) {
         return false
       }
       return true
     })
 
     const hasActiveWeekMeterFilters = Boolean(
-      weekMetersStatusFilter !== 'todos' ||
-        weekMetersMeterFilter.trim() ||
-        weekMetersCsdFilter.trim() ||
-        weekMetersDemmFilter.trim(),
+      weekMetersStatusFilter !== 'todos' || searchQuery,
     )
 
     return (
@@ -2442,33 +2443,34 @@ export function EntradaPanel({
             </div>
 
             <div className="week-meters-filters" aria-label="Filtros de medidores da semana">
-              <label className="week-meters-filter">
-                Medidor
+              <label className="consultar-search week-meters-search">
+                <span className="sr-only">Pesquisar medidores da semana</span>
+                <span className="consultar-search-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <circle
+                      cx="11"
+                      cy="11"
+                      r="7"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    />
+                    <path
+                      d="M20 20l-3.5-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
                 <input
                   type="search"
-                  inputMode="numeric"
-                  value={weekMetersMeterFilter}
-                  placeholder="Ex.: 12543386"
-                  onChange={(event) => setWeekMetersMeterFilter(event.target.value)}
-                />
-              </label>
-              <label className="week-meters-filter">
-                CSD
-                <input
-                  type="search"
-                  value={weekMetersCsdFilter}
-                  placeholder="Ex.: Taubaté"
-                  onChange={(event) => setWeekMetersCsdFilter(event.target.value)}
-                />
-              </label>
-              <label className="week-meters-filter">
-                Nº DEMM
-                <input
-                  type="search"
-                  inputMode="numeric"
-                  value={weekMetersDemmFilter}
-                  placeholder="Ex.: 00051024"
-                  onChange={(event) => setWeekMetersDemmFilter(event.target.value)}
+                  value={weekMetersSearchQuery}
+                  placeholder="Pesquisar por medidor, CSD ou Nº DEMM…"
+                  autoComplete="off"
+                  spellCheck={false}
+                  onChange={(event) => setWeekMetersSearchQuery(event.target.value)}
                 />
               </label>
               <label className="week-meters-filter">
@@ -2492,9 +2494,7 @@ export function EntradaPanel({
                   className="secondary-button week-meters-clear-filters"
                   onClick={() => {
                     setWeekMetersStatusFilter('todos')
-                    setWeekMetersMeterFilter('')
-                    setWeekMetersCsdFilter('')
-                    setWeekMetersDemmFilter('')
+                    setWeekMetersSearchQuery('')
                   }}
                 >
                   Limpar filtros

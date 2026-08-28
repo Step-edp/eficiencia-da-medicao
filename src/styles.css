@@ -2554,6 +2554,11 @@ button {
   margin: 12px 0 16px;
 }
 
+.week-meters-search {
+  flex: 1 1 280px;
+  max-width: 560px;
+}
+
 .week-meters-filter {
   display: inline-flex;
   flex-direction: column;
