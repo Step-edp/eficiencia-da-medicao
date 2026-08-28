@@ -205,6 +205,55 @@ async function insertFillingDeviations(params: {
   }
 }
 
+const LAB_PASSIVE_SCHEDULE_KIND = 'lab_passive_schedule'
+const LAB_PASSIVE_SCHEDULE_DESCRIPTION = 'Medidor não agendado em campo'
+
+async function insertLabPassiveScheduleDeviation(params: {
+  scheduleId: string
+  meter: string
+  scheduledAtLabel: string
+  collaborator1Name: string
+  collaborator1Registration: string
+  collaborator2Name: string
+  collaborator2Registration: string
+  createdByUserId: string | null
+}) {
+  const hasCollaborators =
+    params.collaborator1Registration.trim() || params.collaborator2Registration.trim()
+  if (!hasCollaborators) return
+
+  const existing = await query<{ id: string }>(
+    `SELECT id FROM toi_schedule_deviations
+     WHERE meter_schedule_id = $1 AND kind = $2
+     LIMIT 1`,
+    [params.scheduleId, LAB_PASSIVE_SCHEDULE_KIND],
+  )
+  if (existing.rows[0]) return
+
+  await query(
+    `INSERT INTO toi_schedule_deviations (
+       id, meter_schedule_id, meter, kind, description,
+       scheduled_label, document_label, previous_scheduled_at, adjusted_scheduled_at,
+       collaborator1_name, collaborator1_registration,
+       collaborator2_name, collaborator2_registration, created_by_user_id
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW(),$8,$9,$10,$11,$12)`,
+    [
+      `lab-passive-${Date.now()}-${params.scheduleId}`,
+      params.scheduleId,
+      params.meter,
+      LAB_PASSIVE_SCHEDULE_KIND,
+      LAB_PASSIVE_SCHEDULE_DESCRIPTION,
+      'Não agendado em campo',
+      params.scheduledAtLabel,
+      params.collaborator1Name,
+      params.collaborator1Registration,
+      params.collaborator2Name,
+      params.collaborator2Registration,
+      params.createdByUserId,
+    ],
+  )
+}
+
 function normalizeRegistration(value?: string | null) {
   return (value ?? '').trim().toUpperCase()
 }
@@ -995,6 +1044,17 @@ export async function createPassiveMeterSchedule(req: Request, res: Response) {
   const schedule = mapMeterSchedule({
     ...insert.rows[0],
     created_by_registration: req.user?.registration ?? null,
+  })
+
+  await insertLabPassiveScheduleDeviation({
+    scheduleId: id,
+    meter: normalized.meter,
+    scheduledAtLabel: formatAvailableSlot(scheduledAtDate),
+    collaborator1Name: normalized.toiCollaborator1Name,
+    collaborator1Registration: normalized.toiCollaborator1Registration,
+    collaborator2Name: normalized.toiCollaborator2Name,
+    collaborator2Registration: normalized.toiCollaborator2Registration,
+    createdByUserId: req.user?.id ?? null,
   })
 
   await writeAuditLog(req, {
