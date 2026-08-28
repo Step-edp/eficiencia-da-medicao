@@ -670,9 +670,6 @@ const WPA_CONFERENCE_VALUES = new Set([
   'sem_registro_fotografico',
 ])
 
-const WPA_MISSING_PHOTO = 'sem_registro_fotografico'
-const WPA_MISSING_PHOTO_KIND = 'wpa_missing_photo'
-const WPA_MISSING_PHOTO_DESCRIPTION = 'Ausência de registro fotográfico'
 const WPA_FIELD_LABELS = {
   meter: 'Medidor retirado',
   lacre: 'Lacre do invólucro',
@@ -680,6 +677,23 @@ const WPA_FIELD_LABELS = {
   reading: 'Leitura',
   scheduleLacre: 'Lacre do invólucro (agendamento)',
 } as const
+
+const WPA_PHOTO_DEVIATIONS = [
+  {
+    option: 'sem_registro_fotografico',
+    kind: 'wpa_missing_photo',
+    description: 'Ausência de registro fotográfico',
+    documentLabel: 'Sem registro fotográfico',
+    idPrefix: 'wpa-missing-photo',
+  },
+  {
+    option: 'nao_visivel',
+    kind: 'wpa_low_quality_photo',
+    description: 'Registro fotográfico com baixa qualidade',
+    documentLabel: 'Não visível',
+    idPrefix: 'wpa-low-quality-photo',
+  },
+] as const
 
 function pickSavedWpa(saved: string | null | undefined) {
   const trimmed = saved?.trim()
@@ -691,19 +705,22 @@ function readWpaText(value: unknown) {
   return WPA_CONFERENCE_VALUES.has(trimmed) ? trimmed : ''
 }
 
-function wpaMissingPhotoFields(wpa: {
-  meter: string
-  lacre: string
-  coverSeal: string
-  reading: string
-  scheduleLacre: string
-}) {
+function wpaFieldsMatchingOption(
+  wpa: {
+    meter: string
+    lacre: string
+    coverSeal: string
+    reading: string
+    scheduleLacre: string
+  },
+  option: string,
+) {
   return (Object.keys(WPA_FIELD_LABELS) as Array<keyof typeof WPA_FIELD_LABELS>)
-    .filter((field) => wpa[field] === WPA_MISSING_PHOTO)
+    .filter((field) => wpa[field] === option)
     .map((field) => WPA_FIELD_LABELS[field])
 }
 
-async function syncWpaMissingPhotoDeviation(params: {
+async function syncWpaPhotoDeviations(params: {
   scheduleId: string
   meter: string
   collaborator1Name: string
@@ -711,56 +728,60 @@ async function syncWpaMissingPhotoDeviation(params: {
   collaborator2Name: string
   collaborator2Registration: string
   createdByUserId: string | null
-  fields: string[]
+  wpa: {
+    meter: string
+    lacre: string
+    coverSeal: string
+    reading: string
+    scheduleLacre: string
+  }
 }) {
-  if (!params.fields.length) return
+  for (const spec of WPA_PHOTO_DEVIATIONS) {
+    const fields = wpaFieldsMatchingOption(params.wpa, spec.option)
+    if (!fields.length) continue
 
-  const existing = await query<{ id: string }>(
-    `SELECT id FROM toi_schedule_deviations
-     WHERE meter_schedule_id = $1 AND kind = $2 AND physically_adjusted_at IS NULL
-     LIMIT 1`,
-    [params.scheduleId, WPA_MISSING_PHOTO_KIND],
-  )
-  const fieldLabel = params.fields.join(', ')
-  if (existing.rows[0]) {
+    const existing = await query<{ id: string }>(
+      `SELECT id FROM toi_schedule_deviations
+       WHERE meter_schedule_id = $1 AND kind = $2 AND physically_adjusted_at IS NULL
+       LIMIT 1`,
+      [params.scheduleId, spec.kind],
+    )
+    const fieldLabel = fields.join(', ')
+    if (existing.rows[0]) {
+      await query(
+        `UPDATE toi_schedule_deviations
+         SET scheduled_label = $1,
+             document_label = $2,
+             description = $3
+         WHERE id = $4`,
+        [fieldLabel, spec.documentLabel, spec.description, existing.rows[0].id],
+      )
+      continue
+    }
+
     await query(
-      `UPDATE toi_schedule_deviations
-       SET scheduled_label = $1,
-           document_label = $2,
-           description = $3
-       WHERE id = $4`,
+      `INSERT INTO toi_schedule_deviations (
+         id, meter_schedule_id, meter, kind, description,
+         scheduled_label, document_label, previous_scheduled_at, adjusted_scheduled_at,
+         collaborator1_name, collaborator1_registration,
+         collaborator2_name, collaborator2_registration, created_by_user_id
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW(),$8,$9,$10,$11,$12)`,
       [
+        `${spec.idPrefix}-${Date.now()}-${params.scheduleId}`,
+        params.scheduleId,
+        params.meter,
+        spec.kind,
+        spec.description,
         fieldLabel,
-        'Sem registro fotográfico',
-        WPA_MISSING_PHOTO_DESCRIPTION,
-        existing.rows[0].id,
+        spec.documentLabel,
+        params.collaborator1Name,
+        params.collaborator1Registration,
+        params.collaborator2Name,
+        params.collaborator2Registration,
+        params.createdByUserId,
       ],
     )
-    return
   }
-
-  await query(
-    `INSERT INTO toi_schedule_deviations (
-       id, meter_schedule_id, meter, kind, description,
-       scheduled_label, document_label, previous_scheduled_at, adjusted_scheduled_at,
-       collaborator1_name, collaborator1_registration,
-       collaborator2_name, collaborator2_registration, created_by_user_id
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW(),$8,$9,$10,$11,$12)`,
-    [
-      `wpa-missing-photo-${Date.now()}-${params.scheduleId}`,
-      params.scheduleId,
-      params.meter,
-      WPA_MISSING_PHOTO_KIND,
-      WPA_MISSING_PHOTO_DESCRIPTION,
-      fieldLabel,
-      'Sem registro fotográfico',
-      params.collaborator1Name,
-      params.collaborator1Registration,
-      params.collaborator2Name,
-      params.collaborator2Registration,
-      params.createdByUserId,
-    ],
-  )
 }
 
 const VALID_INSPECTION_DOC_TYPES = new Set<InspectionDocumentType>(['toi', 'comunicado', 'ambos'])
@@ -2179,7 +2200,7 @@ export async function updateInspectionWpa(req: Request, res: Response) {
     [meterScheduleId, meter, lacre, coverSeal, reading, scheduleLacre],
   )
 
-  await syncWpaMissingPhotoDeviation({
+  await syncWpaPhotoDeviations({
     scheduleId: meterScheduleId,
     meter: existing.rows[0].meter,
     collaborator1Name: existing.rows[0].toi_collaborator1_name ?? '',
@@ -2187,7 +2208,7 @@ export async function updateInspectionWpa(req: Request, res: Response) {
     collaborator2Name: existing.rows[0].toi_collaborator2_name ?? '',
     collaborator2Registration: existing.rows[0].toi_collaborator2_registration ?? '',
     createdByUserId: req.user?.id ?? null,
-    fields: wpaMissingPhotoFields({ meter, lacre, coverSeal, reading, scheduleLacre }),
+    wpa: { meter, lacre, coverSeal, reading, scheduleLacre },
   })
 
   await writeAuditLog(req, {
