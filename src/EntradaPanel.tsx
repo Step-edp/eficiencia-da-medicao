@@ -771,6 +771,78 @@ function PassiveReceiveModal({
   )
 }
 
+function BulkReceiveConfirmModal({
+  demmDocument,
+  submitting,
+  onClose,
+  onConfirm,
+}: {
+  demmDocument: DemmDocumentRecord
+  submitting: boolean
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  const label = demmDocument.documentNumber ?? demmDocument.fileName
+
+  return createPortal(
+    <div
+      className="ensaios-block-modal-overlay confirm-delete-overlay"
+      role="presentation"
+      onClick={() => {
+        if (!submitting) onClose()
+      }}
+    >
+      <div
+        className="ensaios-block-modal demm-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="bulk-receive-confirm-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="icon-button schedule-slot-modal-close"
+          onClick={onClose}
+          disabled={submitting}
+          aria-label="Fechar"
+          title="Fechar"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6 6l12 12M18 6L6 18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+
+        <h3 id="bulk-receive-confirm-title">Entrada em massa</h3>
+        <p className="demm-modal-intro">
+          Dar entrada em massa para todos os {demmDocument.meterCount} medidor(es) da DEMM{' '}
+          <strong>{label}</strong>? Eles ficarão disponíveis para ensaio.
+        </p>
+
+        <div className="ensaios-block-modal-actions">
+          <button type="button" className="secondary-button" disabled={submitting} onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            disabled={submitting}
+            onClick={onConfirm}
+          >
+            {submitting ? 'Registrando...' : 'Confirmar entrada'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 type EntradaPanelProps = {
   onTrailCountsChange?: () => void
   readOnly?: boolean
@@ -849,6 +921,8 @@ export function EntradaPanel({
   const [submittingDemm, setSubmittingDemm] = useState(false)
   const [deletingDemmId, setDeletingDemmId] = useState<string | null>(null)
   const [bulkReceivingDemmId, setBulkReceivingDemmId] = useState<string | null>(null)
+  const [bulkReceiveConfirmDocument, setBulkReceiveConfirmDocument] =
+    useState<DemmDocumentRecord | null>(null)
   const [analysisModal, setAnalysisModal] = useState<{
     title: string
     fileName?: string
@@ -1578,18 +1652,16 @@ export function EntradaPanel({
     }
   }
 
-  const handleBulkReceiveDemm = async (document: DemmDocumentRecord) => {
-    const label = document.documentNumber ?? document.fileName
-    const confirmed = window.confirm(
-      `Dar entrada em massa para todos os ${document.meterCount} medidor(es) da DEMM ${label}? Eles ficarão disponíveis para ensaio.`,
-    )
-    if (!confirmed) return
+  const confirmBulkReceiveDemm = async () => {
+    const document = bulkReceiveConfirmDocument
+    if (!document) return
 
     setBulkReceivingDemmId(document.id)
     setFeedback(null)
 
     try {
       const response = await api.receiveDemmDocumentBulk(document.id)
+      setBulkReceiveConfirmDocument(null)
       setFeedback({
         type: 'success',
         message: `Entrada em massa registrada: ${response.receivedCount} medidor(es) disponíveis para ensaio.`,
@@ -1684,7 +1756,7 @@ export function EntradaPanel({
                             disabled={
                               !document.bulkEntryReady || bulkReceivingDemmId === document.id
                             }
-                            onClick={() => void handleBulkReceiveDemm(document)}
+                            onClick={() => setBulkReceiveConfirmDocument(document)}
                             title={
                               !document.bulkEntryReady
                                 ? 'Todos os medidores precisam estar liberados (TOI, CSM e análise OK)'
@@ -2864,6 +2936,18 @@ export function EntradaPanel({
           showSources={analysisModal.showSources}
           onOpenMeter={openMeterDetail}
           onClose={() => setAnalysisModal(null)}
+        />
+      ) : null}
+
+      {bulkReceiveConfirmDocument ? (
+        <BulkReceiveConfirmModal
+          demmDocument={bulkReceiveConfirmDocument}
+          submitting={bulkReceivingDemmId === bulkReceiveConfirmDocument.id}
+          onClose={() => {
+            if (bulkReceivingDemmId) return
+            setBulkReceiveConfirmDocument(null)
+          }}
+          onConfirm={() => void confirmBulkReceiveDemm()}
         />
       ) : null}
     </>
