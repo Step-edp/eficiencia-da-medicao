@@ -1259,6 +1259,93 @@ export async function listMeterScheduleHistory(req: Request, res: Response) {
   })
 }
 
+function mapScheduleExclusionKind(
+  auditKind: string | null | undefined,
+  auditSummary: string | null | undefined,
+): 'schedule_cancelled' | 'late_list_dismissed' {
+  if (auditKind === 'schedule_cancelled') return 'schedule_cancelled'
+  const summary = (auditSummary ?? '').toLowerCase()
+  if (summary.includes('agendamento') && summary.includes('exclu')) {
+    return 'schedule_cancelled'
+  }
+  return 'late_list_dismissed'
+}
+
+function scheduleExclusionKindLabel(kind: 'schedule_cancelled' | 'late_list_dismissed') {
+  return kind === 'schedule_cancelled'
+    ? 'Exclusão de agendamento'
+    : 'Exclusão da lista de atrasados'
+}
+
+export async function listScheduleExclusions(req: Request, res: Response) {
+  const result = await query<{
+    id: string
+    meter: string
+    installation: string
+    csd: string
+    trail_step: string
+    delay_dismissed_at: Date
+    delay_justification: string | null
+    dismissed_by_name: string | null
+    dismissed_by_registration: string | null
+    audit_summary: string | null
+    audit_kind: string | null
+  }>(
+    `SELECT ms.id,
+            ms.meter,
+            ms.installation,
+            ms.csd,
+            ms.trail_step,
+            ms.delay_dismissed_at,
+            ms.delay_justification,
+            u.name AS dismissed_by_name,
+            u.registration AS dismissed_by_registration,
+            (
+              SELECT a.summary
+              FROM audit_logs a
+              WHERE a.entity_type = 'meter_schedule'
+                AND a.entity_id = ms.id
+                AND COALESCE(a.new_data->>'delayDismissedAt', '') <> ''
+              ORDER BY a.occurred_at DESC
+              LIMIT 1
+            ) AS audit_summary,
+            (
+              SELECT a.metadata->>'kind'
+              FROM audit_logs a
+              WHERE a.entity_type = 'meter_schedule'
+                AND a.entity_id = ms.id
+                AND COALESCE(a.new_data->>'delayDismissedAt', '') <> ''
+              ORDER BY a.occurred_at DESC
+              LIMIT 1
+            ) AS audit_kind
+     FROM meter_schedules ms
+     LEFT JOIN users u ON u.id = ms.delay_dismissed_by
+     WHERE ms.delay_dismissed_at IS NOT NULL
+     ORDER BY ms.delay_dismissed_at DESC
+     LIMIT 500`,
+  )
+
+  res.json({
+    exclusions: result.rows.map((row) => {
+      const kind = mapScheduleExclusionKind(row.audit_kind, row.audit_summary)
+      return {
+        id: row.id,
+        meter: row.meter,
+        installation: row.installation?.trim() || '',
+        csd: row.csd?.trim() || '',
+        trailStep: row.trail_step?.trim() || '',
+        kind,
+        kindLabel: scheduleExclusionKindLabel(kind),
+        justification: row.delay_justification?.trim() || '',
+        excludedAt: row.delay_dismissed_at.toISOString(),
+        excludedByName: row.dismissed_by_name,
+        excludedByRegistration: row.dismissed_by_registration,
+      }
+    }),
+    total: result.rowCount ?? 0,
+  })
+}
+
 function calendarDaysBetween(from: Date, to: Date): number {
   const start = toCalendarDate(from).getTime()
   const end = toCalendarDate(to).getTime()

@@ -317,6 +317,7 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Calendário de ensaios',
     'Reagendar',
     'Alteração de data',
+    'Desvios',
     'Auditoria',
     'Analisadores de Tensão',
     'Inventário',

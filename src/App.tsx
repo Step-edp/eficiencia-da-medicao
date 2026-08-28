@@ -8,6 +8,7 @@ import { FieldTeamConsultarPanel } from './FieldTeamConsultarPanel'
 import { PontoFocalDashboard } from './PontoFocalDashboard'
 import { EnviarDocumentosPanel } from './EnviarDocumentosPanel'
 import { ScheduleDateAdjustmentsPanel } from './ScheduleDateAdjustmentsPanel'
+import { DeviationsPanel } from './DeviationsPanel'
 import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
@@ -1008,6 +1009,7 @@ function ItemIcon({ title }: { title: string }) {
     'Calendário de ensaios': 'calendar',
     Reagendar: 'repeat',
     'Alteração de data': 'clock',
+    Desvios: 'shield',
     'Minha produtividade': 'chart',
     'Adicionar passivo': 'calendar',
     'Entrada de medidores': 'inbox',
@@ -1947,6 +1949,7 @@ function HomePanel({
   const [lateMetersCount, setLateMetersCount] = useState(0)
   const [scheduleDateDeviationCount, setScheduleDateDeviationCount] = useState(0)
   const [labDateAdjustmentCount, setLabDateAdjustmentCount] = useState(0)
+  const [labDeviationsCount, setLabDeviationsCount] = useState(0)
   const [ensaiarPrefillMeter, setEnsaiarPrefillMeter] = useState<string | null>(null)
   const [selectedHomologationSection, setSelectedHomologationSection] = useState<string | null>(
     () => savedNav?.selectedHomologationSection ?? null,
@@ -2045,10 +2048,19 @@ function HomePanel({
 
     const refreshLabDateAdjustments = async () => {
       try {
-        const response = await api.listScheduleDateAdjustments('all')
-        if (!cancelled) setLabDateAdjustmentCount(response.total)
+        const [dateResponse, deviationsResponse] = await Promise.all([
+          api.listScheduleDateAdjustments('all', 'schedule_date_mismatch'),
+          api.listScheduleDateAdjustments('all'),
+        ])
+        if (!cancelled) {
+          setLabDateAdjustmentCount(dateResponse.total)
+          setLabDeviationsCount(deviationsResponse.total)
+        }
       } catch {
-        if (!cancelled) setLabDateAdjustmentCount(0)
+        if (!cancelled) {
+          setLabDateAdjustmentCount(0)
+          setLabDeviationsCount(0)
+        }
       }
     }
 
@@ -2370,6 +2382,7 @@ function HomePanel({
     'Consultar Medidor',
     'Reagendar',
     'Alteração de data',
+    'Desvios',
     'Criar Modelo',
     'Galeria',
     'Apresentação',
@@ -5592,11 +5605,15 @@ function HomePanel({
               <ScheduleDateAdjustmentsPanel
                 scope="all"
                 title="Alteração de data"
-                intro="Medidores com data/horário de agendamento ajustada, instalação, TOI, nota ou CSD corrigidos, medidor não agendado em campo, ausência de registro fotográfico ou registro fotográfico com baixa qualidade. Cada ajuste gera apontamento de desvio para os colaboradores 1 e 2 do TOI. Marque Ajustado fisicamente quando a correção da data no documento estiver concluída."
+                intro="Medidores com data/horário de agendamento diferente do inserido no documento. Marque Ajustado fisicamente quando a correção da data no documento estiver concluída."
                 allowPhysicalAdjust
-                includeFillingDeviations
                 readOnly={labMedicaoReadOnly}
                 onPendingCountChange={setLabDateAdjustmentCount}
+              />
+            ) : selectedLabMeasurementSection === 'Desvios' ? (
+              <DeviationsPanel
+                readOnly={labMedicaoReadOnly}
+                onPendingCountChange={setLabDeviationsCount}
               />
             ) : selectedLabMeasurementSection === 'Minha produtividade' &&
               showMinhaProdutividade ? (
@@ -6223,6 +6240,12 @@ function HomePanel({
                           <LateMetersCountBadge
                             count={labDateAdjustmentCount}
                             label={`${labDateAdjustmentCount} alteração(ões) de data`}
+                          />
+                        ) : null}
+                        {section === 'Desvios' ? (
+                          <LateMetersCountBadge
+                            count={labDeviationsCount}
+                            label={`${labDeviationsCount} apontamento(s) de desvio pendente(s)`}
                           />
                         ) : null}
                       </span>

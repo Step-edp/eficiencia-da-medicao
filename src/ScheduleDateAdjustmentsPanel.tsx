@@ -36,6 +36,7 @@ export function ScheduleDateAdjustmentsPanel({
   includeFillingDeviations = false,
   forUserId,
   readOnly = false,
+  embedded = false,
   onPendingCountChange,
 }: {
   scope: 'all' | 'mine'
@@ -45,6 +46,7 @@ export function ScheduleDateAdjustmentsPanel({
   includeFillingDeviations?: boolean
   forUserId?: string
   readOnly?: boolean
+  embedded?: boolean
   onPendingCountChange?: (count: number) => void
 }) {
   const [items, setItems] = useState<ScheduleDateAdjustmentRecord[]>([])
@@ -125,15 +127,24 @@ export function ScheduleDateAdjustmentsPanel({
           ? `${history.length} medidor(es) ajustado(s) fisicamente`
           : `${history.length} apontamento(s) no histórico`
 
-  return (
-    <section className="entrada-section" aria-label={title}>
-      <div className="entrada-section-heading">
-        <h3 className="entrada-section-title">
-          {listTab === 'history' ? 'Histórico de ajuste físico' : title}
-        </h3>
-        <p className="demm-analysis-summary">{summary}</p>
-      </div>
-      <p className="entrada-panel-intro">{intro}</p>
+  const content = (
+    <>
+      {!embedded ? (
+        <>
+          <div className="entrada-section-heading">
+            <h3 className="entrada-section-title">
+              {listTab === 'history' ? 'Histórico de ajuste físico' : title}
+            </h3>
+            <p className="demm-analysis-summary">{summary}</p>
+          </div>
+          <p className="entrada-panel-intro">{intro}</p>
+        </>
+      ) : (
+        <>
+          <p className="entrada-panel-intro">{intro}</p>
+          <p className="demm-analysis-summary">{summary}</p>
+        </>
+      )}
 
       <div
         className="panel-switch users-view-switch"
@@ -235,6 +246,16 @@ export function ScheduleDateAdjustmentsPanel({
       {meterDetail ? (
         <MeterDetailModal meter={meterDetail} onClose={() => setMeterDetail(null)} />
       ) : null}
+    </>
+  )
+
+  if (embedded) {
+    return content
+  }
+
+  return (
+    <section className="entrada-section" aria-label={title}>
+      {content}
     </section>
   )
 }

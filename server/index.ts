@@ -69,6 +69,7 @@ import {
   saveDelayJustification,
   dismissDelayMeter,
   cancelMeterSchedule,
+  listScheduleExclusions,
 } from './routes/meter-schedules.js'
 import {
   createDemmDocument,
@@ -418,6 +419,7 @@ async function start() {
   app.get('/api/meter-schedules/inspection-pendencias', requireAuth, listInspectionPendencias)
   app.get('/api/meter-schedules/wpa-analysis', requireAuth, listWpaAnalysisMeters)
   app.get('/api/meter-schedules/date-adjustments', requireAuth, listScheduleDateAdjustments)
+  app.get('/api/meter-schedules/exclusions', requireAuth, listScheduleExclusions)
   app.post(
     '/api/meter-schedules/date-adjustments/:id/physical',
     requireAuth,

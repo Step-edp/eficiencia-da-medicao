@@ -700,6 +700,20 @@ export type ScheduleDateAdjustmentRecord = {
   physicallyAdjustedByRegistration: string | null
 }
 
+export type ScheduleExclusionRecord = {
+  id: string
+  meter: string
+  installation: string
+  csd: string
+  trailStep: string
+  kind: 'schedule_cancelled' | 'late_list_dismissed'
+  kindLabel: string
+  justification: string
+  excludedAt: string
+  excludedByName: string | null
+  excludedByRegistration: string | null
+}
+
 export type InspectionDocumentRecord = {
   id: string
   meterScheduleId: string
@@ -1851,6 +1865,10 @@ export const api = {
     request<{ ok: true; adjustment: ScheduleDateAdjustmentRecord }>(
       `/api/meter-schedules/date-adjustments/${encodeURIComponent(id)}/physical`,
       { method: 'POST' },
+    ),
+  listScheduleExclusions: () =>
+    request<{ exclusions: ScheduleExclusionRecord[]; total: number }>(
+      '/api/meter-schedules/exclusions',
     ),
   uploadInspectionPhotos: (
     meterScheduleId: string,
