@@ -987,7 +987,7 @@ export async function countInspectionPdfPages(buffer: Buffer): Promise<number> {
   try {
     return pdf.numPages
   } finally {
-    await pdf.destroy?.()
+    await (pdf as { destroy?: () => Promise<void> }).destroy?.()
   }
 }
 

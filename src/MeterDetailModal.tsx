@@ -8,6 +8,12 @@ import {
 } from './api'
 import { formatAuditAction, formatAuditDate } from './auditLabels'
 import { FillingCorrectionNote } from './fillingCorrection'
+import {
+  formatScheduleCollaborator1Label,
+  formatScheduleCollaborator2Label,
+  formatScheduleCreatedAtLabel,
+  formatScheduleCreatedByLabel,
+} from './schedulePartnerLabel'
 
 type MeterDetailModalProps = {
   meter: string
