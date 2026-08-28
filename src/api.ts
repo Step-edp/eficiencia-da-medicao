@@ -664,6 +664,8 @@ export type InspectionDocumentConference = {
   campoReading: string | null
   campoScheduleDate: string | null
   scheduleMeter: string | null
+  scheduleMeterOriginal?: string | null
+  scheduleMeterAdjusted?: boolean
   scheduleLacre: string | null
   scheduleCoverSeal: string | null
   scheduleReading: string | null
@@ -1806,6 +1808,8 @@ export const api = {
         campoReading: string | null
         scheduleLacre: string | null
         scheduleMeter?: string | null
+        scheduleMeterOriginal?: string | null
+        scheduleMeterAdjusted?: boolean
       }
     }>(`/api/meter-schedules/${meterScheduleId}/inspection-wpa`, {
       method: 'PATCH',

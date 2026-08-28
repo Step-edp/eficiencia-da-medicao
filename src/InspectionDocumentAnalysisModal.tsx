@@ -306,6 +306,16 @@ function conferenceMatches(
   return normalized.every((value) => value === normalized[0])
 }
 
+function normalizeMeterDigits(value: string | null | undefined) {
+  return (value ?? '').replace(/\D/g, '')
+}
+
+function scheduleMeterWasAdjusted(current: string | null | undefined, original: string | null | undefined) {
+  const currentDigits = normalizeMeterDigits(current)
+  const originalDigits = normalizeMeterDigits(original)
+  return Boolean(currentDigits && originalDigits && currentDigits !== originalDigits)
+}
+
 function ComparisonField({
   label,
   campo,
@@ -330,6 +340,8 @@ function ComparisonField({
   agendamentoEditable = false,
   agendamentoInputKind = 'select',
   agendamentoExtraOption = null,
+  agendamentoAdjusted = false,
+  agendamentoOriginal = null,
   onAgendamentoChange,
 }: {
   label: string
@@ -355,6 +367,8 @@ function ComparisonField({
   agendamentoEditable?: boolean
   agendamentoInputKind?: 'select' | 'text'
   agendamentoExtraOption?: string | null
+  agendamentoAdjusted?: boolean
+  agendamentoOriginal?: string | null
   onAgendamentoChange?: (value: string) => void
 }) {
   const wpaRequired = campoEmpty !== 'Não aplicável'
@@ -413,7 +427,7 @@ function ComparisonField({
                 agendamentoInputKind === 'text' ? (
                   <input
                     type="text"
-                    className="inspection-document-wpa-input"
+                    className={`inspection-document-wpa-input${agendamentoAdjusted ? ' is-adjusted' : ''}`}
                     value={agendamento ?? ''}
                     placeholder={agendamentoEmpty}
                     inputMode={kind === 'digits' ? 'numeric' : 'text'}
@@ -471,6 +485,12 @@ function ComparisonField({
                 </button>
               ) : null}
             </div>
+            {agendamentoAdjusted && agendamentoOriginal ? (
+              <p className="schedule-wrong-install-note inspection-document-agendamento-note">
+                <span className="schedule-wrong-install-badge">Medidor agendado errado</span>
+                <span>Anterior: {agendamentoOriginal}</span>
+              </p>
+            ) : null}
           </div>
           <div className="inspection-document-comparison-item">
             <span className="inspection-document-comparison-label">Laboratório</span>
@@ -511,6 +531,7 @@ export function InspectionDocumentAnalysisModal({
   const [hasToi, setHasToi] = useState(false)
   const [hasComunicado, setHasComunicado] = useState(false)
   const [registeredMeter, setRegisteredMeter] = useState(meter)
+  const [originalScheduleMeter, setOriginalScheduleMeter] = useState(meter)
   const [registeredInstallation, setRegisteredInstallation] = useState<string | null>(null)
   const [conference, setConference] = useState<InspectionDocumentConference | null>(null)
   const [canEditWpa, setCanEditWpa] = useState(false)
@@ -562,6 +583,8 @@ export function InspectionDocumentAnalysisModal({
         campoReading: null,
         campoScheduleDate: null,
         scheduleMeter: response.meter,
+        scheduleMeterOriginal: response.meter,
+        scheduleMeterAdjusted: false,
         scheduleLacre: response.registeredLacre,
         scheduleCoverSeal: response.registeredCoverSeal ?? null,
         scheduleReading: response.registeredReading ?? null,
@@ -573,6 +596,9 @@ export function InspectionDocumentAnalysisModal({
         labScheduleDate: null,
         scheduleDateAdjusted: false,
       }
+      setOriginalScheduleMeter(
+        nextConference.scheduleMeterOriginal?.trim() || response.meter,
+      )
       setConference(nextConference)
       setWpaDraft({
         meter: nextConference.campoMeter ?? '',
@@ -600,6 +626,7 @@ export function InspectionDocumentAnalysisModal({
       setHasToi(false)
       setHasComunicado(false)
       setRegisteredMeter(meter)
+      setOriginalScheduleMeter(meter)
       setRegisteredInstallation(null)
       setConference(null)
       setWpaDraft({
@@ -638,9 +665,19 @@ export function InspectionDocumentAnalysisModal({
           setRegisteredMeter(response.conference.scheduleMeter)
           setConference((current) =>
             current
-              ? { ...current, scheduleMeter: response.conference.scheduleMeter ?? current.scheduleMeter }
+              ? {
+                  ...current,
+                  scheduleMeter: response.conference.scheduleMeter ?? current.scheduleMeter,
+                  scheduleMeterOriginal:
+                    response.conference.scheduleMeterOriginal ?? current.scheduleMeterOriginal,
+                  scheduleMeterAdjusted:
+                    response.conference.scheduleMeterAdjusted ?? current.scheduleMeterAdjusted,
+                }
               : current,
           )
+        }
+        if (response.conference.scheduleMeterOriginal?.trim()) {
+          setOriginalScheduleMeter(response.conference.scheduleMeterOriginal.trim())
         }
       } catch (error) {
         setFeedback({
@@ -1060,6 +1097,15 @@ export function InspectionDocumentAnalysisModal({
                   ? 'pending'
                   : 'ok'
 
+              const scheduleMeterValue = canEditWpa
+                ? wpaDraft.scheduleMeter
+                : (conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter)
+              const scheduleMeterOriginalValue =
+                conference?.scheduleMeterOriginal?.trim() || originalScheduleMeter
+              const scheduleMeterAdjustedValue =
+                conference?.scheduleMeterAdjusted === true ||
+                scheduleMeterWasAdjusted(scheduleMeterValue, scheduleMeterOriginalValue)
+
               return (
               <article key={document.id} className="inspection-document-card">
                 <div className="inspection-document-card-header">
@@ -1091,17 +1137,15 @@ export function InspectionDocumentAnalysisModal({
                     label="Medidor retirado"
                     campo={canEditWpa ? wpaDraft.meter : conference?.campoMeter}
                     documento={documentoMeter}
-                    agendamento={
-                      canEditWpa
-                        ? wpaDraft.scheduleMeter
-                        : (conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter)
-                    }
+                    agendamento={scheduleMeterValue}
                     laboratorio={conference?.labMeter}
                     laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
                     agendamentoEditable={canEditWpa}
                     agendamentoInputKind="text"
+                    agendamentoAdjusted={scheduleMeterAdjustedValue}
+                    agendamentoOriginal={scheduleMeterOriginalValue}
                     onCampoChange={(value) => handleWpaChange('meter', value)}
                     onDocumentoChange={(value) => handleDocumentoChange(document.docType, 'meter', value)}
                     onAgendamentoChange={(value) => handleWpaChange('scheduleMeter', value)}

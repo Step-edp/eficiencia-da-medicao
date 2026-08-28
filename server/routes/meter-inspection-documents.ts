@@ -883,6 +883,34 @@ async function syncScheduleMeterDeviation(params: {
   )
 }
 
+async function loadScheduleMeterConferenceFields(
+  meterScheduleId: string,
+  currentMeter: string,
+  inspectionScheduleMeter: string | null,
+) {
+  const deviation = await query<{ scheduled_label: string; document_label: string }>(
+    `SELECT scheduled_label, document_label
+     FROM toi_schedule_deviations
+     WHERE meter_schedule_id = $1 AND kind = $2
+     ORDER BY created_at ASC
+     LIMIT 1`,
+    [meterScheduleId, SCHEDULE_METER_WRONG_KIND],
+  )
+  const savedScheduleMeter = pickSavedScheduleMeter(inspectionScheduleMeter)
+  const originalFromDeviation = deviation.rows[0]?.scheduled_label?.trim() || ''
+  const scheduleMeterOriginal = originalFromDeviation || currentMeter
+  const scheduleMeterAdjusted = Boolean(
+    savedScheduleMeter &&
+      normalizeMeter(savedScheduleMeter) !== normalizeMeter(scheduleMeterOriginal),
+  )
+
+  return {
+    scheduleMeter: savedScheduleMeter ?? currentMeter,
+    scheduleMeterOriginal,
+    scheduleMeterAdjusted,
+  }
+}
+
 const VALID_INSPECTION_DOC_TYPES = new Set<InspectionDocumentType>(['toi', 'comunicado', 'ambos'])
 
 async function canManageInspectionDocuments(req: Request): Promise<boolean> {
@@ -1696,6 +1724,11 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     registeredLacre,
   )
   const presence = await loadDocTypePresence(meterScheduleId)
+  const scheduleMeterFields = await loadScheduleMeterConferenceFields(
+    meterScheduleId,
+    registeredMeter,
+    schedule.rows[0].inspection_schedule_meter,
+  )
 
   res.json({
     meter: registeredMeter,
@@ -1711,8 +1744,9 @@ export async function listInspectionDocuments(req: Request, res: Response) {
       campoCoverSeal2: pickSavedWpa(schedule.rows[0].inspection_wpa_cover_seal_2),
       campoReading: pickSavedWpa(schedule.rows[0].inspection_wpa_reading),
       campoScheduleDate: null,
-      scheduleMeter:
-        pickSavedScheduleMeter(schedule.rows[0].inspection_schedule_meter) ?? registeredMeter,
+      scheduleMeter: scheduleMeterFields.scheduleMeter,
+      scheduleMeterOriginal: scheduleMeterFields.scheduleMeterOriginal,
+      scheduleMeterAdjusted: scheduleMeterFields.scheduleMeterAdjusted,
       scheduleLacre:
         pickSavedWpa(schedule.rows[0].inspection_schedule_lacre) ?? registeredLacre,
       scheduleCoverSeal: registeredCoverSeal,
@@ -2400,6 +2434,12 @@ export async function updateInspectionWpa(req: Request, res: Response) {
     metadata: { meter, lacre, coverSeal, coverSeal2, reading, scheduleLacre, scheduleMeter: nextScheduleMeter },
   })
 
+  const scheduleMeterFields = await loadScheduleMeterConferenceFields(
+    meterScheduleId,
+    nextScheduleMeter,
+    inspectionScheduleMeter,
+  )
+
   res.json({
     ok: true,
     conference: {
@@ -2409,7 +2449,9 @@ export async function updateInspectionWpa(req: Request, res: Response) {
       campoCoverSeal2: coverSeal2 || null,
       campoReading: reading || null,
       scheduleLacre: scheduleLacre || null,
-      scheduleMeter: nextScheduleMeter || null,
+      scheduleMeter: scheduleMeterFields.scheduleMeter || null,
+      scheduleMeterOriginal: scheduleMeterFields.scheduleMeterOriginal,
+      scheduleMeterAdjusted: scheduleMeterFields.scheduleMeterAdjusted,
     },
   })
 }
