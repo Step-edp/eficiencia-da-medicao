@@ -103,6 +103,69 @@ function mapMeterRegistry(row: MeterRegistryRow) {
   }
 }
 
+export async function listMeterRegistry(req: Request, res: Response) {
+  const search =
+    typeof req.query.search === 'string' ? req.query.search.trim() : ''
+  const status =
+    typeof req.query.status === 'string' ? req.query.status.trim() : ''
+  const limitRaw = Number(req.query.limit ?? 100)
+  const offsetRaw = Number(req.query.offset ?? 0)
+  const limit = Number.isFinite(limitRaw)
+    ? Math.min(Math.max(Math.floor(limitRaw), 1), 500)
+    : 100
+  const offset = Number.isFinite(offsetRaw) ? Math.max(Math.floor(offsetRaw), 0) : 0
+
+  const conditions: string[] = []
+  const params: Array<string | number> = []
+
+  if (search) {
+    params.push(`%${search}%`)
+    const index = params.length
+    conditions.push(
+      `(meter ILIKE $${index}
+        OR installation ILIKE $${index}
+        OR toi ILIKE $${index}
+        OR note ILIKE $${index}
+        OR csd ILIKE $${index}
+        OR client ILIKE $${index}
+        OR manufacturer ILIKE $${index}
+        OR model ILIKE $${index}
+        OR ratm_number ILIKE $${index})`,
+    )
+  }
+
+  if (status) {
+    params.push(status)
+    conditions.push(`status = $${params.length}`)
+  }
+
+  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+
+  const [rowsResult, countResult] = await Promise.all([
+    query<MeterRegistryRow>(
+      `SELECT meter, installation, toi, note, csd, client, status, trail_step,
+              manufacturer, model, ratm_number, delivered_by, scheduling_notes,
+              available_at, scheduled_at, received_at
+       FROM meter_registry
+       ${whereClause}
+       ORDER BY received_at DESC NULLS LAST, scheduled_at DESC NULLS LAST, meter
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset],
+    ),
+    query<{ total: string }>(
+      `SELECT COUNT(*)::text AS total FROM meter_registry ${whereClause}`,
+      params,
+    ),
+  ])
+
+  res.json({
+    meters: rowsResult.rows.map(mapMeterRegistry),
+    total: Number(countResult.rows[0]?.total ?? 0),
+    limit,
+    offset,
+  })
+}
+
 export async function getMeterRegistry(req: Request, res: Response) {
   const meter =
     typeof req.query.meter === 'string' && req.query.meter.trim()

@@ -11,6 +11,7 @@ import {
   type DemmUploadConflictRecord,
   type MeterInspectionDocumentadoRecord,
   type MeterInspectionPendenciaRecord,
+  type MeterRegistryRecord,
   type WeekMeterRecord,
   type WeekMeterStatus,
 } from './api'
@@ -915,6 +916,7 @@ export function EntradaPanel({
     | 'overview'
     | 'demmEntrada'
     | 'metersBase'
+    | 'receivedMetersBase'
     | 'csdPendencias'
     | 'inspectionPendencias'
     | 'weekMeters'
@@ -934,6 +936,10 @@ export function EntradaPanel({
   const [wpaMeters, setWpaMeters] = useState<MeterInspectionDocumentadoRecord[]>([])
   const [wpaMetersLoading, setWpaMetersLoading] = useState(false)
   const [wpaSearchQuery, setWpaSearchQuery] = useState('')
+  const [receivedMeters, setReceivedMeters] = useState<MeterRegistryRecord[]>([])
+  const [receivedMetersTotal, setReceivedMetersTotal] = useState(0)
+  const [receivedMetersLoading, setReceivedMetersLoading] = useState(false)
+  const [receivedMetersSearchQuery, setReceivedMetersSearchQuery] = useState('')
   const [inspectionPendenciasLoading, setInspectionPendenciasLoading] = useState(false)
   const [inspectionPendenciasMeterFilter, setInspectionPendenciasMeterFilter] = useState('')
   const [inspectionPendenciasInstallationFilter, setInspectionPendenciasInstallationFilter] =
@@ -1235,6 +1241,31 @@ export function EntradaPanel({
     void loadWpaMeters()
   }
 
+  const loadReceivedMetersBase = useCallback(async (search = '') => {
+    setReceivedMetersLoading(true)
+    try {
+      const response = await api.listMeterRegistry({ search, limit: 500 })
+      setReceivedMeters(response.meters)
+      setReceivedMetersTotal(response.total)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar a base de medidores recebidos.',
+      })
+    } finally {
+      setReceivedMetersLoading(false)
+    }
+  }, [])
+
+  const openReceivedMetersBase = () => {
+    setView('receivedMetersBase')
+    setFeedback(null)
+    setReceivedMetersSearchQuery('')
+  }
+
   const openInspectionPendencias = () => {
     setView('inspectionPendencias')
     setFeedback(null)
@@ -1455,6 +1486,14 @@ export function EntradaPanel({
     void loadWeekMeters()
   }, [loadData, loadCsdPendencias, loadInspectionPendencias, loadWpaMeters, loadWeekMeters])
 
+  useEffect(() => {
+    if (view !== 'receivedMetersBase') return
+    const timeoutId = window.setTimeout(() => {
+      void loadReceivedMetersBase(receivedMetersSearchQuery.trim())
+    }, 300)
+    return () => window.clearTimeout(timeoutId)
+  }, [view, receivedMetersSearchQuery, loadReceivedMetersBase])
+
   const renderFixedFeedback = () =>
     feedback ? (
       <LoginFeedback
@@ -1525,6 +1564,15 @@ export function EntradaPanel({
           onClick={() => openWeekMeters()}
         >
           Medidores da semana
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'receivedMetersBase'}
+          className={view === 'receivedMetersBase' ? 'active' : ''}
+          onClick={() => openReceivedMetersBase()}
+        >
+          Base de medidores recebidos
         </button>
         <button
           type="button"
@@ -2041,6 +2089,114 @@ export function EntradaPanel({
             </div>
 
             <EntradaCsdDashboard />
+          </section>
+        </div>
+        {userProfileModal}
+        {meterDetailModal}
+      </>
+    )
+  }
+
+  if (view === 'receivedMetersBase') {
+    const hasReceivedSearch = Boolean(receivedMetersSearchQuery.trim())
+    const showingCount = receivedMeters.length
+
+    return (
+      <>
+        <div className="entrada-panel">
+          {renderEntradaTabBar()}
+
+          {renderFixedFeedback()}
+
+          <section className="entrada-section" aria-label="Base de medidores recebidos">
+            <div className="entrada-section-heading">
+              <h3 className="entrada-section-title">Base de medidores recebidos</h3>
+              <p className="demm-analysis-summary">
+                {receivedMetersLoading && showingCount === 0
+                  ? 'Carregando medidores...'
+                  : hasReceivedSearch
+                    ? `${showingCount} de ${receivedMetersTotal} medidor(es) encontrado(s)`
+                    : `${receivedMetersTotal} medidor(es) na base`}
+              </p>
+            </div>
+
+            <div className="consultar-toolbar entrada-wpa-toolbar">
+              <label className="consultar-search">
+                <span className="sr-only">Pesquisar na base de medidores recebidos</span>
+                <span className="consultar-search-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <circle
+                      cx="11"
+                      cy="11"
+                      r="7"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    />
+                    <path
+                      d="M20 20l-3.5-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
+                <input
+                  type="search"
+                  value={receivedMetersSearchQuery}
+                  onChange={(event) => setReceivedMetersSearchQuery(event.target.value)}
+                  placeholder="Pesquisar por medidor, instalação, TOI, nota, CSD, cliente…"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </label>
+            </div>
+
+            {receivedMetersLoading && showingCount === 0 ? (
+              <p className="entrada-panel-empty">Carregando medidores...</p>
+            ) : showingCount === 0 ? (
+              <p className="entrada-panel-empty">
+                {hasReceivedSearch
+                  ? 'Nenhum medidor encontrado para esta pesquisa.'
+                  : 'Nenhum medidor cadastrado na base.'}
+              </p>
+            ) : (
+              <div className="entrada-table-wrap">
+                <table className="data-table entrada-table">
+                  <thead>
+                    <tr>
+                      <th>Medidor</th>
+                      <th>Instalação</th>
+                      <th>TOI</th>
+                      <th>Nota</th>
+                      <th>CSD</th>
+                      <th>Cliente</th>
+                      <th>Status</th>
+                      <th>Etapa</th>
+                      <th>Recebido em</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receivedMeters.map((item) => (
+                      <tr key={item.meter}>
+                        <td>
+                          <MeterLink meter={item.meter} onOpen={openMeterDetail} />
+                        </td>
+                        <td>{item.installation || '—'}</td>
+                        <td>{item.toi || '—'}</td>
+                        <td>{item.note || '—'}</td>
+                        <td>{item.csd || '—'}</td>
+                        <td>{item.client || '—'}</td>
+                        <td>{item.status || '—'}</td>
+                        <td>{item.trailStep || '—'}</td>
+                        <td>{item.receivedAt ? formatDateTime(item.receivedAt) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         </div>
         {userProfileModal}

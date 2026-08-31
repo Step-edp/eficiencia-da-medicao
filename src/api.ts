@@ -1626,6 +1626,20 @@ export const api = {
   },
   getMeterRegistryTrailCounts: () =>
     request<{ counts: Record<string, number> }>('/api/meter-registry/trail-counts'),
+  listMeterRegistry: (params?: { search?: string; status?: string; limit?: number; offset?: number }) => {
+    const search = new URLSearchParams()
+    if (params?.search?.trim()) search.set('search', params.search.trim())
+    if (params?.status?.trim()) search.set('status', params.status.trim())
+    if (params?.limit != null) search.set('limit', String(params.limit))
+    if (params?.offset != null) search.set('offset', String(params.offset))
+    const queryString = search.toString()
+    return request<{
+      meters: MeterRegistryRecord[]
+      total: number
+      limit: number
+      offset: number
+    }>(`/api/meter-registry/list${queryString ? `?${queryString}` : ''}`)
+  },
   getMeterRegistry: (meter: string) => {
     const search = new URLSearchParams({ meter })
     return request<{ meter: string; registry: MeterRegistryRecord | null }>(

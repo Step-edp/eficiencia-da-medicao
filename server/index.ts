@@ -88,6 +88,7 @@ import {
 } from './routes/demm-documents.js'
 import {
   getMeterRegistryTrailCounts,
+  listMeterRegistry,
   getMeterRegistry,
 } from './routes/meter-registry.js'
 import {
@@ -416,6 +417,7 @@ async function start() {
     cancelMeterSchedule,
   )
   app.get('/api/meter-registry/trail-counts', requireAuth, getMeterRegistryTrailCounts)
+  app.get('/api/meter-registry/list', requireAuth, listMeterRegistry)
   app.get('/api/meter-registry', requireAuth, getMeterRegistry)
 
   app.get('/api/meter-schedules/inspection-pendencias', requireAuth, listInspectionPendencias)
