@@ -63,7 +63,7 @@ import { LoginFeedback } from './LoginFeedback'
 import { PassivoPanel } from './PassivoPanel'
 import { AuditPanel } from './AuditPanel'
 import { EntradaPanel } from './EntradaPanel'
-import { CONSOLIDACAO_CARGA_TRAIL_STEPS, ENTRADA_TRAIL_STEP, ENSAIAR_TRAIL_STEP, ENSAIOS_CALENDAR_SECTION, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS, MEMORY_MASS_TRAIL_STEPS } from './labTrailSteps'
+import { CONSOLIDACAO_CARGA_TRAIL_STEPS, ENTRADA_TRAIL_STEP, ENSAIAR_TRAIL_STEP, ENSAIOS_CALENDAR_SECTION, APROVACAO_TRAIL_STEP, getLabTrailLabel, HOMOLOGATION_TRAIL_STEPS, LAB_TRAIL_KEYS, MEMORY_MASS_TRAIL_STEPS } from './labTrailSteps'
 import {
   api,
   ApiError,
@@ -5566,8 +5566,9 @@ function HomePanel({
             {showLabTrail &&
             !inventarioMonthTitle &&
             ((LAB_TRAIL_KEYS.has(selectedLabMeasurementSection) &&
-              selectedLabMeasurementSection !== 'Entrada de medidores' &&
-              selectedLabMeasurementSection !== 'Agendar') ||
+              selectedLabMeasurementSection !== ENTRADA_TRAIL_STEP &&
+              selectedLabMeasurementSection !== 'Agendar' &&
+              selectedLabMeasurementSection !== APROVACAO_TRAIL_STEP) ||
               selectedLabMeasurementSection === ENSAIOS_CALENDAR_SECTION) ? (
               <LabTrailNav
                 activeStep={
