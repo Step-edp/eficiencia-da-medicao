@@ -898,11 +898,23 @@ function BulkReceiveConfirmModal({
   )
 }
 
+export type EntradaPanelView =
+  | 'dash'
+  | 'overview'
+  | 'demmEntrada'
+  | 'metersBase'
+  | 'receivedMetersBase'
+  | 'csdPendencias'
+  | 'inspectionPendencias'
+  | 'weekMeters'
+  | 'demmHistorico'
+
 type EntradaPanelProps = {
   onTrailCountsChange?: () => void
   readOnly?: boolean
   allowUserProfilePhotoEdit?: boolean
   isAdmin?: boolean
+  initialView?: EntradaPanelView
 }
 
 export function EntradaPanel({
@@ -910,18 +922,9 @@ export function EntradaPanel({
   readOnly = false,
   allowUserProfilePhotoEdit = false,
   isAdmin = false,
+  initialView = 'dash',
 }: EntradaPanelProps) {
-  const [view, setView] = useState<
-    | 'dash'
-    | 'overview'
-    | 'demmEntrada'
-    | 'metersBase'
-    | 'receivedMetersBase'
-    | 'csdPendencias'
-    | 'inspectionPendencias'
-    | 'weekMeters'
-    | 'demmHistorico'
-  >('dash')
+  const [view, setView] = useState<EntradaPanelView>(initialView)
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
   const [csdPendencias, setCsdPendencias] = useState<CsdDemmPendenciaRecord[]>([])
   const [csdPendenciasLoading, setCsdPendenciasLoading] = useState(false)

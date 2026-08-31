@@ -1006,6 +1006,7 @@ function ItemIcon({ title }: { title: string }) {
     Agendar: 'calendar',
     'Consultar RATM': 'search',
     'Consultar Medidor': 'search',
+    'Base de medidores recebidos': 'database',
     'Calendário de ensaios': 'calendar',
     Reagendar: 'repeat',
     'Alteração de data': 'clock',
@@ -2380,6 +2381,7 @@ function HomePanel({
     'Minha produtividade',
     'Consultar RATM',
     'Consultar Medidor',
+    'Base de medidores recebidos',
     'Reagendar',
     'Alteração de data',
     'Desvios',
@@ -5645,6 +5647,14 @@ function HomePanel({
                 allTrailSteps
                 allowEdit={!labMedicaoReadOnly}
                 allowCancelSchedule={false}
+              />
+            ) : selectedLabMeasurementSection === 'Base de medidores recebidos' ? (
+              <EntradaPanel
+                initialView="receivedMetersBase"
+                readOnly={labMedicaoReadOnly}
+                allowUserProfilePhotoEdit={isAdmin && !labMedicaoReadOnly}
+                isAdmin={isAdmin && !labMedicaoReadOnly}
+                onTrailCountsChange={refreshTrailStepCounts}
               />
             ) : selectedLabMeasurementSection === 'Adicionar passivo' ? (
               labMedicaoReadOnly ? (
