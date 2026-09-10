@@ -6,6 +6,7 @@ import { analyzeDemmMeters, NORMALIZED_METER_SQL, type DemmMeterAnalysis } from 
 import { loadInspectionSummariesByNorm, loadInspectionAnalysisStatusByMeter, type InspectionSummary } from './meter-inspection-documents.js'
 import { normalizeScheduleMeter } from '../numeric-field-validation.js'
 import { validateDemmUploadMeters } from '../demm-upload-validation.js'
+import { alignSchedulesCsdFromDemm } from '../demm-csd-alignment.js'
 import { resolvePontoFocalCsdNames } from '../ponto-focal-csds.js'
 import {
   ENTRADA_TRAIL_STEP,
@@ -385,6 +386,16 @@ export async function createDemmDocument(req: Request, res: Response) {
     created_by_registration: req.user?.registration ?? null,
   })
 
+  let alignedCsdCount = 0
+  try {
+    alignedCsdCount = await alignSchedulesCsdFromDemm({
+      meters: extractedMeters.map((item) => item.meter),
+      demmCsdName: csd.rows[0].name,
+    })
+  } catch (error) {
+    console.error('Não foi possível alinhar o CSD dos agendamentos à DEMM.', error)
+  }
+
   await writeAuditLog(req, {
     action: 'create',
     entityType: 'demm_document',
@@ -393,6 +404,7 @@ export async function createDemmDocument(req: Request, res: Response) {
     newData: {
       ...document,
       scheduledCount: extractedMeters.filter((item) => item.appStatus === 'agendado').length,
+      alignedCsdCount,
     },
   })
 
@@ -419,8 +431,11 @@ export async function createDemmDocument(req: Request, res: Response) {
 export async function getDemmDocumentAnalysis(req: Request, res: Response) {
   const { id } = req.params
 
-  const result = await query<Pick<DemmDocumentRow, 'id' | 'file_name' | 'file_data'>>(
-    `SELECT id, file_name, file_data FROM demm_documents WHERE id = $1`,
+  const result = await query<Pick<DemmDocumentRow, 'id' | 'file_name' | 'file_data' | 'csd_name'>>(
+    `SELECT d.id, d.file_name, d.file_data, c.name AS csd_name
+     FROM demm_documents d
+     LEFT JOIN csds c ON c.id = d.csd_id
+     WHERE d.id = $1`,
     [id],
   )
 
@@ -444,6 +459,16 @@ export async function getDemmDocumentAnalysis(req: Request, res: Response) {
        WHERE id = $4`,
       [JSON.stringify(meters), documentNumber, emissionDate, id],
     )
+    if (result.rows[0].csd_name?.trim()) {
+      try {
+        await alignSchedulesCsdFromDemm({
+          meters: meters.map((item) => item.meter),
+          demmCsdName: result.rows[0].csd_name,
+        })
+      } catch (error) {
+        console.error('Não foi possível alinhar o CSD dos agendamentos à DEMM.', error)
+      }
+    }
   } catch {
     res.status(400).json({ error: 'Não foi possível analisar o PDF da DEMM.' })
     return

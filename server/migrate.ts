@@ -1,4 +1,5 @@
 import { query } from './db.js'
+import { alignSchedulesCsdFromExistingDemms } from './demm-csd-alignment.js'
 import { ensureFillingDeviationsFromSchedules } from './filling-deviations.js'
 
 export async function migrate() {
@@ -1082,4 +1083,16 @@ export async function migrate() {
   `)
 
   await ensureFillingDeviationsFromSchedules()
+
+  const demmCsdAlignFlag = await query<{ key: string }>(
+    `SELECT key FROM app_runtime_flags WHERE key = 'demm_csd_align_v1'`,
+  )
+  if (!demmCsdAlignFlag.rows.length) {
+    try {
+      await alignSchedulesCsdFromExistingDemms()
+      await query(`INSERT INTO app_runtime_flags (key) VALUES ('demm_csd_align_v1')`)
+    } catch (error) {
+      console.error('Não foi possível alinhar o CSD dos agendamentos às DEMMs existentes.', error)
+    }
+  }
 }

@@ -3579,6 +3579,7 @@ export async function listScheduleDateAdjustments(req: Request, res: Response) {
            OR UPPER(TRIM(COALESCE(d.collaborator2_registration, ''))) = $2
            OR UPPER(TRIM(COALESCE(ms.toi_collaborator1_registration, ''))) = $2
            OR UPPER(TRIM(COALESCE(ms.toi_collaborator2_registration, ''))) = $2
+           OR UPPER(TRIM(COALESCE(ms.partner_registration, ''))) = $2
            OR (
              regexp_replace($2, '[^0-9]', '', 'g') <> ''
              AND (
@@ -3589,6 +3590,8 @@ export async function listScheduleDateAdjustments(req: Request, res: Response) {
                OR regexp_replace(COALESCE(ms.toi_collaborator1_registration, ''), '[^0-9]', '', 'g')
                  = regexp_replace($2, '[^0-9]', '', 'g')
                OR regexp_replace(COALESCE(ms.toi_collaborator2_registration, ''), '[^0-9]', '', 'g')
+                 = regexp_replace($2, '[^0-9]', '', 'g')
+               OR regexp_replace(COALESCE(ms.partner_registration, ''), '[^0-9]', '', 'g')
                  = regexp_replace($2, '[^0-9]', '', 'g')
              )
            )
