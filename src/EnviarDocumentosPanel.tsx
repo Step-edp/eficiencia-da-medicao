@@ -18,6 +18,13 @@ function formatDateTime(isoDate: string) {
   }).format(new Date(isoDate))
 }
 
+function normalizeCsdName(value: string) {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/^CSD\s*[-–—]\s*/, '')
+}
+
 type Feedback = { type: 'success' | 'error'; message: string }
 
 type EnviarDocumentosPanelProps = {
@@ -105,9 +112,6 @@ export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProp
         message: `DEMM registrada. ${response.analysis.total} medidor(es) identificado(s).`,
       })
       setDemmFile(null)
-      if (!scopeUserId || csdOptions.length !== 1) {
-        setDemmCsdId('')
-      }
       void loadInspectionPendencias()
     } catch (error) {
       if (error instanceof ApiError) {
@@ -189,6 +193,14 @@ export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProp
       setUploadingInspectionId(null)
     }
   }
+
+  const selectedCsdName = csdOptions.find((option) => option.id === demmCsdId)?.label ?? ''
+  const visiblePendencias = selectedCsdName
+    ? inspectionPendencias.filter(
+        (pendencia) =>
+          normalizeCsdName(pendencia.csd) === normalizeCsdName(selectedCsdName),
+      )
+    : []
 
   return (
     <div className="entrada-panel">
@@ -301,9 +313,9 @@ export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProp
       <section className="entrada-section">
         <div className="entrada-section-heading">
           <h3 className="entrada-section-title">Documentos de inspeção pendentes</h3>
-          {inspectionPendencias.length > 0 ? (
+          {demmCsdId && visiblePendencias.length > 0 ? (
             <span className="entrada-section-total">
-              {inspectionPendencias.length} pendência(s)
+              {visiblePendencias.length} pendência(s)
             </span>
           ) : null}
         </div>
@@ -317,15 +329,17 @@ export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProp
           />
         ) : null}
 
-        {inspectionLoading && inspectionPendencias.length === 0 ? (
+        {inspectionLoading && demmCsdId && visiblePendencias.length === 0 ? (
           <p className="entrada-panel-empty">Carregando pendências...</p>
-        ) : inspectionPendencias.length === 0 ? (
+        ) : !demmCsdId ? (
+          <p className="entrada-panel-empty">
+            Selecione o CSD para ver as pendências daquele CSD.
+          </p>
+        ) : visiblePendencias.length === 0 ? (
           <p className="entrada-panel-empty">
             {scopeUserId && !csdOptionsLoading && csdOptions.length === 0
               ? 'Você não está definido como responsável de nenhum CSD.'
-              : scopeUserId
-                ? 'Não há documentos de inspeção pendentes nos CSDs em que você é responsável.'
-                : 'Todos os medidores agendados têm documento de inspeção anexado.'}
+              : 'Não há documentos de inspeção pendentes neste CSD.'}
           </p>
         ) : (
           <div className="entrada-table-wrap">
@@ -341,7 +355,7 @@ export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProp
                 </tr>
               </thead>
               <tbody>
-                {inspectionPendencias.map((pendencia) => (
+                {visiblePendencias.map((pendencia) => (
                   <tr key={pendencia.id}>
                     <td>{pendencia.meter}</td>
                     <td>{pendencia.installation}</td>
