@@ -1488,8 +1488,12 @@ async function repairEncontradoReading(
 function findRegisteredNoteInText(text: string, expectedNote: string): string | null {
   const significant = significantNumericId(expectedNote)
   if (significant.length < 8) return null
-  const match = text.match(new RegExp(`\\b0*${significant}\\b`))
-  return match?.[0] ?? null
+  const compact = String(text ?? '').replace(/\D/g, '')
+  const index = compact.indexOf(significant)
+  if (index < 0) return null
+  let start = index
+  while (start > 0 && compact[start - 1] === '0') start -= 1
+  return compact.slice(start, index + significant.length)
 }
 
 async function repairExtractedNote(
