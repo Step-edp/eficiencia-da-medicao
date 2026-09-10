@@ -2253,7 +2253,7 @@ export async function listInspectionPendencias(req: Request, res: Response) {
      FROM meter_schedules ms
      LEFT JOIN csds c ON c.name = ms.csd
      LEFT JOIN users u ON u.id = c.responsible_user_id
-     WHERE (ms.trail_step = $1)
+     WHERE (ms.trail_step = $1
         OR EXISTS (
           SELECT 1 FROM meter_inspection_documents d
           WHERE d.meter_schedule_id = ms.id

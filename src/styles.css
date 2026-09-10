@@ -2257,16 +2257,51 @@ button {
 .inspection-document-card-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
 }
 
-.inspection-document-card-actions a.primary-button,
-.inspection-document-card-actions a.secondary-button {
-  text-decoration: none;
+.inspection-document-card-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(214, 232, 245, 0.78);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.inspection-document-card-action:hover:not(:disabled),
+.inspection-document-card-action:focus-visible {
+  border-color: rgba(24, 216, 240, 0.35);
+  background: rgba(8, 39, 66, 0.45);
+  color: #e8f6ff;
+}
+
+.inspection-document-card-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.inspection-document-card-action.is-danger {
+  border-color: rgba(255, 120, 120, 0.22);
+  color: rgba(255, 196, 196, 0.78);
+}
+
+.inspection-document-card-action.is-danger:hover:not(:disabled),
+.inspection-document-card-action.is-danger:focus-visible {
+  border-color: rgba(255, 120, 120, 0.45);
+  background: rgba(110, 23, 23, 0.22);
+  color: #ffd6d6;
 }
 
 .inspection-photo-section {

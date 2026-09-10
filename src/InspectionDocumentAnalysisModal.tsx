@@ -1521,7 +1521,7 @@ export function InspectionDocumentAnalysisModal({
 
                 <div className="inspection-document-card-actions">
                   <a
-                    className="secondary-button"
+                    className="inspection-document-card-action"
                     href={api.getInspectionDocumentFileUrl(
                       document.meterScheduleId,
                       document.docType,
@@ -1532,7 +1532,7 @@ export function InspectionDocumentAnalysisModal({
                     Abrir PDF
                   </a>
                   <a
-                    className="primary-button"
+                    className="inspection-document-card-action"
                     href={api.getInspectionDocumentDownloadUrl(
                       document.meterScheduleId,
                       document.docType,
@@ -1543,7 +1543,7 @@ export function InspectionDocumentAnalysisModal({
                   </a>
                   <button
                     type="button"
-                    className="secondary-button"
+                    className="inspection-document-card-action"
                     disabled={uploadingPhotos}
                     onClick={openPhotoPicker}
                   >
@@ -1552,7 +1552,7 @@ export function InspectionDocumentAnalysisModal({
                   {canDelete ? (
                     <button
                       type="button"
-                      className="danger-button"
+                      className="inspection-document-card-action is-danger"
                       disabled={deletingDocType === document.docType}
                       onClick={() => void handleDeleteDocument(document)}
                     >
