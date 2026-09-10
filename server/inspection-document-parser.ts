@@ -35,8 +35,8 @@ const ORDEM_INSPECAO_VALUE_PATTERN = /\b\d{10,14}\b/
 const ORDEM_INSPECAO_LABEL_PATTERN = /ordem\s+de\s+inspe[cçãa\u00e7\u00e3]\s*n[º°o\u00ba.]?\s*:?\s*/i
 const MEDIDOR_ENCONTRADO_LABEL_PATTERN =
   /(?:n[º°o.]?\s*(?:do\s+)?)?medidor\s+encontrado/i
-const NOTA_LABEL_PATTERN = /nota(?:\s+fiscal)?\s*:?\s*/i
-const NOTA_VALUE_PATTERN = /\b\d{8,12}\b/
+const NOTA_LABEL_PATTERN = /(?<![a-zà-ÿ])nota(?:\s+fiscal)?(?:\s*n[ºo°.]?)?\s*:?\s*(?![cçã])/i
+const NOTA_VALUE_PATTERN = /\b0*\d{8,12}\b/
 
 const TOI_MARKER = /termo\s+de\s+ocorr[eéê]ncia\s+e\s+inspe/i
 const COMUNICADO_MARKER = /comunicado\s+de\s+substitui[cçãa\u00e7\u00e3]{0,4}[oõ\u00f5]\s+de\s+medidor/i
@@ -312,6 +312,41 @@ export function classifyInspectionDocument(text: string): InspectionDocumentType
   if (hasComunicado) return 'comunicado'
   if (toiForm || toiTitle) return 'toi'
   return 'desconhecido'
+}
+
+function extractNoteNumber(text: string, excluded: Set<string>): string | null {
+  const candidates: string[] = []
+  const labelRe = new RegExp(NOTA_LABEL_PATTERN.source, 'gi')
+  let match: RegExpExecArray | null
+  while ((match = labelRe.exec(text))) {
+    const from = match.index + match[0].length
+    const valueMatch = text.slice(from, from + 80).match(NOTA_VALUE_PATTERN)
+    if (!valueMatch) continue
+    const key = digitKey(valueMatch[0])
+    if (!key || excluded.has(key)) continue
+    candidates.push(valueMatch[0])
+  }
+
+  if (!candidates.length) {
+    const fallback = extractAfterLabel(
+      text,
+      NOTA_LABEL_PATTERN,
+      DADOS_MEDICAO_START,
+      NOTA_VALUE_PATTERN,
+    )
+    const key = digitKey(fallback)
+    return key && !excluded.has(key) ? fallback : null
+  }
+
+  const score = (value: string) => {
+    const length = digitKey(value).length
+    if (length === 11) return 3
+    if (length === 12) return 2
+    if (length === 10) return 1
+    return 0
+  }
+
+  return [...candidates].sort((left, right) => score(right) - score(left))[0] ?? null
 }
 
 function extractAfterLabel(
@@ -848,6 +883,18 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
     if (key) excludedReadings.add(key)
   }
 
+  const installation = extractAfterLabel(
+    normalized,
+    INSTALLATION_LABEL_PATTERN,
+    DADOS_MEDICAO_START,
+    INSTALLATION_VALUE_PATTERN,
+  )
+  const excludedNoteKeys = new Set(
+    [toi, installation, meterEncontrado, meterRetirado, lacre]
+      .map((value) => digitKey(value))
+      .filter(Boolean),
+  )
+
   return {
     meterEncontrado,
     meterRetirado,
@@ -855,14 +902,9 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
     coverSeal: extractCoverSeal(normalized),
     coverSeal2: extractCoverSeal2(normalized),
     reading: extractReading(normalized, excludedReadings),
-    installation: extractAfterLabel(
-      normalized,
-      INSTALLATION_LABEL_PATTERN,
-      DADOS_MEDICAO_START,
-      INSTALLATION_VALUE_PATTERN,
-    ),
+    installation,
     toi,
-    note: extractAfterLabel(normalized, NOTA_LABEL_PATTERN, DADOS_MEDICAO_START, NOTA_VALUE_PATTERN),
+    note: extractNoteNumber(normalized, excludedNoteKeys),
     scheduledAt: extractScheduledAt(normalized),
   }
 }

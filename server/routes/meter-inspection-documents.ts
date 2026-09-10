@@ -19,7 +19,6 @@ import {
 import {
   formatScheduleNumericField,
   normalizeScheduleMeter,
-  normalizeScheduleNote,
   validateScheduleNumericField,
 } from '../numeric-field-validation.js'
 import { pontoFocalScopeUserId, resolvePontoFocalCsdNames } from '../ponto-focal-csds.js'
@@ -108,6 +107,18 @@ function normalizeMeter(value: string | null | undefined): string | null {
   return normalized || null
 }
 
+function significantNumericId(value: string | null | undefined): string {
+  return String(value ?? '')
+    .replace(/\D/g, '')
+    .replace(/^0+/, '')
+}
+
+function sameNumericId(left: string | null | undefined, right: string | null | undefined) {
+  const leftDigits = significantNumericId(left)
+  const rightDigits = significantNumericId(right)
+  return Boolean(leftDigits && rightDigits && leftDigits === rightDigits)
+}
+
 function normalizeNumericEntryField(
   value: string | null | undefined,
   field: 'instalacao' | 'toi' | 'nota',
@@ -115,8 +126,7 @@ function normalizeNumericEntryField(
   const digits = String(value ?? '').replace(/\D/g, '')
   if (!digits) return null
   if (field === 'nota') {
-    const normalized = normalizeScheduleNote(digits)
-    return normalized || null
+    return significantNumericId(digits) || null
   }
   const normalized = formatScheduleNumericField(digits, field)
   return normalized || null
@@ -127,6 +137,12 @@ function compareNumericEntryField(
   registered: string | null | undefined,
   field: 'instalacao' | 'toi' | 'nota',
 ): boolean | null {
+  if (field === 'nota') {
+    const documentValue = significantNumericId(extracted)
+    const registeredValue = significantNumericId(registered)
+    if (!documentValue || !registeredValue) return null
+    return documentValue === registeredValue
+  }
   const documentValue = normalizeNumericEntryField(extracted, field)
   const registeredValue = normalizeNumericEntryField(registered, field)
   if (!documentValue || !registeredValue) return null
@@ -1469,6 +1485,54 @@ async function repairEncontradoReading(
   }
 }
 
+function findRegisteredNoteInText(text: string, expectedNote: string): string | null {
+  const significant = significantNumericId(expectedNote)
+  if (significant.length < 8) return null
+  const match = text.match(new RegExp(`\\b0*${significant}\\b`))
+  return match?.[0] ?? null
+}
+
+async function repairExtractedNote(
+  rows: Array<{
+    id?: string
+    extracted_note: string | null
+    extracted_fields_manual?: boolean | null
+  }>,
+  expectedNote: string,
+) {
+  const significant = significantNumericId(expectedNote)
+  if (!significant) return
+
+  for (const row of rows) {
+    if (row.extracted_fields_manual) continue
+    if (significantNumericId(row.extracted_note) === significant) continue
+    if (!row.id) continue
+
+    const file = await query<{ file_data: Buffer }>(
+      `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
+      [row.id],
+    )
+    if (!file.rows[0]?.file_data) continue
+
+    try {
+      const text = await extractInspectionPdfText(file.rows[0].file_data)
+      const parsed = parseInspectionText(text)
+      const next =
+        significantNumericId(parsed.note) === significant
+          ? parsed.note
+          : findRegisteredNoteInText(text, expectedNote)
+      if (!next || significantNumericId(next) !== significant) continue
+      await query(`UPDATE meter_inspection_documents SET extracted_note = $2 WHERE id = $1`, [
+        row.id,
+        next,
+      ])
+      row.extracted_note = next
+    } catch (error) {
+      console.error('Falha ao corrigir nota extraída do documento de inspeção:', error)
+    }
+  }
+}
+
 async function backfillMissingExtractions(
   rows: Array<Omit<InspectionDocumentRow, 'file_data'>>,
 ) {
@@ -1525,12 +1589,6 @@ async function backfillMissingExtractions(
       console.error('Falha ao extrair campos do documento de inspeção:', error)
     }
   }
-}
-
-function sameNumericId(left: string | null | undefined, right: string | null | undefined) {
-  const leftDigits = String(left ?? '').replace(/\D/g, '').replace(/^0+/, '')
-  const rightDigits = String(right ?? '').replace(/\D/g, '').replace(/^0+/, '')
-  return Boolean(leftDigits && rightDigits && leftDigits === rightDigits)
 }
 
 async function repairMeterToiCollisions(
@@ -1698,6 +1756,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     envelope_seal: string
     cover_seal: string
     meter_reading: string
+    note: string
     source: string
     scheduled_at: Date
     inspection_wpa_meter: string | null
@@ -1711,7 +1770,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     inspection_schedule_meter: string | null
     inspection_analysis_completed_at: Date | null
   }>(
-    `SELECT id, meter, installation, envelope_seal, cover_seal, meter_reading, source, scheduled_at,
+    `SELECT id, meter, installation, envelope_seal, cover_seal, meter_reading, note, source, scheduled_at,
             envelope_photo, inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
             inspection_wpa_cover_seal_2, inspection_wpa_reading, inspection_observations,
             inspection_schedule_lacre, inspection_schedule_meter, inspection_analysis_completed_at
@@ -1787,6 +1846,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     registeredMeter,
     registeredLacre,
   )
+  await repairExtractedNote(result.rows, schedule.rows[0].note)
   const presence = await loadDocTypePresence(meterScheduleId)
   const scheduleMeterFields = await loadScheduleMeterConferenceFields(
     meterScheduleId,
@@ -1885,6 +1945,7 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
   const documents = await query<
     Pick<
       InspectionDocumentRow,
+      | 'id'
       | 'doc_type'
       | 'extracted_cover_seal'
       | 'extracted_reading'
@@ -1892,14 +1953,17 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
       | 'extracted_installation'
       | 'extracted_toi'
       | 'extracted_note'
+      | 'extracted_fields_manual'
     >
   >(
-    `SELECT doc_type, extracted_cover_seal, extracted_reading, extracted_scheduled_at,
-            extracted_installation, extracted_toi, extracted_note
+    `SELECT id, doc_type, extracted_cover_seal, extracted_reading, extracted_scheduled_at,
+            extracted_installation, extracted_toi, extracted_note, extracted_fields_manual
      FROM meter_inspection_documents
      WHERE meter_schedule_id = $1`,
     [meterScheduleId],
   )
+
+  await repairExtractedNote(documents.rows, schedule.rows[0].note)
 
   const comparisons = buildScheduleEntryComparisons(
     schedule.rows[0],
@@ -2212,19 +2276,29 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
   const documents = scheduleIds.length
     ? await query<
         DocumentForInspectionAggregate & {
+          id: string
           meter_schedule_id: string
+          extracted_fields_manual: boolean | null
         }
       >(
-        `SELECT meter_schedule_id, doc_type, extracted_meter, extracted_meter_retirado, extracted_lacre,
+        `SELECT id, meter_schedule_id, doc_type, extracted_meter, extracted_meter_retirado, extracted_lacre,
                 extracted_cover_seal, extracted_reading,
-                extracted_installation, extracted_toi, extracted_note
+                extracted_installation, extracted_toi, extracted_note, extracted_fields_manual
          FROM meter_inspection_documents
          WHERE meter_schedule_id = ANY($1::text[])`,
         [scheduleIds],
       )
-    : { rows: [] as Array<DocumentForInspectionAggregate & { meter_schedule_id: string }> }
+    : { rows: [] as Array<DocumentForInspectionAggregate & { id: string; meter_schedule_id: string; extracted_fields_manual: boolean | null }> }
 
-  const docsByScheduleId = new Map<string, DocumentForInspectionAggregate[]>()
+  const docsByScheduleId = new Map<
+    string,
+    Array<
+      DocumentForInspectionAggregate & {
+        id: string
+        extracted_fields_manual: boolean | null
+      }
+    >
+  >()
   for (const doc of documents.rows) {
     const list = docsByScheduleId.get(doc.meter_schedule_id) ?? []
     list.push(doc)
@@ -2233,7 +2307,9 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
 
   const meters = []
   for (const row of schedules.rows) {
-    const summary = aggregateInspectionForSchedule(row, docsByScheduleId.get(row.id) ?? [])
+    const docs = docsByScheduleId.get(row.id) ?? []
+    await repairExtractedNote(docs, row.note)
+    const summary = aggregateInspectionForSchedule(row, docs)
     if (!summary.hasToi && !summary.hasComunicado) continue
 
     meters.push({
