@@ -64,6 +64,7 @@ type InspectionDocumentAnalysisModalProps = {
   scheduleId: string
   onClose: () => void
   onDocumentsChanged?: () => void
+  onAnalysisCompleted?: (meter: string) => void
 }
 
 type DocumentFieldsDraft = {
@@ -627,6 +628,7 @@ export function InspectionDocumentAnalysisModal({
   scheduleId,
   onClose,
   onDocumentsChanged,
+  onAnalysisCompleted,
 }: InspectionDocumentAnalysisModalProps) {
   const [loading, setLoading] = useState(true)
   const [documents, setDocuments] = useState<InspectionDocumentRecord[]>([])
@@ -846,6 +848,7 @@ export function InspectionDocumentAnalysisModal({
       await api.completeInspectionAnalysis(scheduleId)
       setAnalysisCompleted(true)
       onDocumentsChanged?.()
+      onAnalysisCompleted?.(registeredMeter || meter)
       onClose()
     } catch (error) {
       setFeedback({
@@ -853,7 +856,7 @@ export function InspectionDocumentAnalysisModal({
         message:
           error instanceof ApiError
             ? error.message
-            : 'Não foi possível salvar a análise.',
+            : 'Não foi possível concluir a análise.',
       })
     } finally {
       setSavingAnalysis(false)
@@ -1498,14 +1501,14 @@ export function InspectionDocumentAnalysisModal({
               onClick={() => void handleSaveAnalysis()}
               title={
                 canSaveAnalysis
-                  ? 'Salvar análise e remover da fila'
-                  : 'Complete todos os campos com status OK antes de salvar'
+                  ? 'Marcar análise como completa e enviar para Analisados'
+                  : 'Complete todos os campos com status OK para concluir'
               }
             >
-              {savingAnalysis ? 'Salvando...' : 'Salvar análise'}
+              {savingAnalysis ? 'Concluindo...' : 'Análise completa'}
             </button>
           ) : analysisCompleted ? (
-            <span className="inspection-analysis-saved-badge">Análise salva</span>
+            <span className="inspection-analysis-saved-badge">Análise completa</span>
           ) : null}
           <button type="button" className="secondary-button" onClick={onClose}>
             Voltar

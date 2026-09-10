@@ -1884,6 +1884,8 @@ button {
 }
 
 .panel-switch.entrada-demm-switch > button {
+  display: inline-flex;
+  align-items: center;
   flex: 0 0 auto;
   white-space: nowrap;
   padding: 9px 12px;
@@ -1898,6 +1900,30 @@ button {
 
 .panel-switch.entrada-demm-switch > button .lab-trail-step-badge {
   margin-left: 6px;
+}
+
+.entrada-wpa-pending-alert {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 176, 80, 0.45);
+  background: rgba(255, 160, 60, 0.16);
+  color: #ffe7c2;
+  font-size: 0.9rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  text-align: left;
+}
+
+.entrada-wpa-pending-alert:hover,
+.entrada-wpa-pending-alert:focus-visible {
+  border-color: rgba(255, 196, 110, 0.7);
+  background: rgba(255, 160, 60, 0.24);
 }
 
 .entrada-dedicated-screen {

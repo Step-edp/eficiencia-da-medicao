@@ -1277,6 +1277,23 @@ export function EntradaPanel({
     void loadWpaAnalyzedMeters()
   }
 
+  const handleWpaAnalysisCompleted = (completedMeter: string) => {
+    setInspectionDocumentTarget(null)
+    setMeterDetailTarget(null)
+    setWpaAnalyzedSearchQuery('')
+    setView('wpaAnalyzed')
+    setFeedback({
+      type: 'success',
+      message: `Análise completa do medidor ${completedMeter}. Ele foi para Analisados.`,
+    })
+    void loadWpaMeters()
+    void loadWpaAnalyzedMeters()
+    void loadInspectionPendencias()
+    void loadWeekMeters()
+    void loadData()
+    refreshTrailCounts()
+  }
+
   const loadReceivedMetersBase = useCallback(async (search = '') => {
     setReceivedMetersLoading(true)
     try {
@@ -1540,7 +1557,22 @@ export function EntradaPanel({
       />
     ) : null
 
+  const wpaPendingCount = wpaMeters.length
+
+  const renderWpaPendingAlert = () =>
+    wpaPendingCount > 0 && view !== 'metersBase' ? (
+      <button
+        type="button"
+        className="entrada-wpa-pending-alert"
+        onClick={() => openMetersBase()}
+      >
+        {wpaPendingCount} medidor{wpaPendingCount === 1 ? '' : 'es'} pendente
+        {wpaPendingCount === 1 ? '' : 's'} de análise
+      </button>
+    ) : null
+
   const renderEntradaTabBar = () => (
+    <>
     <div className="entrada-panel-header">
       <div className="entrada-panel-actions">
         <button
@@ -1583,6 +1615,14 @@ export function EntradaPanel({
           onClick={() => openMetersBase()}
         >
           Análise
+          {wpaPendingCount > 0 ? (
+            <span
+              className="lab-trail-step-badge"
+              aria-label={`${wpaPendingCount} pendente${wpaPendingCount === 1 ? '' : 's'} de análise`}
+            >
+              {wpaPendingCount}
+            </span>
+          ) : null}
         </button>
         <button
           type="button"
@@ -1649,6 +1689,8 @@ export function EntradaPanel({
         </button>
       </div>
     </div>
+    {renderWpaPendingAlert()}
+    </>
   )
 
   const closeQuickSchedule = () => {
@@ -2126,6 +2168,7 @@ export function EntradaPanel({
         void loadData()
         refreshTrailCounts()
       }}
+      onAnalysisCompleted={handleWpaAnalysisCompleted}
     />
   ) : null
 
@@ -2290,10 +2333,10 @@ export function EntradaPanel({
                   ? 'Carregando medidores...'
                   : hasWpaSearch
                     ? `${filteredWpaMeters.length} de ${documentedMeters.length} medidor(es) ${
-                        analyzedView ? 'analisado(s)' : 'com documento anexado'
+                        analyzedView ? 'analisado(s)' : 'pendente(s) de análise'
                       }`
                     : `${documentedMeters.length} medidor(es) ${
-                        analyzedView ? 'analisado(s)' : 'com documento anexado'
+                        analyzedView ? 'analisado(s)' : 'pendente(s) de análise'
                       }`}
               </p>
             </div>
@@ -2347,7 +2390,7 @@ export function EntradaPanel({
               <p className="entrada-panel-empty">
                 {analyzedView
                   ? 'Nenhum medidor analisado.'
-                  : 'Nenhum medidor com documento de inspeção anexado.'}
+                  : 'Nenhum medidor pendente de análise.'}
               </p>
             ) : filteredWpaMeters.length === 0 ? (
               <p className="entrada-panel-empty">Nenhum medidor encontrado para esta pesquisa.</p>
@@ -2434,6 +2477,7 @@ export function EntradaPanel({
               void loadData()
               refreshTrailCounts()
             }}
+            onAnalysisCompleted={handleWpaAnalysisCompleted}
           />
         ) : null}
         {userProfileModal}
@@ -3097,6 +3141,7 @@ export function EntradaPanel({
               void loadData()
               refreshTrailCounts()
             }}
+            onAnalysisCompleted={handleWpaAnalysisCompleted}
           />
         ) : null}
         {userProfileModal}
