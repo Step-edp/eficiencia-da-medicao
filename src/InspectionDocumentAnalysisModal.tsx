@@ -756,6 +756,7 @@ export function InspectionDocumentAnalysisModal({
   const [blockFormOpen, setBlockFormOpen] = useState(false)
   const [savingAnalysis, setSavingAnalysis] = useState(false)
   const [blockingAnalysis, setBlockingAnalysis] = useState(false)
+  const [unblockingAnalysis, setUnblockingAnalysis] = useState(false)
 
   const loadDocuments = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent === true
@@ -1000,6 +1001,29 @@ export function InspectionDocumentAnalysisModal({
       })
     } finally {
       setBlockingAnalysis(false)
+    }
+  }
+
+  const handleUnblockAnalysis = async () => {
+    setUnblockingAnalysis(true)
+    setFeedback(null)
+    try {
+      await api.unblockInspectionAnalysis(scheduleId)
+      setAnalysisBlocked(false)
+      setBlockFormOpen(false)
+      setBlockJustification('')
+      setFeedback({ type: 'success', message: 'Medidor desbloqueado.' })
+      onDocumentsChanged?.()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível desbloquear a análise.',
+      })
+    } finally {
+      setUnblockingAnalysis(false)
     }
   }
 
@@ -1625,7 +1649,7 @@ export function InspectionDocumentAnalysisModal({
         <div className="inspection-analysis-screen-actions">
           {canEditWpa && !analysisCompleted ? (
             <>
-              {blockFormOpen ? (
+              {blockFormOpen || analysisBlocked ? (
                 <>
                   <label className="inspection-analysis-block-label">
                     Justificativa do bloqueio
@@ -1635,41 +1659,55 @@ export function InspectionDocumentAnalysisModal({
                       maxLength={1000}
                       value={blockJustification}
                       placeholder="Descreva o motivo do bloqueio"
+                      readOnly={analysisBlocked}
                       onChange={(event) => setBlockJustification(event.target.value)}
                     />
                   </label>
                   {analysisBlocked ? (
                     <p className="inspection-analysis-blocked-hint">
-                      Esta análise já está bloqueada. Atualize a justificativa e clique em Bloquear
-                      para registrar de novo, ou conclua com Análise completa.
+                      Esta análise está bloqueada. Desbloqueie para continuar ou conclua com
+                      Análise completa.
                     </p>
                   ) : null}
                 </>
               ) : null}
               <div className="inspection-analysis-screen-action-row">
-                <button
-                  type="button"
-                  className="danger-button"
-                  disabled={
-                    blockingAnalysis ||
-                    savingAnalysis ||
-                    (blockFormOpen && !canBlockAnalysis)
-                  }
-                  onClick={() => void handleBlockAnalysis()}
-                  title={
-                    !blockFormOpen
-                      ? 'Informar justificativa para bloquear'
-                      : canBlockAnalysis
-                        ? 'Bloquear o medidor na Análise com justificativa'
-                        : 'Informe a justificativa para bloquear'
-                  }
-                >
-                  {blockingAnalysis ? 'Bloqueando...' : 'Bloquear'}
-                </button>
+                {analysisBlocked ? (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={unblockingAnalysis || savingAnalysis || blockingAnalysis}
+                    onClick={() => void handleUnblockAnalysis()}
+                    title="Remover o bloqueio e voltar a analisar o medidor"
+                  >
+                    {unblockingAnalysis ? 'Desbloqueando...' : 'Desbloquear'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="danger-button"
+                    disabled={
+                      blockingAnalysis ||
+                      savingAnalysis ||
+                      unblockingAnalysis ||
+                      (blockFormOpen && !canBlockAnalysis)
+                    }
+                    onClick={() => void handleBlockAnalysis()}
+                    title={
+                      !blockFormOpen
+                        ? 'Informar justificativa para bloquear'
+                        : canBlockAnalysis
+                          ? 'Bloquear o medidor na Análise com justificativa'
+                          : 'Informe a justificativa para bloquear'
+                    }
+                  >
+                    {blockingAnalysis ? 'Bloqueando...' : 'Bloquear'}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="primary-button"
-                  disabled={!canSaveAnalysis || savingAnalysis || blockingAnalysis}
+                  disabled={!canSaveAnalysis || savingAnalysis || blockingAnalysis || unblockingAnalysis}
                   onClick={() => void handleSaveAnalysis()}
                   title={
                     canSaveAnalysis

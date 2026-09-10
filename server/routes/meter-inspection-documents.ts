@@ -2788,6 +2788,60 @@ export async function blockInspectionAnalysis(req: Request, res: Response) {
   })
 }
 
+export async function unblockInspectionAnalysis(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error:
+        'Somente administradores e usuários do Laboratório de Medição podem desbloquear a análise.',
+    })
+    return
+  }
+
+  const existing = await query<{
+    id: string
+    inspection_analysis_completed_at: Date | null
+    inspection_analysis_block_reason: string | null
+  }>(
+    `SELECT id, inspection_analysis_completed_at, inspection_analysis_block_reason
+     FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  if (!existing.rows[0]) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+  if (existing.rows[0].inspection_analysis_completed_at) {
+    res.status(409).json({
+      error: 'A análise já foi concluída. Não é possível desbloquear um medidor em Analisados.',
+    })
+    return
+  }
+  if (!existing.rows[0].inspection_analysis_block_reason?.trim()) {
+    res.status(409).json({ error: 'Este medidor não está bloqueado.' })
+    return
+  }
+
+  await query(
+    `UPDATE meter_schedules
+     SET inspection_analysis_block_reason = NULL,
+         inspection_analysis_blocked_at = NULL,
+         inspection_analysis_blocked_by_user_id = NULL
+     WHERE id = $1`,
+    [meterScheduleId],
+  )
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: meterScheduleId,
+    summary: `Análise de documentos desbloqueada para o agendamento ${meterScheduleId}`,
+  })
+
+  res.json({ ok: true })
+}
+
 const MAX_INSPECTION_PHOTOS = 20
 const MAX_INSPECTION_PHOTO_CHARS = 3_500_000
 
