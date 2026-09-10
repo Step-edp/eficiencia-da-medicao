@@ -310,6 +310,7 @@ type ScheduleForInspectionAggregate = {
   inspection_wpa_lacre?: string | null
   inspection_wpa_cover_seal?: string | null
   inspection_wpa_cover_seal_2?: string | null
+  inspection_wpa_reading?: string | null
   inspection_analysis_block_reason?: string | null
 }
 
@@ -357,6 +358,7 @@ export function aggregateInspectionForSchedule(
   const hasToi = types.has('toi') || types.has('ambos')
   const hasComunicado = types.has('comunicado') || types.has('ambos')
   const reasons: string[] = []
+  const waivers = notApplicableWaivers(schedule)
 
   for (const doc of documents) {
     const docType = effectiveInspectionDocType(doc)
@@ -365,18 +367,17 @@ export function aggregateInspectionForSchedule(
       doc.extracted_lacre,
       doc.extracted_meter,
       schedule.meter,
-      expectedEnvelopeSealForEvaluation(schedule.envelope_seal, schedule.inspection_schedule_lacre),
+      waivers.skipLacre
+        ? 'nao_aplicavel'
+        : expectedEnvelopeSealForEvaluation(
+            schedule.envelope_seal,
+            schedule.inspection_schedule_lacre,
+          ),
+      doc.extracted_meter_retirado,
+      { skipMeter: waivers.skipMeter },
     )
     if (evaluation.blocked && evaluation.reason) {
-      if (
-        !isIgnorableRegisteredDivergence(evaluation.reason, {
-          skipLacre:
-            isWpaNotApplicable(schedule.inspection_wpa_lacre) ||
-            isWpaConferenceValue(schedule.inspection_schedule_lacre),
-          skipCover: isWpaNotApplicable(schedule.inspection_wpa_cover_seal),
-          skipMeter: isWpaNotApplicable(schedule.inspection_wpa_meter),
-        })
-      ) {
+      if (!isIgnorableRegisteredDivergence(evaluation.reason, waivers)) {
         reasons.push(evaluation.reason)
       }
     }
@@ -384,6 +385,7 @@ export function aggregateInspectionForSchedule(
 
   for (const doc of documents) {
     if (effectiveInspectionDocType(doc) !== 'comunicado') continue
+    if (waivers.skipMeter) continue
     const evaluation = evaluateComunicadoDocument(
       doc.extracted_meter_retirado,
       schedule.meter,
@@ -428,14 +430,14 @@ export function aggregateInspectionForSchedule(
 
     if (
       schedule.cover_seal?.trim() &&
-      !isWpaNotApplicable(schedule.inspection_wpa_cover_seal) &&
-      !isWpaNotApplicable(schedule.inspection_wpa_cover_seal_2) &&
+      !waivers.skipCover &&
       compareSeal(extraction.extracted_cover_seal, schedule.cover_seal) === false
     ) {
       reasons.push('Lacre da tampa no documento diverge do cadastrado.')
     }
     if (
       schedule.meter_reading?.trim() &&
+      !waivers.skipReading &&
       compareReading(extraction.extracted_reading, schedule.meter_reading) === false
     ) {
       reasons.push('Leitura no documento diverge do cadastrada.')
@@ -475,6 +477,7 @@ export async function loadInspectionSummariesByNorm(
     inspection_wpa_lacre: string | null
     inspection_wpa_cover_seal: string | null
     inspection_wpa_cover_seal_2: string | null
+    inspection_wpa_reading: string | null
     inspection_analysis_block_reason: string | null
     created_at: Date
     doc_type: InspectionDocumentType | null
@@ -502,6 +505,7 @@ export async function loadInspectionSummariesByNorm(
             ms.inspection_wpa_lacre,
             ms.inspection_wpa_cover_seal,
             ms.inspection_wpa_cover_seal_2,
+            ms.inspection_wpa_reading,
             ms.inspection_analysis_block_reason,
             ms.created_at,
             d.doc_type,
@@ -549,6 +553,7 @@ export async function loadInspectionSummariesByNorm(
           inspection_wpa_lacre: row.inspection_wpa_lacre,
           inspection_wpa_cover_seal: row.inspection_wpa_cover_seal,
           inspection_wpa_cover_seal_2: row.inspection_wpa_cover_seal_2,
+          inspection_wpa_reading: row.inspection_wpa_reading,
           inspection_analysis_block_reason: row.inspection_analysis_block_reason,
         },
         documents: [],
@@ -714,6 +719,26 @@ function isWpaNotApplicable(value: string | null | undefined) {
   return value?.trim() === 'nao_aplicavel'
 }
 
+function notApplicableWaivers(row: {
+  inspection_wpa_meter?: string | null
+  inspection_wpa_lacre?: string | null
+  inspection_wpa_cover_seal?: string | null
+  inspection_wpa_cover_seal_2?: string | null
+  inspection_wpa_reading?: string | null
+  inspection_schedule_lacre?: string | null
+}) {
+  return {
+    skipLacre:
+      isWpaNotApplicable(row.inspection_wpa_lacre) ||
+      isWpaNotApplicable(row.inspection_schedule_lacre),
+    skipCover:
+      isWpaNotApplicable(row.inspection_wpa_cover_seal) ||
+      isWpaNotApplicable(row.inspection_wpa_cover_seal_2),
+    skipMeter: isWpaNotApplicable(row.inspection_wpa_meter),
+    skipReading: isWpaNotApplicable(row.inspection_wpa_reading),
+  }
+}
+
 function expectedEnvelopeSealForEvaluation(
   envelopeSeal: string | null | undefined,
   scheduleLacre: string | null | undefined,
@@ -725,21 +750,15 @@ function expectedEnvelopeSealForEvaluation(
 
 function isIgnorableRegisteredDivergence(
   reason: string,
-  options: { skipLacre: boolean; skipCover: boolean; skipMeter: boolean },
+  options: { skipLacre: boolean; skipCover: boolean; skipMeter: boolean; skipReading: boolean },
 ) {
-  if (options.skipLacre && /lacre do invólucro/i.test(reason) && /diverge/i.test(reason)) {
+  if (options.skipLacre && /lacre do invólucro/i.test(reason)) return true
+  if (options.skipLacre && /lacre com (dígitos repetidos|numeração sequencial)/i.test(reason)) {
     return true
   }
-  if (options.skipCover && /lacre da tampa/i.test(reason) && /diverge/i.test(reason)) {
-    return true
-  }
-  if (
-    options.skipMeter &&
-    /medidor encontrado no documento/i.test(reason) &&
-    /diverge/i.test(reason)
-  ) {
-    return true
-  }
+  if (options.skipCover && /lacre da tampa/i.test(reason)) return true
+  if (options.skipMeter && /medidor (encontrado|retirado)/i.test(reason)) return true
+  if (options.skipReading && /leitura/i.test(reason)) return true
   return false
 }
 
@@ -763,30 +782,36 @@ function evaluateInspectionDocument(
   expectedMeter: string,
   expectedLacre: string | null = null,
   meterRetirado: string | null = null,
+  options: { skipMeter?: boolean } = {},
 ): InspectionEvaluation {
-  if (!lacre) {
-    return { blocked: true, reason: 'Lacre do invólucro não informado no documento.' }
-  }
-  if (isAllRepeatedDigits(lacre)) {
-    return { blocked: true, reason: `Lacre com dígitos repetidos (${lacre}).` }
-  }
-  if (isSequentialDigits(lacre)) {
-    return { blocked: true, reason: `Lacre com numeração sequencial (${lacre}).` }
-  }
-  if (!meterEncontrado && !meterRetirado?.trim()) {
-    return {
-      blocked: true,
-      reason: 'Número do medidor encontrado não informado no documento.',
+  const waiveLacre = isWpaNotApplicable(expectedLacre)
+  if (!waiveLacre) {
+    if (!lacre) {
+      return { blocked: true, reason: 'Lacre do invólucro não informado no documento.' }
+    }
+    if (isAllRepeatedDigits(lacre)) {
+      return { blocked: true, reason: `Lacre com dígitos repetidos (${lacre}).` }
+    }
+    if (isSequentialDigits(lacre)) {
+      return { blocked: true, reason: `Lacre com numeração sequencial (${lacre}).` }
     }
   }
-  if (!meterDocumentMatchesSchedule(meterEncontrado, meterRetirado, expectedMeter)) {
-    const documentMeter = meterRetirado?.trim() || meterEncontrado || '—'
-    return {
-      blocked: true,
-      reason: `Medidor encontrado no documento (${documentMeter}) diverge do medidor agendado (${expectedMeter}).`,
+  if (!options.skipMeter) {
+    if (!meterEncontrado && !meterRetirado?.trim()) {
+      return {
+        blocked: true,
+        reason: 'Número do medidor encontrado não informado no documento.',
+      }
+    }
+    if (!meterDocumentMatchesSchedule(meterEncontrado, meterRetirado, expectedMeter)) {
+      const documentMeter = meterRetirado?.trim() || meterEncontrado || '—'
+      return {
+        blocked: true,
+        reason: `Medidor encontrado no documento (${documentMeter}) diverge do medidor agendado (${expectedMeter}).`,
+      }
     }
   }
-  if (!isWpaConferenceValue(expectedLacre)) {
+  if (!waiveLacre && !isWpaConferenceValue(expectedLacre)) {
     const registeredLacre = normalizeSeal(expectedLacre)
     const documentLacre = normalizeSeal(lacre)
     if (registeredLacre && documentLacre && registeredLacre !== documentLacre) {
@@ -1042,6 +1067,7 @@ async function refreshInspectionDocumentBlocksForSchedule(
   meterScheduleId: string,
   expectedMeter: string,
   expectedLacre: string | null,
+  options: { skipMeter?: boolean } = {},
 ) {
   const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
   const documentScheduleIds = scheduleIds.length ? scheduleIds : [meterScheduleId]
@@ -1063,7 +1089,9 @@ async function refreshInspectionDocumentBlocksForSchedule(
   for (const row of docs.rows) {
     const evaluation =
       row.doc_type === 'comunicado'
-        ? evaluateComunicadoDocument(row.extracted_meter_retirado, expectedMeter)
+        ? options.skipMeter
+          ? { blocked: false, reason: null }
+          : evaluateComunicadoDocument(row.extracted_meter_retirado, expectedMeter)
         : row.doc_type === 'toi' || row.doc_type === 'ambos'
           ? evaluateInspectionDocument(
               row.extracted_lacre,
@@ -1071,6 +1099,7 @@ async function refreshInspectionDocumentBlocksForSchedule(
               expectedMeter,
               expectedLacre,
               row.extracted_meter_retirado,
+              { skipMeter: options.skipMeter },
             )
           : { blocked: row.blocked, reason: row.block_reason }
 
@@ -2191,6 +2220,7 @@ export async function listInspectionPendencias(req: Request, res: Response) {
     inspection_wpa_lacre: string | null
     inspection_wpa_cover_seal: string | null
     inspection_wpa_cover_seal_2: string | null
+    inspection_wpa_reading: string | null
     inspection_analysis_block_reason: string | null
     responsible_user_id: string | null
     responsible_name: string | null
@@ -2214,6 +2244,7 @@ export async function listInspectionPendencias(req: Request, res: Response) {
             ms.inspection_wpa_lacre,
             ms.inspection_wpa_cover_seal,
             ms.inspection_wpa_cover_seal_2,
+            ms.inspection_wpa_reading,
             ms.inspection_analysis_block_reason,
             c.responsible_user_id,
             u.name AS responsible_name,
@@ -2364,6 +2395,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
     inspection_wpa_lacre: string | null
     inspection_wpa_cover_seal: string | null
     inspection_wpa_cover_seal_2: string | null
+    inspection_wpa_reading: string | null
     inspection_analysis_block_reason: string | null
   }>(
     `SELECT ms.id,
@@ -2383,6 +2415,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
             ms.inspection_wpa_lacre,
             ms.inspection_wpa_cover_seal,
             ms.inspection_wpa_cover_seal_2,
+            ms.inspection_wpa_reading,
             ms.inspection_analysis_block_reason,
             c.responsible_user_id,
             u.name AS responsible_name,
@@ -2576,15 +2609,7 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
   if (!presence.hasComunicado) reasons.push('Anexe o CSM.')
 
   const summary = aggregateInspectionForSchedule(row, documents.rows)
-  const ignorable = {
-    skipLacre:
-      isWpaNotApplicable(row.inspection_wpa_lacre) ||
-      isWpaConferenceValue(row.inspection_schedule_lacre),
-    skipCover:
-      isWpaNotApplicable(row.inspection_wpa_cover_seal) ||
-      isWpaNotApplicable(row.inspection_wpa_cover_seal_2),
-    skipMeter: isWpaNotApplicable(row.inspection_wpa_meter),
-  }
+  const ignorable = notApplicableWaivers(row)
   if (summary.anyBlocked && summary.blockReasons) {
     for (const reason of summary.blockReasons.split('|')) {
       const trimmed = reason.trim()
@@ -2655,7 +2680,9 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
     reasons.push('Data de agendamento não informada no cadastro.')
   }
 
-  const uniqueReasons = [...new Set(reasons.map((item) => item.trim()).filter(Boolean))]
+  const uniqueReasons = [...new Set(reasons.map((item) => item.trim()).filter(Boolean))].filter(
+    (reason) => !isIgnorableRegisteredDivergence(reason, ignorable),
+  )
   return { ready: uniqueReasons.length === 0, reasons: uniqueReasons }
 }
 
@@ -3018,14 +3045,16 @@ export async function updateInspectionWpa(req: Request, res: Response) {
         [meterScheduleId],
       )
     ).rows[0]?.envelope_seal?.trim() || null
-  const scheduleLacreForEvaluation = expectedEnvelopeSealForEvaluation(
-    envelopeSeal,
-    scheduleLacre,
-  )
+  const skipLacre =
+    isWpaNotApplicable(lacre) || isWpaNotApplicable(scheduleLacre)
+  const scheduleLacreForEvaluation = skipLacre
+    ? 'nao_aplicavel'
+    : expectedEnvelopeSealForEvaluation(envelopeSeal, scheduleLacre)
   await refreshInspectionDocumentBlocksForSchedule(
     meterScheduleId,
     nextScheduleMeter,
     scheduleLacreForEvaluation,
+    { skipMeter: isWpaNotApplicable(meter) },
   )
 
   await writeAuditLog(req, {

@@ -50,6 +50,40 @@ function wpaConferenceMatches(value: string | null | undefined): boolean | null 
   return WPA_CONFERENCE_OPTIONS.find((option) => option.id === optionId)?.matches ?? null
 }
 
+function isNotApplicable(value: string | null | undefined) {
+  return parseWpaConferenceOption(value) === 'nao_aplicavel'
+}
+
+function notApplicableWaivers(wpaDraft: {
+  meter: string
+  lacre: string
+  coverSeal: string
+  coverSeal2: string
+  reading: string
+  scheduleLacre: string
+}) {
+  return {
+    skipLacre: isNotApplicable(wpaDraft.lacre) || isNotApplicable(wpaDraft.scheduleLacre),
+    skipCover: isNotApplicable(wpaDraft.coverSeal) || isNotApplicable(wpaDraft.coverSeal2),
+    skipMeter: isNotApplicable(wpaDraft.meter),
+    skipReading: isNotApplicable(wpaDraft.reading),
+  }
+}
+
+function isIgnorableNotApplicableReason(
+  reason: string,
+  options: { skipLacre: boolean; skipCover: boolean; skipMeter: boolean; skipReading: boolean },
+) {
+  if (options.skipLacre && /lacre do invólucro/i.test(reason)) return true
+  if (options.skipLacre && /lacre com (dígitos repetidos|numeração sequencial)/i.test(reason)) {
+    return true
+  }
+  if (options.skipCover && /lacre da tampa/i.test(reason)) return true
+  if (options.skipMeter && /medidor (encontrado|retirado)/i.test(reason)) return true
+  if (options.skipReading && /leitura/i.test(reason)) return true
+  return false
+}
+
 function wpaIncompatibleReason(
   value: string | null | undefined,
   fieldLabel: string,
@@ -181,31 +215,12 @@ function shouldSuppressNotApplicableBlockReason(
     lacre: string
     coverSeal: string
     coverSeal2: string
+    reading: string
     scheduleLacre: string
   },
 ) {
   if (!blockReason?.trim()) return false
-  const skipLacre =
-    parseWpaConferenceOption(wpaDraft.lacre) === 'nao_aplicavel' ||
-    Boolean(parseWpaConferenceOption(wpaDraft.scheduleLacre))
-  const skipCover =
-    parseWpaConferenceOption(wpaDraft.coverSeal) === 'nao_aplicavel' ||
-    parseWpaConferenceOption(wpaDraft.coverSeal2) === 'nao_aplicavel'
-  const skipMeter = parseWpaConferenceOption(wpaDraft.meter) === 'nao_aplicavel'
-  if (skipLacre && /lacre do invólucro/i.test(blockReason) && /diverge/i.test(blockReason)) {
-    return true
-  }
-  if (skipCover && /lacre da tampa/i.test(blockReason) && /diverge/i.test(blockReason)) {
-    return true
-  }
-  if (
-    skipMeter &&
-    /medidor encontrado no documento/i.test(blockReason) &&
-    /diverge/i.test(blockReason)
-  ) {
-    return true
-  }
-  return false
+  return isIgnorableNotApplicableReason(blockReason, notApplicableWaivers(wpaDraft))
 }
 
 function buildInspectionAnalysisReasons({
@@ -247,6 +262,10 @@ function buildInspectionAnalysisReasons({
   documentoScheduledAt: string | null | undefined
   scheduleScheduleDate: string | null | undefined
 }): string[] {
+  const skipLacre = isNotApplicable(campoLacre) || isNotApplicable(scheduleLacre)
+  const skipCover = isNotApplicable(campoCoverSeal) || isNotApplicable(campoCoverSeal2)
+  const skipMeter = isNotApplicable(campoMeter)
+  const skipReading = isNotApplicable(campoReading)
   const missingWpa: string[] = []
   if (!parseWpaConferenceOption(campoMeter)) missingWpa.push('medidor')
   if (!parseWpaConferenceOption(campoLacre)) missingWpa.push('lacre do invólucro')
@@ -258,18 +277,29 @@ function buildInspectionAnalysisReasons({
 
   return uniqueInspectionReasons([
     ...missingInspectionDocumentReasons(hasToi, hasComunicado),
-    blockReason,
-    missingFieldReason(documentoMeter, 'Medidor retirado não informado no documento.'),
-    requireToiFields
+    blockReason &&
+    !isIgnorableNotApplicableReason(blockReason, { skipLacre, skipCover, skipMeter, skipReading })
+      ? blockReason
+      : null,
+    skipMeter
+      ? null
+      : missingFieldReason(documentoMeter, 'Medidor retirado não informado no documento.'),
+    requireToiFields && !skipLacre
       ? missingFieldReason(documentoLacre, 'Lacre do invólucro não informado no documento.')
       : null,
-    requireToiFields
+    requireToiFields && !skipCover
       ? missingFieldReason(documentoCoverSeal, 'Lacre da tampa não informado no documento.')
       : null,
-    missingFieldReason(documentoReading, 'Leitura não informada no documento.'),
+    skipReading
+      ? null
+      : missingFieldReason(documentoReading, 'Leitura não informada no documento.'),
     missingFieldReason(documentoScheduledAt, 'Data de agendamento não informada no documento.'),
-    missingFieldReason(scheduleMeter, 'Medidor não informado no agendamento.'),
-    missingFieldReason(scheduleLacre, 'Lacre do invólucro não informado no agendamento.'),
+    skipMeter
+      ? null
+      : missingFieldReason(scheduleMeter, 'Medidor não informado no agendamento.'),
+    skipLacre
+      ? null
+      : missingFieldReason(scheduleLacre, 'Lacre do invólucro não informado no agendamento.'),
     missingFieldReason(
       scheduleScheduleDate,
       'Data de agendamento não informada no cadastro.',
@@ -342,22 +372,31 @@ function resolveDocumentAnalysisStatus(
     shouldSuppressNotApplicableBlockReason(document.blockReason, wpaDraft)
       ? null
       : document.blockReason
-  const completenessFields = [
+  const waivers = notApplicableWaivers(wpaDraft)
+  const completenessFields: Array<string | null | undefined> = [
     parseWpaConferenceOption(campoMeter),
-    documentoMeter,
-    scheduleMeterValue,
     parseWpaConferenceOption(campoLacre),
-    scheduleLacreValue,
     parseWpaConferenceOption(campoCoverSeal),
     parseWpaConferenceOption(campoReading),
-    documentoReading,
     documentoScheduledAt,
     conference?.scheduleScheduleDate,
   ]
-  if (requireToiFields) {
-    completenessFields.push(documentoLacre, documentoCoverSeal)
+  if (!waivers.skipMeter) {
+    completenessFields.push(documentoMeter, scheduleMeterValue)
   }
-  if (documentoCoverSeal2) {
+  if (!waivers.skipLacre) {
+    completenessFields.push(scheduleLacreValue)
+  }
+  if (!waivers.skipReading) {
+    completenessFields.push(documentoReading)
+  }
+  if (requireToiFields && !waivers.skipLacre) {
+    completenessFields.push(documentoLacre)
+  }
+  if (requireToiFields && !waivers.skipCover) {
+    completenessFields.push(documentoCoverSeal)
+  }
+  if (documentoCoverSeal2 && !waivers.skipCover) {
     completenessFields.push(parseWpaConferenceOption(campoCoverSeal2), documentoCoverSeal2)
   }
   const analysisComplete = inspectionAnalysisComplete(completenessFields)
@@ -708,9 +747,12 @@ export function InspectionDocumentAnalysisModal({
   const [savingAnalysis, setSavingAnalysis] = useState(false)
   const [blockingAnalysis, setBlockingAnalysis] = useState(false)
 
-  const loadDocuments = useCallback(async () => {
-    setLoading(true)
-    setFeedback(null)
+  const loadDocuments = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true
+    if (!silent) {
+      setLoading(true)
+      setFeedback(null)
+    }
     try {
       const response = await api.listInspectionDocuments(scheduleId)
       setDocuments(response.documents)
@@ -745,20 +787,22 @@ export function InspectionDocumentAnalysisModal({
         nextConference.scheduleMeterOriginal?.trim() || response.meter,
       )
       setConference(nextConference)
-      setWpaDraft({
-        meter: nextConference.campoMeter ?? '',
-        lacre: nextConference.campoLacre ?? '',
-        coverSeal: nextConference.campoCoverSeal ?? '',
-        coverSeal2: nextConference.campoCoverSeal2 ?? '',
-        reading: nextConference.campoReading ?? '',
-        scheduleLacre: nextConference.scheduleLacre ?? '',
-        scheduleMeter: nextConference.scheduleMeter ?? response.meter,
-      })
-      setDocumentDrafts(
-        Object.fromEntries(
-          response.documents.map((document) => [document.docType, draftFromDocument(document)]),
-        ),
-      )
+      if (!silent) {
+        setWpaDraft({
+          meter: nextConference.campoMeter ?? '',
+          lacre: nextConference.campoLacre ?? '',
+          coverSeal: nextConference.campoCoverSeal ?? '',
+          coverSeal2: nextConference.campoCoverSeal2 ?? '',
+          reading: nextConference.campoReading ?? '',
+          scheduleLacre: nextConference.scheduleLacre ?? '',
+          scheduleMeter: nextConference.scheduleMeter ?? response.meter,
+        })
+        setDocumentDrafts(
+          Object.fromEntries(
+            response.documents.map((document) => [document.docType, draftFromDocument(document)]),
+          ),
+        )
+      }
       setPhotos(response.photos ?? [])
       setEnvelopePhoto(response.envelopePhoto?.trim() || null)
       setCanManagePhotos(response.canManagePhotos !== false)
@@ -766,8 +810,11 @@ export function InspectionDocumentAnalysisModal({
       setObservations(response.observations ?? '')
       setAnalysisCompleted(response.analysisCompleted === true)
       setAnalysisBlocked(response.analysisBlocked === true)
-      setBlockJustification(response.analysisBlockReason ?? '')
-    } catch {
+      if (!silent) {
+        setBlockJustification(response.analysisBlockReason ?? '')
+      }
+    } catch (error) {
+      if (silent) return
       setDocuments([])
       setCanDelete(false)
       setDeleteBlockedReason(null)
@@ -830,7 +877,7 @@ export function InspectionDocumentAnalysisModal({
         if (response.conference.scheduleMeterOriginal?.trim()) {
           setOriginalScheduleMeter(response.conference.scheduleMeterOriginal.trim())
         }
-        await loadDocuments()
+        await loadDocuments({ silent: true })
       } catch (error) {
         setFeedback({
           type: 'error',
