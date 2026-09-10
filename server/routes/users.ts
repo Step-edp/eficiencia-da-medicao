@@ -226,8 +226,13 @@ function mapUser(row: UserRow, options?: { includePassword?: boolean }) {
 
 async function mapUserWithVacation(row: UserRow, options?: { includePassword?: boolean }) {
   const base = mapUser(row, options)
-  const meta = await getVacationMetaForUser(row.id, row.role, row.work_subtype)
-  return attachVacationMeta(base, meta)
+  try {
+    const meta = await getVacationMetaForUser(row.id, row.role, row.work_subtype)
+    return attachVacationMeta(base, meta)
+  } catch (error) {
+    console.warn('Metadados de férias indisponíveis no login/perfil:', error)
+    return base
+  }
 }
 
 async function findUserById(id: string) {

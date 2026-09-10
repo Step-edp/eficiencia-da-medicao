@@ -1509,6 +1509,16 @@ export function EntradaPanel({
 
   const renderEntradaTabBar = () => (
     <div className="entrada-panel-header">
+      <div className="entrada-panel-actions">
+        <button
+          type="button"
+          className={`primary-button${view === 'receivedMetersBase' ? ' is-active' : ''}`}
+          aria-current={view === 'receivedMetersBase' ? 'page' : undefined}
+          onClick={() => openReceivedMetersBase()}
+        >
+          Base de medidores recebidos
+        </button>
+      </div>
       <div
         className="panel-switch entrada-demm-switch"
         role="tablist"
