@@ -5,7 +5,7 @@ import { parseDemmPdf } from '../demm-pdf-parser.js'
 import { analyzeDemmMeters, NORMALIZED_METER_SQL, type DemmMeterAnalysis } from '../demm-meter-analysis.js'
 import { loadInspectionSummariesByNorm, loadInspectionAnalysisStatusByMeter, type InspectionSummary } from './meter-inspection-documents.js'
 import { normalizeScheduleMeter } from '../numeric-field-validation.js'
-import { validateDemmUploadMeters } from '../demm-upload-validation.js'
+import { validateDemmUploadMeters, applyDemmReplacements } from '../demm-upload-validation.js'
 import { alignSchedulesCsdFromDemm } from '../demm-csd-alignment.js'
 import { resolvePontoFocalCsdNames } from '../ponto-focal-csds.js'
 import {
@@ -344,7 +344,9 @@ export async function createDemmDocument(req: Request, res: Response) {
     return
   }
 
-  const validation = await validateDemmUploadMeters(extractedMeters.map((item) => item.meter))
+  const validation = await validateDemmUploadMeters(extractedMeters.map((item) => item.meter), {
+    csdId: csd.rows[0].id,
+  })
   if (!validation.ok) {
     res.status(409).json({
       error: validation.error,
@@ -352,6 +354,10 @@ export async function createDemmDocument(req: Request, res: Response) {
     })
     return
   }
+
+  await applyDemmReplacements(validation.replacement)
+  const replacedDemmCount =
+    validation.replacement.deleteIds.length + validation.replacement.strip.length
 
   const id = `demm-${Date.now()}-${linkedMeter}`
   const importedByLab =
@@ -400,11 +406,14 @@ export async function createDemmDocument(req: Request, res: Response) {
     action: 'create',
     entityType: 'demm_document',
     entityId: document.id,
-    summary: `DEMM com ${extractedMeters.length} medidor(es) identificado(s)`,
+    summary: replacedDemmCount
+      ? `DEMM com ${extractedMeters.length} medidor(es) identificado(s); ${replacedDemmCount} DEMM(s) anterior(es) substituída(s) por medidor(es) bloqueado(s)`
+      : `DEMM com ${extractedMeters.length} medidor(es) identificado(s)`,
     newData: {
       ...document,
       scheduledCount: extractedMeters.filter((item) => item.appStatus === 'agendado').length,
       alignedCsdCount,
+      replacedDemmCount,
     },
   })
 
@@ -420,6 +429,7 @@ export async function createDemmDocument(req: Request, res: Response) {
 
   res.status(201).json({
     document,
+    replacedDemmCount,
     analysis: {
       meters: extractedMeters,
       total: extractedMeters.length,

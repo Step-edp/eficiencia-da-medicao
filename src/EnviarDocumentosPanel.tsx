@@ -8,7 +8,7 @@ import {
 import { useCsdsOptions } from './useCsdsOptions'
 import { inspectionPdfFilesFromList, readFileAsBase64 } from './fileUtils'
 import { inspectionIssueReason } from './inspectionStatusReason'
-import { DemmUploadConflicts } from './EntradaPanel'
+import { DemmUploadConflicts, formatDemmRegisteredMessage } from './EntradaPanel'
 import { LoginFeedback } from './LoginFeedback'
 
 function formatDateTime(isoDate: string) {
@@ -109,7 +109,10 @@ export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProp
       })
       setDemmFeedback({
         type: 'success',
-        message: `DEMM registrada. ${response.analysis.total} medidor(es) identificado(s).`,
+        message: formatDemmRegisteredMessage(
+          response.analysis.total,
+          response.replacedDemmCount,
+        ),
       })
       setDemmFile(null)
       void loadInspectionPendencias()

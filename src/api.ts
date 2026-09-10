@@ -1712,6 +1712,7 @@ export const api = {
     request<{
       document: DemmDocumentRecord
       analysis: DemmAnalysisResponse['analysis']
+      replacedDemmCount?: number
     }>('/api/demm-documents', {
       method: 'POST',
       body: JSON.stringify(payload),

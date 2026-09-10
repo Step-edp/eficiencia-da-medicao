@@ -483,6 +483,17 @@ type DemmModalFeedback = {
   conflicts?: DemmUploadConflictRecord[]
 }
 
+export function formatDemmRegisteredMessage(total: number, replacedDemmCount = 0, retroactive = false) {
+  const base = retroactive
+    ? `DEMM retroativa registrada. ${total} medidor(es) identificado(s).`
+    : `DEMM registrada. ${total} medidor(es) identificado(s).`
+  if (!replacedDemmCount) return base
+  if (replacedDemmCount === 1) {
+    return `${base} A DEMM anterior foi substituída porque havia medidor(es) bloqueado(s).`
+  }
+  return `${base} ${replacedDemmCount} DEMMs anteriores foram substituídas porque havia medidor(es) bloqueado(s).`
+}
+
 export function DemmUploadConflicts({ conflicts }: { conflicts: DemmUploadConflictRecord[] }) {
   const inDemm = conflicts.filter((item) => item.reason === 'demm_registered')
   const withEntrada = conflicts.filter((item) => item.reason === 'entrada_given')
@@ -1802,9 +1813,11 @@ export function EntradaPanel({
       closeDemmModal()
       setFeedback({
         type: 'success',
-        message: wasRetroactive
-          ? `DEMM retroativa registrada. ${response.analysis.total} medidor(es) identificado(s).`
-          : `DEMM registrada. ${response.analysis.total} medidor(es) identificado(s).`,
+        message: formatDemmRegisteredMessage(
+          response.analysis.total,
+          response.replacedDemmCount,
+          wasRetroactive,
+        ),
       })
       setAnalysisModal({
         title: 'Medidores identificados na DEMM',
