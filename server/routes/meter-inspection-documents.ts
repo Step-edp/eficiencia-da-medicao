@@ -305,6 +305,12 @@ type ScheduleForInspectionAggregate = {
   toi: string
   note: string
   source: string
+  inspection_schedule_lacre?: string | null
+  inspection_wpa_meter?: string | null
+  inspection_wpa_lacre?: string | null
+  inspection_wpa_cover_seal?: string | null
+  inspection_wpa_cover_seal_2?: string | null
+  inspection_analysis_block_reason?: string | null
 }
 
 type DocumentForInspectionAggregate = Pick<
@@ -359,10 +365,20 @@ export function aggregateInspectionForSchedule(
       doc.extracted_lacre,
       doc.extracted_meter,
       schedule.meter,
-      schedule.envelope_seal,
+      expectedEnvelopeSealForEvaluation(schedule.envelope_seal, schedule.inspection_schedule_lacre),
     )
     if (evaluation.blocked && evaluation.reason) {
-      reasons.push(evaluation.reason)
+      if (
+        !isIgnorableRegisteredDivergence(evaluation.reason, {
+          skipLacre:
+            isWpaNotApplicable(schedule.inspection_wpa_lacre) ||
+            isWpaConferenceValue(schedule.inspection_schedule_lacre),
+          skipCover: isWpaNotApplicable(schedule.inspection_wpa_cover_seal),
+          skipMeter: isWpaNotApplicable(schedule.inspection_wpa_meter),
+        })
+      ) {
+        reasons.push(evaluation.reason)
+      }
     }
   }
 
@@ -412,6 +428,8 @@ export function aggregateInspectionForSchedule(
 
     if (
       schedule.cover_seal?.trim() &&
+      !isWpaNotApplicable(schedule.inspection_wpa_cover_seal) &&
+      !isWpaNotApplicable(schedule.inspection_wpa_cover_seal_2) &&
       compareSeal(extraction.extracted_cover_seal, schedule.cover_seal) === false
     ) {
       reasons.push('Lacre da tampa no documento diverge do cadastrado.')
@@ -452,6 +470,12 @@ export async function loadInspectionSummariesByNorm(
     toi: string
     note: string
     source: string
+    inspection_schedule_lacre: string | null
+    inspection_wpa_meter: string | null
+    inspection_wpa_lacre: string | null
+    inspection_wpa_cover_seal: string | null
+    inspection_wpa_cover_seal_2: string | null
+    inspection_analysis_block_reason: string | null
     created_at: Date
     doc_type: InspectionDocumentType | null
     extracted_meter: string | null
@@ -473,6 +497,12 @@ export async function loadInspectionSummariesByNorm(
             ms.toi,
             ms.note,
             ms.source,
+            ms.inspection_schedule_lacre,
+            ms.inspection_wpa_meter,
+            ms.inspection_wpa_lacre,
+            ms.inspection_wpa_cover_seal,
+            ms.inspection_wpa_cover_seal_2,
+            ms.inspection_analysis_block_reason,
             ms.created_at,
             d.doc_type,
             d.extracted_meter,
@@ -514,6 +544,12 @@ export async function loadInspectionSummariesByNorm(
           toi: row.toi,
           note: row.note,
           source: row.source,
+          inspection_schedule_lacre: row.inspection_schedule_lacre,
+          inspection_wpa_meter: row.inspection_wpa_meter,
+          inspection_wpa_lacre: row.inspection_wpa_lacre,
+          inspection_wpa_cover_seal: row.inspection_wpa_cover_seal,
+          inspection_wpa_cover_seal_2: row.inspection_wpa_cover_seal_2,
+          inspection_analysis_block_reason: row.inspection_analysis_block_reason,
         },
         documents: [],
       }
@@ -536,7 +572,13 @@ export async function loadInspectionSummariesByNorm(
   }
 
   for (const [norm, group] of groups) {
-    summariesByNorm.set(norm, aggregateInspectionForSchedule(group.schedule, group.documents))
+    summariesByNorm.set(
+      norm,
+      withAnalysisBlock(
+        aggregateInspectionForSchedule(group.schedule, group.documents),
+        group.schedule.inspection_analysis_block_reason,
+      ),
+    )
   }
 
   return summariesByNorm
@@ -655,6 +697,66 @@ function meterDocumentMatchesSchedule(
     .some((value) => value === expected)
 }
 
+const WPA_CONFERENCE_VALUES = new Set([
+  'compativel',
+  'nao_compativel',
+  'nao_aplicavel',
+  'nao_visivel',
+  'sem_registro_fotografico',
+])
+
+function isWpaConferenceValue(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  return Boolean(trimmed && WPA_CONFERENCE_VALUES.has(trimmed))
+}
+
+function isWpaNotApplicable(value: string | null | undefined) {
+  return value?.trim() === 'nao_aplicavel'
+}
+
+function expectedEnvelopeSealForEvaluation(
+  envelopeSeal: string | null | undefined,
+  scheduleLacre: string | null | undefined,
+) {
+  const conference = scheduleLacre?.trim()
+  if (conference && WPA_CONFERENCE_VALUES.has(conference)) return conference
+  return envelopeSeal?.trim() || null
+}
+
+function isIgnorableRegisteredDivergence(
+  reason: string,
+  options: { skipLacre: boolean; skipCover: boolean; skipMeter: boolean },
+) {
+  if (options.skipLacre && /lacre do invólucro/i.test(reason) && /diverge/i.test(reason)) {
+    return true
+  }
+  if (options.skipCover && /lacre da tampa/i.test(reason) && /diverge/i.test(reason)) {
+    return true
+  }
+  if (
+    options.skipMeter &&
+    /medidor encontrado no documento/i.test(reason) &&
+    /diverge/i.test(reason)
+  ) {
+    return true
+  }
+  return false
+}
+
+function withAnalysisBlock(
+  summary: InspectionSummary,
+  analysisBlockReason: string | null | undefined,
+): InspectionSummary {
+  const reason = analysisBlockReason?.trim()
+  if (!reason) return summary
+  const extra = `Análise bloqueada: ${reason}`
+  return {
+    ...summary,
+    anyBlocked: true,
+    blockReasons: summary.blockReasons ? `${summary.blockReasons} | ${extra}` : extra,
+  }
+}
+
 function evaluateInspectionDocument(
   lacre: string | null,
   meterEncontrado: string | null,
@@ -684,24 +786,18 @@ function evaluateInspectionDocument(
       reason: `Medidor encontrado no documento (${documentMeter}) diverge do medidor agendado (${expectedMeter}).`,
     }
   }
-  const registeredLacre = normalizeSeal(expectedLacre)
-  const documentLacre = normalizeSeal(lacre)
-  if (registeredLacre && documentLacre && registeredLacre !== documentLacre) {
-    return {
-      blocked: true,
-      reason: `Lacre do invólucro no documento (${lacre}) diverge do lacre cadastrado (${expectedLacre}).`,
+  if (!isWpaConferenceValue(expectedLacre)) {
+    const registeredLacre = normalizeSeal(expectedLacre)
+    const documentLacre = normalizeSeal(lacre)
+    if (registeredLacre && documentLacre && registeredLacre !== documentLacre) {
+      return {
+        blocked: true,
+        reason: `Lacre do invólucro no documento (${lacre}) diverge do lacre cadastrado (${expectedLacre}).`,
+      }
     }
   }
   return { blocked: false, reason: null }
 }
-
-const WPA_CONFERENCE_VALUES = new Set([
-  'compativel',
-  'nao_compativel',
-  'nao_aplicavel',
-  'nao_visivel',
-  'sem_registro_fotografico',
-])
 
 const WPA_FIELD_LABELS = {
   meter: 'Medidor retirado',
@@ -1773,11 +1869,14 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     inspection_schedule_lacre: string | null
     inspection_schedule_meter: string | null
     inspection_analysis_completed_at: Date | null
+    inspection_analysis_block_reason: string | null
+    inspection_analysis_blocked_at: Date | null
   }>(
     `SELECT id, meter, installation, envelope_seal, cover_seal, meter_reading, note, source, scheduled_at,
             envelope_photo, inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
             inspection_wpa_cover_seal_2, inspection_wpa_reading, inspection_observations,
-            inspection_schedule_lacre, inspection_schedule_meter, inspection_analysis_completed_at
+            inspection_schedule_lacre, inspection_schedule_meter, inspection_analysis_completed_at,
+            inspection_analysis_block_reason, inspection_analysis_blocked_at
      FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
@@ -1910,6 +2009,9 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     observations: schedule.rows[0].inspection_observations ?? '',
     analysisCompleted: Boolean(schedule.rows[0].inspection_analysis_completed_at),
     analysisCompletedAt: schedule.rows[0].inspection_analysis_completed_at?.toISOString() ?? null,
+    analysisBlocked: Boolean(schedule.rows[0].inspection_analysis_block_reason?.trim()),
+    analysisBlockReason: schedule.rows[0].inspection_analysis_block_reason?.trim() || null,
+    analysisBlockedAt: schedule.rows[0].inspection_analysis_blocked_at?.toISOString() ?? null,
   })
 }
 
@@ -2084,6 +2186,12 @@ export async function listInspectionPendencias(req: Request, res: Response) {
     toi: string
     note: string
     source: string
+    inspection_schedule_lacre: string | null
+    inspection_wpa_meter: string | null
+    inspection_wpa_lacre: string | null
+    inspection_wpa_cover_seal: string | null
+    inspection_wpa_cover_seal_2: string | null
+    inspection_analysis_block_reason: string | null
     responsible_user_id: string | null
     responsible_name: string | null
     responsible_registration: string | null
@@ -2101,6 +2209,12 @@ export async function listInspectionPendencias(req: Request, res: Response) {
             ms.toi,
             ms.note,
             ms.source,
+            ms.inspection_schedule_lacre,
+            ms.inspection_wpa_meter,
+            ms.inspection_wpa_lacre,
+            ms.inspection_wpa_cover_seal,
+            ms.inspection_wpa_cover_seal_2,
+            ms.inspection_analysis_block_reason,
             c.responsible_user_id,
             u.name AS responsible_name,
             u.registration AS responsible_registration,
@@ -2108,7 +2222,7 @@ export async function listInspectionPendencias(req: Request, res: Response) {
      FROM meter_schedules ms
      LEFT JOIN csds c ON c.name = ms.csd
      LEFT JOIN users u ON u.id = c.responsible_user_id
-     WHERE (ms.trail_step = $1
+     WHERE (ms.trail_step = $1)
         OR EXISTS (
           SELECT 1 FROM meter_inspection_documents d
           WHERE d.meter_schedule_id = ms.id
@@ -2147,7 +2261,10 @@ export async function listInspectionPendencias(req: Request, res: Response) {
   const documentados = []
 
   for (const row of schedules.rows) {
-    const summary = aggregateInspectionForSchedule(row, docsByScheduleId.get(row.id) ?? [])
+    const summary = withAnalysisBlock(
+      aggregateInspectionForSchedule(row, docsByScheduleId.get(row.id) ?? []),
+      row.inspection_analysis_block_reason,
+    )
     byScheduleId[row.id] = summary
 
     const base = {
@@ -2242,6 +2359,12 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
     responsible_work_subtype: string | null
     inspection_analysis_completed_at: Date | null
     analysis_completed_by_name: string | null
+    inspection_schedule_lacre: string | null
+    inspection_wpa_meter: string | null
+    inspection_wpa_lacre: string | null
+    inspection_wpa_cover_seal: string | null
+    inspection_wpa_cover_seal_2: string | null
+    inspection_analysis_block_reason: string | null
   }>(
     `SELECT ms.id,
             ms.meter,
@@ -2255,6 +2378,12 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
             ms.toi,
             ms.note,
             ms.source,
+            ms.inspection_schedule_lacre,
+            ms.inspection_wpa_meter,
+            ms.inspection_wpa_lacre,
+            ms.inspection_wpa_cover_seal,
+            ms.inspection_wpa_cover_seal_2,
+            ms.inspection_analysis_block_reason,
             c.responsible_user_id,
             u.name AS responsible_name,
             u.registration AS responsible_registration,
@@ -2303,7 +2432,10 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
 
   const meters = []
   for (const row of schedules.rows) {
-    const summary = aggregateInspectionForSchedule(row, docsByScheduleId.get(row.id) ?? [])
+    const summary = withAnalysisBlock(
+      aggregateInspectionForSchedule(row, docsByScheduleId.get(row.id) ?? []),
+      row.inspection_analysis_block_reason,
+    )
     if (!summary.hasToi && !summary.hasComunicado) continue
 
     meters.push({
@@ -2327,6 +2459,8 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
       blockReasons: summary.blockReasons,
       analysisCompletedAt: row.inspection_analysis_completed_at?.toISOString() ?? null,
       analysisCompletedByName: row.analysis_completed_by_name,
+      analysisBlocked: Boolean(row.inspection_analysis_block_reason?.trim()),
+      analysisBlockReason: row.inspection_analysis_block_reason?.trim() || null,
     })
   }
 
@@ -2442,8 +2576,22 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
   if (!presence.hasComunicado) reasons.push('Anexe o CSM.')
 
   const summary = aggregateInspectionForSchedule(row, documents.rows)
+  const ignorable = {
+    skipLacre:
+      isWpaNotApplicable(row.inspection_wpa_lacre) ||
+      isWpaConferenceValue(row.inspection_schedule_lacre),
+    skipCover:
+      isWpaNotApplicable(row.inspection_wpa_cover_seal) ||
+      isWpaNotApplicable(row.inspection_wpa_cover_seal_2),
+    skipMeter: isWpaNotApplicable(row.inspection_wpa_meter),
+  }
   if (summary.anyBlocked && summary.blockReasons) {
-    reasons.push(summary.blockReasons)
+    for (const reason of summary.blockReasons.split('|')) {
+      const trimmed = reason.trim()
+      if (trimmed && !isIgnorableRegisteredDivergence(trimmed, ignorable)) {
+        reasons.push(trimmed)
+      }
+    }
   }
 
   const scheduleMeterFields = await loadScheduleMeterConferenceFields(
@@ -2491,7 +2639,9 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
       reasons.push('Data de agendamento não informada no documento.')
     }
     if (doc.blocked && doc.block_reason) {
-      reasons.push(doc.block_reason)
+      if (!isIgnorableRegisteredDivergence(doc.block_reason, ignorable)) {
+        reasons.push(doc.block_reason)
+      }
     }
   }
 
@@ -2532,7 +2682,10 @@ export async function completeInspectionAnalysis(req: Request, res: Response) {
   await query(
     `UPDATE meter_schedules
      SET inspection_analysis_completed_at = $2,
-         inspection_analysis_completed_by_user_id = $3
+         inspection_analysis_completed_by_user_id = $3,
+         inspection_analysis_block_reason = NULL,
+         inspection_analysis_blocked_at = NULL,
+         inspection_analysis_blocked_by_user_id = NULL
      WHERE id = $1`,
     [meterScheduleId, completedAt.toISOString(), req.user?.id ?? null],
   )
@@ -2546,6 +2699,66 @@ export async function completeInspectionAnalysis(req: Request, res: Response) {
   })
 
   res.json({ ok: true, completedAt: completedAt.toISOString() })
+}
+
+export async function blockInspectionAnalysis(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+  const reason =
+    typeof req.body?.reason === 'string' ? req.body.reason.replace(/\s+/g, ' ').trim() : ''
+
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error: 'Somente administradores e usuários do Laboratório de Medição podem bloquear a análise.',
+    })
+    return
+  }
+
+  if (reason.length < 3) {
+    res.status(400).json({ error: 'Informe a justificativa do bloqueio.' })
+    return
+  }
+
+  const existing = await query<{
+    id: string
+    inspection_analysis_completed_at: Date | null
+  }>(
+    `SELECT id, inspection_analysis_completed_at FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  if (!existing.rows[0]) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+  if (existing.rows[0].inspection_analysis_completed_at) {
+    res.status(409).json({
+      error: 'A análise já foi concluída. Não é possível bloquear um medidor em Analisados.',
+    })
+    return
+  }
+
+  const blockedAt = new Date()
+  await query(
+    `UPDATE meter_schedules
+     SET inspection_analysis_block_reason = $2,
+         inspection_analysis_blocked_at = $3,
+         inspection_analysis_blocked_by_user_id = $4
+     WHERE id = $1`,
+    [meterScheduleId, reason.slice(0, 1000), blockedAt.toISOString(), req.user?.id ?? null],
+  )
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: meterScheduleId,
+    summary: `Análise de documentos bloqueada para o agendamento ${meterScheduleId}`,
+    newData: { blockedAt: blockedAt.toISOString(), reason },
+  })
+
+  res.json({
+    ok: true,
+    blockedAt: blockedAt.toISOString(),
+    reason,
+  })
 }
 
 const MAX_INSPECTION_PHOTOS = 20
@@ -2798,15 +3011,17 @@ export async function updateInspectionWpa(req: Request, res: Response) {
     createdByUserId: req.user?.id ?? null,
   })
 
-  const scheduleLacreForEvaluation =
-    scheduleLacre ||
+  const envelopeSeal =
     (
       await query<{ envelope_seal: string }>(
         `SELECT envelope_seal FROM meter_schedules WHERE id = $1`,
         [meterScheduleId],
       )
-    ).rows[0]?.envelope_seal?.trim() ||
-    null
+    ).rows[0]?.envelope_seal?.trim() || null
+  const scheduleLacreForEvaluation = expectedEnvelopeSealForEvaluation(
+    envelopeSeal,
+    scheduleLacre,
+  )
   await refreshInspectionDocumentBlocksForSchedule(
     meterScheduleId,
     nextScheduleMeter,

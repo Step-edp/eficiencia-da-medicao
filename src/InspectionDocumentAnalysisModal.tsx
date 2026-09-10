@@ -65,6 +65,7 @@ type InspectionDocumentAnalysisModalProps = {
   onClose: () => void
   onDocumentsChanged?: () => void
   onAnalysisCompleted?: (meter: string) => void
+  onAnalysisBlocked?: (meter: string) => void
 }
 
 type DocumentFieldsDraft = {
@@ -171,6 +172,40 @@ function shouldSuppressMeterBlockReason(
   const documentMeter = normalizeConferenceDigits(documentoMeter)
   const scheduledMeter = normalizeConferenceDigits(scheduleMeter)
   return Boolean(documentMeter && scheduledMeter && documentMeter === scheduledMeter)
+}
+
+function shouldSuppressNotApplicableBlockReason(
+  blockReason: string | null | undefined,
+  wpaDraft: {
+    meter: string
+    lacre: string
+    coverSeal: string
+    coverSeal2: string
+    scheduleLacre: string
+  },
+) {
+  if (!blockReason?.trim()) return false
+  const skipLacre =
+    parseWpaConferenceOption(wpaDraft.lacre) === 'nao_aplicavel' ||
+    Boolean(parseWpaConferenceOption(wpaDraft.scheduleLacre))
+  const skipCover =
+    parseWpaConferenceOption(wpaDraft.coverSeal) === 'nao_aplicavel' ||
+    parseWpaConferenceOption(wpaDraft.coverSeal2) === 'nao_aplicavel'
+  const skipMeter = parseWpaConferenceOption(wpaDraft.meter) === 'nao_aplicavel'
+  if (skipLacre && /lacre do invólucro/i.test(blockReason) && /diverge/i.test(blockReason)) {
+    return true
+  }
+  if (skipCover && /lacre da tampa/i.test(blockReason) && /diverge/i.test(blockReason)) {
+    return true
+  }
+  if (
+    skipMeter &&
+    /medidor encontrado no documento/i.test(blockReason) &&
+    /diverge/i.test(blockReason)
+  ) {
+    return true
+  }
+  return false
 }
 
 function buildInspectionAnalysisReasons({
@@ -302,13 +337,11 @@ function resolveDocumentAnalysisStatus(
     ? wpaDraft.scheduleMeter
     : (conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter)
   const requireToiFields = hasToi || document.docType === 'toi' || document.docType === 'ambos'
-  const effectiveBlockReason = shouldSuppressMeterBlockReason(
-    document.blockReason,
-    documentoMeter,
-    scheduleMeterValue,
-  )
-    ? null
-    : document.blockReason
+  const effectiveBlockReason =
+    shouldSuppressMeterBlockReason(document.blockReason, documentoMeter, scheduleMeterValue) ||
+    shouldSuppressNotApplicableBlockReason(document.blockReason, wpaDraft)
+      ? null
+      : document.blockReason
   const completenessFields = [
     parseWpaConferenceOption(campoMeter),
     documentoMeter,
@@ -629,6 +662,7 @@ export function InspectionDocumentAnalysisModal({
   onClose,
   onDocumentsChanged,
   onAnalysisCompleted,
+  onAnalysisBlocked,
 }: InspectionDocumentAnalysisModalProps) {
   const [loading, setLoading] = useState(true)
   const [documents, setDocuments] = useState<InspectionDocumentRecord[]>([])
@@ -669,7 +703,10 @@ export function InspectionDocumentAnalysisModal({
     null,
   )
   const [analysisCompleted, setAnalysisCompleted] = useState(false)
+  const [analysisBlocked, setAnalysisBlocked] = useState(false)
+  const [blockJustification, setBlockJustification] = useState('')
   const [savingAnalysis, setSavingAnalysis] = useState(false)
+  const [blockingAnalysis, setBlockingAnalysis] = useState(false)
 
   const loadDocuments = useCallback(async () => {
     setLoading(true)
@@ -728,6 +765,8 @@ export function InspectionDocumentAnalysisModal({
       setCanEditWpa(response.canEditWpa === true || response.canManagePhotos === true)
       setObservations(response.observations ?? '')
       setAnalysisCompleted(response.analysisCompleted === true)
+      setAnalysisBlocked(response.analysisBlocked === true)
+      setBlockJustification(response.analysisBlockReason ?? '')
     } catch {
       setDocuments([])
       setCanDelete(false)
@@ -754,6 +793,8 @@ export function InspectionDocumentAnalysisModal({
       setCanEditWpa(false)
       setObservations('')
       setAnalysisCompleted(false)
+      setAnalysisBlocked(false)
+      setBlockJustification('')
     } finally {
       setLoading(false)
     }
@@ -847,6 +888,7 @@ export function InspectionDocumentAnalysisModal({
       await api.updateInspectionWpa(scheduleId, wpaDraft)
       await api.completeInspectionAnalysis(scheduleId)
       setAnalysisCompleted(true)
+      setAnalysisBlocked(false)
       onDocumentsChanged?.()
       onAnalysisCompleted?.(registeredMeter || meter)
       onClose()
@@ -860,6 +902,41 @@ export function InspectionDocumentAnalysisModal({
       })
     } finally {
       setSavingAnalysis(false)
+    }
+  }
+
+  const canBlockAnalysis = Boolean(
+    canEditWpa &&
+      !analysisCompleted &&
+      !loading &&
+      blockJustification.trim().length >= 3,
+  )
+
+  const handleBlockAnalysis = async () => {
+    const reason = blockJustification.trim()
+    if (reason.length < 3) {
+      setFeedback({ type: 'error', message: 'Informe a justificativa do bloqueio.' })
+      return
+    }
+    setBlockingAnalysis(true)
+    setFeedback(null)
+    try {
+      await api.updateInspectionWpa(scheduleId, wpaDraft)
+      await api.blockInspectionAnalysis(scheduleId, reason)
+      setAnalysisBlocked(true)
+      onDocumentsChanged?.()
+      onAnalysisBlocked?.(registeredMeter || meter)
+      onClose()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível bloquear a análise.',
+      })
+    } finally {
+      setBlockingAnalysis(false)
     }
   }
 
@@ -1494,25 +1571,68 @@ export function InspectionDocumentAnalysisModal({
 
         <div className="inspection-analysis-screen-actions">
           {canEditWpa && !analysisCompleted ? (
-            <button
-              type="button"
-              className="primary-button"
-              disabled={!canSaveAnalysis || savingAnalysis}
-              onClick={() => void handleSaveAnalysis()}
-              title={
-                canSaveAnalysis
-                  ? 'Marcar análise como completa e enviar para Analisados'
-                  : 'Complete todos os campos com status OK para concluir'
-              }
-            >
-              {savingAnalysis ? 'Concluindo...' : 'Análise completa'}
-            </button>
+            <>
+              <label className="inspection-analysis-block-label">
+                Justificativa do bloqueio
+                <textarea
+                  className="inspection-analysis-block-input"
+                  rows={2}
+                  maxLength={1000}
+                  value={blockJustification}
+                  placeholder="Descreva o motivo do bloqueio"
+                  onChange={(event) => setBlockJustification(event.target.value)}
+                />
+              </label>
+              {analysisBlocked ? (
+                <p className="inspection-analysis-blocked-hint">
+                  Esta análise já está bloqueada. Atualize a justificativa e clique em Bloquear
+                  para registrar de novo, ou conclua com Análise completa.
+                </p>
+              ) : null}
+              <div className="inspection-analysis-screen-action-row">
+                <button
+                  type="button"
+                  className="danger-button"
+                  disabled={!canBlockAnalysis || blockingAnalysis || savingAnalysis}
+                  onClick={() => void handleBlockAnalysis()}
+                  title={
+                    canBlockAnalysis
+                      ? 'Bloquear o medidor na Análise com justificativa'
+                      : 'Informe a justificativa para bloquear'
+                  }
+                >
+                  {blockingAnalysis ? 'Bloqueando...' : 'Bloquear'}
+                </button>
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={!canSaveAnalysis || savingAnalysis || blockingAnalysis}
+                  onClick={() => void handleSaveAnalysis()}
+                  title={
+                    canSaveAnalysis
+                      ? 'Marcar análise como completa e enviar para Analisados'
+                      : 'Complete todos os campos com status OK para concluir'
+                  }
+                >
+                  {savingAnalysis ? 'Concluindo...' : 'Análise completa'}
+                </button>
+                <button type="button" className="secondary-button" onClick={onClose}>
+                  Voltar
+                </button>
+              </div>
+            </>
           ) : analysisCompleted ? (
-            <span className="inspection-analysis-saved-badge">Análise completa</span>
-          ) : null}
-          <button type="button" className="secondary-button" onClick={onClose}>
-            Voltar
-          </button>
+            <>
+              <span className="inspection-analysis-saved-badge">Análise completa</span>
+              <button type="button" className="secondary-button" onClick={onClose}>
+                Voltar
+              </button>
+            </>
+          ) : (
+            <button type="button" className="secondary-button" onClick={onClose}>
+              Voltar
+            </button>
+          )}
         </div>
       </div>
       {previewPhoto ? (

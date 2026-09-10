@@ -132,6 +132,9 @@ function hasWpaDocument(item: MeterInspectionDocumentadoRecord) {
 }
 
 function wpaDocumentationLabel(item: MeterInspectionDocumentadoRecord) {
+  if (item.analysisBlocked && item.analysisBlockReason) {
+    return `Bloqueado: ${item.analysisBlockReason}`
+  }
   return inspectionIssueReason(item) ?? 'OK'
 }
 
@@ -156,6 +159,7 @@ function wpaMeterMatchesQuery(item: MeterInspectionDocumentadoRecord, query: str
       formatDateTime(item.scheduledAt),
       item.analysisCompletedByName,
       item.analysisCompletedAt ? formatDateTime(item.analysisCompletedAt) : '',
+      item.analysisBlockReason,
     ].join(' '),
   )
   if (haystack.includes(query)) return true
@@ -1294,6 +1298,21 @@ export function EntradaPanel({
     refreshTrailCounts()
   }
 
+  const handleWpaAnalysisBlocked = (blockedMeter: string) => {
+    setInspectionDocumentTarget(null)
+    setMeterDetailTarget(null)
+    setFeedback({
+      type: 'success',
+      message: `Análise do medidor ${blockedMeter} bloqueada. Ele permanece em Análise.`,
+    })
+    void loadWpaMeters()
+    void loadWpaAnalyzedMeters()
+    void loadInspectionPendencias()
+    void loadWeekMeters()
+    void loadData()
+    refreshTrailCounts()
+  }
+
   const loadReceivedMetersBase = useCallback(async (search = '') => {
     setReceivedMetersLoading(true)
     try {
@@ -2169,6 +2188,7 @@ export function EntradaPanel({
         refreshTrailCounts()
       }}
       onAnalysisCompleted={handleWpaAnalysisCompleted}
+      onAnalysisBlocked={handleWpaAnalysisBlocked}
     />
   ) : null
 
@@ -2433,7 +2453,10 @@ export function EntradaPanel({
                         <td>
                           <span
                             className={
-                              item.anyBlocked || !item.hasToi || !item.hasComunicado
+                              item.analysisBlocked ||
+                              item.anyBlocked ||
+                              !item.hasToi ||
+                              !item.hasComunicado
                                 ? 'schedule-pending-badge'
                                 : 'schedule-ok-badge'
                             }
@@ -2478,6 +2501,7 @@ export function EntradaPanel({
               refreshTrailCounts()
             }}
             onAnalysisCompleted={handleWpaAnalysisCompleted}
+            onAnalysisBlocked={handleWpaAnalysisBlocked}
           />
         ) : null}
         {userProfileModal}
@@ -3142,6 +3166,7 @@ export function EntradaPanel({
               refreshTrailCounts()
             }}
             onAnalysisCompleted={handleWpaAnalysisCompleted}
+            onAnalysisBlocked={handleWpaAnalysisBlocked}
           />
         ) : null}
         {userProfileModal}

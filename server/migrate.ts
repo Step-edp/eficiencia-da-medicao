@@ -1074,5 +1074,12 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS inspection_analysis_completed_by_user_id TEXT REFERENCES users(id);
   `)
 
+  await query(`
+    ALTER TABLE meter_schedules
+      ADD COLUMN IF NOT EXISTS inspection_analysis_block_reason TEXT,
+      ADD COLUMN IF NOT EXISTS inspection_analysis_blocked_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS inspection_analysis_blocked_by_user_id TEXT REFERENCES users(id);
+  `)
+
   await ensureFillingDeviationsFromSchedules()
 }

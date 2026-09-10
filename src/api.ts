@@ -798,6 +798,8 @@ export type MeterInspectionDocumentadoRecord = MeterInspectionPendenciaRecord & 
   blockReasons: string | null
   analysisCompletedAt?: string | null
   analysisCompletedByName?: string | null
+  analysisBlocked?: boolean
+  analysisBlockReason?: string | null
 }
 
 export type MeterInspectionSummary = {
@@ -1796,6 +1798,9 @@ export const api = {
       observations?: string
       analysisCompleted?: boolean
       analysisCompletedAt?: string | null
+      analysisBlocked?: boolean
+      analysisBlockReason?: string | null
+      analysisBlockedAt?: string | null
     }>(`/api/meter-schedules/${meterScheduleId}/inspection-documents`),
   updateInspectionObservations: (meterScheduleId: string, observations: string) =>
     request<{ ok: true; observations: string }>(
@@ -1838,6 +1843,11 @@ export const api = {
     request<{ ok: true; completedAt: string }>(
       `/api/meter-schedules/${meterScheduleId}/complete-inspection-analysis`,
       { method: 'POST' },
+    ),
+  blockInspectionAnalysis: (meterScheduleId: string, reason: string) =>
+    request<{ ok: true; blockedAt: string; reason: string }>(
+      `/api/meter-schedules/${meterScheduleId}/block-inspection-analysis`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
     ),
   updateInspectionExtracted: (
     meterScheduleId: string,
