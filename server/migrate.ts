@@ -1084,6 +1084,21 @@ export async function migrate() {
 
   await ensureFillingDeviationsFromSchedules()
 
+  await query(
+    `UPDATE toi_schedule_deviations
+     SET description = $1,
+         scheduled_label = CASE
+           WHEN TRIM(scheduled_label) = 'Não agendado em campo' THEN $2
+           ELSE scheduled_label
+         END
+     WHERE kind = $3`,
+    [
+      'Medidor não agendado no ato da inspeção',
+      'Não agendado no ato da inspeção',
+      'lab_passive_schedule',
+    ],
+  )
+
   const demmCsdAlignFlag = await query<{ key: string }>(
     `SELECT key FROM app_runtime_flags WHERE key = 'demm_csd_align_v1'`,
   )

@@ -207,7 +207,7 @@ async function insertFillingDeviations(params: {
 }
 
 const LAB_PASSIVE_SCHEDULE_KIND = 'lab_passive_schedule'
-const LAB_PASSIVE_SCHEDULE_DESCRIPTION = 'Medidor não agendado em campo'
+const LAB_PASSIVE_SCHEDULE_DESCRIPTION = 'Medidor não agendado no ato da inspeção'
 
 async function insertLabPassiveScheduleDeviation(params: {
   scheduleId: string
@@ -244,7 +244,7 @@ async function insertLabPassiveScheduleDeviation(params: {
       params.meter,
       LAB_PASSIVE_SCHEDULE_KIND,
       LAB_PASSIVE_SCHEDULE_DESCRIPTION,
-      'Não agendado em campo',
+      'Não agendado no ato da inspeção',
       params.scheduledAtLabel,
       params.collaborator1Name,
       params.collaborator1Registration,
@@ -908,6 +908,20 @@ export async function createMeterSchedule(req: Request, res: Response) {
     ...insert.rows[0],
     created_by_registration: req.user?.registration ?? null,
   })
+
+  if (await canEditLabSchedule(req)) {
+    await insertLabPassiveScheduleDeviation({
+      scheduleId: id,
+      meter: normalized.meter,
+      scheduledAtLabel: schedule.scheduledAtLabel,
+      collaborator1Name: normalized.toiCollaborator1Name || (partner?.name ?? ''),
+      collaborator1Registration:
+        normalized.toiCollaborator1Registration || (partner?.registration ?? ''),
+      collaborator2Name: normalized.toiCollaborator2Name,
+      collaborator2Registration: normalized.toiCollaborator2Registration,
+      createdByUserId: req.user?.id ?? null,
+    })
+  }
 
   await writeAuditLog(req, {
     action: 'create',
