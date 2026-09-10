@@ -361,7 +361,7 @@ function resolveDocumentAnalysisStatus(
   const documentoReading = canEditWpa ? documentoDraft.reading : document.extractedReading
   const documentoScheduledAt = canEditWpa ? documentoDraft.scheduledAt : document.extractedScheduledAt
   const scheduleLacreValue = canEditWpa
-    ? wpaDraft.scheduleLacre || document.registeredLacre
+    ? wpaDraft.scheduleLacre
     : (conference?.scheduleLacre ?? document.registeredLacre)
   const scheduleMeterValue = canEditWpa
     ? wpaDraft.scheduleMeter
@@ -549,8 +549,17 @@ function ComparisonField({
   onAgendamentoChange?: (value: string) => void
 }) {
   const wpaRequired = campoEmpty !== 'Não aplicável'
+  const agendamentoRequired = agendamentoEmpty !== 'Não aplicável'
+  const agendamentoFilled = Boolean(agendamento?.trim())
+  const wpaMatches = wpaConferenceMatches(campo)
   const matches = wpaRequired
-    ? wpaConferenceMatches(campo)
+    ? agendamentoRequired &&
+      !agendamentoFilled &&
+      parseWpaConferenceOption(campo) !== 'nao_aplicavel'
+      ? wpaMatches === false
+        ? false
+        : null
+      : wpaMatches
     : conferenceMatches([campo, documento, agendamento, laboratorio], kind)
   return (
     <div className="inspection-document-comparison">
