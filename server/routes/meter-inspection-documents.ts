@@ -2290,15 +2290,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
       )
     : { rows: [] as Array<DocumentForInspectionAggregate & { id: string; meter_schedule_id: string; extracted_fields_manual: boolean | null }> }
 
-  const docsByScheduleId = new Map<
-    string,
-    Array<
-      DocumentForInspectionAggregate & {
-        id: string
-        extracted_fields_manual: boolean | null
-      }
-    >
-  >()
+  const docsByScheduleId = new Map<string, DocumentForInspectionAggregate[]>()
   for (const doc of documents.rows) {
     const list = docsByScheduleId.get(doc.meter_schedule_id) ?? []
     list.push(doc)
@@ -2307,9 +2299,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
 
   const meters = []
   for (const row of schedules.rows) {
-    const docs = docsByScheduleId.get(row.id) ?? []
-    await repairExtractedNote(docs, row.note)
-    const summary = aggregateInspectionForSchedule(row, docs)
+    const summary = aggregateInspectionForSchedule(row, docsByScheduleId.get(row.id) ?? [])
     if (!summary.hasToi && !summary.hasComunicado) continue
 
     meters.push({
