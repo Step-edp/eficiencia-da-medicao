@@ -2136,12 +2136,24 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
     return
   }
 
+  const analyzed =
+    req.query.status === 'analyzed' ||
+    req.query.analyzed === '1' ||
+    req.query.analyzed === 'true'
+
   const params: unknown[] = []
   let csdFilter = ''
   if (csdNames !== null) {
     params.push(csdNames.map((name) => name.toUpperCase()))
     csdFilter = `AND UPPER(TRIM(ms.csd)) = ANY($${params.length}::text[])`
   }
+
+  const analyzedFilter = analyzed
+    ? 'AND ms.inspection_analysis_completed_at IS NOT NULL'
+    : 'AND ms.inspection_analysis_completed_at IS NULL'
+  const orderBy = analyzed
+    ? 'ms.inspection_analysis_completed_at DESC, ms.scheduled_at ASC'
+    : 'ms.scheduled_at ASC'
 
   const schedules = await query<{
     id: string
@@ -2160,6 +2172,8 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
     responsible_name: string | null
     responsible_registration: string | null
     responsible_work_subtype: string | null
+    inspection_analysis_completed_at: Date | null
+    analysis_completed_by_name: string | null
   }>(
     `SELECT ms.id,
             ms.meter,
@@ -2176,18 +2190,21 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
             c.responsible_user_id,
             u.name AS responsible_name,
             u.registration AS responsible_registration,
-            u.work_subtype AS responsible_work_subtype
+            u.work_subtype AS responsible_work_subtype,
+            ms.inspection_analysis_completed_at,
+            completer.name AS analysis_completed_by_name
      FROM meter_schedules ms
      LEFT JOIN csds c ON c.name = ms.csd
      LEFT JOIN users u ON u.id = c.responsible_user_id
+     LEFT JOIN users completer ON completer.id = ms.inspection_analysis_completed_by_user_id
      WHERE EXISTS (
        SELECT 1 FROM meter_inspection_documents d
        WHERE d.meter_schedule_id = ms.id
      )
      AND ms.delay_dismissed_at IS NULL
-     AND ms.inspection_analysis_completed_at IS NULL
+     ${analyzedFilter}
      ${csdFilter}
-     ORDER BY ms.scheduled_at ASC`,
+     ORDER BY ${orderBy}`,
     params,
   )
 
@@ -2238,6 +2255,8 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
       hasComunicado: summary.hasComunicado,
       anyBlocked: summary.anyBlocked,
       blockReasons: summary.blockReasons,
+      analysisCompletedAt: row.inspection_analysis_completed_at?.toISOString() ?? null,
+      analysisCompletedByName: row.analysis_completed_by_name,
     })
   }
 

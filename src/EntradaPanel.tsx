@@ -154,6 +154,8 @@ function wpaMeterMatchesQuery(item: MeterInspectionDocumentadoRecord, query: str
       item.trailStep,
       wpaDocumentationLabel(item),
       formatDateTime(item.scheduledAt),
+      item.analysisCompletedByName,
+      item.analysisCompletedAt ? formatDateTime(item.analysisCompletedAt) : '',
     ].join(' '),
   )
   if (haystack.includes(query)) return true
@@ -903,6 +905,7 @@ export type EntradaPanelView =
   | 'overview'
   | 'demmEntrada'
   | 'metersBase'
+  | 'wpaAnalyzed'
   | 'receivedMetersBase'
   | 'csdPendencias'
   | 'inspectionPendencias'
@@ -939,6 +942,11 @@ export function EntradaPanel({
   const [wpaMeters, setWpaMeters] = useState<MeterInspectionDocumentadoRecord[]>([])
   const [wpaMetersLoading, setWpaMetersLoading] = useState(false)
   const [wpaSearchQuery, setWpaSearchQuery] = useState('')
+  const [wpaAnalyzedMeters, setWpaAnalyzedMeters] = useState<MeterInspectionDocumentadoRecord[]>(
+    [],
+  )
+  const [wpaAnalyzedMetersLoading, setWpaAnalyzedMetersLoading] = useState(false)
+  const [wpaAnalyzedSearchQuery, setWpaAnalyzedSearchQuery] = useState('')
   const [receivedMeters, setReceivedMeters] = useState<MeterRegistryRecord[]>([])
   const [receivedMetersTotal, setReceivedMetersTotal] = useState(0)
   const [receivedMetersLoading, setReceivedMetersLoading] = useState(false)
@@ -1237,11 +1245,36 @@ export function EntradaPanel({
     }
   }, [])
 
+  const loadWpaAnalyzedMeters = useCallback(async () => {
+    setWpaAnalyzedMetersLoading(true)
+    try {
+      const response = await api.listWpaAnalysisMeters(undefined, true)
+      setWpaAnalyzedMeters((response.meters ?? []).filter(hasWpaDocument))
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar os medidores analisados.',
+      })
+    } finally {
+      setWpaAnalyzedMetersLoading(false)
+    }
+  }, [])
+
   const openMetersBase = () => {
     setView('metersBase')
     setFeedback(null)
     setWpaSearchQuery('')
     void loadWpaMeters()
+  }
+
+  const openWpaAnalyzed = () => {
+    setView('wpaAnalyzed')
+    setFeedback(null)
+    setWpaAnalyzedSearchQuery('')
+    void loadWpaAnalyzedMeters()
   }
 
   const loadReceivedMetersBase = useCallback(async (search = '') => {
@@ -1550,6 +1583,15 @@ export function EntradaPanel({
           onClick={() => openMetersBase()}
         >
           Análise
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'wpaAnalyzed'}
+          className={view === 'wpaAnalyzed' ? 'active' : ''}
+          onClick={() => openWpaAnalyzed()}
+        >
+          Analisados
         </button>
         <button
           type="button"
@@ -2079,6 +2121,7 @@ export function EntradaPanel({
       onDocumentsChanged={() => {
         void loadInspectionPendencias()
         void loadWpaMeters()
+        void loadWpaAnalyzedMeters()
         void loadWeekMeters()
         void loadData()
         refreshTrailCounts()
@@ -2218,9 +2261,13 @@ export function EntradaPanel({
     )
   }
 
-  if (view === 'metersBase') {
-    const documentedMeters = wpaMeters.filter(hasWpaDocument)
-    const wpaSearchNormalized = normalizeWpaSearch(wpaSearchQuery)
+  if (view === 'metersBase' || view === 'wpaAnalyzed') {
+    const analyzedView = view === 'wpaAnalyzed'
+    const listedMeters = analyzedView ? wpaAnalyzedMeters : wpaMeters
+    const listedLoading = analyzedView ? wpaAnalyzedMetersLoading : wpaMetersLoading
+    const searchQuery = analyzedView ? wpaAnalyzedSearchQuery : wpaSearchQuery
+    const documentedMeters = listedMeters.filter(hasWpaDocument)
+    const wpaSearchNormalized = normalizeWpaSearch(searchQuery)
     const filteredWpaMeters = wpaSearchNormalized
       ? documentedMeters.filter((item) => wpaMeterMatchesQuery(item, wpaSearchNormalized))
       : documentedMeters
@@ -2233,22 +2280,32 @@ export function EntradaPanel({
 
           {renderFixedFeedback()}
 
-          <section className="entrada-section" aria-label="Análise WPA">
+          <section className="entrada-section" aria-label={analyzedView ? 'Analisados' : 'Análise WPA'}>
             <div className="entrada-section-heading">
-              <h3 className="entrada-section-title">Análise WPA</h3>
+              <h3 className="entrada-section-title">
+                {analyzedView ? 'Analisados' : 'Análise WPA'}
+              </h3>
               <p className="demm-analysis-summary">
-                {wpaMetersLoading && documentedMeters.length === 0
+                {listedLoading && documentedMeters.length === 0
                   ? 'Carregando medidores...'
                   : hasWpaSearch
-                    ? `${filteredWpaMeters.length} de ${documentedMeters.length} medidor(es) com documento anexado`
-                    : `${documentedMeters.length} medidor(es) com documento anexado`}
+                    ? `${filteredWpaMeters.length} de ${documentedMeters.length} medidor(es) ${
+                        analyzedView ? 'analisado(s)' : 'com documento anexado'
+                      }`
+                    : `${documentedMeters.length} medidor(es) ${
+                        analyzedView ? 'analisado(s)' : 'com documento anexado'
+                      }`}
               </p>
             </div>
 
             {documentedMeters.length > 0 || hasWpaSearch ? (
               <div className="consultar-toolbar entrada-wpa-toolbar">
                 <label className="consultar-search">
-                  <span className="sr-only">Pesquisar medidores da análise WPA</span>
+                  <span className="sr-only">
+                    {analyzedView
+                      ? 'Pesquisar medidores analisados'
+                      : 'Pesquisar medidores da análise WPA'}
+                  </span>
                   <span className="consultar-search-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24">
                       <circle
@@ -2270,8 +2327,12 @@ export function EntradaPanel({
                   </span>
                   <input
                     type="search"
-                    value={wpaSearchQuery}
-                    onChange={(event) => setWpaSearchQuery(event.target.value)}
+                    value={searchQuery}
+                    onChange={(event) =>
+                      analyzedView
+                        ? setWpaAnalyzedSearchQuery(event.target.value)
+                        : setWpaSearchQuery(event.target.value)
+                    }
                     placeholder="Pesquisar por medidor, instalação, TOI, nota, CSD…"
                     autoComplete="off"
                     spellCheck={false}
@@ -2280,11 +2341,13 @@ export function EntradaPanel({
               </div>
             ) : null}
 
-            {wpaMetersLoading && documentedMeters.length === 0 ? (
+            {listedLoading && documentedMeters.length === 0 ? (
               <p className="entrada-panel-empty">Carregando medidores...</p>
             ) : documentedMeters.length === 0 ? (
               <p className="entrada-panel-empty">
-                Nenhum medidor com documento de inspeção anexado.
+                {analyzedView
+                  ? 'Nenhum medidor analisado.'
+                  : 'Nenhum medidor com documento de inspeção anexado.'}
               </p>
             ) : filteredWpaMeters.length === 0 ? (
               <p className="entrada-panel-empty">Nenhum medidor encontrado para esta pesquisa.</p>
@@ -2300,6 +2363,7 @@ export function EntradaPanel({
                       <th>CSD</th>
                       <th>Etapa</th>
                       <th>Data agendada</th>
+                      {analyzedView ? <th>Analisado em</th> : null}
                       <th>Documentação</th>
                       <th>Ações</th>
                     </tr>
@@ -2316,6 +2380,13 @@ export function EntradaPanel({
                         <td>{item.csd}</td>
                         <td>{item.trailStep}</td>
                         <td>{formatDateTime(item.scheduledAt)}</td>
+                        {analyzedView ? (
+                          <td>
+                            {item.analysisCompletedAt
+                              ? formatDateTime(item.analysisCompletedAt)
+                              : '—'}
+                          </td>
+                        ) : null}
                         <td>
                           <span
                             className={
@@ -2339,7 +2410,7 @@ export function EntradaPanel({
                               })
                             }
                           >
-                            Analisar
+                            {analyzedView ? 'Ver' : 'Analisar'}
                           </button>
                         </td>
                       </tr>
@@ -2358,6 +2429,7 @@ export function EntradaPanel({
             onDocumentsChanged={() => {
               void loadInspectionPendencias()
               void loadWpaMeters()
+              void loadWpaAnalyzedMeters()
               void loadWeekMeters()
               void loadData()
               refreshTrailCounts()
@@ -3020,6 +3092,7 @@ export function EntradaPanel({
             onDocumentsChanged={() => {
               void loadInspectionPendencias()
               void loadWpaMeters()
+              void loadWpaAnalyzedMeters()
               void loadWeekMeters()
               void loadData()
               refreshTrailCounts()
