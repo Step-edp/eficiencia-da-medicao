@@ -1682,15 +1682,6 @@ export function EntradaPanel({
         <button
           type="button"
           role="tab"
-          aria-selected={view === 'receivedMetersBase'}
-          className={view === 'receivedMetersBase' ? 'active' : ''}
-          onClick={() => openReceivedMetersBase()}
-        >
-          Base de medidores recebidos
-        </button>
-        <button
-          type="button"
-          role="tab"
           aria-selected={view === 'demmHistorico'}
           className={view === 'demmHistorico' ? 'active' : ''}
           onClick={() => openDemmHistorico()}

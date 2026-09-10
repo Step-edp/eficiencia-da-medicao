@@ -753,6 +753,7 @@ export function InspectionDocumentAnalysisModal({
   const [analysisCompleted, setAnalysisCompleted] = useState(false)
   const [analysisBlocked, setAnalysisBlocked] = useState(false)
   const [blockJustification, setBlockJustification] = useState('')
+  const [blockFormOpen, setBlockFormOpen] = useState(false)
   const [savingAnalysis, setSavingAnalysis] = useState(false)
   const [blockingAnalysis, setBlockingAnalysis] = useState(false)
 
@@ -819,6 +820,7 @@ export function InspectionDocumentAnalysisModal({
       setObservations(response.observations ?? '')
       setAnalysisCompleted(response.analysisCompleted === true)
       setAnalysisBlocked(response.analysisBlocked === true)
+      setBlockFormOpen(response.analysisBlocked === true)
       if (!silent) {
         setBlockJustification(response.analysisBlockReason ?? '')
       }
@@ -851,6 +853,7 @@ export function InspectionDocumentAnalysisModal({
       setAnalysisCompleted(false)
       setAnalysisBlocked(false)
       setBlockJustification('')
+      setBlockFormOpen(false)
     } finally {
       setLoading(false)
     }
@@ -969,6 +972,10 @@ export function InspectionDocumentAnalysisModal({
   )
 
   const handleBlockAnalysis = async () => {
+    if (!blockFormOpen) {
+      setBlockFormOpen(true)
+      return
+    }
     const reason = blockJustification.trim()
     if (reason.length < 3) {
       setFeedback({ type: 'error', message: 'Informe a justificativa do bloqueio.' })
@@ -1628,33 +1635,43 @@ export function InspectionDocumentAnalysisModal({
         <div className="inspection-analysis-screen-actions">
           {canEditWpa && !analysisCompleted ? (
             <>
-              <label className="inspection-analysis-block-label">
-                Justificativa do bloqueio
-                <textarea
-                  className="inspection-analysis-block-input"
-                  rows={2}
-                  maxLength={1000}
-                  value={blockJustification}
-                  placeholder="Descreva o motivo do bloqueio"
-                  onChange={(event) => setBlockJustification(event.target.value)}
-                />
-              </label>
-              {analysisBlocked ? (
-                <p className="inspection-analysis-blocked-hint">
-                  Esta análise já está bloqueada. Atualize a justificativa e clique em Bloquear
-                  para registrar de novo, ou conclua com Análise completa.
-                </p>
+              {blockFormOpen ? (
+                <>
+                  <label className="inspection-analysis-block-label">
+                    Justificativa do bloqueio
+                    <textarea
+                      className="inspection-analysis-block-input"
+                      rows={2}
+                      maxLength={1000}
+                      value={blockJustification}
+                      placeholder="Descreva o motivo do bloqueio"
+                      onChange={(event) => setBlockJustification(event.target.value)}
+                    />
+                  </label>
+                  {analysisBlocked ? (
+                    <p className="inspection-analysis-blocked-hint">
+                      Esta análise já está bloqueada. Atualize a justificativa e clique em Bloquear
+                      para registrar de novo, ou conclua com Análise completa.
+                    </p>
+                  ) : null}
+                </>
               ) : null}
               <div className="inspection-analysis-screen-action-row">
                 <button
                   type="button"
                   className="danger-button"
-                  disabled={!canBlockAnalysis || blockingAnalysis || savingAnalysis}
+                  disabled={
+                    blockingAnalysis ||
+                    savingAnalysis ||
+                    (blockFormOpen && !canBlockAnalysis)
+                  }
                   onClick={() => void handleBlockAnalysis()}
                   title={
-                    canBlockAnalysis
-                      ? 'Bloquear o medidor na Análise com justificativa'
-                      : 'Informe a justificativa para bloquear'
+                    !blockFormOpen
+                      ? 'Informar justificativa para bloquear'
+                      : canBlockAnalysis
+                        ? 'Bloquear o medidor na Análise com justificativa'
+                        : 'Informe a justificativa para bloquear'
                   }
                 >
                   {blockingAnalysis ? 'Bloqueando...' : 'Bloquear'}
