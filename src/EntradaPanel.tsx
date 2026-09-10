@@ -1566,8 +1566,8 @@ export function EntradaPanel({
         className="entrada-wpa-pending-alert"
         onClick={() => openMetersBase()}
       >
-        {wpaPendingCount} medidor{wpaPendingCount === 1 ? '' : 'es'} pendente
-        {wpaPendingCount === 1 ? '' : 's'} de análise
+        {wpaPendingCount} {wpaPendingCount === 1 ? 'medidor pendente' : 'medidores pendentes'} de
+        análise
       </button>
     ) : null
 
