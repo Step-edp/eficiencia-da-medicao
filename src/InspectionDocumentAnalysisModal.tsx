@@ -1573,21 +1573,11 @@ export function InspectionDocumentAnalysisModal({
           </div>
         )}
 
+        {photos.length > 0 ? (
         <section className="inspection-photo-section" aria-label="Fotos da análise">
             <div className="inspection-photo-section-header">
               <h4>Fotos</h4>
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={uploadingPhotos}
-                onClick={openPhotoPicker}
-              >
-                {uploadingPhotos ? 'Enviando...' : 'Enviar fotos'}
-              </button>
             </div>
-            {photos.length === 0 ? (
-              <p className="entrada-panel-empty">Nenhuma foto enviada ainda.</p>
-            ) : (
               <div className="inspection-photo-grid">
                 {photos.map((photo) => (
                   <figure key={photo.id} className="inspection-photo-item">
@@ -1617,8 +1607,8 @@ export function InspectionDocumentAnalysisModal({
                   </figure>
                 ))}
               </div>
-            )}
-          </section>
+        </section>
+        ) : null}
 
         <input
           id={photoInputId}
