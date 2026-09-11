@@ -132,6 +132,10 @@ function normalizeNumericEntryField(
   return normalized || null
 }
 
+function isPlausibleScheduleNote(digits: string) {
+  return digits.length >= 10 && digits.length <= 12
+}
+
 function compareNumericEntryField(
   extracted: string | null | undefined,
   registered: string | null | undefined,
@@ -141,7 +145,12 @@ function compareNumericEntryField(
     const documentValue = significantNumericId(extracted)
     const registeredValue = significantNumericId(registered)
     if (!documentValue || !registeredValue) return null
-    return documentValue === registeredValue
+    if (documentValue === registeredValue) return true
+    // Telefone e outros números curtos (8–9 dígitos) não são a nota do agendamento.
+    if (isPlausibleScheduleNote(documentValue) !== isPlausibleScheduleNote(registeredValue)) {
+      return null
+    }
+    return false
   }
   const documentValue = normalizeNumericEntryField(extracted, field)
   const registeredValue = normalizeNumericEntryField(registered, field)
@@ -1613,6 +1622,11 @@ async function repairEncontradoReading(
 function findRegisteredNoteInText(text: string, expectedNote: string): string | null {
   const significant = significantNumericId(expectedNote)
   if (significant.length < 8) return null
+  const labeled =
+    text.match(new RegExp(`(0*${significant})\\s+nota\\s+te`, 'i'))?.[1] ??
+    text.match(new RegExp(`nota\\s+de\\s+servi[cç]o\\s*:?\\s*(0*${significant})`, 'i'))?.[1] ??
+    text.match(new RegExp(`ordem\\s+de\\s+inspe[^\\d]{0,40}?(0*${significant})`, 'i'))?.[1]
+  if (labeled) return labeled
   const compact = String(text ?? '').replace(/\D/g, '')
   const index = compact.indexOf(significant)
   if (index < 0) return null

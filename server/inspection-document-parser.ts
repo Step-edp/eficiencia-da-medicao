@@ -35,7 +35,8 @@ const ORDEM_INSPECAO_VALUE_PATTERN = /\b\d{10,14}\b/
 const ORDEM_INSPECAO_LABEL_PATTERN = /ordem\s+de\s+inspe[cçãa\u00e7\u00e3]\s*n[º°o\u00ba.]?\s*:?\s*/i
 const MEDIDOR_ENCONTRADO_LABEL_PATTERN =
   /(?:n[º°o.]?\s*(?:do\s+)?)?medidor\s+encontrado/i
-const NOTA_LABEL_PATTERN = /(?<![a-zà-ÿ])nota(?:\s+fiscal)?(?:\s*n[ºo°.]?)?\s*:?\s*(?![cçã])/i
+const NOTA_LABEL_PATTERN =
+  /(?<![a-zà-ÿ])nota(?:\s+de\s+servi[cç]o|\s+fiscal|\s+te)?(?:\s*n[ºo°.]?)?\s*:?\s*(?![cçã])/i
 const NOTA_VALUE_PATTERN = /\b0*\d{8,12}\b/
 
 const TOI_MARKER = /termo\s+de\s+ocorr[eéê]ncia\s+e\s+inspe/i
@@ -275,6 +276,42 @@ function readingsFromPositionedItems(items: PositionedText[]): string[] {
   return value ? [value] : []
 }
 
+function addPlausibleNote(found: Set<string>, value: string | null | undefined) {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  const significant = digits.replace(/^0+/, '')
+  if (significant.length < 10 || significant.length > 12) return
+  found.add(digits)
+}
+
+function notesFromPositionedItems(items: PositionedText[]): string[] {
+  const found = new Set<string>()
+
+  for (const item of items) {
+    addPlausibleNote(found, item.str.match(/(0*\d{10,14})\s+nota\s+te/i)?.[1])
+    addPlausibleNote(found, item.str.match(/nota\s+de\s+servi[cç]o\s*:?\s*(0*\d{8,14})/i)?.[1])
+  }
+
+  const servicoLabel = items.find((item) => /nota\s+de\s+servi[cç]o/i.test(item.str))
+  if (servicoLabel) {
+    const sameRow = items
+      .filter(
+        (item) =>
+          Math.abs(item.y - servicoLabel.y) <= Math.max(8, servicoLabel.height) &&
+          item.x > servicoLabel.x,
+      )
+      .sort((left, right) => left.x - right.x)
+    for (const item of sameRow) {
+      const digits = item.str.replace(/\D/g, '')
+      if (digits.replace(/^0+/, '').length >= 10) {
+        addPlausibleNote(found, digits)
+        break
+      }
+    }
+  }
+
+  return [...found]
+}
+
 export type InspectionDocumentParseResult = {
   meterEncontrado: string | null
   meterRetirado: string | null
@@ -314,36 +351,54 @@ export function classifyInspectionDocument(text: string): InspectionDocumentType
   return 'desconhecido'
 }
 
+function isPhoneLikeNote(text: string, value: string) {
+  const digits = String(value).replace(/\D/g, '')
+  if (digits.length < 8 || digits.length > 9) return false
+  return new RegExp(`telefone\\s*[:\\-]?\\s*${digits}`, 'i').test(text.replace(/\s+/g, ' '))
+}
+
 function extractNoteNumber(text: string, excluded: Set<string>): string | null {
   const candidates: string[] = []
+  const add = (raw: string | null | undefined) => {
+    if (!raw) return
+    const key = digitKey(raw)
+    if (!key || excluded.has(key) || isPhoneLikeNote(text, raw)) return
+    candidates.push(raw)
+  }
+
+  add(text.match(/nota\s+de\s+servi[cç]o\s*:?\s*(0*\d{8,14})/i)?.[1])
+  add(text.match(/(0*\d{10,14})\s+nota\s+te/i)?.[1])
+  add(text.match(/ordem\s+de\s+inspe[^\d]{0,40}?(0*\d{10,14})\s+nota\s+te/i)?.[1])
+
   const labelRe = new RegExp(NOTA_LABEL_PATTERN.source, 'gi')
   let match: RegExpExecArray | null
   while ((match = labelRe.exec(text))) {
+    const before = text.slice(Math.max(0, match.index - 48), match.index)
+    add(before.match(/(0*\d{8,14})\s*$/)?.[1])
     const from = match.index + match[0].length
-    const valueMatch = text.slice(from, from + 80).match(NOTA_VALUE_PATTERN)
-    if (!valueMatch) continue
-    const key = digitKey(valueMatch[0])
-    if (!key || excluded.has(key)) continue
-    candidates.push(valueMatch[0])
+    const window = text.slice(from, from + 80)
+    if (/telefone/i.test(window) && !/servi[cç]o/i.test(match[0])) continue
+    add(window.match(NOTA_VALUE_PATTERN)?.[0])
   }
 
   if (!candidates.length) {
-    const fallback = extractAfterLabel(
-      text,
-      NOTA_LABEL_PATTERN,
-      DADOS_MEDICAO_START,
-      NOTA_VALUE_PATTERN,
+    add(
+      extractAfterLabel(
+        text,
+        NOTA_LABEL_PATTERN,
+        DADOS_MEDICAO_START,
+        NOTA_VALUE_PATTERN,
+      ),
     )
-    const key = digitKey(fallback)
-    return key && !excluded.has(key) ? fallback : null
   }
 
   const score = (value: string) => {
     const length = digitKey(value).length
-    if (length === 11) return 3
-    if (length === 12) return 2
-    if (length === 10) return 1
-    return 0
+    if (length === 11) return 5
+    if (length === 12) return 4
+    if (length === 10) return 3
+    if (length === 9) return 0
+    return 1
   }
 
   return [...candidates].sort((left, right) => score(right) - score(left))[0] ?? null
@@ -1002,6 +1057,11 @@ async function extractInspectionPdfTextLayer(buffer: Buffer): Promise<{ body: st
     for (const reading of readingsFromPositionedItems(positioned)) {
       spatialReadings.push(`Leitura encontrado: ${reading}`)
       spatialReadings.push(`Leitura: ${reading}`)
+    }
+    for (const note of notesFromPositionedItems(positioned)) {
+      spatialReadings.push(`Nota: ${note}`)
+      spatialReadings.push(`Nota TE: ${note}`)
+      spatialReadings.push(`NOTA DE SERVIÇO: ${note}`)
     }
     const coverSeals = coverSealsFromPositionedItems(positioned)
     coverSeals.forEach((coverSeal, index) => {
