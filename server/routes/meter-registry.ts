@@ -108,6 +108,11 @@ export async function listMeterRegistry(req: Request, res: Response) {
     typeof req.query.search === 'string' ? req.query.search.trim() : ''
   const status =
     typeof req.query.status === 'string' ? req.query.status.trim() : ''
+  const receivedOnly =
+    req.query.received === '1' ||
+    req.query.received === 'true' ||
+    req.query.receivedOnly === '1' ||
+    req.query.receivedOnly === 'true'
   const limitRaw = Number(req.query.limit ?? 100)
   const offsetRaw = Number(req.query.offset ?? 0)
   const limit = Number.isFinite(limitRaw)
@@ -137,6 +142,12 @@ export async function listMeterRegistry(req: Request, res: Response) {
   if (status) {
     params.push(status)
     conditions.push(`status = $${params.length}`)
+  }
+
+  if (receivedOnly) {
+    conditions.push(
+      `(received_at IS NOT NULL OR status IN ('Recebido', 'Ensaiado', 'Aprovado'))`,
+    )
   }
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''

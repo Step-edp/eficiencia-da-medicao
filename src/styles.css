@@ -7527,6 +7527,22 @@ input[type='file'] {
   margin-top: 8px;
 }
 
+.ensaiar-received {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.ensaiar-received .entrada-table-wrap {
+  margin: 0;
+}
+
+.ensaiar-received .primary-button {
+  padding: 8px 12px;
+  width: auto;
+  grid-column: auto;
+}
+
 .ratm-slots {
   display: grid;
   gap: 10px;
