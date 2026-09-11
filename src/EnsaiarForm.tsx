@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
-import { api, ApiError, type MeterRegistryRecord } from './api'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { api, ApiError, type MeterScheduleRecord } from './api'
+import { ENSAIAR_TRAIL_STEP } from './labTrailSteps'
 import { RatmWorkflow } from './ratm/RatmWorkflow'
 import { loadRatmDraft } from './ratm/ratmDraft'
 import type { RatmFormData } from './ratm/types'
@@ -19,8 +20,19 @@ function formatDateTime(isoDate: string) {
   }).format(new Date(isoDate))
 }
 
-function canStartEnsaio(item: MeterRegistryRecord) {
-  return item.status === 'Recebido'
+function receivedMeterMatches(item: MeterScheduleRecord, query: string) {
+  if (!query) return true
+  const haystack = [
+    item.meter,
+    item.installation,
+    item.toi,
+    item.note,
+    item.csd,
+    item.scheduledAtLabel,
+  ]
+    .join(' ')
+    .toLowerCase()
+  return haystack.includes(query)
 }
 
 export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
@@ -31,8 +43,7 @@ export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
   )
   const [workflowMeter, setWorkflowMeter] = useState(initialMeter)
   const [showReceived, setShowReceived] = useState(false)
-  const [receivedMeters, setReceivedMeters] = useState<MeterRegistryRecord[]>([])
-  const [receivedTotal, setReceivedTotal] = useState(0)
+  const [receivedMeters, setReceivedMeters] = useState<MeterScheduleRecord[]>([])
   const [receivedLoading, setReceivedLoading] = useState(false)
   const [receivedSearch, setReceivedSearch] = useState('')
   const [feedback, setFeedback] = useState<{
@@ -42,16 +53,11 @@ export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
 
   const selectedCount = Number(ratmCount)
 
-  const loadReceivedMeters = useCallback(async (search = '') => {
+  const loadReceivedMeters = useCallback(async () => {
     setReceivedLoading(true)
     try {
-      const response = await api.listMeterRegistry({
-        search,
-        received: true,
-        limit: 500,
-      })
-      setReceivedMeters(response.meters)
-      setReceivedTotal(response.total)
+      const response = await api.listMeterSchedules(ENSAIAR_TRAIL_STEP)
+      setReceivedMeters(response.schedules)
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -61,7 +67,6 @@ export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
             : 'Não foi possível carregar os medidores recebidos.',
       })
       setReceivedMeters([])
-      setReceivedTotal(0)
     } finally {
       setReceivedLoading(false)
     }
@@ -69,11 +74,14 @@ export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
 
   useEffect(() => {
     if (!showReceived) return
-    const timeoutId = window.setTimeout(() => {
-      void loadReceivedMeters(receivedSearch.trim())
-    }, 300)
-    return () => window.clearTimeout(timeoutId)
-  }, [showReceived, receivedSearch, loadReceivedMeters])
+    void loadReceivedMeters()
+  }, [showReceived, loadReceivedMeters])
+
+  const filteredReceivedMeters = useMemo(() => {
+    const query = receivedSearch.trim().toLowerCase()
+    if (!query) return receivedMeters
+    return receivedMeters.filter((item) => receivedMeterMatches(item, query))
+  }, [receivedMeters, receivedSearch])
 
   const handleStart = () => {
     if (!ratmCount) {
@@ -117,7 +125,8 @@ export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
 
   if (showReceived) {
     const hasSearch = Boolean(receivedSearch.trim())
-    const showingCount = receivedMeters.length
+    const showingCount = filteredReceivedMeters.length
+    const total = receivedMeters.length
 
     return (
       <>
@@ -131,11 +140,11 @@ export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
           <div className="entrada-section-heading">
             <h3 className="entrada-section-title">Medidores recebidos</h3>
             <p className="demm-analysis-summary">
-              {receivedLoading && showingCount === 0
+              {receivedLoading && total === 0
                 ? 'Carregando medidores...'
                 : hasSearch
-                  ? `${showingCount} de ${receivedTotal} medidor(es) encontrado(s)`
-                  : `${receivedTotal} medidor(es) recebido(s)`}
+                  ? `${showingCount} de ${total} medidor(es) encontrado(s)`
+                  : `${total} medidor(es) recebido(s)`}
             </p>
           </div>
 
@@ -172,13 +181,13 @@ export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
             </label>
           </div>
 
-          {receivedLoading && showingCount === 0 ? (
+          {receivedLoading && total === 0 ? (
             <p className="entrada-panel-empty">Carregando medidores...</p>
           ) : showingCount === 0 ? (
             <p className="entrada-panel-empty">
               {hasSearch
                 ? 'Nenhum medidor encontrado para esta pesquisa.'
-                : 'Nenhum medidor recebido na Entrada.'}
+                : 'Nenhum medidor recebido aguardando ensaio.'}
             </p>
           ) : (
             <div className="entrada-table-wrap">
@@ -190,33 +199,27 @@ export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
                     <th>TOI</th>
                     <th>Nota</th>
                     <th>CSD</th>
-                    <th>Status</th>
-                    <th>Recebido em</th>
+                    <th>Data agendada</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {receivedMeters.map((item) => (
-                    <tr key={item.meter}>
+                  {filteredReceivedMeters.map((item) => (
+                    <tr key={item.id}>
                       <td>{item.meter}</td>
                       <td>{item.installation || '—'}</td>
                       <td>{item.toi || '—'}</td>
                       <td>{item.note || '—'}</td>
                       <td>{item.csd || '—'}</td>
-                      <td>{item.status || '—'}</td>
-                      <td>{item.receivedAt ? formatDateTime(item.receivedAt) : '—'}</td>
+                      <td>{item.scheduledAtLabel || formatDateTime(item.scheduledAt)}</td>
                       <td>
-                        {canStartEnsaio(item) ? (
-                          <button
-                            type="button"
-                            className="primary-button"
-                            onClick={() => handleEnsaiarMeter(item.meter)}
-                          >
-                            Ensaiar
-                          </button>
-                        ) : (
-                          '—'
-                        )}
+                        <button
+                          type="button"
+                          className="primary-button"
+                          onClick={() => handleEnsaiarMeter(item.meter)}
+                        >
+                          Ensaiar
+                        </button>
                       </td>
                     </tr>
                   ))}
