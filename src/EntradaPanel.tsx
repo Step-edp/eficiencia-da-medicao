@@ -1590,7 +1590,7 @@ export function EntradaPanel({
   const wpaPendingCount = wpaMeters.length
 
   const renderWpaPendingAlert = () =>
-    wpaPendingCount > 0 && view !== 'metersBase' ? (
+    wpaPendingCount > 0 && view !== 'metersBase' && view !== 'wpaAnalyzed' ? (
       <button
         type="button"
         className="entrada-wpa-pending-alert"
