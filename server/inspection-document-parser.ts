@@ -367,12 +367,34 @@ function isPersonalDocumentNote(text: string, value: string) {
   ).test(compact)
 }
 
+function looksLikeCpfNumber(value: string) {
+  const digits = String(value).replace(/\D/g, '')
+  if (digits.length !== 11 || /^(\d)\1+$/.test(digits)) return false
+  const check = (slice: string, initialWeight: number) => {
+    const sum = slice.split('').reduce((total, digit, index) => {
+      return total + Number(digit) * (initialWeight - index)
+    }, 0)
+    const rest = (sum * 10) % 11
+    return rest === 10 ? 0 : rest
+  }
+  return (
+    check(digits.slice(0, 9), 10) === Number(digits[9]) &&
+    check(digits.slice(0, 10), 11) === Number(digits[10])
+  )
+}
+
 function extractNoteNumber(text: string, excluded: Set<string>): string | null {
   const candidates: string[] = []
   const add = (raw: string | null | undefined) => {
     if (!raw) return
     const key = digitKey(raw)
-    if (!key || excluded.has(key) || isPhoneLikeNote(text, raw) || isPersonalDocumentNote(text, raw)) {
+    if (
+      !key ||
+      excluded.has(key) ||
+      isPhoneLikeNote(text, raw) ||
+      isPersonalDocumentNote(text, raw) ||
+      (looksLikeCpfNumber(raw) && !key.startsWith('40'))
+    ) {
       return
     }
     candidates.push(raw)
@@ -412,7 +434,8 @@ function extractNoteNumber(text: string, excluded: Set<string>): string | null {
     else if (length === 12) rank = 4
     else if (length === 10) rank = 3
     else if (length === 9) rank = 0
-    if (digits.startsWith('4')) rank += 10
+    if (digits.startsWith('40')) rank += 10
+    else if (digits.startsWith('4')) rank += 2
     return rank
   }
 

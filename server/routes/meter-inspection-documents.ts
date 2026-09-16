@@ -133,7 +133,22 @@ function normalizeNumericEntryField(
 }
 
 function isPlausibleScheduleNote(digits: string) {
-  return digits.startsWith('4') && digits.length >= 10 && digits.length <= 12
+  return digits.startsWith('40') && digits.length >= 10 && digits.length <= 12
+}
+
+function looksLikeCpfDigits(digits: string) {
+  if (digits.length !== 11 || /^(\d)\1+$/.test(digits)) return false
+  const check = (slice: string, initialWeight: number) => {
+    const sum = slice.split('').reduce((total, digit, index) => {
+      return total + Number(digit) * (initialWeight - index)
+    }, 0)
+    const rest = (sum * 10) % 11
+    return rest === 10 ? 0 : rest
+  }
+  return (
+    check(digits.slice(0, 9), 10) === Number(digits[9]) &&
+    check(digits.slice(0, 10), 11) === Number(digits[10])
+  )
 }
 
 const SCHEDULE_NOTE_MIN_DIGITS = 10
@@ -158,6 +173,13 @@ function compareScheduleNotes(
   const registeredValue = significantNumericId(registered)
   if (!documentValue || !registeredValue) return null
   if (documentValue === registeredValue) return true
+  if (
+    looksLikeCpfDigits(documentValue) &&
+    isPlausibleScheduleNote(registeredValue) &&
+    documentValue !== registeredValue
+  ) {
+    return null
+  }
 
   const documentCanonical = canonicalScheduleNote(extracted)
   const registeredCanonical = canonicalScheduleNote(registered)
@@ -483,7 +505,7 @@ export function aggregateInspectionForSchedule(
         scheduling_notes: '',
       },
       extraction
-        ? { ...extraction, extracted_note: extractedNote ?? extraction.extracted_note }
+        ? { ...extraction, extracted_note: extractedNote }
         : {
             extracted_installation: null,
             extracted_toi: null,
@@ -2200,7 +2222,7 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
   const comparisons = buildScheduleEntryComparisons(
     schedule.rows[0],
     toiExtraction
-      ? { ...toiExtraction, extracted_note: extractedNote ?? toiExtraction.extracted_note }
+      ? { ...toiExtraction, extracted_note: extractedNote }
       : {
           extracted_installation: null,
           extracted_toi: null,
