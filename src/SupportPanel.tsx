@@ -23,6 +23,7 @@ export function SupportPanel({ onOpenCountChange, readOnly = false }: SupportPan
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
   const [replyingId, setReplyingId] = useState<string | null>(null)
+  const [resettingId, setResettingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -93,11 +94,41 @@ export function SupportPanel({ onOpenCountChange, readOnly = false }: SupportPan
     }
   }
 
+  const handleResetPassword = async (ticket: SupportTicketRecord) => {
+    setResettingId(ticket.id)
+    setFeedback(null)
+
+    try {
+      const { ticket: updated, userName, registration } = await api.resetSupportTicketPassword(
+        ticket.id,
+      )
+      setTickets((prev) => {
+        const next = prev.map((item) => (item.id === updated.id ? updated : item))
+        notifyOpenCount(next)
+        return next
+      })
+      setFeedback({
+        type: 'success',
+        message: `Senha resetada para ${userName} (${registration}). No próximo acesso, o usuário cadastra uma nova senha.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível resetar a senha.',
+      })
+    } finally {
+      setResettingId(null)
+    }
+  }
+
   return (
     <div className="support-panel">
       <p className="csds-form-hint">
         Solicitações abertas pelo card Suporte na home ou pela tela de login. Expanda um
-        chamado para ver os detalhes, WhatsApp do solicitante e responder.
+        chamado para ver os detalhes, WhatsApp do solicitante, resetar senha e responder.
       </p>
 
       {feedback ? (
@@ -200,13 +231,25 @@ export function SupportPanel({ onOpenCountChange, readOnly = false }: SupportPan
                             placeholder="Escreva a resposta para o solicitante..."
                           />
                         </label>
-                        <button
-                          type="submit"
-                          className="primary-button"
-                          disabled={replyingId === ticket.id}
-                        >
-                          {replyingId === ticket.id ? 'Enviando...' : 'Enviar resposta'}
-                        </button>
+                        <div className="support-ticket-actions">
+                          {ticket.requesterUserId || ticket.requesterRegistration ? (
+                            <button
+                              type="button"
+                              className="success-button"
+                              disabled={resettingId === ticket.id}
+                              onClick={() => void handleResetPassword(ticket)}
+                            >
+                              {resettingId === ticket.id ? 'Resetando...' : 'Resetar senha'}
+                            </button>
+                          ) : null}
+                          <button
+                            type="submit"
+                            className="primary-button"
+                            disabled={replyingId === ticket.id}
+                          >
+                            {replyingId === ticket.id ? 'Enviando...' : 'Enviar resposta'}
+                          </button>
+                        </div>
                       </form>
                     )}
                   </div>

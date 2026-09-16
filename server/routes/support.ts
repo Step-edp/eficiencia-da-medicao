@@ -1,4 +1,6 @@
 import type { Request, Response } from 'express'
+import bcrypt from 'bcryptjs'
+import crypto from 'node:crypto'
 import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 
@@ -218,4 +220,143 @@ export async function replySupportTicket(req: Request, res: Response) {
   })
 
   res.json({ ticket })
+}
+
+const PASSWORD_RESET_REPLY =
+  'A senha de acesso foi redefinida. No próximo login, informe a matrícula e cadastre uma nova senha.'
+
+export async function resetSupportTicketPassword(req: Request, res: Response) {
+  const actor = req.user
+  if (!actor) {
+    res.status(401).json({ error: 'Não autenticado.' })
+    return
+  }
+
+  const { id } = req.params
+  const existing = await query<SupportTicketRow>(
+    `SELECT * FROM support_tickets WHERE id = $1`,
+    [id],
+  )
+  const ticket = existing.rows[0]
+
+  if (!ticket) {
+    res.status(404).json({ error: 'Chamado não encontrado.' })
+    return
+  }
+
+  let target: {
+    id: string
+    name: string
+    registration: string
+    role: 'admin' | 'compras' | 'field'
+    must_change_password?: boolean
+  } | null = null
+
+  if (ticket.requester_user_id) {
+    const byId = await query<{
+      id: string
+      name: string
+      registration: string
+      role: 'admin' | 'compras' | 'field'
+      must_change_password: boolean
+    }>(
+      `SELECT id, name, registration, role, must_change_password FROM users WHERE id = $1`,
+      [ticket.requester_user_id],
+    )
+    target = byId.rows[0] ?? null
+  }
+
+  if (!target) {
+    const registration = ticket.requester_registration?.trim()
+    if (!registration) {
+      res.status(400).json({
+        error: 'Informe a matrícula no chamado para resetar a senha.',
+      })
+      return
+    }
+
+    const byRegistration = await query<{
+      id: string
+      name: string
+      registration: string
+      role: 'admin' | 'compras' | 'field'
+      must_change_password: boolean
+    }>(
+      `SELECT id, name, registration, role, must_change_password
+       FROM users
+       WHERE UPPER(registration) = $1`,
+      [registration.toUpperCase()],
+    )
+    target = byRegistration.rows[0] ?? null
+  }
+
+  if (!target) {
+    res.status(404).json({
+      error: 'Não encontramos um usuário com a matrícula informada no chamado.',
+    })
+    return
+  }
+
+  if (target.role === 'admin' && actor.role !== 'admin') {
+    res.status(403).json({
+      error: 'Somente o administrador pode resetar a senha de outro administrador.',
+    })
+    return
+  }
+
+  const invalidHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10)
+  await query(
+    `UPDATE users
+     SET must_change_password = TRUE,
+         password_hash = $2,
+         password_plain = ''
+     WHERE id = $1`,
+    [target.id, invalidHash],
+  )
+
+  const profile = await query<{ name: string }>(
+    `SELECT name FROM users WHERE id = $1`,
+    [actor.id],
+  )
+
+  const previousResponse = ticket.response?.trim() ?? ''
+  const responseText = previousResponse.includes(PASSWORD_RESET_REPLY)
+    ? previousResponse
+    : previousResponse
+      ? `${previousResponse}\n\n${PASSWORD_RESET_REPLY}`
+      : PASSWORD_RESET_REPLY
+
+  const updated = await query<SupportTicketRow>(
+    `UPDATE support_tickets
+     SET response = $2,
+         status = 'respondido',
+         responded_by_user_id = $3,
+         responded_by_name = $4,
+         responded_at = NOW(),
+         updated_at = NOW()
+     WHERE id = $1
+     RETURNING *`,
+    [id, responseText, actor.id, profile.rows[0]?.name ?? actor.registration],
+  )
+
+  const nextTicket = mapTicket(updated.rows[0])
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'user',
+    entityId: target.id,
+    summary: `Senha resetada pelo suporte (${nextTicket.ticketNumber}) — ${target.registration}`,
+    oldData: mapTicket(ticket),
+    newData: {
+      ticket: nextTicket,
+      registration: target.registration,
+      mustChangePassword: true,
+    },
+  })
+
+  res.json({
+    ticket: nextTicket,
+    userName: target.name,
+    registration: target.registration,
+  })
 }

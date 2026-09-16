@@ -997,7 +997,15 @@ export const api = {
       method: 'DELETE',
     }),
   login: (registration: string, password: string) =>
-    request<{ user: AppUser; token?: string }>('/api/auth/login', {
+    request<
+      | { user: AppUser; token?: string; requiresPasswordReset?: false }
+      | { requiresPasswordReset: true; registration: string; name: string }
+    >('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ registration, password }),
+    }),
+  completePasswordReset: (registration: string, password: string) =>
+    request<{ user: AppUser; token?: string }>('/api/auth/complete-password-reset', {
       method: 'POST',
       body: JSON.stringify({ registration, password }),
     }),
@@ -2008,6 +2016,11 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+  resetSupportTicketPassword: (id: string) =>
+    request<{ ticket: SupportTicketRecord; userName: string; registration: string }>(
+      `/api/support-tickets/${id}/reset-password`,
+      { method: 'POST' },
+    ),
   listAnalisadorModelos: () =>
     request<{ modelos: AnalisadorModeloCatalogEntry[] }>('/api/analisadores-tensao/modelos'),
   listAnalisadoresTensao: () =>

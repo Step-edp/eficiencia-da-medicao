@@ -115,6 +115,7 @@ import {
   createSupportTicket,
   listSupportTickets,
   replySupportTicket,
+  resetSupportTicketPassword,
 } from './routes/support.js'
 import {
   createAnalisadorTensao,
@@ -176,6 +177,7 @@ async function start() {
   app.post('/api/mail/test', ...wrap(mailRoutes.test))
 
   app.post('/api/auth/login', wrap(authRoutes.login))
+  app.post('/api/auth/complete-password-reset', wrap(authRoutes.completePasswordReset))
   app.post('/api/auth/register', wrap(authRoutes.register))
   app.get('/api/auth/me', ...wrap(authRoutes.me))
   app.post('/api/auth/logout', ...wrap(authRoutes.logout))
@@ -560,6 +562,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     replySupportTicket,
+  )
+  app.post(
+    '/api/support-tickets/:id/reset-password',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    resetSupportTicketPassword,
   )
 
   app.get('/api/analisadores-tensao/modelos', requireAuth, listAnalisadorModelos)

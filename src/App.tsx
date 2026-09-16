@@ -569,6 +569,12 @@ function PasswordInput({
 function LoginPanel({ onLoginSuccess, bannerFeedback = null }: LoginPanelProps) {
   const [registration, setRegistration] = useState('')
   const [password, setPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordReset, setPasswordReset] = useState<{
+    registration: string
+    name: string
+  } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
@@ -587,8 +593,22 @@ function LoginPanel({ onLoginSuccess, bannerFeedback = null }: LoginPanelProps) 
     setFeedback(null)
 
     try {
-      const { user } = await api.login(registration, password)
-      onLoginSuccess(user)
+      const result = await api.login(registration, password)
+      if (result.requiresPasswordReset) {
+        setPasswordReset({
+          registration: result.registration,
+          name: result.name,
+        })
+        setPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
+        setFeedback({
+          type: 'success',
+          message: 'Sua senha foi redefinida. Cadastre uma nova senha para entrar.',
+        })
+        return
+      }
+      onLoginSuccess(result.user)
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -596,6 +616,37 @@ function LoginPanel({ onLoginSuccess, bannerFeedback = null }: LoginPanelProps) 
           error instanceof ApiError
             ? error.message
             : 'Não foi possível entrar. Tente novamente.',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCompleteReset = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!passwordReset) return
+
+    if (newPassword.trim() !== confirmPassword.trim()) {
+      setFeedback({ type: 'error', message: 'As senhas não coincidem.' })
+      return
+    }
+
+    setSubmitting(true)
+    setFeedback(null)
+
+    try {
+      const { user } = await api.completePasswordReset(
+        passwordReset.registration,
+        newPassword.trim(),
+      )
+      onLoginSuccess(user)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível salvar a nova senha.',
       })
     } finally {
       setSubmitting(false)
@@ -613,30 +664,63 @@ function LoginPanel({ onLoginSuccess, bannerFeedback = null }: LoginPanelProps) 
         />
       ) : null}
 
-      <form className="form-grid" onSubmit={handleSubmit}>
-        <label>
-          Matrícula
-          <input
-            type="text"
-            placeholder="Digite sua matrícula"
-            value={registration}
-            onChange={(event) => setRegistration(event.target.value)}
+      {passwordReset ? (
+        <form className="form-grid" onSubmit={(event) => void handleCompleteReset(event)}>
+          <p className="login-reset-hint">
+            Olá, {passwordReset.name}. Informe a nova senha para a matrícula{' '}
+            <strong>{passwordReset.registration}</strong>.
+          </p>
+
+          <PasswordInput
+            id="login-new-password"
+            label="Nova senha"
+            placeholder="Digite a nova senha"
+            autoComplete="new-password"
+            required
+            value={newPassword}
+            onChange={setNewPassword}
           />
-        </label>
 
-        <PasswordInput
-          id="login-password"
-          label="Senha"
-          placeholder="Digite sua senha"
-          autoComplete="current-password"
-          value={password}
-          onChange={setPassword}
-        />
+          <PasswordInput
+            id="login-confirm-password"
+            label="Confirmar senha"
+            placeholder="Repita a nova senha"
+            autoComplete="new-password"
+            required
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+          />
 
-        <button className="primary-button login-enter-button" type="submit" disabled={submitting}>
-          {submitting ? 'Entrando...' : 'Entrar'}
-        </button>
-      </form>
+          <button className="primary-button login-enter-button" type="submit" disabled={submitting}>
+            {submitting ? 'Salvando...' : 'Salvar nova senha e entrar'}
+          </button>
+        </form>
+      ) : (
+        <form className="form-grid" onSubmit={handleSubmit}>
+          <label>
+            Matrícula
+            <input
+              type="text"
+              placeholder="Digite sua matrícula"
+              value={registration}
+              onChange={(event) => setRegistration(event.target.value)}
+            />
+          </label>
+
+          <PasswordInput
+            id="login-password"
+            label="Senha"
+            placeholder="Digite sua senha"
+            autoComplete="current-password"
+            value={password}
+            onChange={setPassword}
+          />
+
+          <button className="primary-button login-enter-button" type="submit" disabled={submitting}>
+            {submitting ? 'Entrando...' : 'Entrar'}
+          </button>
+        </form>
+      )}
     </section>
   )
 }

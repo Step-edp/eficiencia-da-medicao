@@ -408,6 +408,12 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS password_plain TEXT NOT NULL DEFAULT '';
   `)
 
+  // Após reset pela equipe de suporte, o próximo login pede uma nova senha.
+  await query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
+  `)
+
   // Equipe que lavrou o TOI (agendamento Backoffice).
   await query(`
     ALTER TABLE meter_schedules

@@ -159,6 +159,7 @@ type UserRow = {
   access_areas: unknown
   access_processes: unknown
   password_plain?: string
+  must_change_password?: boolean
 }
 
 function parseAccessAreas(value: unknown): string[] {
@@ -240,14 +241,33 @@ async function findUserById(id: string) {
   return result.rows[0] ?? null
 }
 
+function rejectIfNotApproved(user: UserRow, res: Response) {
+  if (user.approval_status === 'rejected') {
+    res.status(403).json({
+      error:
+        'Seu cadastro foi reprovado. Envie um novo cadastro na tela inicial para nova análise do ADM.',
+    })
+    return true
+  }
+
+  if (user.approval_status !== 'approved') {
+    res.status(403).json({
+      error: 'Seu cadastro ainda está pendente de aprovação do ADM.',
+    })
+    return true
+  }
+
+  return false
+}
+
 export async function login(req: Request, res: Response) {
   const { registration, password } = req.body as {
     registration?: string
     password?: string
   }
 
-  if (!registration?.trim() || !password) {
-    res.status(400).json({ error: 'Matrícula e senha são obrigatórias.' })
+  if (!registration?.trim()) {
+    res.status(400).json({ error: 'Informe a matrícula.' })
     return
   }
 
@@ -263,29 +283,96 @@ export async function login(req: Request, res: Response) {
     return
   }
 
+  if (rejectIfNotApproved(user, res)) {
+    return
+  }
+
+  if (user.must_change_password) {
+    res.json({
+      requiresPasswordReset: true,
+      registration: user.registration,
+      name: user.name,
+    })
+    return
+  }
+
+  if (!password) {
+    res.status(400).json({ error: 'Matrícula e senha são obrigatórias.' })
+    return
+  }
+
   if (!(await bcrypt.compare(password, user.password_hash))) {
     res.status(401).json({ error: 'Senha errada.' })
-    return
-  }
-
-  if (user.approval_status === 'rejected') {
-    res.status(403).json({
-      error:
-        'Seu cadastro foi reprovado. Envie um novo cadastro na tela inicial para nova análise do ADM.',
-    })
-    return
-  }
-
-  if (user.approval_status !== 'approved') {
-    res.status(403).json({
-      error: 'Seu cadastro ainda está pendente de aprovação do ADM.',
-    })
     return
   }
 
   const token = signToken({ id: user.id, registration: user.registration, role: user.role })
   setAuthCookie(res, token)
   res.json({ user: await mapUserWithVacation(user), token })
+}
+
+export async function completePasswordReset(req: Request, res: Response) {
+  const { registration, password } = req.body as {
+    registration?: string
+    password?: string
+  }
+
+  if (!registration?.trim() || !password?.trim()) {
+    res.status(400).json({ error: 'Informe a matrícula e a nova senha.' })
+    return
+  }
+
+  const normalizedPassword = password.trim()
+  if (normalizedPassword.length < 4) {
+    res.status(400).json({ error: 'A senha precisa ter pelo menos 4 caracteres.' })
+    return
+  }
+
+  const normalizedRegistration = registration.trim().toUpperCase()
+  const result = await query<UserRow>(
+    'SELECT * FROM users WHERE UPPER(registration) = $1',
+    [normalizedRegistration],
+  )
+  const user = result.rows[0]
+
+  if (!user) {
+    res.status(401).json({ error: 'Matrícula inexistente.' })
+    return
+  }
+
+  if (!user.must_change_password) {
+    res.status(400).json({ error: 'Este usuário não tem redefinição de senha pendente.' })
+    return
+  }
+
+  if (rejectIfNotApproved(user, res)) {
+    return
+  }
+
+  const passwordHash = await bcrypt.hash(normalizedPassword, 10)
+  const updated = await query<UserRow>(
+    `UPDATE users
+     SET password_hash = $2,
+         password_plain = $3,
+         must_change_password = FALSE
+     WHERE id = $1
+     RETURNING *`,
+    [user.id, passwordHash, normalizedPassword],
+  )
+  const next = updated.rows[0]
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'user',
+    entityId: next.id,
+    summary: `Nova senha cadastrada após reset (${next.registration})`,
+    oldData: { mustChangePassword: true },
+    newData: { mustChangePassword: false },
+  })
+
+  const token = signToken({ id: next.id, registration: next.registration, role: next.role })
+  setAuthCookie(res, token)
+  res.json({ user: await mapUserWithVacation(next), token })
 }
 
 export async function register(req: Request, res: Response) {
@@ -613,6 +700,13 @@ export async function me(req: Request, res: Response) {
     res.status(401).json({ error: 'Usuário não encontrado.' })
     return
   }
+  if (user.must_change_password) {
+    clearAuthCookie(res)
+    res.status(403).json({
+      error: 'Sua senha foi redefinida. Entre com a matrícula e cadastre uma nova senha.',
+    })
+    return
+  }
   res.json({ user: await mapUserWithVacation(user) })
 }
 
@@ -648,6 +742,13 @@ export async function exchangeSsoToken(req: Request, res: Response) {
 
   if (user.approval_status !== 'approved') {
     res.status(403).json({ error: 'Seu cadastro ainda está pendente de aprovação do ADM.' })
+    return
+  }
+
+  if (user.must_change_password) {
+    res.status(403).json({
+      error: 'Sua senha foi redefinida. Entre com a matrícula e cadastre uma nova senha.',
+    })
     return
   }
 
@@ -1060,7 +1161,8 @@ export async function updateUser(req: Request, res: Response) {
             ELSE $10
           END,
           password_hash = COALESCE($11, password_hash),
-          password_plain = COALESCE($12, password_plain)
+          password_plain = COALESCE($12, password_plain),
+          must_change_password = CASE WHEN $11 IS NOT NULL THEN FALSE ELSE must_change_password END
          WHERE id = $1 AND role = 'admin'
          RETURNING *`,
         [
@@ -1345,7 +1447,8 @@ export async function updateUser(req: Request, res: Response) {
           ELSE $19
         END,
         password_hash = COALESCE($20, password_hash),
-        password_plain = COALESCE($21, password_plain)
+        password_plain = COALESCE($21, password_plain),
+        must_change_password = CASE WHEN $20 IS NOT NULL THEN FALSE ELSE must_change_password END
        WHERE id = $1
        RETURNING *`,
       [
@@ -1708,6 +1811,7 @@ export async function permanentlyDeleteRejectedUser(req: Request, res: Response)
 export const authRoutes = {
   login,
   register,
+  completePasswordReset,
   me: [requireAuth, me],
   logout: [requireAuth, logout],
   createEmbedToken: [requireAuth, createEmbedToken],

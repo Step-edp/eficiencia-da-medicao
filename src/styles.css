@@ -3656,10 +3656,18 @@ button {
   gap: 10px;
 }
 
-.support-ticket-reply-form .primary-button {
+.support-ticket-reply-form .primary-button,
+.support-ticket-reply-form .success-button {
   width: auto;
   justify-self: start;
   min-width: 160px;
+}
+
+.support-ticket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 .support-my-tickets {
@@ -6685,6 +6693,12 @@ input[type='file'] {
 .login-enter-button:disabled {
   opacity: 0.7;
   cursor: wait;
+}
+
+.login-reset-hint {
+  margin: 0 0 4px;
+  color: var(--text-soft);
+  line-height: 1.45;
 }
 
 .helper-box,
