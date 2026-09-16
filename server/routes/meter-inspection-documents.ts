@@ -136,21 +136,75 @@ function isPlausibleScheduleNote(digits: string) {
   return digits.length >= 10 && digits.length <= 12
 }
 
+const SCHEDULE_NOTE_MIN_DIGITS = 10
+const SCHEDULE_NOTE_CANONICAL_DIGITS = 11
+
+function canonicalScheduleNote(value: string | null | undefined): string | null {
+  const digits = significantNumericId(value)
+  if (!digits) return null
+  if (digits.length <= SCHEDULE_NOTE_CANONICAL_DIGITS) return digits
+  const fromStart = digits.slice(0, SCHEDULE_NOTE_CANONICAL_DIGITS)
+  const fromEnd = digits.slice(-SCHEDULE_NOTE_CANONICAL_DIGITS)
+  if (fromStart.startsWith('4')) return fromStart
+  if (fromEnd.startsWith('4')) return fromEnd
+  return fromEnd
+}
+
+function compareScheduleNotes(
+  extracted: string | null | undefined,
+  registered: string | null | undefined,
+): boolean | null {
+  const documentValue = significantNumericId(extracted)
+  const registeredValue = significantNumericId(registered)
+  if (!documentValue || !registeredValue) return null
+  if (documentValue === registeredValue) return true
+
+  const documentCanonical = canonicalScheduleNote(extracted)
+  const registeredCanonical = canonicalScheduleNote(registered)
+  if (documentCanonical && registeredCanonical && documentCanonical === registeredCanonical) {
+    return true
+  }
+
+  const [longer, shorter] =
+    documentValue.length >= registeredValue.length
+      ? [documentValue, registeredValue]
+      : [registeredValue, documentValue]
+  if (
+    shorter.length >= SCHEDULE_NOTE_MIN_DIGITS &&
+    longer.length - shorter.length <= 2 &&
+    (longer.startsWith(shorter) || longer.endsWith(shorter))
+  ) {
+    return true
+  }
+
+  if (isPlausibleScheduleNote(documentValue) !== isPlausibleScheduleNote(registeredValue)) {
+    return null
+  }
+  return false
+}
+
+function pickExtractedNote(
+  rows: Array<{ doc_type: InspectionDocumentType; extracted_note?: string | null }>,
+  registeredNote: string | null | undefined,
+): string | null {
+  const withNote = rows.filter((row) => row.extracted_note?.trim())
+  const matching = withNote.find(
+    (row) => compareScheduleNotes(row.extracted_note, registeredNote) === true,
+  )
+  if (matching?.extracted_note?.trim()) return matching.extracted_note
+
+  const byType = (docType: InspectionDocumentType) =>
+    withNote.find((row) => row.doc_type === docType)?.extracted_note?.trim() || null
+  return byType('comunicado') || byType('ambos') || byType('toi') || withNote[0]?.extracted_note || null
+}
+
 function compareNumericEntryField(
   extracted: string | null | undefined,
   registered: string | null | undefined,
   field: 'instalacao' | 'toi' | 'nota',
 ): boolean | null {
   if (field === 'nota') {
-    const documentValue = significantNumericId(extracted)
-    const registeredValue = significantNumericId(registered)
-    if (!documentValue || !registeredValue) return null
-    if (documentValue === registeredValue) return true
-    // Telefone e outros números curtos (8–9 dígitos) não são a nota do agendamento.
-    if (isPlausibleScheduleNote(documentValue) !== isPlausibleScheduleNote(registeredValue)) {
-      return null
-    }
-    return false
+    return compareScheduleNotes(extracted, registered)
   }
   const documentValue = normalizeNumericEntryField(extracted, field)
   const registeredValue = normalizeNumericEntryField(registered, field)
@@ -405,7 +459,8 @@ export function aggregateInspectionForSchedule(
   }
 
   const extraction = pickToiExtractionRow(documents)
-  if (extraction) {
+  const extractedNote = pickExtractedNote(documents, schedule.note)
+  if (extraction || extractedNote) {
     const comparisons = buildScheduleEntryComparisons(
       {
         source: schedule.source,
@@ -423,7 +478,13 @@ export function aggregateInspectionForSchedule(
         client_present: '',
         scheduling_notes: '',
       },
-      extraction,
+      extraction
+        ? { ...extraction, extracted_note: extractedNote ?? extraction.extracted_note }
+        : {
+            extracted_installation: null,
+            extracted_toi: null,
+            extracted_note: extractedNote,
+          },
       pickExtractedScheduledAt(documents),
     )
     const fieldLabels: Array<[string, EntryFieldMatch]> = [
@@ -438,6 +499,7 @@ export function aggregateInspectionForSchedule(
     }
 
     if (
+      extraction &&
       schedule.cover_seal?.trim() &&
       !waivers.skipCover &&
       compareSeal(extraction.extracted_cover_seal, schedule.cover_seal) === false
@@ -445,6 +507,7 @@ export function aggregateInspectionForSchedule(
       reasons.push('Lacre da tampa no documento diverge do cadastrado.')
     }
     if (
+      extraction &&
       schedule.meter_reading?.trim() &&
       !waivers.skipReading &&
       compareReading(extraction.extracted_reading, schedule.meter_reading) === false
@@ -2114,9 +2177,17 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
 
   await repairExtractedNote(documents.rows, schedule.rows[0].note)
 
+  const toiExtraction = pickToiExtractionRow(documents.rows)
+  const extractedNote = pickExtractedNote(documents.rows, schedule.rows[0].note)
   const comparisons = buildScheduleEntryComparisons(
     schedule.rows[0],
-    pickToiExtractionRow(documents.rows),
+    toiExtraction
+      ? { ...toiExtraction, extracted_note: extractedNote ?? toiExtraction.extracted_note }
+      : {
+          extracted_installation: null,
+          extracted_toi: null,
+          extracted_note: extractedNote,
+        },
     pickExtractedScheduledAt(documents.rows),
   )
 
