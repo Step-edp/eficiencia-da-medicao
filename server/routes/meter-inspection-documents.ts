@@ -3485,7 +3485,7 @@ export async function adjustScheduleDateFromDocument(req: Request, res: Response
 
   const previousLabel = formatAvailableSlot(current.scheduled_at)
   const nextLabel = formatAvailableSlot(nextDate)
-  if (previousLabel === nextLabel) {
+  if (compareScheduleDates(documentLabel, previousLabel) === true) {
     res.status(400).json({ error: 'A data do agendamento já confere com o documento.' })
     return
   }

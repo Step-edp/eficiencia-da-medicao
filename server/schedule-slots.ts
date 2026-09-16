@@ -52,6 +52,74 @@ export function formatAvailableSlot(date: Date) {
   return `${parts.day}/${parts.month}/${parts.year} às ${parts.hour}:${parts.minute}`
 }
 
+export function formatBrazilWallClock(
+  day: number,
+  month: number,
+  year: number,
+  hour: number,
+  minute: number,
+) {
+  return `${pad(day)}/${pad(month)}/${year} às ${pad(hour)}:${pad(minute)}`
+}
+
+export function fromBrazilWallClock(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+): Date | null {
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31 ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null
+  }
+
+  const date = new Date(
+    `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}:00-03:00`,
+  )
+  if (Number.isNaN(date.getTime())) return null
+
+  const parts = brazilDateTimeParts(date)
+  if (
+    Number(parts.year) !== year ||
+    Number(parts.month) !== month ||
+    Number(parts.day) !== day ||
+    Number(parts.hour) !== hour ||
+    Number(parts.minute) !== minute
+  ) {
+    return null
+  }
+
+  return date
+}
+
+export function parseBrazilDateTimeLabel(value: string | null | undefined): Date | null {
+  const match = String(value ?? '').match(
+    /(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\D+(\d{1,2}):(\d{2}))?/,
+  )
+  if (!match || match[4] == null || match[5] == null) return null
+  return fromBrazilWallClock(
+    Number(match[3]),
+    Number(match[2]),
+    Number(match[1]),
+    Number(match[4]),
+    Number(match[5]),
+  )
+}
+
 export function scheduleSlotKey(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}:${pad(date.getMinutes())}`
 }

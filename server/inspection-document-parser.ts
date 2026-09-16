@@ -1,5 +1,5 @@
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
-import { formatAvailableSlot } from './schedule-slots.js'
+import { formatBrazilWallClock, fromBrazilWallClock, parseBrazilDateTimeLabel } from './schedule-slots.js'
 
 function isUnreadablePdfText(text: string): boolean {
   const normalized = text.replace(/\s+/g, ' ').trim()
@@ -832,45 +832,12 @@ function formatExtractedScheduleDate(
   hour: number,
   minute: number,
 ): string | null {
-  if (
-    !Number.isInteger(day) ||
-    !Number.isInteger(month) ||
-    !Number.isInteger(year) ||
-    !Number.isInteger(hour) ||
-    !Number.isInteger(minute)
-  ) {
-    return null
-  }
-  const date = new Date(year, month - 1, day, hour, minute)
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day ||
-    date.getHours() !== hour ||
-    date.getMinutes() !== minute
-  ) {
-    return null
-  }
-  return formatAvailableSlot(date)
+  if (!fromBrazilWallClock(year, month, day, hour, minute)) return null
+  return formatBrazilWallClock(day, month, year, hour, minute)
 }
 
 export function parseExtractedScheduleLabel(value: string | null | undefined): Date | null {
-  const match = String(value ?? '').match(
-    /(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\D+(\d{1,2}):(\d{2}))?/,
-  )
-  if (!match || match[4] == null || match[5] == null) return null
-  const date = new Date(
-    Number(match[3]),
-    Number(match[2]) - 1,
-    Number(match[1]),
-    Number(match[4]),
-    Number(match[5]),
-    0,
-    0,
-  )
-  if (Number.isNaN(date.getTime())) return null
-  return date
+  return parseBrazilDateTimeLabel(value)
 }
 
 function scheduleDateFromMatch(match: RegExpMatchArray | null): string | null {
