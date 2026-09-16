@@ -2071,6 +2071,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   res.json({
     meter: registeredMeter,
     registeredInstallation: schedule.rows[0].installation?.trim() || null,
+    registeredNote: schedule.rows[0].note?.trim() || null,
     registeredLacre,
     registeredCoverSeal,
     registeredReading,

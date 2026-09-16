@@ -725,6 +725,7 @@ export function InspectionDocumentAnalysisModal({
   const [registeredMeter, setRegisteredMeter] = useState(meter)
   const [originalScheduleMeter, setOriginalScheduleMeter] = useState(meter)
   const [registeredInstallation, setRegisteredInstallation] = useState<string | null>(null)
+  const [registeredNote, setRegisteredNote] = useState<string | null>(null)
   const [conference, setConference] = useState<InspectionDocumentConference | null>(null)
   const [canEditWpa, setCanEditWpa] = useState(false)
   const [wpaDraft, setWpaDraft] = useState({
@@ -777,6 +778,7 @@ export function InspectionDocumentAnalysisModal({
       setHasComunicado(response.hasComunicado)
       setRegisteredMeter(response.meter)
       setRegisteredInstallation(response.registeredInstallation?.trim() || null)
+      setRegisteredNote(response.registeredNote?.trim() || null)
       const nextConference = response.conference ?? {
         campoMeter: null,
         campoLacre: null,
@@ -841,6 +843,7 @@ export function InspectionDocumentAnalysisModal({
       setRegisteredMeter(meter)
       setOriginalScheduleMeter(meter)
       setRegisteredInstallation(null)
+      setRegisteredNote(null)
       setConference(null)
       setWpaDraft({
         meter: '',
@@ -1390,10 +1393,16 @@ export function InspectionDocumentAnalysisModal({
                   </span>
                 </div>
 
-                <p className="inspection-document-card-installation">
-                  <span>Instalação</span>
-                  <span>{registeredInstallation || '—'}</span>
-                </p>
+                <div className="inspection-document-card-meta">
+                  <p className="inspection-document-card-installation">
+                    <span>Instalação</span>
+                    <span>{registeredInstallation || '—'}</span>
+                  </p>
+                  <p className="inspection-document-card-installation">
+                    <span>Nota</span>
+                    <span>{registeredNote || '—'}</span>
+                  </p>
+                </div>
 
                 <dl className="user-detail-grid schedule-detail-grid">
                   <div>

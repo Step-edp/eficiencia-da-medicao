@@ -2191,11 +2191,17 @@ button {
   margin-bottom: 0.45rem;
 }
 
+.inspection-document-card-meta {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0 0 0.75rem;
+}
+
 .inspection-document-card-installation {
   display: flex;
   align-items: baseline;
   gap: 0.45rem;
-  margin: 0 0 0.75rem;
+  margin: 0;
   font-size: 0.92rem;
   color: rgba(255, 255, 255, 0.88);
 }
