@@ -1083,6 +1083,7 @@ export function EntradaPanel({
   const [inspectionDocumentTarget, setInspectionDocumentTarget] = useState<{
     meter: string
     scheduleId: string
+    viewOnly?: boolean
   } | null>(null)
   const { options: csdOptions, loading: csdOptionsLoading, error: csdOptionsError } = useCsdsOptions()
   const [loading, setLoading] = useState(true)
@@ -1737,7 +1738,6 @@ export function EntradaPanel({
     ) : null
 
   const wpaPendingCount = wpaMeters.length
-  const wpaBlockedCount = wpaBlockedMeters.length
 
   const renderEntradaTabBar = () => (
     <>
@@ -1826,14 +1826,6 @@ export function EntradaPanel({
           onClick={() => openWpaBlocked()}
         >
           Bloqueados
-          {wpaBlockedCount > 0 ? (
-            <span
-              className="lab-trail-step-badge"
-              aria-label={`${wpaBlockedCount} bloqueado${wpaBlockedCount === 1 ? '' : 's'}`}
-            >
-              {wpaBlockedCount}
-            </span>
-          ) : null}
         </button>
         <button
           type="button"
@@ -2736,6 +2728,7 @@ export function EntradaPanel({
                               setInspectionDocumentTarget({
                                 meter: item.meter,
                                 scheduleId: item.id,
+                                viewOnly: analyzedView || blockedView,
                               })
                             }
                           >
@@ -2754,6 +2747,7 @@ export function EntradaPanel({
           <InspectionDocumentAnalysisModal
             meter={inspectionDocumentTarget.meter}
             scheduleId={inspectionDocumentTarget.scheduleId}
+            viewOnly={inspectionDocumentTarget.viewOnly}
             onClose={() => setInspectionDocumentTarget(null)}
             onDocumentsChanged={() => {
               void loadInspectionPendencias()
@@ -3421,6 +3415,7 @@ export function EntradaPanel({
           <InspectionDocumentAnalysisModal
             meter={inspectionDocumentTarget.meter}
             scheduleId={inspectionDocumentTarget.scheduleId}
+            viewOnly={inspectionDocumentTarget.viewOnly}
             onClose={() => setInspectionDocumentTarget(null)}
             onDocumentsChanged={() => {
               void loadInspectionPendencias()

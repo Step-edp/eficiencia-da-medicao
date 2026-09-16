@@ -101,6 +101,7 @@ type InspectionDocumentAnalysisModalProps = {
   onAnalysisCompleted?: (meter: string) => void
   onAnalysisBlocked?: (meter: string) => void
   onAnalysisUnblocked?: (meter: string) => void
+  viewOnly?: boolean
 }
 
 type DocumentFieldsDraft = {
@@ -713,6 +714,7 @@ export function InspectionDocumentAnalysisModal({
   onAnalysisCompleted,
   onAnalysisBlocked,
   onAnalysisUnblocked,
+  viewOnly = false,
 }: InspectionDocumentAnalysisModalProps) {
   const [loading, setLoading] = useState(true)
   const [documents, setDocuments] = useState<InspectionDocumentRecord[]>([])
@@ -769,8 +771,8 @@ export function InspectionDocumentAnalysisModal({
     try {
       const response = await api.listInspectionDocuments(scheduleId)
       setDocuments(response.documents)
-      setCanDelete(response.canDelete)
-      setDeleteBlockedReason(response.deleteBlockedReason)
+      setCanDelete(!viewOnly && response.canDelete)
+      setDeleteBlockedReason(viewOnly ? null : response.deleteBlockedReason)
       setHasToi(response.hasToi)
       setHasComunicado(response.hasComunicado)
       setRegisteredMeter(response.meter)
@@ -818,8 +820,10 @@ export function InspectionDocumentAnalysisModal({
       }
       setPhotos(response.photos ?? [])
       setEnvelopePhoto(response.envelopePhoto?.trim() || null)
-      setCanManagePhotos(response.canManagePhotos !== false)
-      setCanEditWpa(response.canEditWpa === true || response.canManagePhotos === true)
+      setCanManagePhotos(!viewOnly && response.canManagePhotos !== false)
+      setCanEditWpa(
+        !viewOnly && (response.canEditWpa === true || response.canManagePhotos === true),
+      )
       setObservations(response.observations ?? '')
       setAnalysisCompleted(response.analysisCompleted === true)
       setAnalysisBlocked(response.analysisBlocked === true)
@@ -860,7 +864,7 @@ export function InspectionDocumentAnalysisModal({
     } finally {
       setLoading(false)
     }
-  }, [meter, scheduleId])
+  }, [meter, scheduleId, viewOnly])
 
   const persistWpaDraft = useCallback(
     async (next: {
@@ -1298,7 +1302,11 @@ export function InspectionDocumentAnalysisModal({
           </svg>
         </button>
         <div className="inspection-analysis-screen-heading">
-          <h3 id="inspection-document-title">Documento de inspeção — medidor {meter}</h3>
+          <h3 id="inspection-document-title">
+            {viewOnly
+              ? `Consulta do documento — medidor ${meter}`
+              : `Documento de inspeção — medidor ${meter}`}
+          </h3>
         </div>
         <button
           type="button"
@@ -1575,14 +1583,16 @@ export function InspectionDocumentAnalysisModal({
                   >
                     Baixar PDF
                   </a>
-                  <button
-                    type="button"
-                    className="inspection-document-card-action"
-                    disabled={uploadingPhotos}
-                    onClick={openPhotoPicker}
-                  >
-                    {uploadingPhotos ? 'Enviando...' : 'Enviar fotos'}
-                  </button>
+                  {!viewOnly ? (
+                    <button
+                      type="button"
+                      className="inspection-document-card-action"
+                      disabled={uploadingPhotos}
+                      onClick={openPhotoPicker}
+                    >
+                      {uploadingPhotos ? 'Enviando...' : 'Enviar fotos'}
+                    </button>
+                  ) : null}
                   {canDelete ? (
                     <button
                       type="button"
@@ -1650,7 +1660,37 @@ export function InspectionDocumentAnalysisModal({
         />
 
         <div className="inspection-analysis-screen-actions">
-          {canEditWpa && !analysisCompleted ? (
+          {viewOnly ? (
+            <>
+              {analysisBlocked ? (
+                <>
+                  <p className="inspection-analysis-blocked-hint">
+                    Justificativa do bloqueio: {blockJustification.trim() || '—'}
+                  </p>
+                  <div className="inspection-analysis-screen-action-row">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={unblockingAnalysis}
+                      onClick={() => void handleUnblockAnalysis()}
+                      title="Remover o bloqueio e voltar a analisar o medidor"
+                    >
+                      {unblockingAnalysis ? 'Desbloqueando...' : 'Desbloquear'}
+                    </button>
+                    <button type="button" className="secondary-button" onClick={onClose}>
+                      Voltar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="inspection-analysis-screen-action-row">
+                  <button type="button" className="secondary-button" onClick={onClose}>
+                    Voltar
+                  </button>
+                </div>
+              )}
+            </>
+          ) : canEditWpa && !analysisCompleted ? (
             <>
               {blockFormOpen || analysisBlocked ? (
                 <>
