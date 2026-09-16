@@ -8,8 +8,27 @@ const TIME_WINDOWS = [
   { start: 14 * 60, end: 16 * 60 + 30 },
 ]
 
+const BRAZIL_TIME_ZONE = 'America/Sao_Paulo'
+
 function pad(value: number) {
   return String(value).padStart(2, '0')
+}
+
+function brazilDateTimeParts(date: Date) {
+  return Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: BRAZIL_TIME_ZONE,
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      hourCycle: 'h23',
+    })
+      .formatToParts(date)
+      .map((part) => [part.type, part.value]),
+  ) as Record<string, string>
 }
 
 function getDaySlots() {
@@ -29,7 +48,8 @@ export function isScheduleDayBlocked(date: Date, manualBlocks: Set<string>) {
 }
 
 export function formatAvailableSlot(date: Date) {
-  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} às ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  const parts = brazilDateTimeParts(date)
+  return `${parts.day}/${parts.month}/${parts.year} às ${parts.hour}:${parts.minute}`
 }
 
 export function scheduleSlotKey(date: Date) {

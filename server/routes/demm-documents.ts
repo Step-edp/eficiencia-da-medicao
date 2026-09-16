@@ -1154,15 +1154,18 @@ async function applyWeekMeterReceive(
 ) {
   await query(
     `UPDATE meter_schedules
-     SET trail_step = $1, received_at = $2
-     WHERE id = $3 AND trail_step = $4`,
-    [ENSAIAR_TRAIL_STEP, receivedAt.toISOString(), schedule.id, ENTRADA_TRAIL_STEP],
+     SET trail_step = $1, received_at = COALESCE(received_at, $2::timestamptz)
+     WHERE delay_dismissed_at IS NULL
+       AND trail_step = $3
+       AND ${NORMALIZED_METER_SQL} = LPAD(RIGHT(REGEXP_REPLACE($4::text, '[^0-9]', '', 'g'), 8), 8, '0')`,
+    [ENSAIAR_TRAIL_STEP, receivedAt.toISOString(), ENTRADA_TRAIL_STEP, schedule.meter],
   )
 
   await query(
     `UPDATE meter_registry
-     SET status = $1, trail_step = $2, received_at = $3
-     WHERE meter = $4 AND status = 'Agendado'`,
+     SET status = $1, trail_step = $2, received_at = COALESCE(received_at, $3::timestamptz)
+     WHERE ${NORMALIZED_METER_SQL} = LPAD(RIGHT(REGEXP_REPLACE($4::text, '[^0-9]', '', 'g'), 8), 8, '0')
+       AND (status = 'Agendado' OR BTRIM(COALESCE(status, '')) = '')`,
     [
       getNextStatusAfterEntrada(),
       ENSAIAR_TRAIL_STEP,

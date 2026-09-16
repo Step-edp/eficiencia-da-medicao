@@ -22,6 +22,7 @@ import {
   resolvePontoFocalCsdNames,
   isBackofficeScopeUser,
 } from '../ponto-focal-csds.js'
+import { STILL_AWAITING_ENTRADA_SQL } from '../lab-trail-status.js'
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 const BACKOFFICE_SCOPE = 'Lavratura de TOI - Backoffice'
@@ -388,6 +389,9 @@ export async function listMeterSchedules(req: Request, res: Response) {
     params.push(trailStep)
     filters.push(`ms.trail_step = $${params.length}`)
     filters.push(`ms.delay_dismissed_at IS NULL`)
+    if (trailStep === ENTRADA_TRAIL_STEP) {
+      filters.push(STILL_AWAITING_ENTRADA_SQL)
+    }
   }
 
   let mineFilter = ''
@@ -475,11 +479,15 @@ export async function countMeterSchedules(req: Request, res: Response) {
       ? req.query.trailStep.trim()
       : ENTRADA_TRAIL_STEP
 
+  const awaitingEntrada =
+    trailStep === ENTRADA_TRAIL_STEP ? `AND ${STILL_AWAITING_ENTRADA_SQL}` : ''
+
   const result = await query<{ total: string }>(
     `SELECT COUNT(*)::text AS total
-     FROM meter_schedules
-     WHERE trail_step = $1
-       AND delay_dismissed_at IS NULL`,
+     FROM meter_schedules ms
+     WHERE ms.trail_step = $1
+       AND ms.delay_dismissed_at IS NULL
+       ${awaitingEntrada}`,
     [trailStep],
   )
 

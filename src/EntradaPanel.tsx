@@ -611,7 +611,7 @@ function QuickScheduleModal({
       setCollaboratorErrors(resolvedTeam.errors)
       return
     }
-    const scheduledAt = new Date(`${csmDate}T${csmTime}:00`).toISOString()
+    const scheduledAt = new Date(`${csmDate}T${csmTime}:00-03:00`).toISOString()
     onSubmit({
       scheduledAt,
       installation,

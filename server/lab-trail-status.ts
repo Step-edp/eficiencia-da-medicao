@@ -36,6 +36,25 @@ export function hasMeterEntradaGiven(status: string): boolean {
   return status === 'Recebido' || status === 'Ensaiado' || status === 'Aprovado'
 }
 
+export function normalizedMeterColumnSql(alias?: string) {
+  const column = alias ? `${alias}.meter` : 'meter'
+  return `LPAD(RIGHT(REGEXP_REPLACE(${column}, '[^0-9]', '', 'g'), 8), 8, '0')`
+}
+
+/** Agendamentos que ainda aguardam entrada no laboratório (lista Medidores agendados). */
+export const STILL_AWAITING_ENTRADA_SQL = `
+  ms.received_at IS NULL
+  AND NOT EXISTS (
+    SELECT 1
+    FROM meter_registry mr_entrada
+    WHERE ${normalizedMeterColumnSql('mr_entrada')} = ${normalizedMeterColumnSql('ms')}
+      AND (
+        mr_entrada.received_at IS NOT NULL
+        OR BTRIM(COALESCE(mr_entrada.status, '')) IN ('Recebido', 'Ensaiado', 'Aprovado')
+      )
+  )
+`.trim()
+
 export function isMeterReadyForEnsaio(options: {
   registryStatus?: string | null
   trailStep?: string | null

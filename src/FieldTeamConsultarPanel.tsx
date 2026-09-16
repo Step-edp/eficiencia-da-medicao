@@ -12,7 +12,7 @@ import {
   validateNumericField,
 } from './numericFieldValidation'
 import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, scheduleAuditSearchText } from './schedulePartnerLabel'
-import { getLabTrailLabel } from './labTrailSteps'
+import { ENTRADA_TRAIL_STEP, getLabTrailLabel } from './labTrailSteps'
 import { useCsdsOptions } from './useCsdsOptions'
 import { FillingCorrectionBadge, FillingCorrectionNote } from './fillingCorrection'
 
@@ -122,6 +122,14 @@ function inspectionStatusBadgeClass(summary: MeterInspectionSummary | undefined)
     return 'schedule-ok-badge'
   }
   return 'schedule-late-badge'
+}
+
+function stillAwaitingEntrada(item: MeterScheduleRecord) {
+  const status = item.registryStatus?.trim() ?? ''
+  if (status === 'Recebido' || status === 'Ensaiado' || status === 'Aprovado') {
+    return false
+  }
+  return item.trailStep.trim() === ENTRADA_TRAIL_STEP
 }
 
 function scheduleHasFillingCorrection(item: MeterScheduleRecord) {
@@ -550,7 +558,7 @@ export function FieldTeamConsultarPanel({
         forUserId: !isMine && scopeUserId ? scopeUserId : undefined,
         allTrailSteps,
       })
-      setSchedules(rows)
+      setSchedules(allTrailSteps ? rows : rows.filter(stillAwaitingEntrada))
     } catch (error) {
       setSchedules([])
       setFeedback({

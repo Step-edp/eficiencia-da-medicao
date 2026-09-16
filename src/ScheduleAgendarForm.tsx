@@ -136,7 +136,7 @@ export function ScheduleAgendarForm({ showPassiveFields = false }: ScheduleAgend
     setSubmitting(true)
 
     try {
-      const scheduledAt = new Date(`${csmDate}T${csmHour}:${csmMinute}:00`).toISOString()
+      const scheduledAt = new Date(`${csmDate}T${csmHour}:${csmMinute}:00-03:00`).toISOString()
 
       const { schedule } = await api.createPassiveMeterSchedule({
         meter,
