@@ -921,6 +921,7 @@ export type EntradaPanelView =
   | 'demmEntrada'
   | 'metersBase'
   | 'wpaAnalyzed'
+  | 'wpaBlocked'
   | 'receivedMetersBase'
   | 'csdPendencias'
   | 'inspectionPendencias'
@@ -962,6 +963,9 @@ export function EntradaPanel({
   )
   const [wpaAnalyzedMetersLoading, setWpaAnalyzedMetersLoading] = useState(false)
   const [wpaAnalyzedSearchQuery, setWpaAnalyzedSearchQuery] = useState('')
+  const [wpaBlockedMeters, setWpaBlockedMeters] = useState<MeterInspectionDocumentadoRecord[]>([])
+  const [wpaBlockedMetersLoading, setWpaBlockedMetersLoading] = useState(false)
+  const [wpaBlockedSearchQuery, setWpaBlockedSearchQuery] = useState('')
   const [receivedMeters, setReceivedMeters] = useState<MeterRegistryRecord[]>([])
   const [receivedMetersTotal, setReceivedMetersTotal] = useState(0)
   const [receivedMetersLoading, setReceivedMetersLoading] = useState(false)
@@ -1263,7 +1267,7 @@ export function EntradaPanel({
   const loadWpaAnalyzedMeters = useCallback(async () => {
     setWpaAnalyzedMetersLoading(true)
     try {
-      const response = await api.listWpaAnalysisMeters(undefined, true)
+      const response = await api.listWpaAnalysisMeters(undefined, 'analyzed')
       setWpaAnalyzedMeters((response.meters ?? []).filter(hasWpaDocument))
     } catch (error) {
       setFeedback({
@@ -1275,6 +1279,24 @@ export function EntradaPanel({
       })
     } finally {
       setWpaAnalyzedMetersLoading(false)
+    }
+  }, [])
+
+  const loadWpaBlockedMeters = useCallback(async () => {
+    setWpaBlockedMetersLoading(true)
+    try {
+      const response = await api.listWpaAnalysisMeters(undefined, 'blocked')
+      setWpaBlockedMeters((response.meters ?? []).filter(hasWpaDocument))
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar os medidores bloqueados.',
+      })
+    } finally {
+      setWpaBlockedMetersLoading(false)
     }
   }, [])
 
@@ -1292,6 +1314,13 @@ export function EntradaPanel({
     void loadWpaAnalyzedMeters()
   }
 
+  const openWpaBlocked = () => {
+    setView('wpaBlocked')
+    setFeedback(null)
+    setWpaBlockedSearchQuery('')
+    void loadWpaBlockedMeters()
+  }
+
   const handleWpaAnalysisCompleted = (completedMeter: string) => {
     setInspectionDocumentTarget(null)
     setMeterDetailTarget(null)
@@ -1303,6 +1332,7 @@ export function EntradaPanel({
     })
     void loadWpaMeters()
     void loadWpaAnalyzedMeters()
+    void loadWpaBlockedMeters()
     void loadInspectionPendencias()
     void loadWeekMeters()
     void loadData()
@@ -1312,12 +1342,33 @@ export function EntradaPanel({
   const handleWpaAnalysisBlocked = (blockedMeter: string) => {
     setInspectionDocumentTarget(null)
     setMeterDetailTarget(null)
+    setWpaBlockedSearchQuery('')
+    setView('wpaBlocked')
     setFeedback({
       type: 'success',
-      message: `Análise do medidor ${blockedMeter} bloqueada. Ele permanece em Análise.`,
+      message: `Análise do medidor ${blockedMeter} bloqueada. Ele foi para Bloqueados.`,
     })
     void loadWpaMeters()
     void loadWpaAnalyzedMeters()
+    void loadWpaBlockedMeters()
+    void loadInspectionPendencias()
+    void loadWeekMeters()
+    void loadData()
+    refreshTrailCounts()
+  }
+
+  const handleWpaAnalysisUnblocked = (unblockedMeter: string) => {
+    setInspectionDocumentTarget(null)
+    setMeterDetailTarget(null)
+    setWpaSearchQuery('')
+    setView('metersBase')
+    setFeedback({
+      type: 'success',
+      message: `Medidor ${unblockedMeter} desbloqueado. Ele voltou para Análise.`,
+    })
+    void loadWpaMeters()
+    void loadWpaAnalyzedMeters()
+    void loadWpaBlockedMeters()
     void loadInspectionPendencias()
     void loadWeekMeters()
     void loadData()
@@ -1434,6 +1485,7 @@ export function EntradaPanel({
 
       void loadInspectionPendencias()
       void loadWpaMeters()
+      void loadWpaBlockedMeters()
       void loadWeekMeters()
       void loadData()
       refreshTrailCounts()
@@ -1557,6 +1609,7 @@ export function EntradaPanel({
       loadCsdPendencias(),
       loadInspectionPendencias(),
       loadWpaMeters(),
+      loadWpaBlockedMeters(),
       loadWeekMeters(),
     ])
   }
@@ -1566,8 +1619,9 @@ export function EntradaPanel({
     void loadCsdPendencias()
     void loadInspectionPendencias()
     void loadWpaMeters()
+    void loadWpaBlockedMeters()
     void loadWeekMeters()
-  }, [loadData, loadCsdPendencias, loadInspectionPendencias, loadWpaMeters, loadWeekMeters])
+  }, [loadData, loadCsdPendencias, loadInspectionPendencias, loadWpaMeters, loadWpaBlockedMeters, loadWeekMeters])
 
   useEffect(() => {
     if (view !== 'receivedMetersBase') return
@@ -1588,9 +1642,13 @@ export function EntradaPanel({
     ) : null
 
   const wpaPendingCount = wpaMeters.length
+  const wpaBlockedCount = wpaBlockedMeters.length
 
   const renderWpaPendingAlert = () =>
-    wpaPendingCount > 0 && view !== 'metersBase' && view !== 'wpaAnalyzed' ? (
+    wpaPendingCount > 0 &&
+    view !== 'metersBase' &&
+    view !== 'wpaAnalyzed' &&
+    view !== 'wpaBlocked' ? (
       <button
         type="button"
         className="entrada-wpa-pending-alert"
@@ -1662,6 +1720,23 @@ export function EntradaPanel({
           onClick={() => openWpaAnalyzed()}
         >
           Analisados
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'wpaBlocked'}
+          className={view === 'wpaBlocked' ? 'active' : ''}
+          onClick={() => openWpaBlocked()}
+        >
+          Bloqueados
+          {wpaBlockedCount > 0 ? (
+            <span
+              className="lab-trail-step-badge"
+              aria-label={`${wpaBlockedCount} bloqueado${wpaBlockedCount === 1 ? '' : 's'}`}
+            >
+              {wpaBlockedCount}
+            </span>
+          ) : null}
         </button>
         <button
           type="button"
@@ -2187,12 +2262,14 @@ export function EntradaPanel({
         void loadInspectionPendencias()
         void loadWpaMeters()
         void loadWpaAnalyzedMeters()
+        void loadWpaBlockedMeters()
         void loadWeekMeters()
         void loadData()
         refreshTrailCounts()
       }}
       onAnalysisCompleted={handleWpaAnalysisCompleted}
       onAnalysisBlocked={handleWpaAnalysisBlocked}
+      onAnalysisUnblocked={handleWpaAnalysisUnblocked}
     />
   ) : null
 
@@ -2328,17 +2405,47 @@ export function EntradaPanel({
     )
   }
 
-  if (view === 'metersBase' || view === 'wpaAnalyzed') {
+  if (view === 'metersBase' || view === 'wpaAnalyzed' || view === 'wpaBlocked') {
     const analyzedView = view === 'wpaAnalyzed'
-    const listedMeters = analyzedView ? wpaAnalyzedMeters : wpaMeters
-    const listedLoading = analyzedView ? wpaAnalyzedMetersLoading : wpaMetersLoading
-    const searchQuery = analyzedView ? wpaAnalyzedSearchQuery : wpaSearchQuery
+    const blockedView = view === 'wpaBlocked'
+    const listedMeters = analyzedView
+      ? wpaAnalyzedMeters
+      : blockedView
+        ? wpaBlockedMeters
+        : wpaMeters
+    const listedLoading = analyzedView
+      ? wpaAnalyzedMetersLoading
+      : blockedView
+        ? wpaBlockedMetersLoading
+        : wpaMetersLoading
+    const searchQuery = analyzedView
+      ? wpaAnalyzedSearchQuery
+      : blockedView
+        ? wpaBlockedSearchQuery
+        : wpaSearchQuery
     const documentedMeters = listedMeters.filter(hasWpaDocument)
     const wpaSearchNormalized = normalizeWpaSearch(searchQuery)
     const filteredWpaMeters = wpaSearchNormalized
       ? documentedMeters.filter((item) => wpaMeterMatchesQuery(item, wpaSearchNormalized))
       : documentedMeters
     const hasWpaSearch = Boolean(wpaSearchNormalized)
+    const listTitle = analyzedView ? 'Analisados' : blockedView ? 'Bloqueados' : 'Análise WPA'
+    const listCountLabel = analyzedView
+      ? 'analisado(s)'
+      : blockedView
+        ? 'bloqueado(s)'
+        : 'pendente(s) de análise'
+    const emptyListLabel = analyzedView
+      ? 'Nenhum medidor analisado.'
+      : blockedView
+        ? 'Nenhum medidor bloqueado manualmente.'
+        : 'Nenhum medidor pendente de análise.'
+    const searchLabel = analyzedView
+      ? 'Pesquisar medidores analisados'
+      : blockedView
+        ? 'Pesquisar medidores bloqueados'
+        : 'Pesquisar medidores da análise WPA'
+    const actionLabel = analyzedView || blockedView ? 'Ver' : 'Analisar'
 
     return (
       <>
@@ -2347,32 +2454,22 @@ export function EntradaPanel({
 
           {renderFixedFeedback()}
 
-          <section className="entrada-section" aria-label={analyzedView ? 'Analisados' : 'Análise WPA'}>
+          <section className="entrada-section" aria-label={listTitle}>
             <div className="entrada-section-heading">
-              <h3 className="entrada-section-title">
-                {analyzedView ? 'Analisados' : 'Análise WPA'}
-              </h3>
+              <h3 className="entrada-section-title">{listTitle}</h3>
               <p className="demm-analysis-summary">
                 {listedLoading && documentedMeters.length === 0
                   ? 'Carregando medidores...'
                   : hasWpaSearch
-                    ? `${filteredWpaMeters.length} de ${documentedMeters.length} medidor(es) ${
-                        analyzedView ? 'analisado(s)' : 'pendente(s) de análise'
-                      }`
-                    : `${documentedMeters.length} medidor(es) ${
-                        analyzedView ? 'analisado(s)' : 'pendente(s) de análise'
-                      }`}
+                    ? `${filteredWpaMeters.length} de ${documentedMeters.length} medidor(es) ${listCountLabel}`
+                    : `${documentedMeters.length} medidor(es) ${listCountLabel}`}
               </p>
             </div>
 
             {documentedMeters.length > 0 || hasWpaSearch ? (
               <div className="consultar-toolbar entrada-wpa-toolbar">
                 <label className="consultar-search">
-                  <span className="sr-only">
-                    {analyzedView
-                      ? 'Pesquisar medidores analisados'
-                      : 'Pesquisar medidores da análise WPA'}
-                  </span>
+                  <span className="sr-only">{searchLabel}</span>
                   <span className="consultar-search-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24">
                       <circle
@@ -2398,7 +2495,9 @@ export function EntradaPanel({
                     onChange={(event) =>
                       analyzedView
                         ? setWpaAnalyzedSearchQuery(event.target.value)
-                        : setWpaSearchQuery(event.target.value)
+                        : blockedView
+                          ? setWpaBlockedSearchQuery(event.target.value)
+                          : setWpaSearchQuery(event.target.value)
                     }
                     placeholder="Pesquisar por medidor, instalação, TOI, nota, CSD…"
                     autoComplete="off"
@@ -2411,11 +2510,7 @@ export function EntradaPanel({
             {listedLoading && documentedMeters.length === 0 ? (
               <p className="entrada-panel-empty">Carregando medidores...</p>
             ) : documentedMeters.length === 0 ? (
-              <p className="entrada-panel-empty">
-                {analyzedView
-                  ? 'Nenhum medidor analisado.'
-                  : 'Nenhum medidor pendente de análise.'}
-              </p>
+              <p className="entrada-panel-empty">{emptyListLabel}</p>
             ) : filteredWpaMeters.length === 0 ? (
               <p className="entrada-panel-empty">Nenhum medidor encontrado para esta pesquisa.</p>
             ) : (
@@ -2431,7 +2526,8 @@ export function EntradaPanel({
                       <th>Etapa</th>
                       <th>Data agendada</th>
                       {analyzedView ? <th>Analisado em</th> : null}
-                      <th>Documentação</th>
+                      {blockedView ? <th>Bloqueado em</th> : null}
+                      <th>{blockedView ? 'Justificativa' : 'Documentação'}</th>
                       <th>Ações</th>
                     </tr>
                   </thead>
@@ -2451,6 +2547,13 @@ export function EntradaPanel({
                           <td>
                             {item.analysisCompletedAt
                               ? formatDateTime(item.analysisCompletedAt)
+                              : '—'}
+                          </td>
+                        ) : null}
+                        {blockedView ? (
+                          <td>
+                            {item.analysisBlockedAt
+                              ? formatDateTime(item.analysisBlockedAt)
                               : '—'}
                           </td>
                         ) : null}
@@ -2480,7 +2583,7 @@ export function EntradaPanel({
                               })
                             }
                           >
-                            {analyzedView ? 'Ver' : 'Analisar'}
+                            {actionLabel}
                           </button>
                         </td>
                       </tr>
@@ -2500,12 +2603,14 @@ export function EntradaPanel({
               void loadInspectionPendencias()
               void loadWpaMeters()
               void loadWpaAnalyzedMeters()
+              void loadWpaBlockedMeters()
               void loadWeekMeters()
               void loadData()
               refreshTrailCounts()
             }}
             onAnalysisCompleted={handleWpaAnalysisCompleted}
             onAnalysisBlocked={handleWpaAnalysisBlocked}
+            onAnalysisUnblocked={handleWpaAnalysisUnblocked}
           />
         ) : null}
         {userProfileModal}
@@ -3165,12 +3270,14 @@ export function EntradaPanel({
               void loadInspectionPendencias()
               void loadWpaMeters()
               void loadWpaAnalyzedMeters()
+              void loadWpaBlockedMeters()
               void loadWeekMeters()
               void loadData()
               refreshTrailCounts()
             }}
             onAnalysisCompleted={handleWpaAnalysisCompleted}
             onAnalysisBlocked={handleWpaAnalysisBlocked}
+            onAnalysisUnblocked={handleWpaAnalysisUnblocked}
           />
         ) : null}
         {userProfileModal}

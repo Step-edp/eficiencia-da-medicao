@@ -100,6 +100,7 @@ type InspectionDocumentAnalysisModalProps = {
   onDocumentsChanged?: () => void
   onAnalysisCompleted?: (meter: string) => void
   onAnalysisBlocked?: (meter: string) => void
+  onAnalysisUnblocked?: (meter: string) => void
 }
 
 type DocumentFieldsDraft = {
@@ -711,6 +712,7 @@ export function InspectionDocumentAnalysisModal({
   onDocumentsChanged,
   onAnalysisCompleted,
   onAnalysisBlocked,
+  onAnalysisUnblocked,
 }: InspectionDocumentAnalysisModalProps) {
   const [loading, setLoading] = useState(true)
   const [documents, setDocuments] = useState<InspectionDocumentRecord[]>([])
@@ -1012,8 +1014,9 @@ export function InspectionDocumentAnalysisModal({
       setAnalysisBlocked(false)
       setBlockFormOpen(false)
       setBlockJustification('')
-      setFeedback({ type: 'success', message: 'Medidor desbloqueado.' })
       onDocumentsChanged?.()
+      onAnalysisUnblocked?.(registeredMeter || meter)
+      onClose()
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -1665,8 +1668,8 @@ export function InspectionDocumentAnalysisModal({
                   </label>
                   {analysisBlocked ? (
                     <p className="inspection-analysis-blocked-hint">
-                      Esta análise está bloqueada. Desbloqueie para continuar ou conclua com
-                      Análise completa.
+                      Esta análise está bloqueada. O medidor fica na aba Bloqueados até ser
+                      desbloqueado.
                     </p>
                   ) : null}
                 </>
@@ -1697,7 +1700,7 @@ export function InspectionDocumentAnalysisModal({
                       !blockFormOpen
                         ? 'Informar justificativa para bloquear'
                         : canBlockAnalysis
-                          ? 'Bloquear o medidor na Análise com justificativa'
+                          ? 'Bloquear o medidor e enviar para Bloqueados'
                           : 'Informe a justificativa para bloquear'
                     }
                   >
@@ -1707,12 +1710,20 @@ export function InspectionDocumentAnalysisModal({
                 <button
                   type="button"
                   className="primary-button"
-                  disabled={!canSaveAnalysis || savingAnalysis || blockingAnalysis || unblockingAnalysis}
+                  disabled={
+                    !canSaveAnalysis ||
+                    savingAnalysis ||
+                    blockingAnalysis ||
+                    unblockingAnalysis ||
+                    analysisBlocked
+                  }
                   onClick={() => void handleSaveAnalysis()}
                   title={
-                    canSaveAnalysis
-                      ? 'Marcar análise como completa e enviar para Analisados'
-                      : 'Complete todos os campos com status OK para concluir'
+                    analysisBlocked
+                      ? 'Desbloqueie o medidor para concluir a análise'
+                      : canSaveAnalysis
+                        ? 'Marcar análise como completa e enviar para Analisados'
+                        : 'Complete todos os campos com status OK para concluir'
                   }
                 >
                   {savingAnalysis ? 'Concluindo...' : 'Análise completa'}

@@ -22,6 +22,7 @@ type MeterDetailModalProps = {
   onDocumentsChanged?: () => void
   onAnalysisCompleted?: (meter: string) => void
   onAnalysisBlocked?: (meter: string) => void
+  onAnalysisUnblocked?: (meter: string) => void
 }
 
 function displayValue(value: string | null | undefined) {
@@ -55,7 +56,7 @@ function scheduleSourceLabel(source: string) {
   return source || '—'
 }
 
-export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysisCompleted, onAnalysisBlocked }: MeterDetailModalProps) {
+export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysisCompleted, onAnalysisBlocked, onAnalysisUnblocked }: MeterDetailModalProps) {
   const [loading, setLoading] = useState(true)
   const [registry, setRegistry] = useState<MeterRegistryRecord | null>(null)
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
@@ -349,6 +350,7 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
           onDocumentsChanged={onDocumentsChanged}
           onAnalysisCompleted={onAnalysisCompleted}
           onAnalysisBlocked={onAnalysisBlocked}
+          onAnalysisUnblocked={onAnalysisUnblocked}
         />
       ) : null}
     </>

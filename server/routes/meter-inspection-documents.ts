@@ -2370,6 +2370,10 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
     req.query.status === 'analyzed' ||
     req.query.analyzed === '1' ||
     req.query.analyzed === 'true'
+  const blocked =
+    req.query.status === 'blocked' ||
+    req.query.blocked === '1' ||
+    req.query.blocked === 'true'
 
   const params: unknown[] = []
   let csdFilter = ''
@@ -2379,11 +2383,17 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
   }
 
   const analyzedFilter = analyzed
-    ? 'AND ms.inspection_analysis_completed_at IS NOT NULL'
-    : 'AND ms.inspection_analysis_completed_at IS NULL'
+    ? `AND ms.inspection_analysis_completed_at IS NOT NULL`
+    : blocked
+      ? `AND ms.inspection_analysis_completed_at IS NULL
+         AND NULLIF(TRIM(ms.inspection_analysis_block_reason), '') IS NOT NULL`
+      : `AND ms.inspection_analysis_completed_at IS NULL
+         AND NULLIF(TRIM(ms.inspection_analysis_block_reason), '') IS NULL`
   const orderBy = analyzed
     ? 'ms.inspection_analysis_completed_at DESC, ms.scheduled_at ASC'
-    : 'ms.scheduled_at ASC'
+    : blocked
+      ? 'ms.inspection_analysis_blocked_at DESC NULLS LAST, ms.scheduled_at ASC'
+      : 'ms.scheduled_at ASC'
 
   const schedules = await query<{
     id: string
@@ -2411,6 +2421,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
     inspection_wpa_cover_seal_2: string | null
     inspection_wpa_reading: string | null
     inspection_analysis_block_reason: string | null
+    inspection_analysis_blocked_at: Date | null
   }>(
     `SELECT ms.id,
             ms.meter,
@@ -2431,6 +2442,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
             ms.inspection_wpa_cover_seal_2,
             ms.inspection_wpa_reading,
             ms.inspection_analysis_block_reason,
+            ms.inspection_analysis_blocked_at,
             c.responsible_user_id,
             u.name AS responsible_name,
             u.registration AS responsible_registration,
@@ -2508,6 +2520,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
       analysisCompletedByName: row.analysis_completed_by_name,
       analysisBlocked: Boolean(row.inspection_analysis_block_reason?.trim()),
       analysisBlockReason: row.inspection_analysis_block_reason?.trim() || null,
+      analysisBlockedAt: row.inspection_analysis_blocked_at?.toISOString() ?? null,
     })
   }
 
@@ -2706,6 +2719,17 @@ export async function completeInspectionAnalysis(req: Request, res: Response) {
   if (!(await canManageInspectionDocuments(req))) {
     res.status(403).json({
       error: 'Somente administradores e usuários do Laboratório de Medição podem salvar a análise.',
+    })
+    return
+  }
+
+  const blocked = await query<{ inspection_analysis_block_reason: string | null }>(
+    `SELECT inspection_analysis_block_reason FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  if (blocked.rows[0]?.inspection_analysis_block_reason?.trim()) {
+    res.status(409).json({
+      error: 'Desbloqueie o medidor na aba Bloqueados antes de concluir a análise.',
     })
     return
   }

@@ -800,6 +800,7 @@ export type MeterInspectionDocumentadoRecord = MeterInspectionPendenciaRecord & 
   analysisCompletedByName?: string | null
   analysisBlocked?: boolean
   analysisBlockReason?: string | null
+  analysisBlockedAt?: string | null
 }
 
 export type MeterInspectionSummary = {
@@ -1962,10 +1963,14 @@ export const api = {
       byScheduleId: Record<string, MeterInspectionSummary>
     }>(`/api/meter-schedules/inspection-pendencias${queryString ? `?${queryString}` : ''}`)
   },
-  listWpaAnalysisMeters: (forUserId?: string, analyzed = false) => {
+  listWpaAnalysisMeters: (
+    forUserId?: string,
+    status: boolean | 'analyzed' | 'blocked' = false,
+  ) => {
     const search = new URLSearchParams()
     if (forUserId) search.set('forUserId', forUserId)
-    if (analyzed) search.set('status', 'analyzed')
+    if (status === true || status === 'analyzed') search.set('status', 'analyzed')
+    if (status === 'blocked') search.set('status', 'blocked')
     const queryString = search.toString()
     return request<{ meters: MeterInspectionDocumentadoRecord[] }>(
       `/api/meter-schedules/wpa-analysis${queryString ? `?${queryString}` : ''}`,
