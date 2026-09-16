@@ -173,6 +173,46 @@ function wpaMeterMatchesQuery(item: MeterInspectionDocumentadoRecord, query: str
   )
 }
 
+function inspectionPendenciaMatchesSearch(
+  item: MeterInspectionPendenciaRecord,
+  query: string,
+) {
+  const normalizedQuery = normalizeWpaSearch(query)
+  if (!normalizedQuery) return true
+
+  const pendingParts = [
+    item.missingToi ? 'TOI' : '',
+    item.missingComunicado ? 'CSM' : '',
+  ].filter(Boolean)
+  const pendingLabel = pendingParts.join(' + ')
+  const haystack = normalizeWpaSearch(
+    [
+      item.meter,
+      item.installation,
+      item.toi,
+      item.note,
+      item.csd,
+      item.trailStep,
+      item.responsibleName,
+      item.responsibleRegistration,
+      formatWorkSubtypeLabel(item.responsibleWorkSubtype),
+      pendingLabel,
+      inspectionIssueReason(item),
+      formatDateTime(item.scheduledAt),
+    ]
+      .filter(Boolean)
+      .join(' '),
+  )
+  if (haystack.includes(normalizedQuery)) return true
+
+  const queryDigits = normalizedQuery.replace(/\D/g, '')
+  if (queryDigits.length < 3) return false
+  return (
+    item.meter.replace(/\D/g, '').includes(queryDigits) ||
+    item.installation.replace(/\D/g, '').includes(queryDigits)
+  )
+}
+
 function weekMeterMatchesSearch(item: WeekMeterRecord, query: string) {
   const normalizedQuery = normalizeWpaSearch(query)
   if (!normalizedQuery) return true
@@ -1054,17 +1094,7 @@ export function EntradaPanel({
   const [receivedMetersLoading, setReceivedMetersLoading] = useState(false)
   const [receivedMetersSearchQuery, setReceivedMetersSearchQuery] = useState('')
   const [inspectionPendenciasLoading, setInspectionPendenciasLoading] = useState(false)
-  const [inspectionPendenciasMeterFilter, setInspectionPendenciasMeterFilter] = useState('')
-  const [inspectionPendenciasInstallationFilter, setInspectionPendenciasInstallationFilter] =
-    useState('')
-  const [inspectionPendenciasCsdFilter, setInspectionPendenciasCsdFilter] = useState('')
-  const [inspectionPendenciasResponsibleFilter, setInspectionPendenciasResponsibleFilter] =
-    useState('')
-  const [inspectionPendenciasPendingFilter, setInspectionPendenciasPendingFilter] = useState<
-    'todos' | 'toi' | 'csm' | 'toi_csm'
-  >('todos')
-  const [inspectionPendenciasEtapaFilter, setInspectionPendenciasEtapaFilter] = useState('todos')
-  const [inspectionPendenciasEscopoFilter, setInspectionPendenciasEscopoFilter] = useState('todos')
+  const [inspectionPendenciasSearchQuery, setInspectionPendenciasSearchQuery] = useState('')
   const [uploadingInspectionId, setUploadingInspectionId] = useState<string | null>(null)
   const [receivingMeter, setReceivingMeter] = useState<string | null>(null)
   const [weekMeters, setWeekMeters] = useState<WeekMeterRecord[]>([])
@@ -2869,87 +2899,12 @@ export function EntradaPanel({
   }
 
   if (view === 'inspectionPendencias') {
-    const meterQuery = inspectionPendenciasMeterFilter.replace(/\D/g, '')
-    const installationQuery = inspectionPendenciasInstallationFilter.replace(/\D/g, '')
-    const csdQuery = inspectionPendenciasCsdFilter.trim().toLowerCase()
-    const responsibleQuery = inspectionPendenciasResponsibleFilter.trim().toLowerCase()
-
-    const inspectionEtapaOptions = Array.from(
-      new Set(inspectionPendencias.map((item) => item.trailStep).filter(Boolean)),
-    ).sort((a, b) => a.localeCompare(b, 'pt-BR'))
-    const inspectionEscopoOptions = Array.from(
-      new Set(
-        inspectionPendencias.map((item) => formatWorkSubtypeLabel(item.responsibleWorkSubtype)),
-      ),
-    ).sort((a, b) => a.localeCompare(b, 'pt-BR'))
-
-    const filteredInspectionPendencias = inspectionPendencias.filter((pendencia) => {
-      if (meterQuery && !pendencia.meter.replace(/\D/g, '').includes(meterQuery)) {
-        return false
-      }
-      if (
-        installationQuery &&
-        !pendencia.installation.replace(/\D/g, '').includes(installationQuery)
-      ) {
-        return false
-      }
-      if (csdQuery && !pendencia.csd.toLowerCase().includes(csdQuery)) {
-        return false
-      }
-      if (
-        responsibleQuery &&
-        !(pendencia.responsibleName ?? '').toLowerCase().includes(responsibleQuery) &&
-        !(pendencia.responsibleRegistration ?? '').toLowerCase().includes(responsibleQuery)
-      ) {
-        return false
-      }
-      if (
-        inspectionPendenciasEtapaFilter !== 'todos' &&
-        pendencia.trailStep !== inspectionPendenciasEtapaFilter
-      ) {
-        return false
-      }
-      if (
-        inspectionPendenciasEscopoFilter !== 'todos' &&
-        formatWorkSubtypeLabel(pendencia.responsibleWorkSubtype) !==
-          inspectionPendenciasEscopoFilter
-      ) {
-        return false
-      }
-      if (inspectionPendenciasPendingFilter === 'toi' && !pendencia.missingToi) {
-        return false
-      }
-      if (inspectionPendenciasPendingFilter === 'csm' && !pendencia.missingComunicado) {
-        return false
-      }
-      if (
-        inspectionPendenciasPendingFilter === 'toi_csm' &&
-        !(pendencia.missingToi && pendencia.missingComunicado)
-      ) {
-        return false
-      }
-      return true
-    })
-
     const hasActiveInspectionPendenciaFilters = Boolean(
-      inspectionPendenciasMeterFilter.trim() ||
-        inspectionPendenciasInstallationFilter.trim() ||
-        inspectionPendenciasCsdFilter.trim() ||
-        inspectionPendenciasResponsibleFilter.trim() ||
-        inspectionPendenciasPendingFilter !== 'todos' ||
-        inspectionPendenciasEtapaFilter !== 'todos' ||
-        inspectionPendenciasEscopoFilter !== 'todos',
+      normalizeWpaSearch(inspectionPendenciasSearchQuery),
     )
-
-    const clearInspectionPendenciaFilters = () => {
-      setInspectionPendenciasMeterFilter('')
-      setInspectionPendenciasInstallationFilter('')
-      setInspectionPendenciasCsdFilter('')
-      setInspectionPendenciasResponsibleFilter('')
-      setInspectionPendenciasPendingFilter('todos')
-      setInspectionPendenciasEtapaFilter('todos')
-      setInspectionPendenciasEscopoFilter('todos')
-    }
+    const filteredInspectionPendencias = inspectionPendencias.filter((pendencia) =>
+      inspectionPendenciaMatchesSearch(pendencia, inspectionPendenciasSearchQuery),
+    )
 
     return (
       <>
@@ -2975,106 +2930,38 @@ export function EntradaPanel({
               </p>
             </div>
 
-            {inspectionPendencias.length > 0 ? (
-              <div
-                className="week-meters-filters"
-                aria-label="Filtros de medidores pendentes de documento"
-              >
-                <label className="week-meters-filter">
-                  Medidor
+            {inspectionPendencias.length > 0 || hasActiveInspectionPendenciaFilters ? (
+              <div className="consultar-toolbar entrada-wpa-toolbar">
+                <label className="consultar-search">
+                  <span className="sr-only">Pesquisar medidores pendentes de documento</span>
+                  <span className="consultar-search-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <circle
+                        cx="11"
+                        cy="11"
+                        r="7"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      />
+                      <path
+                        d="M20 20l-3.5-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </span>
                   <input
                     type="search"
-                    inputMode="numeric"
-                    value={inspectionPendenciasMeterFilter}
-                    placeholder="Ex.: 13009094"
-                    onChange={(event) => setInspectionPendenciasMeterFilter(event.target.value)}
+                    value={inspectionPendenciasSearchQuery}
+                    onChange={(event) => setInspectionPendenciasSearchQuery(event.target.value)}
+                    placeholder="Pesquisar por medidor, instalação, CSD, responsável, etapa, escopo, pendência…"
+                    autoComplete="off"
+                    spellCheck={false}
                   />
                 </label>
-                <label className="week-meters-filter">
-                  Instalação
-                  <input
-                    type="search"
-                    inputMode="numeric"
-                    value={inspectionPendenciasInstallationFilter}
-                    placeholder="Ex.: 150013201"
-                    onChange={(event) =>
-                      setInspectionPendenciasInstallationFilter(event.target.value)
-                    }
-                  />
-                </label>
-                <label className="week-meters-filter">
-                  CSD
-                  <input
-                    type="search"
-                    value={inspectionPendenciasCsdFilter}
-                    placeholder="Ex.: Mogi das Cruzes"
-                    onChange={(event) => setInspectionPendenciasCsdFilter(event.target.value)}
-                  />
-                </label>
-                <label className="week-meters-filter">
-                  Responsável
-                  <input
-                    type="search"
-                    value={inspectionPendenciasResponsibleFilter}
-                    placeholder="Ex.: Felipe"
-                    onChange={(event) =>
-                      setInspectionPendenciasResponsibleFilter(event.target.value)
-                    }
-                  />
-                </label>
-                <label className="week-meters-filter">
-                  Etapa
-                  <select
-                    value={inspectionPendenciasEtapaFilter}
-                    onChange={(event) => setInspectionPendenciasEtapaFilter(event.target.value)}
-                  >
-                    <option value="todos">Todas</option>
-                    {inspectionEtapaOptions.map((etapa) => (
-                      <option key={etapa} value={etapa}>
-                        {etapa}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="week-meters-filter">
-                  Escopo
-                  <select
-                    value={inspectionPendenciasEscopoFilter}
-                    onChange={(event) => setInspectionPendenciasEscopoFilter(event.target.value)}
-                  >
-                    <option value="todos">Todos</option>
-                    {inspectionEscopoOptions.map((escopo) => (
-                      <option key={escopo} value={escopo}>
-                        {escopo}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="week-meters-filter">
-                  Pendente
-                  <select
-                    value={inspectionPendenciasPendingFilter}
-                    onChange={(event) =>
-                      setInspectionPendenciasPendingFilter(
-                        event.target.value as 'todos' | 'toi' | 'csm' | 'toi_csm',
-                      )
-                    }
-                  >
-                    <option value="todos">Todos</option>
-                    <option value="toi">TOI</option>
-                    <option value="csm">CSM</option>
-                    <option value="toi_csm">TOI + CSM</option>
-                  </select>
-                </label>
-                {hasActiveInspectionPendenciaFilters ? (
-                  <button
-                    type="button"
-                    className="secondary-button week-meters-clear-filters"
-                    onClick={clearInspectionPendenciaFilters}
-                  >
-                    Limpar filtros
-                  </button>
-                ) : null}
               </div>
             ) : null}
 
@@ -3086,7 +2973,7 @@ export function EntradaPanel({
               </p>
             ) : filteredInspectionPendencias.length === 0 ? (
               <p className="entrada-panel-empty">
-                Nenhum medidor encontrado para os filtros informados.
+                Nenhum medidor encontrado para esta pesquisa.
               </p>
             ) : (
               <div className="entrada-table-wrap">
