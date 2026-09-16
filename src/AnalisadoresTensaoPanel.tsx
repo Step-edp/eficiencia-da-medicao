@@ -7,6 +7,7 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { createPortal } from 'react-dom'
 import {
   api,
   ApiError,
@@ -127,6 +128,74 @@ function faseDigitsToNumber(digits: string): number {
   return Number(`${integerPart}.${decimalPart}`)
 }
 
+function ConfirmDeleteEnsaioModal({
+  numeroSerie,
+  submitting,
+  onClose,
+  onConfirm,
+}: {
+  numeroSerie: string
+  submitting: boolean
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  return createPortal(
+    <div
+      className="ensaios-block-modal-overlay confirm-delete-overlay"
+      role="presentation"
+      onClick={() => {
+        if (!submitting) onClose()
+      }}
+    >
+      <div
+        className="ensaios-block-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-ensaio-confirm-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="icon-button schedule-slot-modal-close"
+          onClick={onClose}
+          disabled={submitting}
+          aria-label="Fechar"
+          title="Fechar"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6 6l12 12M18 6L6 18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+        <h3 id="delete-ensaio-confirm-title">Excluir ensaio</h3>
+        <p className="demm-modal-intro">
+          Excluir o ensaio do analisador <strong>{numeroSerie}</strong>? As medições e análises
+          desse ensaio serão removidas.
+        </p>
+        <div className="ensaios-block-modal-actions">
+          <button type="button" className="secondary-button" disabled={submitting} onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="danger-button"
+            disabled={submitting}
+            onClick={onConfirm}
+          >
+            {submitting ? 'Excluindo...' : 'Excluir ensaio'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [analisadores, setAnalisadores] = useState<AnalisadorTensaoRecord[]>([])
   const [modelos, setModelos] = useState<AnalisadorModeloCatalogEntry[]>([])
@@ -159,6 +228,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
     ensaioId: string
     numeroSerie: string
   } | null>(null)
+  const [ensaioToDelete, setEnsaioToDelete] = useState<EnsaioSessaoRecord | null>(null)
+  const [deletingEnsaio, setDeletingEnsaio] = useState(false)
 
   const [showEnsaiarForm, setShowEnsaiarForm] = useState(false)
   const [ensaiarSerieInput, setEnsaiarSerieInput] = useState('')
@@ -433,30 +504,77 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
     await handleFinishEnsaio()
   }
 
+  const loadEnsaiosRealizados = useCallback(async () => {
+    setLoadingEnsaiosSessoes(true)
+    try {
+      const { ensaios } = await api.listEnsaiosRealizados()
+      setEnsaiosSessoes(ensaios)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar os ensaios realizados.',
+      })
+    } finally {
+      setLoadingEnsaiosSessoes(false)
+    }
+  }, [])
+
   const toggleEnsaiosRealizados = () => {
     setShowEnsaiarForm(false)
     setShowForm(false)
     setFeedback(null)
     setShowEnsaiosRealizados((current) => {
       const next = !current
-      if (next) {
-        setLoadingEnsaiosSessoes(true)
-        api
-          .listEnsaiosRealizados()
-          .then(({ ensaios }) => setEnsaiosSessoes(ensaios))
-          .catch((error) => {
-            setFeedback({
-              type: 'error',
-              message:
-                error instanceof ApiError
-                  ? error.message
-                  : 'Não foi possível carregar os ensaios realizados.',
-            })
-          })
-          .finally(() => setLoadingEnsaiosSessoes(false))
-      }
+      if (next) void loadEnsaiosRealizados()
       return next
     })
+  }
+
+  const confirmDeleteEnsaio = async () => {
+    if (!ensaioToDelete) return
+    setDeletingEnsaio(true)
+    setFeedback(null)
+    try {
+      await api.deleteEnsaioRealizado(ensaioToDelete.ensaioId, ensaioToDelete.numeroSerie)
+      setEnsaiosSessoes((current) =>
+        current.filter(
+          (item) =>
+            !(
+              item.ensaioId === ensaioToDelete.ensaioId &&
+              item.numeroSerie === ensaioToDelete.numeroSerie
+            ),
+        ),
+      )
+      if (
+        selectedEnsaio?.ensaioId === ensaioToDelete.ensaioId &&
+        selectedEnsaio.numeroSerie === ensaioToDelete.numeroSerie
+      ) {
+        setSelectedEnsaio(null)
+      }
+      if (
+        selectedAnalise?.ensaioId === ensaioToDelete.ensaioId &&
+        selectedAnalise.numeroSerie === ensaioToDelete.numeroSerie
+      ) {
+        setSelectedAnalise(null)
+      }
+      setFeedback({
+        type: 'success',
+        message: `Ensaio do analisador ${ensaioToDelete.numeroSerie} excluído.`,
+      })
+      setEnsaioToDelete(null)
+      void load()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError ? error.message : 'Não foi possível excluir o ensaio.',
+      })
+    } finally {
+      setDeletingEnsaio(false)
+    }
   }
 
   return (
@@ -896,6 +1014,16 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                       >
                         Ver análises
                       </button>
+                      {readOnly ? null : (
+                        <button
+                          type="button"
+                          className="danger-button compact-button"
+                          disabled={deletingEnsaio}
+                          onClick={() => setEnsaioToDelete(sessao)}
+                        >
+                          Excluir
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -1062,6 +1190,16 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         numeroSerie={selectedAnalise?.numeroSerie ?? null}
         onClose={() => setSelectedAnalise(null)}
       />
+      {ensaioToDelete ? (
+        <ConfirmDeleteEnsaioModal
+          numeroSerie={ensaioToDelete.numeroSerie}
+          submitting={deletingEnsaio}
+          onClose={() => {
+            if (!deletingEnsaio) setEnsaioToDelete(null)
+          }}
+          onConfirm={() => void confirmDeleteEnsaio()}
+        />
+      ) : null}
     </div>
   )
 }

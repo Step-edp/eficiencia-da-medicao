@@ -512,3 +512,70 @@ export async function getEnsaioSessaoMedicoes(req: Request, res: Response) {
     })),
   })
 }
+
+export async function deleteEnsaioRealizado(req: Request, res: Response) {
+  const ensaioId = typeof req.params.ensaioId === 'string' ? req.params.ensaioId.trim() : ''
+  const numeroSerie =
+    typeof req.query.numeroSerie === 'string' ? req.query.numeroSerie.trim() : ''
+
+  if (!ensaioId || !numeroSerie) {
+    res.status(400).json({ error: 'Informe o ensaio e o número de série.' })
+    return
+  }
+
+  const existing = await query<{ id: string; numero_serie: string }>(
+    `SELECT a.id, a.numero_serie
+     FROM analisador_tensao_ensaio_medicoes m
+     JOIN analisadores_tensao a ON a.id = m.analisador_id
+     WHERE m.ensaio_id = $1 AND a.numero_serie = $2
+     LIMIT 1`,
+    [ensaioId, numeroSerie],
+  )
+  const analisador = existing.rows[0]
+  if (!analisador) {
+    res.status(404).json({ error: 'Ensaio não encontrado para esse número de série.' })
+    return
+  }
+
+  await query(
+    `DELETE FROM analisador_tensao_ensaio_medicoes
+     WHERE ensaio_id = $1 AND analisador_id = $2`,
+    [ensaioId, analisador.id],
+  )
+
+  const remaining = await query<{ last_at: Date | null }>(
+    `SELECT MAX(created_at) AS last_at
+     FROM analisador_tensao_ensaio_medicoes
+     WHERE analisador_id = $1`,
+    [analisador.id],
+  )
+  const lastAt = remaining.rows[0]?.last_at ?? null
+
+  if (lastAt) {
+    await query(
+      `UPDATE analisadores_tensao
+       SET primeira_calibracao = FALSE,
+           data_ultima_calibracao = $2::date
+       WHERE id = $1`,
+      [analisador.id, lastAt.toISOString()],
+    )
+  } else {
+    await query(
+      `UPDATE analisadores_tensao
+       SET primeira_calibracao = TRUE,
+           data_ultima_calibracao = NULL
+       WHERE id = $1`,
+      [analisador.id],
+    )
+  }
+
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'analisador_tensao',
+    entityId: ensaioId,
+    summary: `Ensaio excluído do analisador de tensão ${analisador.numero_serie}`,
+    oldData: { ensaioId, numeroSerie: analisador.numero_serie, analisadorId: analisador.id },
+  })
+
+  res.json({ ok: true, ensaioId, numeroSerie: analisador.numero_serie })
+}

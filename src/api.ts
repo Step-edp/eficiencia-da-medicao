@@ -2092,6 +2092,13 @@ export const api = {
     request<{ ensaioId: string; medicoes: EnsaioSessaoMedicaoRecord[] }>(
       `/api/analisadores-tensao/ensaios/${ensaioId}`,
     ),
+  deleteEnsaioRealizado: (ensaioId: string, numeroSerie: string) => {
+    const search = new URLSearchParams({ numeroSerie })
+    return request<{ ok: true; ensaioId: string; numeroSerie: string }>(
+      `/api/analisadores-tensao/ensaios/${encodeURIComponent(ensaioId)}?${search.toString()}`,
+      { method: 'DELETE' },
+    )
+  },
 }
 
 export { ApiError }
