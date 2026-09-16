@@ -626,11 +626,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             <p className="ratm-status-line">Status - {data.meterStatus}</p>
           ) : null}
 
-          <p className="ratm-entry-comparison-hint">
-            Compare o documento com o cadastro. Sugestões automáticas quando houver
-            documento anexado; confirme ou ajuste com ✓/✗.
-          </p>
-
           <EntryComparisonField
             label="Data de agendamento"
             match={data.entryComparisons?.scheduleDate}

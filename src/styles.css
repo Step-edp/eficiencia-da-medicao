@@ -7804,13 +7804,6 @@ input[type='file'] {
   color: #ff9b8d;
 }
 
-.ratm-entry-comparison-hint {
-  margin: 0;
-  color: var(--text-soft);
-  font-size: 0.84rem;
-  line-height: 1.45;
-}
-
 .ratm-entry-comparison-grid {
   display: grid;
   grid-template-columns: 1fr;
