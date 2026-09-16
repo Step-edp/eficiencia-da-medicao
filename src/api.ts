@@ -1804,6 +1804,12 @@ export const api = {
       meter: string
       registeredInstallation?: string | null
       registeredNote?: string | null
+      registeredToi?: string | null
+      registeredCsd?: string | null
+      installationMark?: 'wrong' | 'adjusted' | null
+      previousInstallation?: string | null
+      noteMark?: 'wrong' | 'adjusted' | null
+      previousNote?: string | null
       registeredLacre: string | null
       registeredCoverSeal: string | null
       registeredReading: string | null

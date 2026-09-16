@@ -2193,17 +2193,46 @@ button {
 
 .inspection-document-card-meta {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.35rem;
   margin: 0 0 0.75rem;
+}
+
+.inspection-document-card-meta-row {
+  display: grid;
+  gap: 0.15rem;
 }
 
 .inspection-document-card-installation {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.45rem;
   margin: 0;
   font-size: 0.92rem;
   color: rgba(255, 255, 255, 0.88);
+}
+
+.inspection-document-card-meta-value,
+.inspection-document-card-meta-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.inspection-document-card-meta-edit input {
+  width: 10rem;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.22rem 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(5, 20, 38, 0.72);
+  color: inherit;
+}
+
+.inspection-document-card-meta-row .schedule-wrong-install-note {
+  margin: 0.1rem 0 0;
 }
 
 .inspection-document-card-installation > span:first-child {

@@ -1963,10 +1963,16 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     id: string
     meter: string
     installation: string
+    toi: string
+    note: string
+    csd: string
     envelope_seal: string
     cover_seal: string
     meter_reading: string
-    note: string
+    installation_wrong: boolean | null
+    previous_installation: string | null
+    note_wrong: boolean | null
+    previous_note: string | null
     source: string
     scheduled_at: Date
     inspection_wpa_meter: string | null
@@ -1982,7 +1988,8 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     inspection_analysis_block_reason: string | null
     inspection_analysis_blocked_at: Date | null
   }>(
-    `SELECT id, meter, installation, envelope_seal, cover_seal, meter_reading, note, source, scheduled_at,
+    `SELECT id, meter, installation, toi, note, csd, envelope_seal, cover_seal, meter_reading, source, scheduled_at,
+            installation_wrong, previous_installation, note_wrong, previous_note,
             envelope_photo, inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
             inspection_wpa_cover_seal_2, inspection_wpa_reading, inspection_observations,
             inspection_schedule_lacre, inspection_schedule_meter, inspection_analysis_completed_at,
@@ -2072,6 +2079,12 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     meter: registeredMeter,
     registeredInstallation: schedule.rows[0].installation?.trim() || null,
     registeredNote: schedule.rows[0].note?.trim() || null,
+    registeredToi: schedule.rows[0].toi?.trim() || null,
+    registeredCsd: schedule.rows[0].csd?.trim() || null,
+    installationMark: schedule.rows[0].installation_wrong ? 'adjusted' : null,
+    previousInstallation: schedule.rows[0].previous_installation?.trim() || null,
+    noteMark: schedule.rows[0].note_wrong ? 'adjusted' : null,
+    previousNote: schedule.rows[0].previous_note?.trim() || null,
     registeredLacre,
     registeredCoverSeal,
     registeredReading,

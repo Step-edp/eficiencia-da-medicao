@@ -9,6 +9,14 @@ import {
   type InspectionPhotoRecord,
 } from './api'
 import { LoginFeedback } from './LoginFeedback'
+import { FormFieldError } from './FormFieldError'
+import { FillingCorrectionNote, type FillingCorrectionMark } from './fillingCorrection'
+import {
+  NUMERIC_FIELD_LIMITS,
+  sanitizeNumericInput,
+  validateNumericField,
+  type NumericFieldKey,
+} from './numericFieldValidation'
 import { readImageAsDataUrl } from './readImageAsDataUrl'
 import {
   joinInspectionReasons,
@@ -154,6 +162,160 @@ function formatAttachedBy(
     return `${normalizedName} (${normalizedRegistration})`
   }
   return normalizedName || normalizedRegistration || '—'
+}
+
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 20l4.6-1.2L19 8.4a1.6 1.6 0 0 0 0-2.3L18 5a1.6 1.6 0 0 0-2.3 0L5.2 15.5 4 20z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M13.6 6.4l4 4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M5 12.5l4.5 4.5L19 7.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M6 6l12 12M18 6L6 18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function ScheduleMetaEditableRow({
+  label,
+  value,
+  field,
+  canEdit,
+  editing,
+  draft,
+  error,
+  saving,
+  mark,
+  previous,
+  onStartEdit,
+  onDraftChange,
+  onSave,
+  onCancel,
+}: {
+  label: string
+  value: string | null
+  field: NumericFieldKey
+  canEdit: boolean
+  editing: boolean
+  draft: string
+  error: string | null
+  saving: boolean
+  mark?: FillingCorrectionMark | null
+  previous?: string | null
+  onStartEdit: () => void
+  onDraftChange: (value: string) => void
+  onSave: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="inspection-document-card-meta-row">
+      <p className="inspection-document-card-installation">
+        <span>{label}</span>
+        {editing ? (
+          <span className="inspection-document-card-meta-edit">
+            <input
+              value={draft}
+              inputMode="numeric"
+              maxLength={NUMERIC_FIELD_LIMITS[field]}
+              aria-label={`${label} no agendamento`}
+              aria-invalid={Boolean(error)}
+              disabled={saving}
+              autoFocus
+              onChange={(event) =>
+                onDraftChange(sanitizeNumericInput(event.target.value, NUMERIC_FIELD_LIMITS[field]))
+              }
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  onSave()
+                }
+                if (event.key === 'Escape') onCancel()
+              }}
+            />
+            <button
+              type="button"
+              className="inspection-document-photo-eye"
+              onClick={onSave}
+              disabled={saving}
+              aria-label={`Salvar ${label.toLowerCase()}`}
+              title="Salvar"
+            >
+              <CheckIcon />
+            </button>
+            <button
+              type="button"
+              className="inspection-document-photo-eye"
+              onClick={onCancel}
+              disabled={saving}
+              aria-label="Cancelar"
+              title="Cancelar"
+            >
+              <CloseIcon />
+            </button>
+          </span>
+        ) : (
+          <span className="inspection-document-card-meta-value">
+            <span>{value || '—'}</span>
+            {canEdit ? (
+              <button
+                type="button"
+                className="inspection-document-photo-eye"
+                onClick={onStartEdit}
+                aria-label={`Corrigir ${label.toLowerCase()}`}
+                title={`Corrigir ${label.toLowerCase()}`}
+              >
+                <PencilIcon />
+              </button>
+            ) : null}
+          </span>
+        )}
+      </p>
+      {error ? <FormFieldError message={error} /> : null}
+      <FillingCorrectionNote
+        field={field === 'instalacao' ? 'installation' : 'note'}
+        mark={mark}
+        previous={previous ?? undefined}
+      />
+    </div>
+  )
 }
 
 function MatchIndicator({ matches }: { matches: boolean | null | undefined }) {
@@ -726,6 +888,16 @@ export function InspectionDocumentAnalysisModal({
   const [originalScheduleMeter, setOriginalScheduleMeter] = useState(meter)
   const [registeredInstallation, setRegisteredInstallation] = useState<string | null>(null)
   const [registeredNote, setRegisteredNote] = useState<string | null>(null)
+  const [registeredToi, setRegisteredToi] = useState<string | null>(null)
+  const [registeredCsd, setRegisteredCsd] = useState<string | null>(null)
+  const [installationMark, setInstallationMark] = useState<FillingCorrectionMark | null>(null)
+  const [previousInstallation, setPreviousInstallation] = useState<string | null>(null)
+  const [noteMark, setNoteMark] = useState<FillingCorrectionMark | null>(null)
+  const [previousNote, setPreviousNote] = useState<string | null>(null)
+  const [editingMetaField, setEditingMetaField] = useState<'instalacao' | 'nota' | null>(null)
+  const [metaDraft, setMetaDraft] = useState('')
+  const [metaError, setMetaError] = useState<string | null>(null)
+  const [savingMeta, setSavingMeta] = useState(false)
   const [conference, setConference] = useState<InspectionDocumentConference | null>(null)
   const [canEditWpa, setCanEditWpa] = useState(false)
   const [wpaDraft, setWpaDraft] = useState({
@@ -779,6 +951,12 @@ export function InspectionDocumentAnalysisModal({
       setRegisteredMeter(response.meter)
       setRegisteredInstallation(response.registeredInstallation?.trim() || null)
       setRegisteredNote(response.registeredNote?.trim() || null)
+      setRegisteredToi(response.registeredToi?.trim() || null)
+      setRegisteredCsd(response.registeredCsd?.trim() || null)
+      setInstallationMark(response.installationMark ?? null)
+      setPreviousInstallation(response.previousInstallation?.trim() || null)
+      setNoteMark(response.noteMark ?? null)
+      setPreviousNote(response.previousNote?.trim() || null)
       const nextConference = response.conference ?? {
         campoMeter: null,
         campoLacre: null,
@@ -844,6 +1022,15 @@ export function InspectionDocumentAnalysisModal({
       setOriginalScheduleMeter(meter)
       setRegisteredInstallation(null)
       setRegisteredNote(null)
+      setRegisteredToi(null)
+      setRegisteredCsd(null)
+      setInstallationMark(null)
+      setPreviousInstallation(null)
+      setNoteMark(null)
+      setPreviousNote(null)
+      setEditingMetaField(null)
+      setMetaDraft('')
+      setMetaError(null)
       setConference(null)
       setWpaDraft({
         meter: '',
@@ -1034,6 +1221,65 @@ export function InspectionDocumentAnalysisModal({
       })
     } finally {
       setUnblockingAnalysis(false)
+    }
+  }
+
+  const cancelScheduleMetaEdit = () => {
+    setEditingMetaField(null)
+    setMetaDraft('')
+    setMetaError(null)
+  }
+
+  const startScheduleMetaEdit = (field: 'instalacao' | 'nota') => {
+    setEditingMetaField(field)
+    setMetaDraft(field === 'instalacao' ? registeredInstallation ?? '' : registeredNote ?? '')
+    setMetaError(null)
+  }
+
+  const saveScheduleMetaField = async () => {
+    if (!editingMetaField) return
+    const error = validateNumericField(metaDraft, editingMetaField, true)
+    if (error) {
+      setMetaError(error)
+      return
+    }
+    if (!registeredToi?.trim() || !registeredCsd?.trim()) {
+      setMetaError('Não foi possível carregar TOI e CSD para salvar a correção.')
+      return
+    }
+    setSavingMeta(true)
+    setMetaError(null)
+    try {
+      const { schedule: updated } = await api.updateMeterSchedule(scheduleId, {
+        installation: editingMetaField === 'instalacao' ? metaDraft : registeredInstallation ?? '',
+        toi: registeredToi,
+        note: editingMetaField === 'nota' ? metaDraft : registeredNote ?? '',
+        csd: registeredCsd,
+      })
+      setRegisteredInstallation(updated.installation)
+      setRegisteredNote(updated.note)
+      setRegisteredToi(updated.toi)
+      setRegisteredCsd(updated.csd)
+      setInstallationMark(updated.installationMark ?? null)
+      setPreviousInstallation(updated.previousInstallation?.trim() || null)
+      setNoteMark(updated.noteMark ?? null)
+      setPreviousNote(updated.previousNote?.trim() || null)
+      cancelScheduleMetaEdit()
+      setFeedback({
+        type: 'success',
+        message:
+          editingMetaField === 'instalacao'
+            ? 'Instalação corrigida no agendamento.'
+            : 'Nota corrigida no agendamento.',
+      })
+      onDocumentsChanged?.()
+      await loadDocuments({ silent: true })
+    } catch (error) {
+      setMetaError(
+        error instanceof ApiError ? error.message : 'Não foi possível salvar a correção.',
+      )
+    } finally {
+      setSavingMeta(false)
     }
   }
 
@@ -1394,14 +1640,38 @@ export function InspectionDocumentAnalysisModal({
                 </div>
 
                 <div className="inspection-document-card-meta">
-                  <p className="inspection-document-card-installation">
-                    <span>Instalação</span>
-                    <span>{registeredInstallation || '—'}</span>
-                  </p>
-                  <p className="inspection-document-card-installation">
-                    <span>Nota</span>
-                    <span>{registeredNote || '—'}</span>
-                  </p>
+                  <ScheduleMetaEditableRow
+                    label="Instalação"
+                    value={registeredInstallation}
+                    field="instalacao"
+                    canEdit={canEditWpa}
+                    editing={editingMetaField === 'instalacao'}
+                    draft={metaDraft}
+                    error={editingMetaField === 'instalacao' ? metaError : null}
+                    saving={savingMeta}
+                    mark={installationMark}
+                    previous={previousInstallation}
+                    onStartEdit={() => startScheduleMetaEdit('instalacao')}
+                    onDraftChange={setMetaDraft}
+                    onSave={() => void saveScheduleMetaField()}
+                    onCancel={cancelScheduleMetaEdit}
+                  />
+                  <ScheduleMetaEditableRow
+                    label="Nota"
+                    value={registeredNote}
+                    field="nota"
+                    canEdit={canEditWpa}
+                    editing={editingMetaField === 'nota'}
+                    draft={metaDraft}
+                    error={editingMetaField === 'nota' ? metaError : null}
+                    saving={savingMeta}
+                    mark={noteMark}
+                    previous={previousNote}
+                    onStartEdit={() => startScheduleMetaEdit('nota')}
+                    onDraftChange={setMetaDraft}
+                    onSave={() => void saveScheduleMetaField()}
+                    onCancel={cancelScheduleMetaEdit}
+                  />
                 </div>
 
                 <dl className="user-detail-grid schedule-detail-grid">
