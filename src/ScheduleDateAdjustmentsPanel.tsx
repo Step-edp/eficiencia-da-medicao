@@ -21,6 +21,15 @@ function formatPhysicallyAdjustedBy(item: ScheduleDateAdjustmentRecord) {
   )
 }
 
+function formatDeviationCollaborators(item: ScheduleDateAdjustmentRecord) {
+  const first = formatCollaborator(item.collaborator1Name, item.collaborator1Registration)
+  const second = formatCollaborator(item.collaborator2Name, item.collaborator2Registration)
+  if (first !== '—' && second !== '—') return `${first} / ${second}`
+  if (first !== '—') return first
+  if (second !== '—') return second
+  return '—'
+}
+
 function formatWhen(isoDate: string) {
   return new Intl.DateTimeFormat('pt-BR', {
     dateStyle: 'short',
@@ -194,6 +203,7 @@ export function ScheduleDateAdjustmentsPanel({
               <tr>
                 <th>Medidor</th>
                 {dateOnly ? null : <th>Tipo</th>}
+                {dateOnly ? null : <th>Colaboradores</th>}
                 <th>{dateOnly ? 'Agendado no sistema' : 'Valor anterior'}</th>
                 <th>{dateOnly ? 'No documento' : 'Valor corrigido'}</th>
                 {showPhysicalColumns ? <th>Ajustado fisicamente por</th> : null}
@@ -214,6 +224,7 @@ export function ScheduleDateAdjustmentsPanel({
                     </button>
                   </td>
                   {dateOnly ? null : <td>{item.description}</td>}
+                  {dateOnly ? null : <td>{formatDeviationCollaborators(item)}</td>}
                   <td>{item.scheduledLabel}</td>
                   <td>{item.documentLabel}</td>
                   {showPhysicalColumns ? <td>{formatPhysicallyAdjustedBy(item)}</td> : null}

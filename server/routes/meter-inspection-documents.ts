@@ -931,6 +931,113 @@ const WPA_FIELD_LABELS = {
   scheduleLacre: 'Lacre do invólucro (agendamento)',
 } as const
 
+const LAB_IMPORTED_DOCUMENT_KIND = 'lab_imported_document'
+const LAB_IMPORTED_DOCUMENT_DESCRIPTION = 'Documento de inspeção importado pelo laboratório'
+
+function collaboratorsFromSchedule(row: {
+  toi_collaborator1_name: string
+  toi_collaborator1_registration: string
+  toi_collaborator2_name: string
+  toi_collaborator2_registration: string
+  partner_name: string
+  partner_registration: string
+  created_by_name?: string
+  created_by_registration?: string
+}) {
+  const collaborator1Name = row.toi_collaborator1_name.trim()
+  const collaborator1Registration = row.toi_collaborator1_registration.trim()
+  const collaborator2Name = row.toi_collaborator2_name.trim()
+  const collaborator2Registration = row.toi_collaborator2_registration.trim()
+  if (collaborator1Registration || collaborator2Registration) {
+    return {
+      collaborator1Name,
+      collaborator1Registration,
+      collaborator2Name,
+      collaborator2Registration,
+    }
+  }
+
+  return {
+    collaborator1Name: (row.created_by_name ?? '').trim(),
+    collaborator1Registration: (row.created_by_registration ?? '').trim(),
+    collaborator2Name: row.partner_name.trim(),
+    collaborator2Registration: row.partner_registration.trim(),
+  }
+}
+
+function labImportedDocumentLabel(presence: { hasToi: boolean; hasComunicado: boolean }) {
+  if (presence.hasToi && presence.hasComunicado) {
+    return 'TOI e CSM importados pelo laboratório'
+  }
+  if (presence.hasComunicado) return 'CSM importado pelo laboratório'
+  return 'TOI importado pelo laboratório'
+}
+
+async function insertLabImportedDocumentDeviation(params: {
+  scheduleId: string
+  meter: string
+  collaborator1Name: string
+  collaborator1Registration: string
+  collaborator2Name: string
+  collaborator2Registration: string
+  createdByUserId: string | null
+  documentLabel: string
+}) {
+  const hasCollaborators =
+    params.collaborator1Registration.trim() || params.collaborator2Registration.trim()
+  if (!hasCollaborators) return
+
+  const existing = await query<{ id: string }>(
+    `SELECT id FROM toi_schedule_deviations
+     WHERE meter_schedule_id = $1 AND kind = $2
+     LIMIT 1`,
+    [params.scheduleId, LAB_IMPORTED_DOCUMENT_KIND],
+  )
+  if (existing.rows[0]) {
+    await query(
+      `UPDATE toi_schedule_deviations
+       SET document_label = $1,
+           collaborator1_name = $2,
+           collaborator1_registration = $3,
+           collaborator2_name = $4,
+           collaborator2_registration = $5
+       WHERE id = $6`,
+      [
+        params.documentLabel,
+        params.collaborator1Name,
+        params.collaborator1Registration,
+        params.collaborator2Name,
+        params.collaborator2Registration,
+        existing.rows[0].id,
+      ],
+    )
+    return
+  }
+
+  await query(
+    `INSERT INTO toi_schedule_deviations (
+       id, meter_schedule_id, meter, kind, description,
+       scheduled_label, document_label, previous_scheduled_at, adjusted_scheduled_at,
+       collaborator1_name, collaborator1_registration,
+       collaborator2_name, collaborator2_registration, created_by_user_id
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW(),$8,$9,$10,$11,$12)`,
+    [
+      `lab-doc-${Date.now()}-${params.scheduleId}`,
+      params.scheduleId,
+      params.meter,
+      LAB_IMPORTED_DOCUMENT_KIND,
+      LAB_IMPORTED_DOCUMENT_DESCRIPTION,
+      'Não enviado pela equipe de campo',
+      params.documentLabel,
+      params.collaborator1Name,
+      params.collaborator1Registration,
+      params.collaborator2Name,
+      params.collaborator2Registration,
+      params.createdByUserId,
+    ],
+  )
+}
+
 const WPA_PHOTO_DEVIATIONS = [
   {
     option: 'sem_registro_fotografico',
@@ -1371,8 +1478,28 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     note: string
     source: string
     delay_dismissed_at: Date | null
+    toi_collaborator1_name: string
+    toi_collaborator1_registration: string
+    toi_collaborator2_name: string
+    toi_collaborator2_registration: string
+    partner_name: string
+    partner_registration: string
+    created_by_name: string
+    created_by_registration: string
   }>(
-    `SELECT id, meter, csd, envelope_seal, cover_seal, meter_reading, installation, toi, note, source, delay_dismissed_at FROM meter_schedules WHERE id = $1`,
+    `SELECT ms.id, ms.meter, ms.csd, ms.envelope_seal, ms.cover_seal, ms.meter_reading,
+            ms.installation, ms.toi, ms.note, ms.source, ms.delay_dismissed_at,
+            COALESCE(ms.toi_collaborator1_name, '') AS toi_collaborator1_name,
+            COALESCE(ms.toi_collaborator1_registration, '') AS toi_collaborator1_registration,
+            COALESCE(ms.toi_collaborator2_name, '') AS toi_collaborator2_name,
+            COALESCE(ms.toi_collaborator2_registration, '') AS toi_collaborator2_registration,
+            COALESCE(ms.partner_name, '') AS partner_name,
+            COALESCE(ms.partner_registration, '') AS partner_registration,
+            COALESCE(u.name, '') AS created_by_name,
+            COALESCE(u.registration, '') AS created_by_registration
+     FROM meter_schedules ms
+     LEFT JOIN users u ON u.id = ms.created_by_user_id
+     WHERE ms.id = $1`,
     [meterScheduleId],
   )
   if (!schedule.rows[0]) {
@@ -1581,6 +1708,17 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     complete: presence.complete,
     hasToi: presence.hasToi,
     hasComunicado: presence.hasComunicado,
+  }
+
+  if (await canManageInspectionDocuments(req)) {
+    const people = collaboratorsFromSchedule(schedule.rows[0])
+    await insertLabImportedDocumentDeviation({
+      scheduleId: meterScheduleId,
+      meter: schedule.rows[0].meter,
+      ...people,
+      createdByUserId: req.user?.id ?? null,
+      documentLabel: labImportedDocumentLabel(presence),
+    })
   }
 
   await writeAuditLog(req, {
