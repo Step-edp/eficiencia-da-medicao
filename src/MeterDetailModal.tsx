@@ -244,6 +244,10 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
                     <dd>{displayValue(latestSchedule.trailStep)}</dd>
                   </div>
                   <div>
+                    <dt>Data de agendamento</dt>
+                    <dd>{displayValue(latestSchedule.scheduledAtLabel)}</dd>
+                  </div>
+                  <div>
                     <dt>Data de ensaio</dt>
                     <dd>{displayValue(latestSchedule.scheduledAtLabel)}</dd>
                   </div>
@@ -268,7 +272,7 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
                     <dd>{displayValue(formatScheduleCollaborator2Label(latestSchedule))}</dd>
                   </div>
                   <div>
-                    <dt>Data de agendamento</dt>
+                    <dt>Registrado em</dt>
                     <dd>{displayValue(formatScheduleCreatedAtLabel(latestSchedule.createdAt))}</dd>
                   </div>
                   <div>

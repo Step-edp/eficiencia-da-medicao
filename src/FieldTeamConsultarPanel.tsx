@@ -387,11 +387,15 @@ function ScheduleDetailModal({
           ) : null}
           <div>
             <dt>Data de agendamento</dt>
-            <dd>{displayValue(createdAtLabel)}</dd>
+            <dd>{displayValue(schedule.scheduledAtLabel)}</dd>
           </div>
           <div>
             <dt>Data de ensaio</dt>
             <dd>{displayValue(schedule.scheduledAtLabel)}</dd>
+          </div>
+          <div>
+            <dt>Registrado em</dt>
+            <dd>{displayValue(createdAtLabel)}</dd>
           </div>
           <div>
             <dt>Prazo entrega</dt>
@@ -854,6 +858,7 @@ export function FieldTeamConsultarPanel({
                 <th>Colaborador 2</th>
                 <th>Data de agendamento</th>
                 <th>Data de ensaio</th>
+                <th>Registrado em</th>
                 <th>Prazo entrega</th>
                 <th>Status entrega</th>
                 <th>Documento de inspeção</th>
@@ -935,8 +940,9 @@ export function FieldTeamConsultarPanel({
                   <td>{formatScheduleCreatedByLabel(item) || '—'}</td>
                   <td>{formatScheduleCollaborator1Label(item) || '—'}</td>
                   <td>{formatScheduleCollaborator2Label(item) || '—'}</td>
-                  <td>{formatScheduleCreatedAtLabel(item.createdAt) || '—'}</td>
                   <td>{item.scheduledAtLabel || '—'}</td>
+                  <td>{item.scheduledAtLabel || '—'}</td>
+                  <td>{formatScheduleCreatedAtLabel(item.createdAt) || '—'}</td>
                   <td>{item.deliveryDeadlineLabel || '—'}</td>
                   <td>
                     {item.isLate ? (
