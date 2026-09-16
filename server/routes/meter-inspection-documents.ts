@@ -133,7 +133,7 @@ function normalizeNumericEntryField(
 }
 
 function isPlausibleScheduleNote(digits: string) {
-  return digits.length >= 10 && digits.length <= 12
+  return digits.startsWith('4') && digits.length >= 10 && digits.length <= 12
 }
 
 const SCHEDULE_NOTE_MIN_DIGITS = 10
@@ -193,9 +193,13 @@ function pickExtractedNote(
   )
   if (matching?.extracted_note?.trim()) return matching.extracted_note
 
+  const sapNotes = withNote.filter((row) =>
+    isPlausibleScheduleNote(significantNumericId(row.extracted_note)),
+  )
+  const pool = sapNotes.length ? sapNotes : []
   const byType = (docType: InspectionDocumentType) =>
-    withNote.find((row) => row.doc_type === docType)?.extracted_note?.trim() || null
-  return byType('comunicado') || byType('ambos') || byType('toi') || withNote[0]?.extracted_note || null
+    pool.find((row) => row.doc_type === docType)?.extracted_note?.trim() || null
+  return byType('comunicado') || byType('ambos') || byType('toi') || pool[0]?.extracted_note || null
 }
 
 function compareNumericEntryField(

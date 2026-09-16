@@ -357,12 +357,24 @@ function isPhoneLikeNote(text: string, value: string) {
   return new RegExp(`telefone\\s*[:\\-]?\\s*${digits}`, 'i').test(text.replace(/\s+/g, ' '))
 }
 
+function isPersonalDocumentNote(text: string, value: string) {
+  const digits = String(value).replace(/\D/g, '')
+  if (digits.length !== 11 && digits.length !== 14) return false
+  const compact = text.replace(/\s+/g, ' ')
+  return new RegExp(
+    `(?:identifica[cç][aã]o|\\brg\\b|cpf|cnpj)\\s*[:/\\-]?[^\\d]{0,24}${digits}`,
+    'i',
+  ).test(compact)
+}
+
 function extractNoteNumber(text: string, excluded: Set<string>): string | null {
   const candidates: string[] = []
   const add = (raw: string | null | undefined) => {
     if (!raw) return
     const key = digitKey(raw)
-    if (!key || excluded.has(key) || isPhoneLikeNote(text, raw)) return
+    if (!key || excluded.has(key) || isPhoneLikeNote(text, raw) || isPersonalDocumentNote(text, raw)) {
+      return
+    }
     candidates.push(raw)
   }
 
@@ -393,12 +405,15 @@ function extractNoteNumber(text: string, excluded: Set<string>): string | null {
   }
 
   const score = (value: string) => {
-    const length = digitKey(value).length
-    if (length === 11) return 5
-    if (length === 12) return 4
-    if (length === 10) return 3
-    if (length === 9) return 0
-    return 1
+    const digits = digitKey(value)
+    const length = digits.length
+    let rank = 1
+    if (length === 11) rank = 5
+    else if (length === 12) rank = 4
+    else if (length === 10) rank = 3
+    else if (length === 9) rank = 0
+    if (digits.startsWith('4')) rank += 10
+    return rank
   }
 
   return [...candidates].sort((left, right) => score(right) - score(left))[0] ?? null
