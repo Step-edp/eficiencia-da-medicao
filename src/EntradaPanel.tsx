@@ -230,6 +230,34 @@ function weekMeterMatchesSearch(item: WeekMeterRecord, query: string) {
   )
 }
 
+function demmDocumentMatchesSearch(document: DemmDocumentRecord, query: string) {
+  const normalizedQuery = normalizeWpaSearch(query)
+  if (!normalizedQuery) return true
+
+  const meters = (document.extractedMeters ?? []).map((item) => item.meter)
+  const haystack = normalizeWpaSearch(
+    [
+      document.documentNumber,
+      document.fileName,
+      document.csdName,
+      document.emissionDate,
+      document.rejectedByName,
+      ...meters,
+    ]
+      .filter(Boolean)
+      .join(' '),
+  )
+  if (haystack.includes(normalizedQuery)) return true
+
+  const queryDigits = normalizedQuery.replace(/\D/g, '')
+  if (queryDigits.length < 3) return false
+  return (
+    (document.documentNumber ?? '').replace(/\D/g, '').includes(queryDigits) ||
+    (document.fileName ?? '').replace(/\D/g, '').includes(queryDigits) ||
+    meters.some((meter) => meter.replace(/\D/g, '').includes(queryDigits))
+  )
+}
+
 function weekMeterInspectionLabel(item: WeekMeterRecord) {
   if (item.status === 'liberado') return 'Liberado'
   if (item.status === 'nao_agendado') return 'Não agendado'
@@ -1068,6 +1096,7 @@ export function EntradaPanel({
 }: EntradaPanelProps) {
   const [view, setView] = useState<EntradaPanelView>(initialView)
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
+  const [demmDocumentsSearchQuery, setDemmDocumentsSearchQuery] = useState('')
   const [csdPendencias, setCsdPendencias] = useState<CsdDemmPendenciaRecord[]>([])
   const [csdPendenciasLoading, setCsdPendenciasLoading] = useState(false)
   const [demmHistoricoWeeks, setDemmHistoricoWeeks] = useState<
@@ -2146,8 +2175,12 @@ export function EntradaPanel({
       showRejectedAt?: boolean
     },
   ) => {
-    const totalMeters = documents.reduce((sum, document) => sum + document.meterCount, 0)
-    const totalCount = documents.reduce((sum, document) => sum + options.countValue(document), 0)
+    const hasSearch = Boolean(normalizeWpaSearch(demmDocumentsSearchQuery))
+    const visibleDocuments = documents.filter((document) =>
+      demmDocumentMatchesSearch(document, demmDocumentsSearchQuery),
+    )
+    const totalMeters = visibleDocuments.reduce((sum, document) => sum + document.meterCount, 0)
+    const totalCount = visibleDocuments.reduce((sum, document) => sum + options.countValue(document), 0)
 
     return (
       <section className="entrada-section">
@@ -2155,15 +2188,53 @@ export function EntradaPanel({
           <h3 className="entrada-section-title">{options.title}</h3>
           {documents.length > 0 ? (
             <span className="entrada-section-total">
-              Total: {totalMeters} medidor(es)
+              {hasSearch
+                ? `${visibleDocuments.length} de ${documents.length} DEMM(s)`
+                : `Total: ${totalMeters} medidor(es)`}
               {totalCount > 0 ? ` · ${totalCount} ${options.countSummary}` : ''}
             </span>
           ) : null}
         </div>
+        {documents.length > 0 || hasSearch ? (
+          <div className="consultar-toolbar entrada-wpa-toolbar">
+            <label className="consultar-search">
+              <span className="sr-only">Pesquisar DEMMs</span>
+              <span className="consultar-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle
+                    cx="11"
+                    cy="11"
+                    r="7"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                  <path
+                    d="M20 20l-3.5-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <input
+                type="search"
+                value={demmDocumentsSearchQuery}
+                onChange={(event) => setDemmDocumentsSearchQuery(event.target.value)}
+                placeholder="Pesquisar por Nº documento, CSD, medidor…"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+          </div>
+        ) : null}
         {loading && documents.length === 0 && demmDocuments.length === 0 ? (
           <p className="entrada-panel-empty">Carregando DEMMs...</p>
         ) : documents.length === 0 ? (
           <p className="entrada-panel-empty">{options.emptyMessage}</p>
+        ) : visibleDocuments.length === 0 ? (
+          <p className="entrada-panel-empty">Nenhuma DEMM encontrada para esta pesquisa.</p>
         ) : (
           <div className="entrada-table-wrap">
             <table className="data-table entrada-table">
@@ -2179,7 +2250,7 @@ export function EntradaPanel({
                 </tr>
               </thead>
               <tbody>
-                {documents.map((document) => (
+                {visibleDocuments.map((document) => (
                   <tr
                     key={document.id}
                     className={`demm-row-clickable${
