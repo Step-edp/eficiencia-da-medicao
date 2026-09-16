@@ -63,6 +63,16 @@ export function formatScheduleCreatedAtLabel(createdAt?: string) {
   })
 }
 
+export function formatScheduleDemmLabel(item: {
+  demmDocumentNumber?: string | null
+  demmFileName?: string | null
+}) {
+  const number = item.demmDocumentNumber?.trim()
+  const file = item.demmFileName?.trim()
+  if (number && file && number !== file) return `${number} (${file})`
+  return number || file || ''
+}
+
 export function formatScheduleCollaborator1Label(
   item: Pick<
     MeterScheduleRecord,

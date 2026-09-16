@@ -14,6 +14,7 @@ import {
   formatScheduleCollaborator2Label,
   formatScheduleCreatedAtLabel,
   formatScheduleCreatedByLabel,
+  formatScheduleDemmLabel,
 } from './schedulePartnerLabel'
 
 type MeterDetailModalProps = {
@@ -279,12 +280,10 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
                     <dt>Origem</dt>
                     <dd>{scheduleSourceLabel(latestSchedule.source)}</dd>
                   </div>
-                  {latestSchedule.demmFileName?.trim() ? (
-                    <div>
-                      <dt>DEMM vinculada</dt>
-                      <dd>{latestSchedule.demmFileName.trim()}</dd>
-                    </div>
-                  ) : null}
+                  <div>
+                    <dt>DEMM</dt>
+                    <dd>{displayValue(formatScheduleDemmLabel(latestSchedule))}</dd>
+                  </div>
                 </dl>
               </section>
             ) : null}

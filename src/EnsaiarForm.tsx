@@ -199,7 +199,7 @@ export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
                     <th>TOI</th>
                     <th>Nota</th>
                     <th>CSD</th>
-                    <th>Data agendada</th>
+                    <th>Data de ensaio</th>
                     <th>Ações</th>
                   </tr>
                 </thead>

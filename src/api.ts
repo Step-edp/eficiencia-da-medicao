@@ -531,6 +531,7 @@ export type MeterScheduleRecord = {
   createdByName?: string
   demmDocumentId: string | null
   demmFileName: string | null
+  demmDocumentNumber?: string | null
   demmMeterCount: number
   registryStatus?: string
   installationTypedWrong?: boolean

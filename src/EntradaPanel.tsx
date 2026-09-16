@@ -337,7 +337,7 @@ function DemmMetersTable({
           <tr>
             <th>Medidor</th>
             <th>Status no aplicativo</th>
-            <th>Data agendada</th>
+            <th>Data de ensaio</th>
             {showSources ? <th>DEMM</th> : null}
           </tr>
         </thead>
@@ -2702,7 +2702,7 @@ export function EntradaPanel({
                       <th>Nota</th>
                       <th>CSD</th>
                       {analyzedView ? null : <th>Etapa</th>}
-                      <th>Data agendada</th>
+                      <th>Data de ensaio</th>
                       {blockedView ? <th>Bloqueado em</th> : null}
                       <th>{blockedView ? 'Justificativa' : 'Documentação'}</th>
                       <th>Ações</th>
@@ -2976,7 +2976,7 @@ export function EntradaPanel({
                       <th>Instalação</th>
                       <th>CSD</th>
                       <th>Etapa</th>
-                      <th>Data agendada</th>
+                      <th>Data de ensaio</th>
                       <th>Responsável</th>
                       <th>Escopo</th>
                       <th>Pendente</th>

@@ -352,7 +352,7 @@ export function EnviarDocumentosPanel({ scopeUserId }: EnviarDocumentosPanelProp
                   <th>Medidor</th>
                   <th>Instalação</th>
                   <th>CSD</th>
-                  <th>Data agendada</th>
+                  <th>Data de ensaio</th>
                   <th>Pendente</th>
                   <th>Ações</th>
                 </tr>

@@ -11,7 +11,7 @@ import {
   sanitizeNumericInput,
   validateNumericField,
 } from './numericFieldValidation'
-import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, scheduleAuditSearchText } from './schedulePartnerLabel'
+import { formatSchedulePartnerLabel, formatScheduleCreatedByLabel, formatScheduleCreatedAtLabel, formatScheduleCollaborator1Label, formatScheduleCollaborator2Label, formatScheduleDemmLabel, scheduleAuditSearchText } from './schedulePartnerLabel'
 import { ENTRADA_TRAIL_STEP, getLabTrailLabel } from './labTrailSteps'
 import { useCsdsOptions } from './useCsdsOptions'
 import { FillingCorrectionBadge, FillingCorrectionNote } from './fillingCorrection'
@@ -69,6 +69,7 @@ function scheduleSearchText(item: MeterScheduleRecord) {
       item.partnerName,
       item.partnerRegistration,
       item.scheduledAtLabel,
+      formatScheduleDemmLabel(item),
       item.deliveryDeadlineLabel,
       deliveryStatusLabel(item),
       item.trailStep,
@@ -427,17 +428,15 @@ function ScheduleDetailModal({
               <dd>{schedule.schedulingDate.trim()}</dd>
             </div>
           ) : null}
-          {schedule.demmFileName?.trim() ? (
-            <>
-              <div>
-                <dt>DEMM vinculada</dt>
-                <dd>{schedule.demmFileName.trim()}</dd>
-              </div>
-              <div>
-                <dt>Medidores na DEMM</dt>
-                <dd>{schedule.demmMeterCount}</dd>
-              </div>
-            </>
+          <div>
+            <dt>DEMM</dt>
+            <dd>{displayValue(formatScheduleDemmLabel(schedule))}</dd>
+          </div>
+          {schedule.demmMeterCount > 0 ? (
+            <div>
+              <dt>Medidores na DEMM</dt>
+              <dd>{schedule.demmMeterCount}</dd>
+            </div>
           ) : null}
           {schedule.schedulingNotes?.trim() ? (
             <div className="user-detail-full">
