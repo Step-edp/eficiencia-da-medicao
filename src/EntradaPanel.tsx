@@ -1644,21 +1644,6 @@ export function EntradaPanel({
   const wpaPendingCount = wpaMeters.length
   const wpaBlockedCount = wpaBlockedMeters.length
 
-  const renderWpaPendingAlert = () =>
-    wpaPendingCount > 0 &&
-    view !== 'metersBase' &&
-    view !== 'wpaAnalyzed' &&
-    view !== 'wpaBlocked' ? (
-      <button
-        type="button"
-        className="entrada-wpa-pending-alert"
-        onClick={() => openMetersBase()}
-      >
-        {wpaPendingCount} {wpaPendingCount === 1 ? 'medidor pendente' : 'medidores pendentes'} de
-        análise
-      </button>
-    ) : null
-
   const renderEntradaTabBar = () => (
     <>
     <div className="entrada-panel-header">
@@ -1785,7 +1770,6 @@ export function EntradaPanel({
         </button>
       </div>
     </div>
-    {renderWpaPendingAlert()}
     </>
   )
 
