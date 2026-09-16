@@ -2539,16 +2539,21 @@ export async function loadInspectionAnalysisStatusByMeter(meters: string[]) {
   const normalizedMeters = [
     ...new Set(meters.map((meter) => normalizeScheduleMeter(meter)).filter(Boolean)),
   ]
-  const result = new Map<string, { analyzed: boolean; blocked: boolean }>()
+  const result = new Map<
+    string,
+    { analyzed: boolean; blocked: boolean; analysisBlocked: boolean }
+  >()
   if (!normalizedMeters.length) return result
 
   const schedules = await query<{
     norm: string
     inspection_analysis_completed_at: Date | null
+    inspection_analysis_block_reason: string | null
   }>(
     `SELECT DISTINCT ON (${NORMALIZED_METER_SQL})
             ${NORMALIZED_METER_SQL} AS norm,
-            inspection_analysis_completed_at
+            inspection_analysis_completed_at,
+            inspection_analysis_block_reason
      FROM meter_schedules
      WHERE delay_dismissed_at IS NULL
        AND ${NORMALIZED_METER_SQL} = ANY($1::text[])
@@ -2559,15 +2564,17 @@ export async function loadInspectionAnalysisStatusByMeter(meters: string[]) {
 
   for (const row of schedules.rows) {
     const summary = summaries.get(row.norm)
+    const analysisBlocked = Boolean(row.inspection_analysis_block_reason?.trim())
     result.set(row.norm, {
       analyzed: Boolean(row.inspection_analysis_completed_at),
-      blocked: Boolean(summary?.anyBlocked),
+      blocked: Boolean(summary?.anyBlocked) || analysisBlocked,
+      analysisBlocked,
     })
   }
 
   for (const norm of normalizedMeters) {
     if (!result.has(norm)) {
-      result.set(norm, { analyzed: false, blocked: true })
+      result.set(norm, { analyzed: false, blocked: true, analysisBlocked: false })
     }
   }
 

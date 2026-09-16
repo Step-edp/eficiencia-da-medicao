@@ -338,6 +338,8 @@ type DemmDocumentDetails = {
   meterCount: number
   scheduledCount: number
   bulkEntryReady?: boolean
+  hasBlockedMeters?: boolean
+  rejectedAt?: string | null
   createdByRegistration: string | null
   createdAt: string
 }
@@ -425,6 +427,12 @@ function DemmAnalysisModal({
               <dd>
                 {statusSummary ? (
                   <span className="demm-analysis-status-summary">{statusSummary}</span>
+                ) : details.rejectedAt ? (
+                  <span className="demm-analysis-status-summary">DEMM rejeitada</span>
+                ) : details.hasBlockedMeters ? (
+                  <span className="demm-analysis-status-summary">
+                    Possui medidor bloqueado — rejeite a DEMM
+                  </span>
                 ) : details.bulkEntryReady ? (
                   <span className="demm-bulk-ready-badge">
                     DEMM liberada para entrada em massa
@@ -915,10 +923,85 @@ function BulkReceiveConfirmModal({
   )
 }
 
+function RejectDemmConfirmModal({
+  demmDocument,
+  submitting,
+  onClose,
+  onConfirm,
+}: {
+  demmDocument: DemmDocumentRecord
+  submitting: boolean
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  const label = demmDocument.documentNumber ?? demmDocument.fileName
+  const blockedCount = demmDocument.blockedMeterCount ?? 0
+
+  return createPortal(
+    <div
+      className="ensaios-block-modal-overlay confirm-delete-overlay"
+      role="presentation"
+      onClick={() => {
+        if (!submitting) onClose()
+      }}
+    >
+      <div
+        className="ensaios-block-modal demm-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reject-demm-confirm-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="icon-button schedule-slot-modal-close"
+          onClick={onClose}
+          disabled={submitting}
+          aria-label="Fechar"
+          title="Fechar"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6 6l12 12M18 6L6 18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+
+        <h3 id="reject-demm-confirm-title">Rejeitar DEMM</h3>
+        <p className="demm-modal-intro">
+          A DEMM <strong>{label}</strong> possui{' '}
+          {blockedCount === 1 ? '1 medidor bloqueado' : `${blockedCount} medidores bloqueados`} e
+          não pode dar entrada. Rejeitar e enviar para a aba DEMMs rejeitadas?
+        </p>
+
+        <div className="ensaios-block-modal-actions">
+          <button type="button" className="secondary-button" disabled={submitting} onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="danger-button"
+            disabled={submitting}
+            onClick={onConfirm}
+          >
+            {submitting ? 'Rejeitando...' : 'Confirmar rejeição'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 export type EntradaPanelView =
   | 'dash'
   | 'overview'
   | 'demmEntrada'
+  | 'demmRejected'
   | 'metersBase'
   | 'wpaAnalyzed'
   | 'wpaBlocked'
@@ -1013,6 +1096,10 @@ export function EntradaPanel({
   const [bulkReceivingDemmId, setBulkReceivingDemmId] = useState<string | null>(null)
   const [bulkReceiveConfirmDocument, setBulkReceiveConfirmDocument] =
     useState<DemmDocumentRecord | null>(null)
+  const [rejectingDemmId, setRejectingDemmId] = useState<string | null>(null)
+  const [rejectConfirmDocument, setRejectConfirmDocument] = useState<DemmDocumentRecord | null>(
+    null,
+  )
   const [analysisModal, setAnalysisModal] = useState<{
     title: string
     fileName?: string
@@ -1136,6 +1223,8 @@ export function EntradaPanel({
     meterCount: document.meterCount,
     scheduledCount: document.scheduledCount,
     bulkEntryReady: document.bulkEntryReady,
+    hasBlockedMeters: document.hasBlockedMeters,
+    rejectedAt: document.rejectedAt,
     createdByRegistration: document.createdByRegistration,
     createdAt: document.createdAt,
   })
@@ -1601,6 +1690,12 @@ export function EntradaPanel({
     void loadData()
   }
 
+  const openDemmRejected = () => {
+    setView('demmRejected')
+    setFeedback(null)
+    void loadData()
+  }
+
   const openDash = () => {
     setView('dash')
     setFeedback(null)
@@ -1679,6 +1774,23 @@ export function EntradaPanel({
           onClick={() => openDemmEntrada()}
         >
           DEMMs com entrada
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'demmRejected'}
+          className={view === 'demmRejected' ? 'active' : ''}
+          onClick={() => openDemmRejected()}
+        >
+          DEMMs rejeitadas
+          {rejectedDemmDocuments.length > 0 ? (
+            <span
+              className="lab-trail-step-badge"
+              aria-label={`${rejectedDemmDocuments.length} DEMM${rejectedDemmDocuments.length === 1 ? '' : 's'} rejeitada${rejectedDemmDocuments.length === 1 ? '' : 's'}`}
+            >
+              {rejectedDemmDocuments.length}
+            </span>
+          ) : null}
         </button>
         <button
           type="button"
@@ -1963,8 +2075,42 @@ export function EntradaPanel({
     }
   }
 
-  const pendingDemmDocuments = demmDocuments.filter((document) => !document.allEntryGiven)
-  const receivedDemmDocuments = demmDocuments.filter((document) => document.allEntryGiven)
+  const confirmRejectDemm = async () => {
+    const document = rejectConfirmDocument
+    if (!document) return
+
+    setRejectingDemmId(document.id)
+    setFeedback(null)
+
+    try {
+      await api.rejectDemmDocument(document.id)
+      setRejectConfirmDocument(null)
+      setView('demmRejected')
+      setFeedback({
+        type: 'success',
+        message: `DEMM "${document.documentNumber ?? document.fileName}" rejeitada.`,
+      })
+      void loadData()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível rejeitar a DEMM.',
+      })
+    } finally {
+      setRejectingDemmId(null)
+    }
+  }
+
+  const pendingDemmDocuments = demmDocuments.filter(
+    (document) => !document.allEntryGiven && !document.rejectedAt,
+  )
+  const receivedDemmDocuments = demmDocuments.filter(
+    (document) => document.allEntryGiven && !document.rejectedAt,
+  )
+  const rejectedDemmDocuments = demmDocuments.filter((document) => Boolean(document.rejectedAt))
 
   const renderDemmDocumentsSection = (
     documents: DemmDocumentRecord[],
@@ -1975,6 +2121,7 @@ export function EntradaPanel({
       countSummary: string
       countValue: (document: DemmDocumentRecord) => number
       showBulkReceive?: boolean
+      showRejectedAt?: boolean
     },
   ) => {
     const totalMeters = documents.reduce((sum, document) => sum + document.meterCount, 0)
@@ -2005,6 +2152,7 @@ export function EntradaPanel({
                   <th>Data emissão</th>
                   <th>Medidores</th>
                   <th>{options.countHeader}</th>
+                  {options.showRejectedAt ? <th>Rejeitada em</th> : null}
                   <th>Ações</th>
                 </tr>
               </thead>
@@ -2012,7 +2160,15 @@ export function EntradaPanel({
                 {documents.map((document) => (
                   <tr
                     key={document.id}
-                    className={`demm-row-clickable${document.bulkEntryReady ? ' demm-row-bulk-ready' : ''}`}
+                    className={`demm-row-clickable${
+                      document.rejectedAt
+                        ? ' demm-row-rejected'
+                        : document.hasBlockedMeters
+                          ? ' demm-row-blocked'
+                          : document.bulkEntryReady
+                            ? ' demm-row-bulk-ready'
+                            : ''
+                    }`}
                     onClick={() => void openDemmAnalysis(document)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
@@ -2029,9 +2185,24 @@ export function EntradaPanel({
                     <td>{document.emissionDate ?? '—'}</td>
                     <td>{document.meterCount}</td>
                     <td>{options.countValue(document)}</td>
+                    {options.showRejectedAt ? (
+                      <td>
+                        {document.rejectedAt ? formatDateTime(document.rejectedAt) : '—'}
+                      </td>
+                    ) : null}
                     <td>
                       <div className="entrada-demm-actions" onClick={(event) => event.stopPropagation()}>
-                        {options.showBulkReceive && !readOnly ? (
+                        {options.showBulkReceive && !readOnly && document.hasBlockedMeters ? (
+                          <button
+                            type="button"
+                            className="entrada-demm-bulk-button danger-button"
+                            disabled={rejectingDemmId === document.id}
+                            onClick={() => setRejectConfirmDocument(document)}
+                            title="Esta DEMM possui medidor bloqueado e não pode dar entrada"
+                          >
+                            {rejectingDemmId === document.id ? 'Rejeitando...' : 'Rejeitar DEMM'}
+                          </button>
+                        ) : options.showBulkReceive && !readOnly ? (
                           <button
                             type="button"
                             className="entrada-demm-bulk-button primary-button"
@@ -2094,6 +2265,7 @@ export function EntradaPanel({
                   <td colSpan={3}>Total</td>
                   <td>{totalMeters}</td>
                   <td>{totalCount}</td>
+                  {options.showRejectedAt ? <td /> : null}
                   <td />
                 </tr>
               </tfoot>
@@ -3380,6 +3552,15 @@ export function EntradaPanel({
               countSummary: 'com entrada',
               countValue: (document) => document.entryGivenCount ?? 0,
             })
+          : view === 'demmRejected'
+            ? renderDemmDocumentsSection(rejectedDemmDocuments, {
+                title: 'DEMMs rejeitadas',
+                emptyMessage: 'Nenhuma DEMM rejeitada.',
+                countHeader: 'Bloqueados',
+                countSummary: 'com medidor bloqueado',
+                countValue: (document) => document.blockedMeterCount ?? 0,
+                showRejectedAt: true,
+              })
           : renderDemmDocumentsSection(pendingDemmDocuments, {
               title: 'DEMMs cadastradas',
               emptyMessage:
@@ -3420,6 +3601,18 @@ export function EntradaPanel({
             setBulkReceiveConfirmDocument(null)
           }}
           onConfirm={() => void confirmBulkReceiveDemm()}
+        />
+      ) : null}
+
+      {rejectConfirmDocument ? (
+        <RejectDemmConfirmModal
+          demmDocument={rejectConfirmDocument}
+          submitting={rejectingDemmId === rejectConfirmDocument.id}
+          onClose={() => {
+            if (rejectingDemmId) return
+            setRejectConfirmDocument(null)
+          }}
+          onConfirm={() => void confirmRejectDemm()}
         />
       ) : null}
     </>

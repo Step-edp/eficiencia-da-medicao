@@ -2809,6 +2809,11 @@ button {
   cursor: not-allowed;
 }
 
+.demm-row-blocked td,
+.demm-row-rejected td {
+  background: rgba(110, 23, 23, 0.18);
+}
+
 .entrada-demm-delete-button {
   display: inline-flex;
   align-items: center;

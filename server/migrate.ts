@@ -281,6 +281,9 @@ export async function migrate() {
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS csd_id TEXT REFERENCES csds(id) ON DELETE SET NULL;
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS target_week_start DATE;
     ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS imported_by_lab BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ;
+    ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS rejected_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
+    ALTER TABLE demm_documents ADD COLUMN IF NOT EXISTS rejected_by_name TEXT NOT NULL DEFAULT '';
     CREATE INDEX IF NOT EXISTS idx_demm_documents_csd_id ON demm_documents (csd_id);
     ALTER TABLE org_cells ADD COLUMN IF NOT EXISTS substitute_user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_required_since TIMESTAMPTZ;

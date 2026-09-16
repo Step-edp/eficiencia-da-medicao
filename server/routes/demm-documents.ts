@@ -51,6 +51,9 @@ type DemmDocumentRow = {
   created_at: Date
   created_by_user_id: string | null
   created_by_registration: string | null
+  rejected_at?: Date | null
+  rejected_by_user_id?: string | null
+  rejected_by_name?: string
 }
 
 function mapDemmDocument(row: DemmDocumentRow) {
@@ -70,6 +73,9 @@ function mapDemmDocument(row: DemmDocumentRow) {
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
     createdByRegistration: row.created_by_registration,
+    rejectedAt: row.rejected_at?.toISOString() ?? null,
+    rejectedByUserId: row.rejected_by_user_id,
+    rejectedByName: row.rejected_by_name || '',
   }
 }
 
@@ -134,7 +140,8 @@ export async function listDemmDocuments(_req: Request, res: Response) {
   const result = await query<Omit<DemmDocumentRow, 'file_data'> & { created_by_registration: string | null }>(
     `SELECT d.id, d.meter_schedule_id, d.meter, d.file_name, d.extracted_meters,
             d.document_number, d.emission_date, d.csd_id, c.name AS csd_name, d.created_at,
-            d.created_by_user_id, u.registration AS created_by_registration
+            d.created_by_user_id, u.registration AS created_by_registration,
+            d.rejected_at, d.rejected_by_user_id, d.rejected_by_name
      FROM demm_documents d
      LEFT JOIN users u ON u.id = d.created_by_user_id
      LEFT JOIN csds c ON c.id = d.csd_id
@@ -167,7 +174,15 @@ export async function listDemmDocuments(_req: Request, res: Response) {
       const scheduledCount = meterNumbers.filter(
         (meter) => analysisByNorm.get(normalizeScheduleMeter(meter))?.appStatus === 'agendado',
       ).length
+      const blockedMeterCount = meterNumbers.filter(
+        (meter) =>
+          analysisStatusByNorm.get(normalizeScheduleMeter(meter))?.analysisBlocked === true,
+      ).length
+      const hasBlockedMeters = blockedMeterCount > 0
+      const rejected = Boolean(row.rejected_at)
       const bulkEntryReady =
+        !rejected &&
+        !hasBlockedMeters &&
         meterNumbers.length > 0 &&
         meterNumbers.every((meter) => {
           const norm = normalizeScheduleMeter(meter)
@@ -187,6 +202,8 @@ export async function listDemmDocuments(_req: Request, res: Response) {
         ...mapped,
         scheduledCount,
         bulkEntryReady,
+        hasBlockedMeters,
+        blockedMeterCount,
         liberadoCount,
         entryGivenCount,
         allEntryGiven,
@@ -548,6 +565,88 @@ export async function deleteDemmDocument(req: Request, res: Response) {
   })
 
   res.json({ ok: true, id: removed.id, fileName: removed.fileName })
+}
+
+export async function rejectDemmDocument(req: Request, res: Response) {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  if (!id) {
+    res.status(400).json({ error: 'DEMM inválida.' })
+    return
+  }
+
+  const existing = await query<{
+    id: string
+    document_number: string | null
+    file_name: string
+    extracted_meters: Array<{ meter: string }> | null
+    rejected_at: Date | null
+  }>(
+    `SELECT id, document_number, file_name, extracted_meters, rejected_at
+     FROM demm_documents
+     WHERE id = $1`,
+    [id],
+  )
+  const document = existing.rows[0]
+  if (!document) {
+    res.status(404).json({ error: 'DEMM não encontrada.' })
+    return
+  }
+
+  if (document.rejected_at) {
+    res.status(409).json({ error: 'Esta DEMM já foi rejeitada.' })
+    return
+  }
+
+  const meterNumbers = (document.extracted_meters ?? [])
+    .map((item) => item.meter.trim())
+    .filter(Boolean)
+  const analysisStatusByNorm = await loadInspectionAnalysisStatusByMeter(meterNumbers)
+  const blockedMeters = meterNumbers.filter(
+    (meter) => analysisStatusByNorm.get(normalizeScheduleMeter(meter))?.analysisBlocked,
+  )
+
+  if (!blockedMeters.length) {
+    res.status(409).json({
+      error: 'Só é possível rejeitar uma DEMM que possua medidor bloqueado.',
+    })
+    return
+  }
+
+  const profile = await query<{ name: string }>(
+    `SELECT name FROM users WHERE id = $1`,
+    [req.user?.id ?? null],
+  )
+  const rejectedByName = profile.rows[0]?.name?.trim() || req.user?.registration || 'Equipe'
+  const rejectedAt = new Date()
+
+  await query(
+    `UPDATE demm_documents
+     SET rejected_at = $2,
+         rejected_by_user_id = $3,
+         rejected_by_name = $4
+     WHERE id = $1`,
+    [id, rejectedAt.toISOString(), req.user?.id ?? null, rejectedByName],
+  )
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'demm_document',
+    entityId: id,
+    summary: `DEMM ${document.document_number ?? document.file_name} rejeitada por medidor bloqueado`,
+    newData: {
+      rejectedAt: rejectedAt.toISOString(),
+      rejectedByName,
+      blockedMeters,
+    },
+  })
+
+  res.json({
+    ok: true,
+    id,
+    rejectedAt: rejectedAt.toISOString(),
+    rejectedByName,
+    blockedMeters,
+  })
 }
 
 function startOfWeek(date: Date): Date {
@@ -1183,8 +1282,9 @@ export async function receiveDemmDocumentBulk(req: Request, res: Response) {
     document_number: string | null
     file_name: string
     extracted_meters: Array<{ meter: string }> | null
+    rejected_at: Date | null
   }>(
-    `SELECT id, document_number, file_name, extracted_meters
+    `SELECT id, document_number, file_name, extracted_meters, rejected_at
      FROM demm_documents
      WHERE id = $1`,
     [id],
@@ -1192,6 +1292,11 @@ export async function receiveDemmDocumentBulk(req: Request, res: Response) {
 
   if (!document.rows[0]) {
     res.status(404).json({ error: 'DEMM não encontrada.' })
+    return
+  }
+
+  if (document.rows[0].rejected_at) {
+    res.status(409).json({ error: 'Esta DEMM foi rejeitada e não pode dar entrada.' })
     return
   }
 
@@ -1214,7 +1319,7 @@ export async function receiveDemmDocumentBulk(req: Request, res: Response) {
     (meter) => !analysisStatusByNorm.get(normalizeScheduleMeter(meter))?.analyzed,
   )
   const blockedMeters = meterNumbers.filter(
-    (meter) => analysisStatusByNorm.get(normalizeScheduleMeter(meter))?.blocked,
+    (meter) => analysisStatusByNorm.get(normalizeScheduleMeter(meter))?.analysisBlocked,
   )
   const notAwaitingEntry = meterNumbers.filter(
     (meter) => analyzedByNorm.get(normalizeScheduleMeter(meter))?.appStatus !== 'agendado',
@@ -1229,7 +1334,7 @@ export async function receiveDemmDocumentBulk(req: Request, res: Response) {
   }
   if (blockedMeters.length) {
     res.status(409).json({
-      error: 'Esta DEMM possui medidor(es) bloqueado(s).',
+      error: 'Esta DEMM possui medidor(es) bloqueado(s) e não pode dar entrada. Rejeite a DEMM.',
       meters: blockedMeters,
     })
     return

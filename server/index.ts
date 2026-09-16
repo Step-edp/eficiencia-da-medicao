@@ -85,6 +85,7 @@ import {
   receiveWeekMeter,
   receiveWeekMeterPassive,
   receiveDemmDocumentBulk,
+  rejectDemmDocument,
 } from './routes/demm-documents.js'
 import {
   getMeterRegistryTrailCounts,
@@ -537,6 +538,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     receiveDemmDocumentBulk,
+  )
+  app.post(
+    '/api/demm-documents/:id/reject',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    rejectDemmDocument,
   )
   app.get('/api/csds/demm-pendencias', requireAuth, listCsdDemmPendencias)
   app.get('/api/csds/demm-historico', requireAuth, getCsdDemmHistorico)

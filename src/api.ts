@@ -639,9 +639,14 @@ export type DemmDocumentRecord = {
   meterCount: number
   scheduledCount: number
   bulkEntryReady?: boolean
+  hasBlockedMeters?: boolean
+  blockedMeterCount?: number
   liberadoCount?: number
   entryGivenCount?: number
   allEntryGiven?: boolean
+  rejectedAt?: string | null
+  rejectedByUserId?: string | null
+  rejectedByName?: string
   createdAt: string
   createdByUserId: string | null
   createdByRegistration: string | null
@@ -1994,6 +1999,16 @@ export const api = {
       received: string[]
       receivedAt: string
     }>(`/api/demm-documents/${id}/receive-bulk`, {
+      method: 'POST',
+    }),
+  rejectDemmDocument: (id: string) =>
+    request<{
+      ok: true
+      id: string
+      rejectedAt: string
+      rejectedByName: string
+      blockedMeters: string[]
+    }>(`/api/demm-documents/${id}/reject`, {
       method: 'POST',
     }),
   getDemmDocumentFileUrl: (id: string) => `/api/demm-documents/${id}/file`,

@@ -94,7 +94,7 @@ async function demmHasBlockedMeters(meters: string[]): Promise<boolean> {
   const scheduledNorms = new Set(scheduled.rows.map((row) => row.norm))
   return meters.some((meter) => {
     const norm = normalizeScheduleMeter(meter)
-    return scheduledNorms.has(norm) && status.get(norm)?.blocked === true
+    return scheduledNorms.has(norm) && status.get(norm)?.analysisBlocked === true
   })
 }
 
@@ -180,8 +180,10 @@ export async function validateDemmUploadMeters(
     file_name: string
     document_number: string | null
     extracted_meters: unknown
+    rejected_at: Date | null
   }>(
-    `SELECT d.id, d.csd_id, elem->>'meter' AS meter, d.file_name, d.document_number, d.extracted_meters
+    `SELECT d.id, d.csd_id, elem->>'meter' AS meter, d.file_name, d.document_number,
+            d.extracted_meters, d.rejected_at
      FROM demm_documents d
      CROSS JOIN LATERAL jsonb_array_elements(d.extracted_meters) AS elem
      WHERE elem->>'meter' = ANY($1::text[])`,
@@ -197,6 +199,7 @@ export async function validateDemmUploadMeters(
       documentNumber: string | null
       extractedMeters: unknown
       overlappingMeters: string[]
+      rejected: boolean
     }
   >()
 
@@ -211,6 +214,7 @@ export async function validateDemmUploadMeters(
         documentNumber: row.document_number,
         extractedMeters: row.extracted_meters,
         overlappingMeters: [],
+        rejected: Boolean(row.rejected_at),
       }
       demms.set(row.id, current)
     }
@@ -227,7 +231,7 @@ export async function validateDemmUploadMeters(
     if (!pendingOverlap.length) continue
 
     const hasBlocked = await demmHasBlockedMeters(metersFromExtracted(demm.extractedMeters))
-    if (!hasBlocked) {
+    if (!hasBlocked && !demm.rejected) {
       const label = demm.documentNumber?.trim() || demm.fileName
       for (const meter of pendingOverlap) {
         if (conflicts.has(meter) || replaceableMeters.has(meter)) continue
