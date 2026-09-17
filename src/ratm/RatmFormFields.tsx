@@ -212,30 +212,6 @@ function schedulePartsFromIso(iso: string) {
   }
 }
 
-function optionChoiceTone(option: string): 'positive' | 'negative' | 'partial' | 'neutral' {
-  const normalized = option.trim().toLowerCase()
-  if (
-    normalized === 'aprovado' ||
-    normalized === 'sim' ||
-    normalized === 'em ordem'
-  ) {
-    return 'positive'
-  }
-  if (
-    normalized === 'reprovado' ||
-    normalized === 'não' ||
-    normalized === 'nao' ||
-    normalized === 'violado' ||
-    normalized === 'sem lacre'
-  ) {
-    return 'negative'
-  }
-  if (normalized === 'parcial') {
-    return 'partial'
-  }
-  return 'neutral'
-}
-
 function ClearableRadioGroup({
   legend,
   name,
@@ -254,55 +230,16 @@ function ClearableRadioGroup({
       >
         {options.map((option) => {
           const selected = value === option
-          const tone = optionChoiceTone(option)
           return (
             <button
               key={option}
               type="button"
               role="radio"
               aria-checked={selected}
-              className={`ratm-choice-btn tone-${tone}${selected ? ' is-selected' : ''}`}
+              className={`ratm-choice-btn${selected ? ' is-selected' : ''}`}
               onClick={() => onChange(option)}
             >
-              {tone === 'positive' ? (
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M5 12.5l4.5 4.5L19 7.5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              ) : null}
-              {tone === 'negative' ? (
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M6 6l12 12M18 6L6 18"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              ) : null}
-              {tone === 'partial' ? (
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M12 4a8 8 0 0 1 0 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M12 4a8 8 0 0 0 0 16"
-                    fill="currentColor"
-                    opacity="0.35"
-                  />
-                </svg>
-              ) : null}
+              <span className="ratm-choice-dot" aria-hidden="true" />
               <span>{option}</span>
             </button>
           )

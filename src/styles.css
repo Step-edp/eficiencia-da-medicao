@@ -7483,11 +7483,59 @@ input[type='file'] {
 }
 
 .ratm-choice-fieldset legend {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   padding: 0;
   color: var(--text-main);
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.ratm-choice-fieldset .ratm-choice-group {
+  gap: 18px 22px;
+}
+
+.ratm-choice-fieldset .ratm-choice-btn {
+  min-height: 0;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-main);
+  font-weight: 500;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.ratm-choice-fieldset .ratm-choice-btn:hover,
+.ratm-choice-fieldset .ratm-choice-btn:focus-visible {
+  filter: none;
+  color: #f4fbff;
+}
+
+.ratm-choice-fieldset .ratm-choice-btn.is-selected,
+.ratm-choice-fieldset .ratm-choice-btn.tone-neutral.is-selected,
+.ratm-choice-fieldset .ratm-choice-btn.tone-positive.is-selected,
+.ratm-choice-fieldset .ratm-choice-btn.tone-negative.is-selected,
+.ratm-choice-fieldset .ratm-choice-btn.tone-partial.is-selected {
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+}
+
+.ratm-choice-dot {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1.5px solid rgba(180, 214, 232, 0.42);
+  background: transparent;
+  box-shadow: none;
+}
+
+.ratm-choice-btn.is-selected .ratm-choice-dot {
+  border-color: #5bf000;
+  background: #5bf000;
+  box-shadow: 0 0 8px rgba(91, 240, 0, 0.7);
 }
 
 .ratm-choice-group {
