@@ -2742,6 +2742,11 @@ button {
   color: #ececec;
 }
 
+.demm-status-badge.is-blocked {
+  background: rgba(255, 120, 100, 0.2);
+  color: #ffd4cc;
+}
+
 .week-meters-filters {
   display: flex;
   flex-wrap: wrap;

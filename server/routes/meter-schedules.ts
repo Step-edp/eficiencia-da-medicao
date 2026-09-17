@@ -6,6 +6,7 @@ import { fixBulkScheduleCollaboratorsFromCsv, fixBulkScheduleCsdFromCsv, fixBulk
 import {
   findNextAvailableSlot,
   formatAvailableSlot,
+  isAllowedScheduleSlot,
   isScheduleDayBlocked,
   scheduleSlotKey,
 } from '../schedule-slots.js'
@@ -1035,7 +1036,14 @@ export async function createPassiveMeterSchedule(req: Request, res: Response) {
 
   const scheduledAtDate = normalized.scheduledAt ? new Date(normalized.scheduledAt) : null
   if (!scheduledAtDate || Number.isNaN(scheduledAtDate.getTime())) {
-    res.status(400).json({ error: 'Informe a data escrita no CSM.' })
+    res.status(400).json({ error: 'Informe a data e o horário de ensaio.' })
+    return
+  }
+  if (!isAllowedScheduleSlot(scheduledAtDate)) {
+    res.status(400).json({
+      error:
+        'O horário de ensaio deve estar entre 08:30 e 11:30 ou entre 14:00 e 16:30, de 10 em 10 minutos.',
+    })
     return
   }
 
@@ -1147,6 +1155,13 @@ export async function rescheduleMeterSchedule(req: Request, res: Response) {
   const nextDate = new Date(scheduledAtRaw)
   if (Number.isNaN(nextDate.getTime())) {
     res.status(400).json({ error: 'Data de ensaio inválida.' })
+    return
+  }
+  if (!isAllowedScheduleSlot(nextDate)) {
+    res.status(400).json({
+      error:
+        'O horário de ensaio deve estar entre 08:30 e 11:30 ou entre 14:00 e 16:30, de 10 em 10 minutos.',
+    })
     return
   }
 

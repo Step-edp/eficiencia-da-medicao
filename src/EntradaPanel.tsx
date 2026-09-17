@@ -269,6 +269,7 @@ function weekMeterInspectionLabel(item: WeekMeterRecord) {
 }
 
 function demmMeterAppStatusLabel(item: DemmMeterAnalysisRecord) {
+  if (item.blocked) return 'Bloqueado'
   switch (item.appStatus) {
     case 'recebido':
       return 'Recebido'
@@ -286,6 +287,7 @@ function demmMeterAppStatusLabel(item: DemmMeterAnalysisRecord) {
 }
 
 function demmMeterAppStatusClass(item: DemmMeterAnalysisRecord) {
+  if (item.blocked) return 'is-blocked'
   switch (item.appStatus) {
     case 'recebido':
       return 'is-received'
@@ -314,7 +316,11 @@ function demmMetersStatusSummary(meters: DemmMeterAnalysisRecord[]) {
 }
 
 function countDemmMetersAwaitingEntry(meters: DemmMeterAnalysisRecord[]) {
-  return meters.filter((item) => item.appStatus === 'agendado').length
+  return meters.filter((item) => item.appStatus === 'agendado' && !item.blocked).length
+}
+
+function sortDemmMeters(meters: DemmMeterAnalysisRecord[]) {
+  return [...meters].sort((left, right) => Number(Boolean(right.blocked)) - Number(Boolean(left.blocked)))
 }
 
 function MeterLink({
@@ -358,6 +364,8 @@ function DemmMetersTable({
     return <p className="entrada-panel-empty">Nenhum medidor encontrado.</p>
   }
 
+  const visibleMeters = sortDemmMeters(meters)
+
   return (
     <div className="entrada-table-wrap">
       <table className="data-table demm-analysis-table">
@@ -370,8 +378,11 @@ function DemmMetersTable({
           </tr>
         </thead>
         <tbody>
-          {meters.map((item) => (
-            <tr key={`${item.meter}-${item.sourceFiles?.join(',') ?? ''}`}>
+          {visibleMeters.map((item) => (
+            <tr
+              key={`${item.meter}-${item.sourceFiles?.join(',') ?? ''}`}
+              className={item.blocked ? 'demm-row-blocked' : undefined}
+            >
               <td>
                 {onOpenMeter ? (
                   <MeterLink meter={item.meter} onOpen={onOpenMeter} />
@@ -407,6 +418,7 @@ type DemmDocumentDetails = {
   scheduledCount: number
   bulkEntryReady?: boolean
   hasBlockedMeters?: boolean
+  blockedMeterCount?: number
   rejectedAt?: string | null
   createdByRegistration: string | null
   createdAt: string
@@ -436,6 +448,9 @@ function DemmAnalysisModal({
   const awaitingEntryCount = meters.length
     ? countDemmMetersAwaitingEntry(meters)
     : (details?.scheduledCount ?? 0)
+  const blockedCount = meters.length
+    ? meters.filter((item) => item.blocked).length
+    : (details?.blockedMeterCount ?? 0)
   const statusSummary = meters.length ? demmMetersStatusSummary(meters) : null
 
   return createPortal(
@@ -490,6 +505,16 @@ function DemmAnalysisModal({
               <dt>Aguardando entrada</dt>
               <dd>{awaitingEntryCount}</dd>
             </div>
+            {blockedCount > 0 ? (
+              <div>
+                <dt>Bloqueados</dt>
+                <dd>
+                  <span className="demm-status-badge is-blocked">
+                    {blockedCount === 1 ? '1 medidor bloqueado' : `${blockedCount} medidores bloqueados`}
+                  </span>
+                </dd>
+              </div>
+            ) : null}
             <div>
               <dt>Status</dt>
               <dd>
@@ -1284,6 +1309,7 @@ export function EntradaPanel({
     scheduledCount: document.scheduledCount,
     bulkEntryReady: document.bulkEntryReady,
     hasBlockedMeters: document.hasBlockedMeters,
+    blockedMeterCount: document.blockedMeterCount,
     rejectedAt: document.rejectedAt,
     createdByRegistration: document.createdByRegistration,
     createdAt: document.createdAt,
@@ -1308,8 +1334,12 @@ export function EntradaPanel({
         details: {
           ...details,
           meterCount: response.analysis.meters.length,
-          scheduledCount: response.analysis.meters.filter((item) => item.appStatus === 'agendado')
-            .length,
+          scheduledCount: response.analysis.meters.filter(
+            (item) => item.appStatus === 'agendado' && !item.blocked,
+          ).length,
+          hasBlockedMeters:
+            details.hasBlockedMeters || response.analysis.meters.some((item) => item.blocked),
+          blockedMeterCount: response.analysis.meters.filter((item) => item.blocked).length,
         },
         meters: response.analysis.meters,
         loading: false,

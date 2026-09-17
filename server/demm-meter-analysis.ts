@@ -13,6 +13,7 @@ export type DemmMeterAnalysis = {
   scheduleId: string | null
   scheduledAtLabel: string | null
   appStatus: DemmMeterAppStatus
+  blocked: boolean
 }
 
 function resolveDemmMeterAppStatus(
@@ -48,8 +49,10 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
       scheduled_at: Date
       trail_step: string
       received_at: Date | null
+      inspection_analysis_block_reason: string | null
     }>(
-      `SELECT DISTINCT ON (${NORMALIZED_METER_SQL}) id, meter, scheduled_at, trail_step, received_at
+      `SELECT DISTINCT ON (${NORMALIZED_METER_SQL}) id, meter, scheduled_at, trail_step, received_at,
+              inspection_analysis_block_reason
        FROM meter_schedules
        WHERE delay_dismissed_at IS NULL
          AND ${NORMALIZED_METER_SQL} = ANY($1::text[])
@@ -72,6 +75,7 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
         trailStep: row.trail_step,
         receivedAt: row.received_at,
         scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
+        blocked: Boolean(row.inspection_analysis_block_reason?.trim()),
       },
     ]),
   )
@@ -93,6 +97,7 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
       scheduleId: schedule?.id ?? null,
       scheduledAtLabel: schedule?.scheduledAtLabel ?? null,
       appStatus,
+      blocked: Boolean(schedule?.blocked),
     }
   })
 }

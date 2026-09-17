@@ -12,6 +12,7 @@ import {
   sanitizeNumericInput,
   validateNumericField,
 } from './numericFieldValidation'
+import { isAllowedScheduleSlot } from './availableScheduleSlots'
 
 function toDatetimeLocalValue(isoDate: string) {
   const date = new Date(isoDate)
@@ -133,6 +134,14 @@ export function ReagendarPanel({ readOnly = false }: { readOnly?: boolean }) {
     const nextDate = new Date(newScheduledAt)
     if (Number.isNaN(nextDate.getTime())) {
       setFeedback({ type: 'error', message: 'Data de ensaio inválida.' })
+      return
+    }
+    if (!isAllowedScheduleSlot(nextDate)) {
+      setFeedback({
+        type: 'error',
+        message:
+          'O horário de ensaio deve estar entre 08:30 e 11:30 ou entre 14:00 e 16:30, de 10 em 10 minutos.',
+      })
       return
     }
 

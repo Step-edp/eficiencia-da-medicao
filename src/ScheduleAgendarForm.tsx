@@ -15,13 +15,9 @@ import {
   type ToiCollaboratorErrors,
 } from './ToiCollaboratorFields'
 import { useCsdsOptions } from './useCsdsOptions'
+import { listAllowedScheduleTimes } from './availableScheduleSlots'
 
-const hourOptions = Array.from({ length: 24 }, (_, index) =>
-  String(index).padStart(2, '0'),
-)
-const minuteOptions = Array.from({ length: 60 }, (_, index) =>
-  String(index).padStart(2, '0'),
-)
+const allowedScheduleTimes = listAllowedScheduleTimes()
 
 type ScheduleFieldErrors = Partial<
   Record<NumericFieldKey | 'csmDate' | 'collaborator1' | 'collaborator2', string>
@@ -35,8 +31,7 @@ export function ScheduleAgendarForm({ showPassiveFields = false }: ScheduleAgend
   const { options: csdOptions, loading: csdLoading, error: csdError } = useCsdsOptions()
   const { users: toiCollaborators, loading: toiCollaboratorsLoading } = useToiCollaboratorOptions()
   const [csmDate, setCsmDate] = useState('')
-  const [csmHour, setCsmHour] = useState('00')
-  const [csmMinute, setCsmMinute] = useState('00')
+  const [csmTime, setCsmTime] = useState(allowedScheduleTimes[0]?.label ?? '08:30')
   const [scheduledByName, setScheduledByName] = useState('')
   const [schedulingDate, setSchedulingDate] = useState('')
   const [meter, setMeter] = useState('')
@@ -67,8 +62,7 @@ export function ScheduleAgendarForm({ showPassiveFields = false }: ScheduleAgend
 
   const resetForm = () => {
     setCsmDate('')
-    setCsmHour('00')
-    setCsmMinute('00')
+    setCsmTime(allowedScheduleTimes[0]?.label ?? '08:30')
     setScheduledByName('')
     setSchedulingDate('')
     setMeter('')
@@ -136,7 +130,7 @@ export function ScheduleAgendarForm({ showPassiveFields = false }: ScheduleAgend
     setSubmitting(true)
 
     try {
-      const scheduledAt = new Date(`${csmDate}T${csmHour}:${csmMinute}:00-03:00`).toISOString()
+      const scheduledAt = new Date(`${csmDate}T${csmTime}:00-03:00`).toISOString()
 
       const { schedule } = await api.createPassiveMeterSchedule({
         meter,
@@ -200,26 +194,14 @@ export function ScheduleAgendarForm({ showPassiveFields = false }: ScheduleAgend
               disabled={submitting}
             />
             <select
-              value={csmHour}
-              onChange={(event) => setCsmHour(event.target.value)}
-              aria-label="Hora"
+              value={csmTime}
+              onChange={(event) => setCsmTime(event.target.value)}
+              aria-label="Horário"
               disabled={submitting}
             >
-              {hourOptions.map((hour) => (
-                <option key={hour} value={hour}>
-                  {hour}
-                </option>
-              ))}
-            </select>
-            <select
-              value={csmMinute}
-              onChange={(event) => setCsmMinute(event.target.value)}
-              aria-label="Minuto"
-              disabled={submitting}
-            >
-              {minuteOptions.map((minute) => (
-                <option key={minute} value={minute}>
-                  {minute}
+              {allowedScheduleTimes.map((slot) => (
+                <option key={slot.label} value={slot.label}>
+                  {slot.label}
                 </option>
               ))}
             </select>
