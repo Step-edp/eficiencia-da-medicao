@@ -209,17 +209,79 @@ function RatmExpandableSection({
   )
 }
 
-function pickDocumentEnvelopeSeal(documents: InspectionDocumentRecord[] | undefined): string {
-  if (!documents?.length) return ''
-  const preferred =
+function pickPreferredInspectionDocument(
+  documents: InspectionDocumentRecord[] | undefined,
+  preferToi = false,
+) {
+  if (!documents?.length) return undefined
+  if (preferToi) {
+    return (
+      documents.find((document) => document.docType === 'ambos') ??
+      documents.find((document) => document.docType === 'toi') ??
+      documents.find((document) => document.docType === 'comunicado')
+    )
+  }
+  return (
     documents.find((document) => document.docType === 'ambos') ??
     documents.find((document) => document.docType === 'comunicado') ??
     documents.find((document) => document.docType === 'toi')
+  )
+}
+
+function pickDocumentEnvelopeSeal(documents: InspectionDocumentRecord[] | undefined): string {
+  const preferred = pickPreferredInspectionDocument(documents)
   return (
     preferred?.extractedLacre?.trim() ||
-    documents.find((document) => document.extractedLacre?.trim())?.extractedLacre?.trim() ||
+    documents?.find((document) => document.extractedLacre?.trim())?.extractedLacre?.trim() ||
     ''
   )
+}
+
+function coverSealStatusFromText(value: string, allowNotApplicable = false): string {
+  const normalized = value.toLowerCase()
+  if (/n[aã]o aplic/.test(normalized)) return allowNotApplicable ? 'Não aplicável' : ''
+  if (/violado/.test(normalized)) return 'Violado'
+  if (/sem lacre/.test(normalized)) return 'Sem lacre'
+  if (/em ordem/.test(normalized)) return 'Em ordem'
+  return ''
+}
+
+function splitCoverSeal(value: string, allowNotApplicable = false): { number: string; status: string } {
+  const trimmed = value.trim()
+  if (!trimmed) return { number: '', status: '' }
+  const status = coverSealStatusFromText(trimmed, allowNotApplicable)
+  const number = trimmed
+    .replace(/[-–—:]?\s*(em ordem|violado|sem lacre|n[aã]o aplic[aá]vel)\s*$/i, '')
+    .trim()
+  if (number && !coverSealStatusFromText(number, allowNotApplicable)) {
+    return { number, status }
+  }
+  return { number: status ? '' : trimmed, status }
+}
+
+function pickDocumentCoverSeals(documents: InspectionDocumentRecord[] | undefined): {
+  seal1: string
+  seal1Status: string
+  seal2: string
+  seal2Status: string
+} {
+  const preferred = pickPreferredInspectionDocument(documents, true)
+  const raw1 =
+    preferred?.extractedCoverSeal?.trim() ||
+    documents?.find((document) => document.extractedCoverSeal?.trim())?.extractedCoverSeal?.trim() ||
+    ''
+  const raw2 =
+    preferred?.extractedCoverSeal2?.trim() ||
+    documents?.find((document) => document.extractedCoverSeal2?.trim())?.extractedCoverSeal2?.trim() ||
+    ''
+  const first = splitCoverSeal(raw1, false)
+  const second = splitCoverSeal(raw2, true)
+  return {
+    seal1: first.number,
+    seal1Status: first.status,
+    seal2: second.number,
+    seal2Status: second.status,
+  }
 }
 
 function emptyScheduleFields(): Partial<RatmFormData> {
@@ -246,6 +308,10 @@ function emptyScheduleFields(): Partial<RatmFormData> {
     deliveryDeadlineLabel: '',
     client: '',
     enclosureSeal: '',
+    seal1: '',
+    seal1Status: '',
+    seal2: '',
+    seal2Status: '',
   }
 }
 
@@ -515,9 +581,28 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       const comparisonPromise = api.getScheduleEntryComparisons(schedule.id).catch(() => null)
 
       let extractedLacre = ''
+      let coverSeals = {
+        seal1: '',
+        seal1Status: '',
+        seal2: '',
+        seal2Status: '',
+      }
       try {
         const documentsResponse = await api.listInspectionDocuments(schedule.id)
         extractedLacre = pickDocumentEnvelopeSeal(documentsResponse.documents)
+        coverSeals = pickDocumentCoverSeals(documentsResponse.documents)
+        if (!coverSeals.seal1 && !coverSeals.seal1Status) {
+          const campo = documentsResponse.conference?.campoCoverSeal?.trim() || ''
+          const fromCampo = splitCoverSeal(campo, false)
+          coverSeals.seal1 = fromCampo.number
+          coverSeals.seal1Status = fromCampo.status
+        }
+        if (!coverSeals.seal2 && !coverSeals.seal2Status) {
+          const campo2 = documentsResponse.conference?.campoCoverSeal2?.trim() || ''
+          const fromCampo2 = splitCoverSeal(campo2, true)
+          coverSeals.seal2 = fromCampo2.number
+          coverSeals.seal2Status = fromCampo2.status
+        }
       } catch {
         extractedLacre = ''
       }
@@ -539,6 +624,10 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         partnerLabel,
         client: '',
         enclosureSeal: extractedLacre || schedule.envelopeSeal || '',
+        seal1: coverSeals.seal1,
+        seal1Status: coverSeals.seal1Status,
+        seal2: coverSeals.seal2,
+        seal2Status: coverSeals.seal2Status,
         clientPresent:
           schedule.clientPresent === 'sim'
             ? 'Sim'
