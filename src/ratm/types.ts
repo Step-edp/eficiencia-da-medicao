@@ -151,13 +151,6 @@ export const IRREGULARITY_CODES: Record<string, string> = {
 }
 
 export const TEST_BENCH_OPTIONS = ['45079', '4137', '49093']
-export const ITEM_LOOKUP_OPTIONS = [
-  'Medidor monofásico',
-  'Medidor trifásico',
-  'TC externo',
-  'TP externo',
-  'Concentrador',
-]
 
 export function createEmptyRatmForm(): RatmFormData {
   return {

@@ -19,7 +19,6 @@ import {
   createEmptyEntryFieldChecks,
   entryFieldChecksFromComparisons,
   IRREGULARITY_CODES,
-  ITEM_LOOKUP_OPTIONS,
   TEST_BENCH_OPTIONS,
 } from './types'
 import {
@@ -1099,21 +1098,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             value={data.irregularityNotes}
             onChange={(event) => onChange({ irregularityNotes: event.target.value })}
           />
-        </label>
-
-        <label className="full-width">
-          Localizar itens
-          <select
-            value={data.itemLookup}
-            onChange={(event) => onChange({ itemLookup: event.target.value })}
-          >
-            <option value="">Localizar itens</option>
-            {ITEM_LOOKUP_OPTIONS.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
         </label>
 
         <ClearableRadioGroup
