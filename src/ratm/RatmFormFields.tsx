@@ -1,5 +1,10 @@
 import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react'
-import { api, ApiError, type EntryFieldMatch } from '../api'
+import {
+  api,
+  ApiError,
+  type EntryFieldMatch,
+  type InspectionDocumentRecord,
+} from '../api'
 import { formatSchedulePartnerAndTeamLabel } from '../schedulePartnerLabel'
 import {
   excludesCollaboratorChecks,
@@ -174,6 +179,19 @@ function RatmExpandableSection({
       </button>
       {open ? <div className="ratm-expandable-body">{children}</div> : null}
     </section>
+  )
+}
+
+function pickDocumentEnvelopeSeal(documents: InspectionDocumentRecord[] | undefined): string {
+  if (!documents?.length) return ''
+  const preferred =
+    documents.find((document) => document.docType === 'ambos') ??
+    documents.find((document) => document.docType === 'comunicado') ??
+    documents.find((document) => document.docType === 'toi')
+  return (
+    preferred?.extractedLacre?.trim() ||
+    documents.find((document) => document.extractedLacre?.trim())?.extractedLacre?.trim() ||
+    ''
   )
 }
 
@@ -453,17 +471,14 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       }
 
       const partnerLabel = formatSchedulePartnerAndTeamLabel(schedule)
+      const comparisonPromise = api.getScheduleEntryComparisons(schedule.id).catch(() => null)
 
-      let entryComparisons = null
-      let extractedClient = ''
       let extractedLacre = ''
       try {
-        const comparisonResponse = await api.getScheduleEntryComparisons(schedule.id)
-        entryComparisons = comparisonResponse.comparisons
-        extractedClient = comparisonResponse.extractedClient?.trim() || ''
-        extractedLacre = comparisonResponse.extractedLacre?.trim() || ''
+        const documentsResponse = await api.listInspectionDocuments(schedule.id)
+        extractedLacre = pickDocumentEnvelopeSeal(documentsResponse.documents)
       } catch {
-        entryComparisons = null
+        extractedLacre = ''
       }
 
       onChange({
@@ -473,15 +488,15 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         registryStatus: schedule.registryStatus || '',
         scheduleId: schedule.id,
         scheduleSource: schedule.source || '',
-        entryComparisons,
-        entryFieldChecks: entryFieldChecksFromComparisons(entryComparisons),
+        entryComparisons: null,
+        entryFieldChecks: createEmptyEntryFieldChecks(),
         scheduleLabel: schedule.scheduledAtLabel || '',
         installation: schedule.installation || '',
         toi: schedule.toi || '',
         note: schedule.note || '',
         csd: schedule.csd || '',
         partnerLabel,
-        client: extractedClient,
+        client: '',
         enclosureSeal: extractedLacre || schedule.envelopeSeal || '',
         clientPresent:
           schedule.clientPresent === 'sim'
@@ -493,6 +508,17 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         deliveryDeadlineLabel: schedule.deliveryDeadlineLabel || '',
         ...schedulePartsFromIso(schedule.scheduledAt),
       })
+
+      const comparisonResponse = await comparisonPromise
+      if (comparisonResponse) {
+        const comparisonLacre = comparisonResponse.extractedLacre?.trim() || ''
+        onChange({
+          entryComparisons: comparisonResponse.comparisons,
+          entryFieldChecks: entryFieldChecksFromComparisons(comparisonResponse.comparisons),
+          client: comparisonResponse.extractedClient?.trim() || '',
+          enclosureSeal: extractedLacre || comparisonLacre || schedule.envelopeSeal || '',
+        })
+      }
     } catch (error) {
       setMeterLookupError(
         error instanceof ApiError
