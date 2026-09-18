@@ -479,7 +479,7 @@ function drawResultado(
 
   const details = [
     `Irregularidade: ${irregularityLabel(form, irregularityCodes)}`,
-    `Observações: ${textValue(form.irregularityNotes)}`,
+    `Descrição: ${textValue(form.irregularityNotes)}`,
     `Observações do laboratório: ${textValue(form.laboratoryNotes)}`,
     `Laudo de campo correto: ${textValue(form.fieldReportCorrect)}`,
     `TOI: ${textValue(laudo.toi)}`,

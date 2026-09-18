@@ -1092,7 +1092,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         </label>
 
         <label className="full-width">
-          Observações de Irregularidade
+          Descrição
           <textarea
             rows={4}
             value={data.irregularityNotes}
