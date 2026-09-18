@@ -19,6 +19,7 @@ import {
 } from './types'
 import {
   isEntryInfoSectionComplete,
+  isInitialTestsSectionComplete,
   isEnclosureSealSectionComplete,
   isSeal1SectionComplete,
   isSeal2SectionComplete,
@@ -129,6 +130,7 @@ function EntryComparisonField({
 
 type RatmSectionId =
   | 'entry'
+  | 'initialTests'
   | 'enclosure'
   | 'seal1'
   | 'seal2'
@@ -388,6 +390,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     IRREGULARITY_CODES[data.fieldIrregularityCode] ?? 'Selecione um código válido.'
 
   const entryInfoComplete = isEntryInfoSectionComplete(data)
+  const initialTestsComplete = isInitialTestsSectionComplete(data)
   const enclosureSealComplete = isEnclosureSealSectionComplete(data)
   const seal1Complete = isSeal1SectionComplete(data)
   const seal2Complete = isSeal2SectionComplete(data)
@@ -645,37 +648,47 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           </div>
         </RatmExpandableSection>
 
-        <ClearableRadioGroup
-          legend="Análise a pedido"
-          name={`analysis-${index}`}
-          value={data.analysisRequest}
-          options={['EDP', 'Cliente']}
-          onChange={(value) => onChange({ analysisRequest: value })}
-        />
+        <RatmExpandableSection
+          sectionId="initialTests"
+          title="Testes iniciais"
+          openSection={openSection}
+          onToggle={handleSectionToggle}
+          complete={initialTestsComplete}
+        >
+          <div className="ratm-section-box-grid">
+            <ClearableRadioGroup
+              legend="Análise a pedido"
+              name={`analysis-${index}`}
+              value={data.analysisRequest}
+              options={['EDP', 'Cliente']}
+              onChange={(value) => onChange({ analysisRequest: value })}
+            />
 
-        <ClearableRadioGroup
-          legend="Cliente acompanhou"
-          name={`accompanied-${index}`}
-          value={data.clientAccompanied}
-          options={['Sim', 'Não']}
-          onChange={(value) => onChange({ clientAccompanied: value })}
-        />
+            <ClearableRadioGroup
+              legend="Cliente acompanhou"
+              name={`accompanied-${index}`}
+              value={data.clientAccompanied}
+              options={['Sim', 'Não']}
+              onChange={(value) => onChange({ clientAccompanied: value })}
+            />
 
-        <ClearableRadioGroup
-          legend="Ensaio Visual"
-          name={`visual-${index}`}
-          value={data.visualTest}
-          options={['Aprovado', 'Reprovado']}
-          onChange={(value) => onChange({ visualTest: value })}
-        />
+            <ClearableRadioGroup
+              legend="Ensaio Visual"
+              name={`visual-${index}`}
+              value={data.visualTest}
+              options={['Aprovado', 'Reprovado']}
+              onChange={(value) => onChange({ visualTest: value })}
+            />
 
-        <ClearableRadioGroup
-          legend="Dielétrico"
-          name={`dielectric-${index}`}
-          value={data.dielectric}
-          options={['Aprovado', 'Reprovado']}
-          onChange={(value) => onChange({ dielectric: value })}
-        />
+            <ClearableRadioGroup
+              legend="Dielétrico"
+              name={`dielectric-${index}`}
+              value={data.dielectric}
+              options={['Aprovado', 'Reprovado']}
+              onChange={(value) => onChange({ dielectric: value })}
+            />
+          </div>
+        </RatmExpandableSection>
 
         <RatmExpandableSection
           sectionId="enclosure"

@@ -34,6 +34,15 @@ export function isEntryInfoSectionComplete(data: RatmFormData) {
   )
 }
 
+export function isInitialTestsSectionComplete(data: RatmFormData) {
+  return (
+    isFilled(data.analysisRequest) &&
+    isFilled(data.clientAccompanied) &&
+    isFilled(data.visualTest) &&
+    isFilled(data.dielectric)
+  )
+}
+
 export function isEnclosureSealSectionComplete(data: RatmFormData) {
   return (
     isFilled(data.enclosureSeal) &&
