@@ -299,6 +299,7 @@ export type SoftwareRecord = {
 export type IrregularityCodeRecord = {
   id: number
   code: string
+  name: string
   description: string
   createdAt: string
   updatedAt: string
@@ -1405,14 +1406,14 @@ export const api = {
     ),
   listIrregularityCodes: () =>
     request<{ codes: IrregularityCodeRecord[] }>('/api/irregularity-codes'),
-  createIrregularityCode: (payload: { code: string; description: string }) =>
+  createIrregularityCode: (payload: { code: string; name: string; description?: string }) =>
     request<{ code: IrregularityCodeRecord }>('/api/irregularity-codes', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
   updateIrregularityCode: (
     id: number,
-    payload: { code: string; description: string },
+    payload: { code: string; name: string; description?: string },
   ) =>
     request<{ code: IrregularityCodeRecord }>(`/api/irregularity-codes/${id}`, {
       method: 'PATCH',

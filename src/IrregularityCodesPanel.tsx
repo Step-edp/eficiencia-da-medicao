@@ -37,6 +37,7 @@ export function IrregularityCodesPanel({ readOnly = false }: { readOnly?: boolea
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [code, setCode] = useState('')
+  const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [editing, setEditing] = useState<IrregularityCodeRecord | null>(null)
@@ -70,6 +71,7 @@ export function IrregularityCodesPanel({ readOnly = false }: { readOnly?: boolea
 
   const resetForm = () => {
     setCode('')
+    setName('')
     setDescription('')
     setEditing(null)
     setShowForm(false)
@@ -78,6 +80,7 @@ export function IrregularityCodesPanel({ readOnly = false }: { readOnly?: boolea
   const startEdit = (row: IrregularityCodeRecord) => {
     setEditing(row)
     setCode(row.code)
+    setName(row.name || row.description)
     setDescription(row.description)
     setShowForm(true)
     setFeedback(null)
@@ -85,10 +88,10 @@ export function IrregularityCodesPanel({ readOnly = false }: { readOnly?: boolea
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!code.trim() || !description.trim()) {
+    if (!code.trim() || !name.trim()) {
       setFeedback({
         type: 'error',
-        message: 'Informe o código e a descrição da irregularidade.',
+        message: 'Informe o código e a irregularidade.',
       })
       return
     }
@@ -99,6 +102,7 @@ export function IrregularityCodesPanel({ readOnly = false }: { readOnly?: boolea
       if (editing) {
         const { code: updated } = await api.updateIrregularityCode(editing.id, {
           code: code.trim(),
+          name: name.trim(),
           description: description.trim(),
         })
         setCodes((current) =>
@@ -113,6 +117,7 @@ export function IrregularityCodesPanel({ readOnly = false }: { readOnly?: boolea
       } else {
         const { code: created } = await api.createIrregularityCode({
           code: code.trim(),
+          name: name.trim(),
           description: description.trim(),
         })
         setCodes((current) =>
@@ -207,13 +212,23 @@ export function IrregularityCodesPanel({ readOnly = false }: { readOnly?: boolea
             />
           </label>
           <label className="full-width">
-            Descrição
+            Irregularidade
             <input
               type="text"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
               placeholder="Ex.: MANCAL FORA DE POSIÇÃO"
               required
+              disabled={submitting}
+            />
+          </label>
+          <label className="full-width">
+            Descrição
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Descrição detalhada da irregularidade"
+              rows={3}
               disabled={submitting}
             />
           </label>
@@ -243,6 +258,7 @@ export function IrregularityCodesPanel({ readOnly = false }: { readOnly?: boolea
             <thead>
               <tr>
                 <th>Código</th>
+                <th>Irregularidade</th>
                 <th>Descrição</th>
                 {readOnly ? null : <th>Ações</th>}
               </tr>
@@ -251,6 +267,7 @@ export function IrregularityCodesPanel({ readOnly = false }: { readOnly?: boolea
               {codes.map((row) => (
                 <tr key={row.id}>
                   <td>{row.code}</td>
+                  <td>{row.name || row.description}</td>
                   <td>{row.description}</td>
                   {readOnly ? null : (
                     <td>

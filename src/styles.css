@@ -1043,6 +1043,10 @@ button {
   margin: 0.35rem 0 1.5rem;
 }
 
+.irregularity-codes-panel .data-table td {
+  vertical-align: top;
+}
+
 .measurement-sections {
   display: grid;
   gap: 10px;

@@ -742,12 +742,13 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
 
   const irregularityCodes = { ...IRREGULARITY_CODES }
   try {
-    const stored = await query<{ code: string; description: string }>(
-      `SELECT code, description FROM irregularity_codes`,
+    const stored = await query<{ code: string; name?: string; description: string }>(
+      `SELECT code, name, description FROM irregularity_codes`,
     )
     for (const row of stored.rows) {
-      if (row.code?.trim() && row.description?.trim()) {
-        irregularityCodes[row.code.trim()] = row.description.trim()
+      const label = (row.name || row.description).trim()
+      if (row.code?.trim() && label) {
+        irregularityCodes[row.code.trim()] = label
       }
     }
   } catch (error) {

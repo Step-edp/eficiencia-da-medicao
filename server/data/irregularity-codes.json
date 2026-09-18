@@ -1,0 +1,182 @@
+[
+  {
+    "code": "23",
+    "name": "MANCAL FORA DE POSIÇÃO",
+    "description": "O medidor está com o mancal fora de posição ocasionando atrito do elemento móvel com as partes fixas do medidor, Tal irregularidade ocasiona o menor registro de KWh consumido."
+  },
+  {
+    "code": "21",
+    "name": "MEDIDOR COM BOBINA DE POTENCIAL INTERROMPIDA",
+    "description": "Bobina de potencial da(s) fase(s) \"B\" inoperante. Tal irregularidade ocasiona o menor registro de KWh consumido."
+  },
+  {
+    "code": "2",
+    "name": "MEDIDOR REPROVADO NO TESTE VISUAL",
+    "description": "Medidor reprovado no teste visual."
+  },
+  {
+    "code": "22",
+    "name": "MEDIDOR REPROVADO NO TESTE VISUAL",
+    "description": "Medidor reprovado no teste visual."
+  },
+  {
+    "code": "34",
+    "name": "MEDIDOR COM SUJEIRA INTERNA",
+    "description": "Foi constatado que internamente existem resíduos, não oriundos do medidor, causando atrito entre o elemento móvel e as partes fixas. Tal irregularidade ocasiona o consumo irreal de KWh."
+  },
+  {
+    "code": "16",
+    "name": "MEDIDOR REPROVADO DIELETRICO",
+    "description": "Foi constatado que o medidor está com baixa isolação elétrica, comprometendo a segurança para a realização dos ensaios de calibração."
+  },
+  {
+    "code": "27",
+    "name": "MEDIDOR REPROVADO DIELETRICO",
+    "description": "Foi constatado que o medidor está com baixa isolação elétrica, comprometendo a segurança para a realização dos ensaios de calibração."
+  },
+  {
+    "code": "24",
+    "name": "MEDIDOR COM TERMINAL DE PROVA (Link) ABERTO",
+    "description": "O medidor está com terminal de prova (Link) da(s) fase(s) \"X\" aberto, tornando a bobina de potencial da(s) fase(s) \"X\" inoperante . Tal irregularidade ocasiona o menor registro de KWh consumido."
+  },
+  {
+    "code": "0",
+    "name": "MEDIDOR EM ORDEM",
+    "description": "Medidor em ordem (Eletrônico)"
+  },
+  {
+    "code": "20",
+    "name": "MEDIDOR EM ORDEM",
+    "description": "Medior em ordem (Eletromecânico)"
+  },
+  {
+    "code": "1",
+    "name": "MEDIDOR COM BOBINA DE POTENCIAL INTERROMPIDA",
+    "description": "Bobina de potencial da(s) fase(s) \"B\" inoperante (s). Tal irregularidade ocasiona o menor registro de KWh consumido."
+  },
+  {
+    "code": "3",
+    "name": "MEDIDOR COM DISPLAY DANIFICADO",
+    "description": "Foi evidenciado que o medidor está com registrador danificado, comprometendo o registro de energia do medidor."
+  },
+  {
+    "code": "4",
+    "name": "MEDIDOR SEM CARGA DE PARAMETROS",
+    "description": "Foi evidenciado que o medidor está sem carga de parâmetros, causando o não registro de KWh consumido."
+  },
+  {
+    "code": "5",
+    "name": "MEDIDOR SEM CARGA DE PROGRAMA",
+    "description": "Foi evidenciado que o medidor está sem carga de programa, causando o não registro de KWh E VArh consumido."
+  },
+  {
+    "code": "6",
+    "name": "MEDIDOR COM SECUNDARIO DO TC INVERTIDO",
+    "description": "O medidor está com hardware alterado, foi evidenciada alteração dos componentes internos no circuito de corrente secundária interno ao medidor. Tal irregularidade ocasiona o menor registro de KWh consumido."
+  },
+  {
+    "code": "7",
+    "name": "MEDIDOR COM SECUNDARIO DO TC INTERROMPIDO",
+    "description": "O medidor está com hardware avariado, foi interrompido o circuito de corrente secundária interna ao medidor. Tal irregularidade ocasiona o menor registro de KWh consumido."
+  },
+  {
+    "code": "8",
+    "name": "MEDIDOR COM JUMPER",
+    "description": "O medidor está com jumper no circuito de corrente na(s) fase(s) “A e B”, conectado na placa eletrônica do medidor, Tal irregularidade ocasiona o menor registro de KWh consumido."
+  },
+  {
+    "code": "9",
+    "name": "MEDIDOR COM DISPLAY APAGADO",
+    "description": "Foi evidenciado que o medidor está com o registrador apagado, impossibilitando a visualização de KWh consumido."
+  },
+  {
+    "code": "10",
+    "name": "MEDIDOR NÃO LIGA",
+    "description": "Foi evidenciado que o medidor \"NÃO LIGA\". Tal irregularidade ocasiona o não registro de KWh consumido."
+  },
+  {
+    "code": "11",
+    "name": "MEDIDOR COM BAIXA INTENSIDADE LUMINOSA NO DISPLAY",
+    "description": "Foi evidenciado que o medidor está com o display alfanumérico com baixa intensidade luminosa causando possível leitura irreal de KWh consumido."
+  },
+  {
+    "code": "12",
+    "name": "MEDIDOR COM HARDWARE ALTERADO",
+    "description": "Foi evidenciado componentes indevidos no circuito interno do medidor. Tal irregularidade ocasiona o menor registro de KWh consumido."
+  },
+  {
+    "code": "13",
+    "name": "MEDIDOR COM ERRO ACIMA DOS LIMITES ADMISSÍVEIS",
+    "description": "Foi evidenciado que os ajustes internos do medidor estão fora dos limites admissiveis de erro estabelecido na norma vigente, tal irregularidade ocasiona o registro irreal de KWh consumido."
+  },
+  {
+    "code": "14",
+    "name": "MEDIDOR COM TAMPA QUEBRADA / TRINCADA",
+    "description": "Medidor com tampa quebrada/trincada, possibilitando o acesso ao interior do equipamento."
+  },
+  {
+    "code": "15",
+    "name": "MEDIDOR COM BLOCO DE TERMINAIS DANIFICADO",
+    "description": "Bloco de terminais danificado (ou quebrado), ou com vestígio de superaquecimento, não sendo possível a captação dos valores de erro."
+  },
+  {
+    "code": "17",
+    "name": "MEDIDOR COM OBJETO ESTRANHO",
+    "description": "Foi evidenciado que existe um corpo estranho no interior do medidor, tal alteração compromete o registro de KWh consumido."
+  },
+  {
+    "code": "25",
+    "name": "MEDIDOR COM REGISTRADOR DESACOPLADO",
+    "description": "Engrenagem do registrador desacoplada, ocasionando o Não Registro de KWh consumido."
+  },
+  {
+    "code": "26",
+    "name": "MEDIDOR DANIFICADO",
+    "description": "Foi evidenciado que o medidor está danificado, impossibilitando os ensaios de verificação metrológica que determinam os erros percentuais e demais testes."
+  },
+  {
+    "code": "28",
+    "name": "MEDIDOR COM TAMPA QUEBRADA / TRINCADA",
+    "description": "Medidor com tampa quebrada/trincada, possibilitando o acesso ao interior do equipamento."
+  },
+  {
+    "code": "29",
+    "name": "MEDIDOR COM FURO NA TAMPA",
+    "description": "Foi evidenciado que existe furo na tampa principal do medidor, possibilitando acesso ao interior do medidor."
+  },
+  {
+    "code": "30",
+    "name": "MEDIDOR COM OBJETO ESTRANHO",
+    "description": "Foi evidenciado que existe um objeto estranho no interior do medidor, causando atrito no elemento móvel, tal irregularidade ocasiona o não registro de KWh consumido."
+  },
+  {
+    "code": "31",
+    "name": "MEDIDOR COM AJUSTES INTERNOS ALTERADOS",
+    "description": "Foi evidenciado que os ajustes internos do medidor foram alterados, tal irregularidade causa o menor registro de KWh consumido."
+  },
+  {
+    "code": "32",
+    "name": "MEDIDOR REGISTRANDO A MAIOR",
+    "description": "Foi constatado que o medidor está fora da classe de exatidão registrando à maior, Tal irregularidade ocasiona o consumo irreal de KWh consumido."
+  },
+  {
+    "code": "33",
+    "name": "MEDIDOR COM ELEMENTO FRENADOR DESMAGNETIZADO",
+    "description": "Foi constatado que o elemento frenador está desmagnetizado, causando movimentos livres do elemento móvel, Tal irregularidade ocasiona o consumo irreal de KWh."
+  },
+  {
+    "code": "35",
+    "name": "MEDIDOR COM BLOCO DE TERMINAIS DANIFICADO",
+    "description": "Bloco de terminais danificado (ou quebrado), ou com vestígio de superaquecimento, não sendo possível a captação dos valores de erro."
+  },
+  {
+    "code": "36",
+    "name": "MEDIDOR COM ERRO ACIMA DOS LIMITES ADMISSÍVEIS",
+    "description": "Foi evidenciado que os ajustes internos do medidor estão fora dos limites admissiveis de erro estabelecido na norma vigente, tal irregularidade ocasiona o registro irreal de KWh consumido."
+  },
+  {
+    "code": "99",
+    "name": "OUTROS",
+    "description": "Outros"
+  }
+]

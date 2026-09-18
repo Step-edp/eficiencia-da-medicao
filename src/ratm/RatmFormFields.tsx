@@ -500,7 +500,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       .then((response) => {
         if (cancelled || !response.codes.length) return
         const next: Record<string, string> = {}
-        for (const row of response.codes) next[row.code] = row.description
+        for (const row of response.codes) next[row.code] = row.name || row.description
         setIrregularityCodes(next)
       })
       .catch(() => undefined)

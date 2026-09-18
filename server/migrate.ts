@@ -1117,17 +1117,26 @@ export async function migrate() {
     CREATE TABLE IF NOT EXISTS irregularity_codes (
       id SERIAL PRIMARY KEY,
       code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL DEFAULT '',
       description TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `)
 
-  await query(
-    `INSERT INTO irregularity_codes (code, description)
-     VALUES ('23', 'MANCAL FORA DE POSIÇÃO')
-     ON CONFLICT (code) DO NOTHING`,
-  )
+  await query(`
+    ALTER TABLE irregularity_codes
+      ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT '';
+  `)
+
+  await query(`
+    UPDATE irregularity_codes
+    SET name = description
+    WHERE TRIM(name) = '' AND TRIM(description) <> '';
+  `)
+
+  const { seedIrregularityCodes } = await import('./routes/irregularity-codes.js')
+  await seedIrregularityCodes()
 
   const demmCsdAlignFlag = await query<{ key: string }>(
     `SELECT key FROM app_runtime_flags WHERE key = 'demm_csd_align_v1'`,
