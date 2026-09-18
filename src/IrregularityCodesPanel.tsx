@@ -248,7 +248,7 @@ export function IrregularityCodesPanel({ readOnly = false }: { readOnly?: boolea
         </form>
       ) : null}
 
-      {loading ? (
+      {showForm ? null : loading ? (
         <p className="entrada-panel-empty">Carregando códigos...</p>
       ) : codes.length === 0 ? (
         <p className="entrada-panel-empty">Nenhum código de irregularidade cadastrado.</p>
