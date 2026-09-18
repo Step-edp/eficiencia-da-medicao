@@ -22,6 +22,7 @@ export function isEntryInfoSectionComplete(data: RatmFormData) {
   const checks = data.entryFieldChecks
   return (
     isFilled(data.meter) &&
+    isFilled(data.client) &&
     isFilled(data.meterStatus) &&
     hasScheduleDate(data) &&
     isFilled(data.installation) &&

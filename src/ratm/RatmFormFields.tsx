@@ -551,11 +551,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           </p>
         ) : null}
 
-        <div className="ratm-readonly-field">
-          <span className="ratm-readonly-label">Medidor</span>
-          <p className="ratm-readonly-value">{displayOrDash(data.meter)}</p>
-        </div>
-
         <RatmExpandableSection
           sectionId="entry"
           title="Informações de entrada"
@@ -576,6 +571,19 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           />
 
           <div className="ratm-schedule-details" aria-label="Informações do agendamento">
+            <div className="ratm-readonly-field full-width">
+              <span className="ratm-readonly-label">Medidor</span>
+              <p className="ratm-readonly-value">{displayOrDash(data.meter)}</p>
+            </div>
+            <label className="full-width">
+              Cliente
+              <input
+                type="text"
+                value={data.client}
+                onChange={(event) => onChange({ client: event.target.value })}
+                placeholder="Nome e CPF/CNPJ do documento"
+              />
+            </label>
             <EntryComparisonField
               label="Instalação"
               match={data.entryComparisons?.installation}
@@ -634,16 +642,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             />
           </div>
         </RatmExpandableSection>
-
-        <label className="full-width">
-          Cliente
-          <input
-            type="text"
-            value={data.client}
-            onChange={(event) => onChange({ client: event.target.value })}
-            placeholder="Nome e CPF/CNPJ do documento"
-          />
-        </label>
 
         <ClearableRadioGroup
           legend="Análise a pedido"
