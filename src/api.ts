@@ -1968,6 +1968,7 @@ export const api = {
       meterScheduleId: string
       comparisons: ScheduleEntryComparisons
       extractedClient?: string | null
+      extractedLacre?: string | null
     }>(`/api/meter-schedules/${meterScheduleId}/entry-comparisons`, {
       timeoutMs: 3 * 60 * 1000,
     }),

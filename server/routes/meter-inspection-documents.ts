@@ -393,6 +393,18 @@ function pickExtractedClient(
   return rows.find((row) => row.extracted_client?.trim())?.extracted_client?.trim() ?? null
 }
 
+function pickExtractedLacre(
+  rows: Array<{ doc_type: InspectionDocumentType; extracted_lacre?: string | null }>,
+): string | null {
+  const preferred =
+    rows.find((row) => row.doc_type === 'ambos') ??
+    rows.find((row) => row.doc_type === 'comunicado') ??
+    rows.find((row) => row.doc_type === 'toi')
+  const fromPreferred = preferred?.extracted_lacre?.trim()
+  if (fromPreferred) return fromPreferred
+  return rows.find((row) => row.extracted_lacre?.trim())?.extracted_lacre?.trim() ?? null
+}
+
 export type InspectionSummary = {
   hasToi: boolean
   hasComunicado: boolean
@@ -1922,6 +1934,39 @@ async function repairExtractedNote(
   }
 }
 
+async function repairExtractedLacre(
+  rows: Array<{
+    id?: string
+    extracted_lacre?: string | null
+    extracted_fields_manual?: boolean | null
+  }>,
+) {
+  for (const row of rows) {
+    if (row.extracted_fields_manual) continue
+    if (row.extracted_lacre?.trim()) continue
+    if (!row.id) continue
+
+    const file = await query<{ file_data: Buffer }>(
+      `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
+      [row.id],
+    )
+    if (!file.rows[0]?.file_data) continue
+
+    try {
+      const parsed = parseInspectionText(await extractInspectionPdfText(file.rows[0].file_data))
+      const next = parsed.lacre?.trim()
+      if (!next) continue
+      await query(`UPDATE meter_inspection_documents SET extracted_lacre = $2 WHERE id = $1`, [
+        row.id,
+        next,
+      ])
+      row.extracted_lacre = next
+    } catch (error) {
+      console.error('Falha ao extrair o lacre do invólucro do documento de inspeção:', error)
+    }
+  }
+}
+
 async function repairExtractedClient(
   rows: Array<{
     id?: string
@@ -1964,13 +2009,15 @@ async function backfillMissingExtractions(
     const needsCoverSeal2 = !row.extracted_cover_seal_2?.trim()
     const needsReading = !row.extracted_reading?.trim()
     const needsClient = !row.extracted_client?.trim()
+    const needsLacre = !row.extracted_lacre?.trim()
     if (
       !needsSchedule &&
       !needsRetirado &&
       !needsCoverSeal &&
       !needsCoverSeal2 &&
       !needsReading &&
-      !needsClient
+      !needsClient &&
+      !needsLacre
     ) {
       continue
     }
@@ -2014,6 +2061,11 @@ async function backfillMissingExtractions(
         assignments.push(`extracted_client = $${assignments.length + 1}`)
         values.push(parsed.client)
         row.extracted_client = parsed.client
+      }
+      if (needsLacre && parsed.lacre) {
+        assignments.push(`extracted_lacre = $${assignments.length + 1}`)
+        values.push(parsed.lacre)
+        row.extracted_lacre = parsed.lacre
       }
       if (!assignments.length) continue
 
@@ -2410,11 +2462,12 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
       | 'extracted_toi'
       | 'extracted_note'
       | 'extracted_client'
+      | 'extracted_lacre'
       | 'extracted_fields_manual'
     >
   >(
     `SELECT id, doc_type, extracted_cover_seal, extracted_reading, extracted_scheduled_at,
-            extracted_installation, extracted_toi, extracted_note, extracted_client, extracted_fields_manual
+            extracted_installation, extracted_toi, extracted_note, extracted_client, extracted_lacre, extracted_fields_manual
      FROM meter_inspection_documents
      WHERE meter_schedule_id = $1`,
     [meterScheduleId],
@@ -2422,10 +2475,12 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
 
   await repairExtractedNote(documents.rows, schedule.rows[0].note)
   await repairExtractedClient(documents.rows)
+  await repairExtractedLacre(documents.rows)
 
   const toiExtraction = pickToiExtractionRow(documents.rows)
   const extractedNote = pickExtractedNote(documents.rows, schedule.rows[0].note)
   const extractedClient = pickExtractedClient(documents.rows)
+  const extractedLacre = pickExtractedLacre(documents.rows)
   const comparisons = buildScheduleEntryComparisons(
     schedule.rows[0],
     toiExtraction
@@ -2438,7 +2493,7 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
     pickExtractedScheduledAt(documents.rows),
   )
 
-  res.json({ meterScheduleId, comparisons, extractedClient })
+  res.json({ meterScheduleId, comparisons, extractedClient, extractedLacre })
 }
 
 export async function downloadInspectionDocument(req: Request, res: Response) {

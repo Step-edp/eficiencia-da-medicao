@@ -200,6 +200,7 @@ function emptyScheduleFields(): Partial<RatmFormData> {
     schedulingNotes: '',
     deliveryDeadlineLabel: '',
     client: '',
+    enclosureSeal: '',
   }
 }
 
@@ -455,10 +456,12 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
       let entryComparisons = null
       let extractedClient = ''
+      let extractedLacre = ''
       try {
         const comparisonResponse = await api.getScheduleEntryComparisons(schedule.id)
         entryComparisons = comparisonResponse.comparisons
         extractedClient = comparisonResponse.extractedClient?.trim() || ''
+        extractedLacre = comparisonResponse.extractedLacre?.trim() || ''
       } catch {
         entryComparisons = null
       }
@@ -479,6 +482,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         csd: schedule.csd || '',
         partnerLabel,
         client: extractedClient,
+        enclosureSeal: extractedLacre || schedule.envelopeSeal || '',
         clientPresent:
           schedule.clientPresent === 'sim'
             ? 'Sim'

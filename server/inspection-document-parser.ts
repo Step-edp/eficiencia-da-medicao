@@ -22,8 +22,11 @@ const DADOS_MEDICAO_START = /5\s*\.?\s*dados\s+da\s+medi[cç][aã]o/i
 const DADOS_MEDICAO_END = /6\s*\.?\s*selagem/i
 const METER_NUMBER_PATTERN = /\b\d{7,9}\b/
 
-const LACRE_LABEL_PATTERN = /n[uú]mero\s+do\(s\)\s+lacre\(s\)\s*:?/i
+const LACRE_LABEL_PATTERN = /n\S{0,10}mero\s+do[s()]{0,4}\s*lacre[s()]{0,4}/i
 const LACRE_VALUE_PATTERN = /\b[0-9A-Za-z-]{4,}\b/
+const LACRE_DIGIT_PATTERN = /\b\d{6,12}\b/
+const ENVELOPE_LACRE_PATTERN =
+  /inv[oóô]lucro[\s\S]{0,140}?lacre[s()]{0,6}[\s\S]{0,48}?(\d{6,12})/i
 
 const INSTALLATION_LABEL_PATTERN = /instala[cç][aã]o(?:\s+n[oº.]?\s*)?\s*:?\s*/i
 const INSTALLATION_VALUE_PATTERN = /\b\d{8,9}\b/
@@ -567,6 +570,15 @@ function extractComunicadoLacre(text: string): string | null {
   return text.match(CSM_LACRE_PATTERN)?.[1] ?? null
 }
 
+function extractEnvelopeLacre(text: string): string | null {
+  return (
+    extractAfterLabel(text, LACRE_LABEL_PATTERN, null, LACRE_DIGIT_PATTERN) ??
+    extractComunicadoLacre(text) ??
+    text.match(ENVELOPE_LACRE_PATTERN)?.[1] ??
+    extractAfterLabel(text, LACRE_LABEL_PATTERN, null, LACRE_VALUE_PATTERN)
+  )
+}
+
 function extractComunicadoToiRef(text: string): string | null {
   return text.match(CSM_TOI_REF_PATTERN)?.[1] ?? null
 }
@@ -980,9 +992,7 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
   const meterEncontrado = pickMeterNumber(meterFromToi, meterFromCsm, toiNumbers)
   const meterRetirado = pickMeterNumber(meterFromCsm, meterFromToi, toiNumbers)
 
-  const lacre =
-    extractAfterLabel(normalized, LACRE_LABEL_PATTERN, null, LACRE_VALUE_PATTERN) ??
-    extractComunicadoLacre(normalized)
+  const lacre = extractEnvelopeLacre(normalized)
 
   const excludedReadings = new Set<string>()
   for (const value of [meterEncontrado, meterRetirado, lacre, toi, ...toiNumbers]) {
