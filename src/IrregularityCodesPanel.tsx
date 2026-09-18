@@ -166,11 +166,6 @@ export function IrregularityCodesPanel({ readOnly = false }: { readOnly?: boolea
 
   return (
     <div className="irregularity-codes-panel">
-      <p>
-        Cadastre os códigos usados no RATM em Cód. Irregularidade e na irregularidade de
-        campo.
-      </p>
-
       {readOnly ? null : (
         <div className="area-actions right-aligned-actions">
           <button
