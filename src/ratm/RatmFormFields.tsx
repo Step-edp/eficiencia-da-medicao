@@ -490,6 +490,9 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const [meterLookupError, setMeterLookupError] = useState('')
   const [irregularityCodes, setIrregularityCodes] =
     useState<Record<string, string>>(IRREGULARITY_CODES)
+  const [irregularityDescriptions, setIrregularityDescriptions] = useState<Record<string, string>>(
+    {},
+  )
   const accordionName = `ratm-sections-${index}`
 
   useEffect(() => {
@@ -498,9 +501,14 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       .listIrregularityCodes()
       .then((response) => {
         if (cancelled || !response.codes.length) return
-        const next: Record<string, string> = {}
-        for (const row of response.codes) next[row.code] = row.name || row.description
-        setIrregularityCodes(next)
+        const nextNames: Record<string, string> = {}
+        const nextDescriptions: Record<string, string> = {}
+        for (const row of response.codes) {
+          nextNames[row.code] = row.name || row.description
+          nextDescriptions[row.code] = row.description || row.name
+        }
+        setIrregularityCodes(nextNames)
+        setIrregularityDescriptions(nextDescriptions)
       })
       .catch(() => undefined)
     return () => {
@@ -508,11 +516,25 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     }
   }, [])
 
+  const descriptionForCode = (code: string) => {
+    if (!code.trim()) return ''
+    return irregularityDescriptions[code] || irregularityCodes[code] || ''
+  }
+
   const irregularityDescription =
     irregularityCodes[data.irregularityCode] ?? 'Selecione um código válido.'
+  const irregularityCatalogDescription = descriptionForCode(data.irregularityCode)
 
   const fieldIrregularityDescription =
     irregularityCodes[data.fieldIrregularityCode] ?? 'Selecione um código válido.'
+
+  useEffect(() => {
+    const nextNotes = descriptionForCode(data.irregularityCode)
+    if (data.irregularityNotes === nextNotes) return
+    if (!data.irregularityCode.trim() && !data.irregularityNotes.trim()) return
+    if (data.irregularityCode.trim() && !nextNotes) return
+    onChange({ irregularityNotes: nextNotes })
+  }, [data.irregularityCode, irregularityDescriptions, irregularityCodes])
 
   const entryInfoComplete = isEntryInfoSectionComplete(data)
   const initialTestsComplete = isInitialTestsSectionComplete(data)
@@ -1076,7 +1098,13 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           Cód. Irregularidade
           <select
             value={data.irregularityCode}
-            onChange={(event) => onChange({ irregularityCode: event.target.value })}
+            onChange={(event) => {
+              const irregularityCode = event.target.value
+              onChange({
+                irregularityCode,
+                irregularityNotes: descriptionForCode(irregularityCode),
+              })
+            }}
           >
             {Object.keys(codesForSelect(irregularityCodes, data.irregularityCode)).map((code) => (
               <option key={code} value={code}>
@@ -1095,8 +1123,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           Descrição
           <textarea
             rows={4}
-            value={data.irregularityNotes}
-            onChange={(event) => onChange({ irregularityNotes: event.target.value })}
+            value={irregularityCatalogDescription || data.irregularityNotes}
+            readOnly
           />
         </label>
 

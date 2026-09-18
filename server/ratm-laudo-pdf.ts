@@ -435,6 +435,7 @@ function drawResultado(
   laudo: RatmLaudoPdfInput,
   fraud: boolean,
   irregularityCodes: Record<string, string>,
+  irregularityDescriptions: Record<string, string> = {},
 ) {
   drawSectionTitle(doc, 4, 'RESULTADO DA PERÍCIA')
   ensureSpace(doc, 150)
@@ -477,9 +478,13 @@ function drawResultado(
     lineBreak: false,
   })
 
+  const code = String(form.irregularityCode ?? '').trim()
+  const notes = String(form.irregularityNotes ?? '').trim()
+  const description = notes || irregularityDescriptions[code] || ''
+
   const details = [
     `Irregularidade: ${irregularityLabel(form, irregularityCodes)}`,
-    `Descrição: ${textValue(form.irregularityNotes)}`,
+    `Descrição: ${textValue(description)}`,
     `Observações do laboratório: ${textValue(form.laboratoryNotes)}`,
     `Laudo de campo correto: ${textValue(form.fieldReportCorrect)}`,
     `TOI: ${textValue(laudo.toi)}`,
@@ -741,14 +746,19 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
     : 'Não constatada irregularidade no medidor de energia elétrica.'
 
   const irregularityCodes = { ...IRREGULARITY_CODES }
+  const irregularityDescriptions: Record<string, string> = {}
   try {
     const stored = await query<{ code: string; name?: string; description: string }>(
       `SELECT code, name, description FROM irregularity_codes`,
     )
     for (const row of stored.rows) {
       const label = (row.name || row.description).trim()
+      const description = (row.description || row.name || '').trim()
       if (row.code?.trim() && label) {
         irregularityCodes[row.code.trim()] = label
+      }
+      if (row.code?.trim() && description) {
+        irregularityDescriptions[row.code.trim()] = description
       }
     }
   } catch (error) {
@@ -777,7 +787,7 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   drawDadosGerais(doc, laudo)
   drawProcedimentos(doc)
   drawEnsaios(doc, form)
-  drawResultado(doc, laudo, fraud, irregularityCodes)
+  drawResultado(doc, laudo, fraud, irregularityCodes, irregularityDescriptions)
   drawObservacoes(doc)
   drawAssinaturas(doc, laudo)
   drawAccreditation(doc)
