@@ -133,42 +133,34 @@ function EntryComparisonField({
   )
 }
 
-type RatmSectionId =
-  | 'entry'
-  | 'initialTests'
-  | 'enclosure'
-  | 'seal1'
-  | 'seal2'
-  | 'measurements'
-  | 'testResults'
-
 function RatmExpandableSection({
-  sectionId,
   title,
   children,
-  openSection,
-  onToggle,
   complete = false,
+  accordionName,
 }: {
-  sectionId: RatmSectionId
   title: string
   children: ReactNode
-  openSection: RatmSectionId | null
-  onToggle: (sectionId: RatmSectionId) => void
   complete?: boolean
+  accordionName: string
 }) {
-  const open = openSection === sectionId
-
   return (
-    <section
-      className={`ratm-expandable full-width${open ? ' is-open' : ''}${complete ? ' is-complete' : ''}`}
+    <details
+      className={`ratm-expandable full-width${complete ? ' is-complete' : ''}`}
+      name={accordionName}
+      onToggle={(event) => {
+        const current = event.currentTarget
+        if (!current.open) return
+        const group = current.getAttribute('name')
+        if (!group) return
+        for (const other of document.querySelectorAll<HTMLDetailsElement>(
+          `details[name="${CSS.escape(group)}"]`,
+        )) {
+          if (other !== current && other.open) other.open = false
+        }
+      }}
     >
-      <button
-        type="button"
-        className="ratm-expandable-summary"
-        aria-expanded={open}
-        onClick={() => onToggle(sectionId)}
-      >
+      <summary className="ratm-expandable-summary">
         <span className="ratm-expandable-title">{title}</span>
         {complete ? (
           <span className="ratm-expandable-complete-badge">Completa</span>
@@ -176,9 +168,9 @@ function RatmExpandableSection({
         <span className="ratm-expandable-chevron" aria-hidden="true">
           ▾
         </span>
-      </button>
-      {open ? <div className="ratm-expandable-body">{children}</div> : null}
-    </section>
+      </summary>
+      <div className="ratm-expandable-body">{children}</div>
+    </details>
   )
 }
 
@@ -396,11 +388,7 @@ function PhotoUpload({ label, value, onChange }: PhotoUploadProps) {
 export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFormFieldsProps) {
   const [searchingMeter, setSearchingMeter] = useState(false)
   const [meterLookupError, setMeterLookupError] = useState('')
-  const [openSection, setOpenSection] = useState<RatmSectionId | null>(null)
-
-  const handleSectionToggle = (sectionId: RatmSectionId) => {
-    setOpenSection((current) => (current === sectionId ? null : sectionId))
-  }
+  const accordionName = `ratm-sections-${index}`
 
   const irregularityDescription =
     IRREGULARITY_CODES[data.irregularityCode] ?? 'Selecione um código válido.'
@@ -587,10 +575,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         ) : null}
 
         <RatmExpandableSection
-          sectionId="entry"
           title="Informações de entrada"
-          openSection={openSection}
-          onToggle={handleSectionToggle}
+          accordionName={accordionName}
           complete={entryInfoComplete}
         >
           {data.meterStatus ? (
@@ -679,10 +665,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         </RatmExpandableSection>
 
         <RatmExpandableSection
-          sectionId="initialTests"
           title="Testes iniciais"
-          openSection={openSection}
-          onToggle={handleSectionToggle}
+          accordionName={accordionName}
           complete={initialTestsComplete}
         >
           <div className="ratm-section-box-grid">
@@ -721,10 +705,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         </RatmExpandableSection>
 
         <RatmExpandableSection
-          sectionId="enclosure"
           title="Lacre do Invólucro"
-          openSection={openSection}
-          onToggle={handleSectionToggle}
+          accordionName={accordionName}
           complete={enclosureSealComplete}
         >
           <div className="ratm-section-box-grid">
@@ -776,10 +758,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         </RatmExpandableSection>
 
         <RatmExpandableSection
-          sectionId="seal1"
           title="Lacre da tampa do medidor 1"
-          openSection={openSection}
-          onToggle={handleSectionToggle}
+          accordionName={accordionName}
           complete={seal1Complete}
         >
           <div className="ratm-section-box-grid">
@@ -811,10 +791,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         </RatmExpandableSection>
 
         <RatmExpandableSection
-          sectionId="seal2"
           title="Lacre da tampa do medidor 2"
-          openSection={openSection}
-          onToggle={handleSectionToggle}
+          accordionName={accordionName}
           complete={seal2Complete}
         >
           <div className="ratm-section-box-grid">
@@ -890,10 +868,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         />
 
         <RatmExpandableSection
-          sectionId="measurements"
           title="Medições (CN, CI, CP)"
-          openSection={openSection}
-          onToggle={handleSectionToggle}
+          accordionName={accordionName}
           complete={measurementsComplete}
         >
           <div className="ratm-section-box-grid">
@@ -1072,10 +1048,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         />
 
         <RatmExpandableSection
-          sectionId="testResults"
           title="Resultados de ensaio"
-          openSection={openSection}
-          onToggle={handleSectionToggle}
+          accordionName={accordionName}
           complete={testResultsComplete}
         >
           <div className="ratm-section-box-grid">

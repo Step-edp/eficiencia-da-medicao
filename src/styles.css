@@ -8109,6 +8109,12 @@ input[type='file'] {
   text-align: left;
   cursor: pointer;
   user-select: none;
+  list-style: none;
+}
+
+.ratm-expandable-summary::-webkit-details-marker,
+.ratm-expandable-summary::marker {
+  display: none;
 }
 
 .ratm-expandable-summary:hover,
@@ -8148,11 +8154,11 @@ input[type='file'] {
   transition: transform 0.18s ease;
 }
 
-.ratm-expandable.is-open > .ratm-expandable-summary {
+.ratm-expandable[open] > .ratm-expandable-summary {
   border-bottom: 1px solid rgba(24, 216, 240, 0.16);
 }
 
-.ratm-expandable.is-open > .ratm-expandable-summary .ratm-expandable-chevron {
+.ratm-expandable[open] > .ratm-expandable-summary .ratm-expandable-chevron {
   transform: rotate(180deg);
 }
 
