@@ -45,7 +45,10 @@ function normalizeCode(value: unknown) {
 }
 
 function normalizeText(value: unknown) {
-  return String(value ?? '').replace(/\s+/g, ' ').trim()
+  return String(value ?? '')
+    .replace(/\s*\/\s*/g, ' • ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function loadDefaultIrregularityCodes(): SeedIrregularityCode[] {
