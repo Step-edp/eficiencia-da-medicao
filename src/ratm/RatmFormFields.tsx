@@ -777,7 +777,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
         <RatmExpandableSection
           sectionId="seal1"
-          title="Lacre 1"
+          title="Lacre da tampa do medidor 1"
           openSection={openSection}
           onToggle={handleSectionToggle}
           complete={seal1Complete}
@@ -801,7 +801,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             </button>
 
             <ClearableRadioGroup
-              legend="Status lacre 1"
+              legend="Status lacre da tampa do medidor 1"
               name={`seal1-status-${index}`}
               value={data.seal1Status}
               options={['Violado', 'Sem lacre', 'Em ordem']}
@@ -812,7 +812,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
         <RatmExpandableSection
           sectionId="seal2"
-          title="Lacre 2"
+          title="Lacre da tampa do medidor 2"
           openSection={openSection}
           onToggle={handleSectionToggle}
           complete={seal2Complete}
@@ -836,7 +836,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             </button>
 
             <ClearableRadioGroup
-              legend="Status lacre 2"
+              legend="Status lacre da tampa do medidor 2"
               name={`seal2-status-${index}`}
               value={data.seal2Status}
               options={['Violado', 'Sem lacre', 'Em ordem', 'Não aplicável']}
