@@ -583,7 +583,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                 type="text"
                 value={data.client}
                 onChange={(event) => onChange({ client: event.target.value })}
-                placeholder="Nome e CPF/CNPJ do documento"
+                placeholder="Titular da unidade consumidora"
               />
             </label>
             <EntryComparisonField

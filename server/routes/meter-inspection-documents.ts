@@ -7,6 +7,8 @@ import {
   classifyInspectionDocument,
   countInspectionPdfPages,
   extractInspectionPdfText,
+  extractTitularFromInspectionPdf,
+  looksLikeReciboClient,
   parseExtractedScheduleLabel,
   parseInspectionText,
   type InspectionDocumentType,
@@ -1593,7 +1595,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   const parsed = parseInspectionText(text)
   extractedScheduledAt = parsed.scheduledAt
   extractedMeterRetirado = parsed.meterRetirado
-  extractedClient = parsed.client
+  extractedClient = parsed.client ?? (await extractTitularFromInspectionPdf(fileBuffer, text))
   if (docType === 'toi' || docType === 'ambos') {
     extractedMeter = parsed.meterEncontrado
     extractedLacre = parsed.lacre
@@ -1929,7 +1931,7 @@ async function repairExtractedClient(
 ) {
   for (const row of rows) {
     if (row.extracted_fields_manual) continue
-    if (row.extracted_client?.trim()) continue
+    if (row.extracted_client?.trim() && !looksLikeReciboClient(row.extracted_client)) continue
     if (!row.id) continue
 
     const file = await query<{ file_data: Buffer }>(
@@ -1939,8 +1941,7 @@ async function repairExtractedClient(
     if (!file.rows[0]?.file_data) continue
 
     try {
-      const parsed = parseInspectionText(await extractInspectionPdfText(file.rows[0].file_data))
-      const next = parsed.client?.trim() || null
+      const next = await extractTitularFromInspectionPdf(file.rows[0].file_data)
       if (!next) continue
       await query(`UPDATE meter_inspection_documents SET extracted_client = $2 WHERE id = $1`, [
         row.id,

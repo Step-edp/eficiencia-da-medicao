@@ -1968,9 +1968,9 @@ export const api = {
       meterScheduleId: string
       comparisons: ScheduleEntryComparisons
       extractedClient?: string | null
-    }>(
-      `/api/meter-schedules/${meterScheduleId}/entry-comparisons`,
-    ),
+    }>(`/api/meter-schedules/${meterScheduleId}/entry-comparisons`, {
+      timeoutMs: 3 * 60 * 1000,
+    }),
   listInspectionPendencias: (forUserId?: string) => {
     const search = new URLSearchParams()
     if (forUserId) search.set('forUserId', forUserId)
