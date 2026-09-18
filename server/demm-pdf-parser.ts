@@ -1,9 +1,12 @@
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 
-const PATRIMONIO_LABEL_PATTERN = /patrim[oô]nio[\s.:]+/gi
+const PATRIMONIO_LABEL_PATTERN = /patrim[oôóò]n[ií1]o[\s.:]+/gi
 const PATRIMONIO_METER_PATTERN = /\b00(\d{8})\b/g
+const SPACED_PATRIMONIO_METER_PATTERN = /\b00(?:[\s.]*\d){8}\b/g
 const DOCUMENT_NUMBER_PATTERN = /n[uú]mero\s+documento\s*:?\s*(\d+)/i
 const EMISSION_DATE_PATTERN = /data\s+de\s+emiss[aã]o\s*:?\s*(\d{2}[./]\d{2}[./]\d{4})/i
+const DEMM_OCR_SCALE = 2
+const DEMM_OCR_MAX_PAGES = 8
 
 type TextItem = {
   str?: string
@@ -38,10 +41,14 @@ export function extractDemmMetadataFromText(text: string): DemmPdfMetadata {
   }
 }
 
+function collapseSpacedPatrimonioNumbers(text: string): string {
+  return text.replace(SPACED_PATRIMONIO_METER_PATTERN, (match) => match.replace(/\D/g, ''))
+}
+
 export function extractMetersFromText(text: string): string[] {
   const found = new Set<string>()
   const ordered: string[] = []
-  const normalized = text.replace(/\r\n/g, '\n')
+  const normalized = collapseSpacedPatrimonioNumbers(text.replace(/\r\n/g, '\n'))
 
   const sections = normalized.split(PATRIMONIO_LABEL_PATTERN)
   for (let index = 1; index < sections.length; index += 1) {
@@ -85,11 +92,30 @@ async function extractTextFromPdf(buffer: Buffer): Promise<string> {
 }
 
 export async function extractMetersFromPdf(buffer: Buffer): Promise<string[]> {
-  const text = await extractTextFromPdf(buffer)
-  return extractMetersFromText(text)
+  const parsed = await parseDemmPdf(buffer)
+  return parsed.meters
 }
 
 export async function parseDemmPdf(buffer: Buffer): Promise<DemmPdfParseResult> {
   const text = await extractTextFromPdf(buffer)
-  return parseDemmText(text)
+  const parsed = parseDemmText(text)
+  if (parsed.meters.length > 0) return parsed
+
+  try {
+    const { extractInspectionPdfTextViaOcr } = await import('./inspection-pdf-ocr.js')
+    console.info('DEMM sem medidores na camada de texto; tentando OCR.')
+    const ocrText = await extractInspectionPdfTextViaOcr(buffer, {
+      scale: DEMM_OCR_SCALE,
+      maxPages: DEMM_OCR_MAX_PAGES,
+    })
+    const ocrParsed = parseDemmText(ocrText)
+    return {
+      documentNumber: ocrParsed.documentNumber ?? parsed.documentNumber,
+      emissionDate: ocrParsed.emissionDate ?? parsed.emissionDate,
+      meters: ocrParsed.meters,
+    }
+  } catch (error) {
+    console.error('Falha no OCR do PDF da DEMM:', error)
+    return parsed
+  }
 }

@@ -53,7 +53,15 @@ export function isUnreadablePdfText(text: string): boolean {
   return false
 }
 
-export async function extractInspectionPdfTextViaOcr(buffer: Buffer): Promise<string> {
+export type PdfOcrOptions = {
+  scale?: number
+  maxPages?: number
+}
+
+export async function extractInspectionPdfTextViaOcr(
+  buffer: Buffer,
+  options?: PdfOcrOptions,
+): Promise<string> {
   const canvasFactory = new NodeCanvasFactory()
   const pdf = await getDocument({
     data: new Uint8Array(buffer),
@@ -62,12 +70,13 @@ export async function extractInspectionPdfTextViaOcr(buffer: Buffer): Promise<st
   }).promise
 
   const worker = await getOcrWorker()
-  const pageCount = Math.min(pdf.numPages, MAX_OCR_PAGES)
+  const pageCount = Math.min(pdf.numPages, options?.maxPages ?? MAX_OCR_PAGES)
+  const scale = options?.scale ?? OCR_SCALE
   const parts: string[] = []
 
   for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber)
-    const viewport = page.getViewport({ scale: OCR_SCALE })
+    const viewport = page.getViewport({ scale })
     const pageCanvas = createCanvas(viewport.width, viewport.height)
     const context = pageCanvas.getContext('2d')
     const canvasRef = { canvas: pageCanvas }
