@@ -1113,6 +1113,22 @@ export async function migrate() {
     ],
   )
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS irregularity_codes (
+      id SERIAL PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `)
+
+  await query(
+    `INSERT INTO irregularity_codes (code, description)
+     VALUES ('23', 'MANCAL FORA DE POSIÇÃO')
+     ON CONFLICT (code) DO NOTHING`,
+  )
+
   const demmCsdAlignFlag = await query<{ key: string }>(
     `SELECT key FROM app_runtime_flags WHERE key = 'demm_csd_align_v1'`,
   )

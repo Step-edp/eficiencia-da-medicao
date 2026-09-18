@@ -312,7 +312,7 @@ export async function downloadRatmLaudoPdf(req: Request, res: Response) {
 
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
-    generateRatmLaudoPdf(laudo, res)
+    await generateRatmLaudoPdf(laudo, res)
   } catch (error) {
     console.error('Erro ao gerar PDF do laudo:', error)
 

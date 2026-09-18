@@ -13,6 +13,12 @@ import { meterModelRoutes, createMeterModel, updateMeterModel } from './routes/m
 import { presentationRoutes, createPresentation } from './routes/presentations.js'
 import { softwareRoutes, createSoftware } from './routes/softwares.js'
 import {
+  createIrregularityCode,
+  deleteIrregularityCode,
+  irregularityCodeRoutes,
+  updateIrregularityCode,
+} from './routes/irregularity-codes.js'
+import {
   consolidacaoCargaRoutes,
   createConsolidacaoCargaCliente,
   createConsolidacaoCargaClientesBulk,
@@ -243,6 +249,26 @@ async function start() {
     createSoftware,
   )
   app.get('/api/softwares/:id/attachment', ...wrap(softwareRoutes.attachment))
+
+  app.get('/api/irregularity-codes', ...wrap(irregularityCodeRoutes.list))
+  app.post(
+    '/api/irregularity-codes',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    createIrregularityCode,
+  )
+  app.patch(
+    '/api/irregularity-codes/:id',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    updateIrregularityCode,
+  )
+  app.delete(
+    '/api/irregularity-codes/:id',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    deleteIrregularityCode,
+  )
 
   app.get('/api/consolidacao-carga/clientes', ...wrap(consolidacaoCargaRoutes.list))
   app.post(

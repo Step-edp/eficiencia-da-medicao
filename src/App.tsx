@@ -49,6 +49,7 @@ import { CsdsPanel } from './CsdsPanel'
 import { CriarModeloPanel } from './CriarModeloPanel'
 import { ApresentacaoPanel } from './ApresentacaoPanel'
 import { SoftwaresPanel } from './SoftwaresPanel'
+import { IrregularityCodesPanel } from './IrregularityCodesPanel'
 import { AnalisadoresTensaoPanel } from './AnalisadoresTensaoPanel'
 import { ReagendarPanel } from './ReagendarPanel'
 import { MinhaProdutividadePanel } from './MinhaProdutividadePanel'
@@ -1084,7 +1085,7 @@ function TopActionBar({ onBack, onHome, onLogout }: TopActionBarProps) {
 }
 
 function ItemIcon({ title }: { title: string }) {
-  const iconByTitle: Record<string, 'chart' | 'flask' | 'calendar' | 'search' | 'inbox' | 'cube' | 'check' | 'image' | 'bolt' | 'ruler' | 'smile' | 'shield' | 'archive' | 'trash' | 'presentation' | 'truck' | 'book' | 'code' | 'lock' | 'key' | 'database' | 'repeat' | 'building' | 'layer' | 'monitor' | 'star' | 'users' | 'headset' | 'clock'> = {
+  const iconByTitle: Record<string, 'chart' | 'flask' | 'calendar' | 'search' | 'inbox' | 'cube' | 'check' | 'image' | 'bolt' | 'ruler' | 'smile' | 'shield' | 'archive' | 'trash' | 'presentation' | 'truck' | 'book' | 'code' | 'lock' | 'key' | 'database' | 'repeat' | 'building' | 'layer' | 'monitor' | 'star' | 'users' | 'headset' | 'clock' | 'barcode'> = {
     Dashboard: 'chart',
     Ensaiar: 'flask',
     Agendar: 'calendar',
@@ -1115,6 +1116,7 @@ function ItemIcon({ title }: { title: string }) {
     Suporte: 'headset',
     Treinamentos: 'book',
     Softwares: 'code',
+    'Código de irregularidade': 'barcode',
     'Faturamento de clientes livres': 'chart',
     'Consolidação da Carga': 'layer',
     'Informações iniciais': 'inbox',
@@ -1245,6 +1247,19 @@ function ItemIcon({ title }: { title: string }) {
               strokeLinecap="round"
               strokeLinejoin="round"
             />
+          </>
+        ) : null}
+        {icon === 'barcode' ? (
+          <>
+            <path
+              d="M4 7V4h3M17 4h3v3M4 17v3h3M17 20h3v-3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path d="M8 8v8M11 8v8M13 8v8M16 8v8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </>
         ) : null}
         {icon === 'star' ? <path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9L12 3z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /> : null}
@@ -2477,6 +2492,7 @@ function HomePanel({
     'Suporte',
     'Treinamentos',
     'Softwares',
+    'Código de irregularidade',
     'Adicionar passivo',
   ]
 
@@ -5770,6 +5786,8 @@ function HomePanel({
               <ApresentacaoPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Softwares' ? (
               <SoftwaresPanel readOnly={labMedicaoReadOnly} />
+            ) : selectedLabMeasurementSection === 'Código de irregularidade' ? (
+              <IrregularityCodesPanel readOnly={labMedicaoReadOnly} />
             ) : selectedLabMeasurementSection === 'Inventário' ? (
               <InventarioPanel
                 openMonthTitle={inventarioMonthTitle}

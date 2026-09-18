@@ -331,6 +331,7 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Suporte',
     'Treinamentos',
     'Softwares',
+    'Código de irregularidade',
     'Adicionar passivo',
   ],
   'Laboratório de Homologação': [

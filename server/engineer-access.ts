@@ -53,6 +53,7 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'CSDs',
     'Treinamentos',
     'Softwares',
+    'Código de irregularidade',
   ],
   'Laboratório de Homologação': [
     'Ensaio',

@@ -50,6 +50,41 @@ type RadioGroupProps = {
   vertical?: boolean
 }
 
+function codesForSelect(codes: Record<string, string>, current: string) {
+  if (!current.trim() || current in codes) return codes
+  return { ...codes, [current]: current }
+}
+
+function ScanButton({ field, onScan }: { field: string; onScan: (field: string) => void }) {
+  return (
+    <button
+      className="scan-button"
+      type="button"
+      onClick={() => onScan(field)}
+      aria-label="Digitalizar"
+      title="Digitalizar"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M4 7V4h3M17 4h3v3M4 17v3h3M17 20h3v-3"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M7 12h10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+    </button>
+  )
+}
+
 function displayOrDash(value?: string | null) {
   const trimmed = value?.trim() ?? ''
   return trimmed || '—'
@@ -388,13 +423,31 @@ function PhotoUpload({ label, value, onChange }: PhotoUploadProps) {
 export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFormFieldsProps) {
   const [searchingMeter, setSearchingMeter] = useState(false)
   const [meterLookupError, setMeterLookupError] = useState('')
+  const [irregularityCodes, setIrregularityCodes] =
+    useState<Record<string, string>>(IRREGULARITY_CODES)
   const accordionName = `ratm-sections-${index}`
 
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .listIrregularityCodes()
+      .then((response) => {
+        if (cancelled || !response.codes.length) return
+        const next: Record<string, string> = {}
+        for (const row of response.codes) next[row.code] = row.description
+        setIrregularityCodes(next)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const irregularityDescription =
-    IRREGULARITY_CODES[data.irregularityCode] ?? 'Selecione um código válido.'
+    irregularityCodes[data.irregularityCode] ?? 'Selecione um código válido.'
 
   const fieldIrregularityDescription =
-    IRREGULARITY_CODES[data.fieldIrregularityCode] ?? 'Selecione um código válido.'
+    irregularityCodes[data.fieldIrregularityCode] ?? 'Selecione um código válido.'
 
   const entryInfoComplete = isEntryInfoSectionComplete(data)
   const initialTestsComplete = isInitialTestsSectionComplete(data)
@@ -561,12 +614,9 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             >
               {searchingMeter ? 'Buscando…' : 'Buscar'}
             </button>
+            <ScanButton field="medidor" onScan={onScan} />
           </div>
         </label>
-
-        <button className="scan-button align-right full-width" type="button" onClick={() => onScan('medidor')}>
-          Digitalizar
-        </button>
 
         {meterLookupError ? (
           <p className="field-error full-width" role="alert">
@@ -712,20 +762,15 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           <div className="ratm-section-box-grid">
             <label className="full-width">
               Número do lacre
-              <input
-                type="text"
-                value={data.enclosureSeal}
-                onChange={(event) => onChange({ enclosureSeal: event.target.value })}
-              />
+              <div className="search-input-row">
+                <input
+                  type="text"
+                  value={data.enclosureSeal}
+                  onChange={(event) => onChange({ enclosureSeal: event.target.value })}
+                />
+                <ScanButton field="involucro" onScan={onScan} />
+              </div>
             </label>
-
-            <button
-              className="scan-button align-right full-width"
-              type="button"
-              onClick={() => onScan('involucro')}
-            >
-              Digitalizar
-            </button>
 
             <YesNoIconQuestion
               label="Lacre igual TOI"
@@ -765,20 +810,15 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           <div className="ratm-section-box-grid">
             <label className="full-width">
               Número do lacre
-              <input
-                type="text"
-                value={data.seal1}
-                onChange={(event) => onChange({ seal1: event.target.value })}
-              />
+              <div className="search-input-row">
+                <input
+                  type="text"
+                  value={data.seal1}
+                  onChange={(event) => onChange({ seal1: event.target.value })}
+                />
+                <ScanButton field="lacre1" onScan={onScan} />
+              </div>
             </label>
-
-            <button
-              className="scan-button align-right full-width"
-              type="button"
-              onClick={() => onScan('lacre1')}
-            >
-              Digitalizar
-            </button>
 
             <ClearableRadioGroup
               legend="Status lacre da tampa do medidor 1"
@@ -798,20 +838,15 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           <div className="ratm-section-box-grid">
             <label className="full-width">
               Número do lacre
-              <input
-                type="text"
-                value={data.seal2}
-                onChange={(event) => onChange({ seal2: event.target.value })}
-              />
+              <div className="search-input-row">
+                <input
+                  type="text"
+                  value={data.seal2}
+                  onChange={(event) => onChange({ seal2: event.target.value })}
+                />
+                <ScanButton field="lacre2" onScan={onScan} />
+              </div>
             </label>
-
-            <button
-              className="scan-button align-right full-width"
-              type="button"
-              onClick={() => onScan('lacre2')}
-            >
-              Digitalizar
-            </button>
 
             <ClearableRadioGroup
               legend="Status lacre da tampa do medidor 2"
@@ -955,7 +990,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             value={data.irregularityCode}
             onChange={(event) => onChange({ irregularityCode: event.target.value })}
           >
-            {Object.keys(IRREGULARITY_CODES).map((code) => (
+            {Object.keys(codesForSelect(irregularityCodes, data.irregularityCode)).map((code) => (
               <option key={code} value={code}>
                 {code}
               </option>
@@ -1006,11 +1041,13 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             value={data.fieldIrregularityCode}
             onChange={(event) => onChange({ fieldIrregularityCode: event.target.value })}
           >
-            {Object.keys(IRREGULARITY_CODES).map((code) => (
+            {Object.keys(codesForSelect(irregularityCodes, data.fieldIrregularityCode)).map(
+              (code) => (
               <option key={code} value={code}>
                 {code}
               </option>
-            ))}
+            ),
+            )}
           </select>
         </label>
 

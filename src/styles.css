@@ -7760,9 +7760,15 @@ input[type='file'] {
 }
 
 .search-input-row {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.search-input-row input {
+  flex: 1;
+  min-width: 0;
 }
 
 .search-button {
@@ -7770,18 +7776,31 @@ input[type='file'] {
 }
 
 .scan-button {
-  justify-self: end;
-  width: min(220px, 100%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
   border: 0;
-  padding: 12px 16px;
-  border-radius: 14px;
+  border-radius: 12px;
   color: #031424;
-  font-weight: 700;
   background: linear-gradient(135deg, #5bf000 0%, #39ff00 55%, #34df9a 100%);
+}
+
+.scan-button svg {
+  width: 20px;
+  height: 20px;
 }
 
 .scan-button.align-right {
   margin-left: auto;
+}
+
+.table-row-actions {
+  display: inline-flex;
+  gap: 8px;
 }
 
 .ratm-status-line {
@@ -8427,7 +8446,11 @@ input[type='file'] {
   }
 
   .search-input-row {
-    grid-template-columns: 1fr;
+    flex-wrap: wrap;
+  }
+
+  .search-input-row input {
+    flex: 1 1 160px;
   }
 
   .ratm-workflow-actions {

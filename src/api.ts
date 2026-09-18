@@ -296,6 +296,14 @@ export type SoftwareRecord = {
   createdByRegistration?: string
 }
 
+export type IrregularityCodeRecord = {
+  id: number
+  code: string
+  description: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type ConsolidacaoCargaClienteRecord = {
   id: number
   nomeCliente: string
@@ -1395,6 +1403,25 @@ export const api = {
     request<{ attachment: string; attachmentName: string }>(
       `/api/softwares/${id}/attachment`,
     ),
+  listIrregularityCodes: () =>
+    request<{ codes: IrregularityCodeRecord[] }>('/api/irregularity-codes'),
+  createIrregularityCode: (payload: { code: string; description: string }) =>
+    request<{ code: IrregularityCodeRecord }>('/api/irregularity-codes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateIrregularityCode: (
+    id: number,
+    payload: { code: string; description: string },
+  ) =>
+    request<{ code: IrregularityCodeRecord }>(`/api/irregularity-codes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteIrregularityCode: (id: number) =>
+    request<{ ok: true; id: number }>(`/api/irregularity-codes/${id}`, {
+      method: 'DELETE',
+    }),
   listConsolidacaoCargaClientes: () =>
     request<{ clients: ConsolidacaoCargaClienteRecord[] }>(
       '/api/consolidacao-carga/clientes',

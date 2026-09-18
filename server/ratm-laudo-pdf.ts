@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit'
 import type { Response } from 'express'
+import { query } from './db.js'
 
 type PdfDocument = InstanceType<typeof PDFDocument>
 
@@ -90,11 +91,14 @@ function isFraudConclusion(form: Record<string, unknown>) {
   )
 }
 
-function irregularityLabel(form: Record<string, unknown>) {
+function irregularityLabel(
+  form: Record<string, unknown>,
+  codes: Record<string, string> = IRREGULARITY_CODES,
+) {
   const code = textValue(form.fieldIrregularityCode)
   const fallback = textValue(form.irregularityCode)
   const key = code !== '—' ? code : fallback
-  return IRREGULARITY_CODES[key] ?? (key !== '—' ? `Código ${key}` : 'Irregularidade não especificada')
+  return codes[key] ?? (key !== '—' ? `Código ${key}` : 'Irregularidade não especificada')
 }
 
 function parsePercent(value: unknown): number | null {
@@ -426,7 +430,12 @@ function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
   doc.y = y + boxH + 14
 }
 
-function drawResultado(doc: PdfDocument, laudo: RatmLaudoPdfInput, fraud: boolean) {
+function drawResultado(
+  doc: PdfDocument,
+  laudo: RatmLaudoPdfInput,
+  fraud: boolean,
+  irregularityCodes: Record<string, string>,
+) {
   drawSectionTitle(doc, 4, 'RESULTADO DA PERÍCIA')
   ensureSpace(doc, 150)
   const y = doc.y
@@ -469,7 +478,7 @@ function drawResultado(doc: PdfDocument, laudo: RatmLaudoPdfInput, fraud: boolea
   })
 
   const details = [
-    `Irregularidade: ${irregularityLabel(form)}`,
+    `Irregularidade: ${irregularityLabel(form, irregularityCodes)}`,
     `Observações: ${textValue(form.irregularityNotes)}`,
     `Observações do laboratório: ${textValue(form.laboratoryNotes)}`,
     `Laudo de campo correto: ${textValue(form.fieldReportCorrect)}`,
@@ -724,12 +733,26 @@ function drawFooter(doc: PdfDocument, page: number, total: number) {
     })
 }
 
-export function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Response) {
+export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Response) {
   const form = laudo.formData
   const fraud = isFraudConclusion(form)
   const conclusion = fraud
     ? 'Constatada fraude no medidor de energia elétrica.'
     : 'Não constatada irregularidade no medidor de energia elétrica.'
+
+  const irregularityCodes = { ...IRREGULARITY_CODES }
+  try {
+    const stored = await query<{ code: string; description: string }>(
+      `SELECT code, description FROM irregularity_codes`,
+    )
+    for (const row of stored.rows) {
+      if (row.code?.trim() && row.description?.trim()) {
+        irregularityCodes[row.code.trim()] = row.description.trim()
+      }
+    }
+  } catch (error) {
+    console.error('Não foi possível carregar os códigos de irregularidade para o laudo.', error)
+  }
 
   const doc = new PDFDocument({
     size: 'A4',
@@ -753,7 +776,7 @@ export function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Response) {
   drawDadosGerais(doc, laudo)
   drawProcedimentos(doc)
   drawEnsaios(doc, form)
-  drawResultado(doc, laudo, fraud)
+  drawResultado(doc, laudo, fraud, irregularityCodes)
   drawObservacoes(doc)
   drawAssinaturas(doc, laudo)
   drawAccreditation(doc)

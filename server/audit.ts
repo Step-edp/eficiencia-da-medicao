@@ -26,6 +26,7 @@ export type AuditEntityType =
   | 'meter_inspection_document'
   | 'meter_inspection_photo'
   | 'catalog_option'
+  | 'irregularity_code'
   | 'process_assignment'
   | 'org_cell'
   | 'org_area'
