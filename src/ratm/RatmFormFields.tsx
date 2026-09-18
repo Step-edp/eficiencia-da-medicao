@@ -25,6 +25,7 @@ import {
   isMeasurementsSectionComplete,
   isTestResultsSectionComplete,
 } from './ratmSectionCompletion'
+import { RatmDocumentFab } from './RatmDocumentFab'
 
 type RatmFormFieldsProps = {
   index: number
@@ -504,6 +505,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   }, [])
 
   return (
+    <>
     <div className="ratm-form-panel">
       <div className="ratm-form-header">
         <span className="ratm-form-counter">
@@ -1102,5 +1104,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         </RatmExpandableSection>
       </div>
     </div>
+    {data.scheduleId ? <RatmDocumentFab scheduleId={data.scheduleId} meter={data.meter} /> : null}
+    </>
   )
 }
