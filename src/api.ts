@@ -732,8 +732,9 @@ export type InspectionDocumentRecord = {
   extractedLacre: string | null
   extractedCoverSeal?: string | null
   extractedCoverSeal2?: string | null
-  extractedReading?: string | null
-  extractedScheduledAt?: string | null
+    extractedReading?: string | null
+    extractedScheduledAt?: string | null
+    extractedClient?: string | null
   registeredMeter?: string | null
   registeredLacre?: string | null
   registeredCoverSeal?: string | null
@@ -1963,7 +1964,11 @@ export const api = {
       { method: 'DELETE' },
     ),
   getScheduleEntryComparisons: (meterScheduleId: string) =>
-    request<{ meterScheduleId: string; comparisons: ScheduleEntryComparisons }>(
+    request<{
+      meterScheduleId: string
+      comparisons: ScheduleEntryComparisons
+      extractedClient?: string | null
+    }>(
       `/api/meter-schedules/${meterScheduleId}/entry-comparisons`,
     ),
   listInspectionPendencias: (forUserId?: string) => {

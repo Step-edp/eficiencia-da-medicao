@@ -999,6 +999,11 @@ export async function migrate() {
 
   await query(`
     ALTER TABLE meter_inspection_documents
+      ADD COLUMN IF NOT EXISTS extracted_client TEXT;
+  `)
+
+  await query(`
+    ALTER TABLE meter_inspection_documents
       ADD COLUMN IF NOT EXISTS extracted_fields_manual BOOLEAN NOT NULL DEFAULT FALSE;
   `)
 

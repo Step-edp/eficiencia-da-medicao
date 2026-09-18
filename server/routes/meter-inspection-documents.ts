@@ -42,6 +42,7 @@ type InspectionDocumentRow = {
   extracted_installation: string | null
   extracted_toi: string | null
   extracted_note: string | null
+  extracted_client?: string | null
   extracted_fields_manual?: boolean
   blocked: boolean
   block_reason: string | null
@@ -376,6 +377,18 @@ function pickExtractedScheduledAt(
   return (
     rows.find((row) => row.extracted_scheduled_at?.trim())?.extracted_scheduled_at?.trim() ?? null
   )
+}
+
+function pickExtractedClient(
+  rows: Array<{ doc_type: InspectionDocumentType; extracted_client?: string | null }>,
+): string | null {
+  const preferred =
+    rows.find((row) => row.doc_type === 'ambos') ??
+    rows.find((row) => row.doc_type === 'comunicado') ??
+    rows.find((row) => row.doc_type === 'toi')
+  const fromPreferred = preferred?.extracted_client?.trim()
+  if (fromPreferred) return fromPreferred
+  return rows.find((row) => row.extracted_client?.trim())?.extracted_client?.trim() ?? null
 }
 
 export type InspectionSummary = {
@@ -1575,10 +1588,12 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   let extractedInstallation: string | null = null
   let extractedToi: string | null = null
   let extractedNote: string | null = null
+  let extractedClient: string | null = null
 
   const parsed = parseInspectionText(text)
   extractedScheduledAt = parsed.scheduledAt
   extractedMeterRetirado = parsed.meterRetirado
+  extractedClient = parsed.client
   if (docType === 'toi' || docType === 'ambos') {
     extractedMeter = parsed.meterEncontrado
     extractedLacre = parsed.lacre
@@ -1608,10 +1623,10 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     `INSERT INTO meter_inspection_documents (
       id, meter_schedule_id, doc_type, file_name, file_data,
       extracted_meter, extracted_meter_retirado, extracted_lacre, extracted_cover_seal, extracted_cover_seal_2, extracted_reading,
-      extracted_scheduled_at, extracted_installation, extracted_toi, extracted_note,
+      extracted_scheduled_at, extracted_installation, extracted_toi, extracted_note, extracted_client,
       blocked, block_reason, created_by_user_id
     )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
      ON CONFLICT (meter_schedule_id, doc_type) DO UPDATE SET
        file_name = EXCLUDED.file_name,
        file_data = EXCLUDED.file_data,
@@ -1625,13 +1640,14 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
        extracted_installation = EXCLUDED.extracted_installation,
        extracted_toi = EXCLUDED.extracted_toi,
        extracted_note = EXCLUDED.extracted_note,
+       extracted_client = EXCLUDED.extracted_client,
        blocked = EXCLUDED.blocked,
        block_reason = EXCLUDED.block_reason,
        created_at = NOW(),
        created_by_user_id = EXCLUDED.created_by_user_id
      RETURNING id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_meter_retirado,
                extracted_lacre, extracted_cover_seal, extracted_cover_seal_2, extracted_reading, extracted_scheduled_at,
-               extracted_installation, extracted_toi, extracted_note,
+               extracted_installation, extracted_toi, extracted_note, extracted_client,
                blocked, block_reason, created_at, created_by_user_id`,
     [
       id,
@@ -1649,6 +1665,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
       extractedInstallation,
       extractedToi,
       extractedNote,
+      extractedClient,
       evaluation.blocked,
       evaluation.reason,
       req.user?.id ?? null,
@@ -1903,6 +1920,39 @@ async function repairExtractedNote(
   }
 }
 
+async function repairExtractedClient(
+  rows: Array<{
+    id?: string
+    extracted_client?: string | null
+    extracted_fields_manual?: boolean | null
+  }>,
+) {
+  for (const row of rows) {
+    if (row.extracted_fields_manual) continue
+    if (row.extracted_client?.trim()) continue
+    if (!row.id) continue
+
+    const file = await query<{ file_data: Buffer }>(
+      `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
+      [row.id],
+    )
+    if (!file.rows[0]?.file_data) continue
+
+    try {
+      const parsed = parseInspectionText(await extractInspectionPdfText(file.rows[0].file_data))
+      const next = parsed.client?.trim() || null
+      if (!next) continue
+      await query(`UPDATE meter_inspection_documents SET extracted_client = $2 WHERE id = $1`, [
+        row.id,
+        next,
+      ])
+      row.extracted_client = next
+    } catch (error) {
+      console.error('Falha ao extrair o nome do cliente do documento de inspeção:', error)
+    }
+  }
+}
+
 async function backfillMissingExtractions(
   rows: Array<Omit<InspectionDocumentRow, 'file_data'>>,
 ) {
@@ -1912,7 +1962,17 @@ async function backfillMissingExtractions(
     const needsCoverSeal = !row.extracted_cover_seal?.trim()
     const needsCoverSeal2 = !row.extracted_cover_seal_2?.trim()
     const needsReading = !row.extracted_reading?.trim()
-    if (!needsSchedule && !needsRetirado && !needsCoverSeal && !needsCoverSeal2 && !needsReading) continue
+    const needsClient = !row.extracted_client?.trim()
+    if (
+      !needsSchedule &&
+      !needsRetirado &&
+      !needsCoverSeal &&
+      !needsCoverSeal2 &&
+      !needsReading &&
+      !needsClient
+    ) {
+      continue
+    }
 
     const file = await query<{ file_data: Buffer }>(
       `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
@@ -1948,6 +2008,11 @@ async function backfillMissingExtractions(
         assignments.push(`extracted_reading = $${assignments.length + 1}`)
         values.push(parsed.reading)
         row.extracted_reading = parsed.reading
+      }
+      if (needsClient && parsed.client) {
+        assignments.push(`extracted_client = $${assignments.length + 1}`)
+        values.push(parsed.client)
+        row.extracted_client = parsed.client
       }
       if (!assignments.length) continue
 
@@ -2189,7 +2254,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
             d.id, d.meter_schedule_id, d.doc_type, d.file_name, d.extracted_meter, d.extracted_meter_retirado,
             d.extracted_lacre,
             d.extracted_cover_seal, d.extracted_cover_seal_2, d.extracted_reading, d.extracted_scheduled_at,
-            d.extracted_installation, d.extracted_toi, d.extracted_note,
+            d.extracted_installation, d.extracted_toi, d.extracted_note, d.extracted_client,
             d.extracted_fields_manual, d.blocked, d.block_reason, d.created_at, d.created_by_user_id,
             u.registration AS created_by_registration, u.name AS created_by_name
      FROM meter_inspection_documents d
@@ -2343,20 +2408,23 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
       | 'extracted_installation'
       | 'extracted_toi'
       | 'extracted_note'
+      | 'extracted_client'
       | 'extracted_fields_manual'
     >
   >(
     `SELECT id, doc_type, extracted_cover_seal, extracted_reading, extracted_scheduled_at,
-            extracted_installation, extracted_toi, extracted_note, extracted_fields_manual
+            extracted_installation, extracted_toi, extracted_note, extracted_client, extracted_fields_manual
      FROM meter_inspection_documents
      WHERE meter_schedule_id = $1`,
     [meterScheduleId],
   )
 
   await repairExtractedNote(documents.rows, schedule.rows[0].note)
+  await repairExtractedClient(documents.rows)
 
   const toiExtraction = pickToiExtractionRow(documents.rows)
   const extractedNote = pickExtractedNote(documents.rows, schedule.rows[0].note)
+  const extractedClient = pickExtractedClient(documents.rows)
   const comparisons = buildScheduleEntryComparisons(
     schedule.rows[0],
     toiExtraction
@@ -2369,7 +2437,7 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
     pickExtractedScheduledAt(documents.rows),
   )
 
-  res.json({ meterScheduleId, comparisons })
+  res.json({ meterScheduleId, comparisons, extractedClient })
 }
 
 export async function downloadInspectionDocument(req: Request, res: Response) {

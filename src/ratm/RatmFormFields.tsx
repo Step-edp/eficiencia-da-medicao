@@ -196,6 +196,7 @@ function emptyScheduleFields(): Partial<RatmFormData> {
     clientPresent: '',
     schedulingNotes: '',
     deliveryDeadlineLabel: '',
+    client: '',
   }
 }
 
@@ -449,9 +450,11 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       const partnerLabel = formatSchedulePartnerAndTeamLabel(schedule)
 
       let entryComparisons = null
+      let extractedClient = ''
       try {
         const comparisonResponse = await api.getScheduleEntryComparisons(schedule.id)
         entryComparisons = comparisonResponse.comparisons
+        extractedClient = comparisonResponse.extractedClient?.trim() || ''
       } catch {
         entryComparisons = null
       }
@@ -471,6 +474,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         note: schedule.note || '',
         csd: schedule.csd || '',
         partnerLabel,
+        client: extractedClient,
         clientPresent:
           schedule.clientPresent === 'sim'
             ? 'Sim'
@@ -637,7 +641,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             type="text"
             value={data.client}
             onChange={(event) => onChange({ client: event.target.value })}
-            placeholder="Edifício Independence"
+            placeholder="Nome e CPF/CNPJ do documento"
           />
         </label>
 

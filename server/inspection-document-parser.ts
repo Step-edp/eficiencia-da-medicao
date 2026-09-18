@@ -323,6 +323,7 @@ export type InspectionDocumentParseResult = {
   toi: string | null
   note: string | null
   scheduledAt: string | null
+  client: string | null
 }
 
 export type InspectionDocumentType = 'toi' | 'comunicado' | 'ambos' | 'desconhecido'
@@ -920,6 +921,82 @@ function extractToiNumber(text: string): string | null {
   )
 }
 
+function titleCasePersonName(value: string): string {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => {
+      if (/^(da|de|do|dos|das|e)$/i.test(word)) return word.toLowerCase()
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    })
+    .join(' ')
+}
+
+function sanitizePersonName(raw: string): string | null {
+  const cleaned = raw
+    .replace(/[^A-Za-zÀ-ÿ' .]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (cleaned.length < 5) return null
+  const words = cleaned.split(' ').filter((word) => word.length > 1)
+  if (words.length < 2) return null
+  const joined = words.join(' ')
+  if (/inspetor|matr[ií]cula|solicitante|contratada|prezado|edp\s+s[aã]o/i.test(joined)) {
+    return null
+  }
+  return titleCasePersonName(joined)
+}
+
+function formatCpfCnpj(raw: string | null | undefined): string | null {
+  const digits = String(raw ?? '').replace(/\D/g, '')
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`
+  }
+  if (digits.length === 14) {
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`
+  }
+  return null
+}
+
+function formatExtractedClient(name: string | null, document: string | null): string | null {
+  if (name && document) return `${name} · ${document}`
+  return name || document
+}
+
+export function extractClientFromText(text: string): string | null {
+  const normalized = normalizedSlice(text)
+
+  const recibo = normalized.match(
+    /recibo.{0,360}?nome\s*:?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ' .]{2,90}?)\s+identidade[^0-9]{0,28}([\d.\-\/]{11,18})/i,
+  )
+  if (recibo) {
+    return formatExtractedClient(sanitizePersonName(recibo[1] ?? ''), formatCpfCnpj(recibo[2]))
+  }
+
+  const reciboName = normalized.match(
+    /recibo.{0,360}?nome\s*:?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ' .]{2,90}?)(?=\s+(?:identidade|cpf|cnpj|rg|assinatura))/i,
+  )
+  const reciboDoc = normalized.match(
+    /recibo.{0,480}?(?:identidade[^0-9]{0,24})?(?:cpf|cnpj)\s*:?\s*([\d.\-\/]{11,18})/i,
+  )
+  const fromRecibo = formatExtractedClient(
+    reciboName ? sanitizePersonName(reciboName[1] ?? '') : null,
+    formatCpfCnpj(reciboDoc?.[1]),
+  )
+  if (fromRecibo) return fromRecibo
+
+  const consumidor = normalized.match(
+    /identifica[cç][aã]o\s+do\s+consumidor.{0,500}?nome(?:\s*\/\s*raz[aã]o\s+social)?\s*:?\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ' .]{2,90}?)(?=\s+(?:cpf|cnpj|rg|endere[cç]o))/i,
+  )
+  const consumidorDoc = normalized.match(
+    /identifica[cç][aã]o\s+do\s+consumidor.{0,620}?(?:cpf|cnpj)\s*:?\s*([\d.\-\/]{11,18})/i,
+  )
+  return formatExtractedClient(
+    consumidor ? sanitizePersonName(consumidor[1] ?? '') : null,
+    formatCpfCnpj(consumidorDoc?.[1]),
+  )
+}
+
 function normalizedSlice(text: string): string {
   return text.replace(/\s+/g, ' ')
 }
@@ -966,6 +1043,7 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
     toi,
     note: extractNoteNumber(normalized, excludedNoteKeys),
     scheduledAt: extractScheduledAt(normalized),
+    client: extractClientFromText(normalized),
   }
 }
 
