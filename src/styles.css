@@ -1004,6 +1004,12 @@ button {
   transform: translateY(-1px);
 }
 
+.icon-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .icon-button svg {
   width: 20px;
   height: 20px;

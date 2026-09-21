@@ -133,6 +133,7 @@ import {
   listEnsaiosRealizados,
   getEnsaioSessaoMedicoes,
   deleteEnsaioRealizado,
+  exportEnsaiosExcel,
 } from './routes/analisadores-tensao.js'
 import { requireAuth, optionalAuth, requireAdmin } from './auth.js'
 import { mailRoutes } from './routes/mail.js'
@@ -620,6 +621,7 @@ async function start() {
   )
   app.get('/api/analisadores-tensao/:id/medicoes', requireAuth, getAnalisadorEnsaioMedicoes)
   app.get('/api/analisadores-tensao/ensaios', requireAuth, listEnsaiosRealizados)
+  app.get('/api/analisadores-tensao/ensaios/excel', requireAuth, exportEnsaiosExcel)
   app.get('/api/analisadores-tensao/ensaios/:ensaioId', requireAuth, getEnsaioSessaoMedicoes)
   app.delete(
     '/api/analisadores-tensao/ensaios/:ensaioId',

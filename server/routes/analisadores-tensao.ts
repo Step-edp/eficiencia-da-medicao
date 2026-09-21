@@ -1,6 +1,21 @@
 import type { Request, Response } from 'express'
+import * as XLSX from 'xlsx'
 import { query, pool } from '../db.js'
 import { writeAuditLog } from '../audit.js'
+
+const ENSAIO_EXCEL_VOLTAGES = ['127V', '220V'] as const
+const ENSAIO_EXCEL_TESTES = [1, 2, 3, 4, 5] as const
+const ENSAIO_EXCEL_FASES = [
+  { key: 'FA', padrao: 'padrao_fase_a', equipamento: 'equipamento_fase_a' },
+  { key: 'FB', padrao: 'padrao_fase_b', equipamento: 'equipamento_fase_b' },
+  { key: 'FC', padrao: 'padrao_fase_c', equipamento: 'equipamento_fase_c' },
+] as const
+
+function toExcelNumber(value: unknown): number | '' {
+  if (value == null || value === '') return ''
+  const n = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(n) ? n : ''
+}
 
 export type AnalisadorModeloCatalogEntry = {
   modelo: string
@@ -578,4 +593,145 @@ export async function deleteEnsaioRealizado(req: Request, res: Response) {
   })
 
   res.json({ ok: true, ensaioId, numeroSerie: analisador.numero_serie })
+}
+
+type EnsaioExcelMedicaoRow = {
+  ensaio_id: string
+  numero_serie: string
+  identificacao_laudo: string
+  voltage: '127V' | '220V'
+  teste_numero: number
+  padrao_fase_a: string
+  padrao_fase_b: string
+  padrao_fase_c: string
+  equipamento_fase_a: string
+  equipamento_fase_b: string
+  equipamento_fase_c: string
+  created_at: Date
+}
+
+export async function exportEnsaiosExcel(_req: Request, res: Response) {
+  const result = await query<EnsaioExcelMedicaoRow>(
+    `SELECT m.ensaio_id,
+            a.numero_serie,
+            a.identificacao_laudo,
+            m.voltage,
+            m.teste_numero,
+            m.padrao_fase_a::text AS padrao_fase_a,
+            m.padrao_fase_b::text AS padrao_fase_b,
+            m.padrao_fase_c::text AS padrao_fase_c,
+            m.equipamento_fase_a::text AS equipamento_fase_a,
+            m.equipamento_fase_b::text AS equipamento_fase_b,
+            m.equipamento_fase_c::text AS equipamento_fase_c,
+            m.created_at
+     FROM analisador_tensao_ensaio_medicoes m
+     JOIN analisadores_tensao a ON a.id = m.analisador_id
+     ORDER BY m.created_at DESC, a.numero_serie ASC, m.voltage ASC, m.teste_numero ASC`,
+  )
+
+  const totalCols = 2 + ENSAIO_EXCEL_VOLTAGES.length * ENSAIO_EXCEL_TESTES.length * 6
+  const emptyRow = () => Array<string | number>(totalCols).fill('')
+
+  const titleRow = emptyRow()
+  titleRow[0] = 'GERAR LAUDOS EM MASSA'
+
+  const testeRow = emptyRow()
+  const headerRow = emptyRow()
+  headerRow[0] = 'N° CERTIFICADO DE CALIBRAÇÃO'
+  headerRow[1] = 'PATRIMÔNIO/N°SÉRIE'
+
+  const merges: XLSX.Range[] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }]
+  let col = 2
+  for (const voltage of ENSAIO_EXCEL_VOLTAGES) {
+    const prefix = voltage.replace('V', '')
+    for (const testeNumero of ENSAIO_EXCEL_TESTES) {
+      testeRow[col] = `TESTE ${testeNumero}`
+      merges.push({ s: { r: 1, c: col }, e: { r: 1, c: col + 5 } })
+      for (const fase of ENSAIO_EXCEL_FASES) {
+        headerRow[col++] = `${prefix}.${fase.key}.P`
+        headerRow[col++] = `${prefix}.${fase.key}.E`
+      }
+    }
+  }
+
+  type GroupedEnsaio = {
+    identificacaoLaudo: string
+    numeroSerie: string
+    createdAt: number
+    values: Record<string, number | ''>
+  }
+
+  const groups = new Map<string, GroupedEnsaio>()
+  for (const row of result.rows) {
+    const key = `${row.ensaio_id}::${row.numero_serie}`
+    let group = groups.get(key)
+    if (!group) {
+      group = {
+        identificacaoLaudo: row.identificacao_laudo,
+        numeroSerie: row.numero_serie,
+        createdAt: row.created_at.getTime(),
+        values: {},
+      }
+      groups.set(key, group)
+    } else if (row.created_at.getTime() < group.createdAt) {
+      group.createdAt = row.created_at.getTime()
+    }
+
+    const prefix = row.voltage.replace('V', '')
+    for (const fase of ENSAIO_EXCEL_FASES) {
+      group.values[`${prefix}|${row.teste_numero}|${fase.key}.P`] = toExcelNumber(row[fase.padrao])
+      group.values[`${prefix}|${row.teste_numero}|${fase.key}.E`] = toExcelNumber(row[fase.equipamento])
+    }
+  }
+
+  const dataRows = [...groups.values()]
+    .sort((a, b) => b.createdAt - a.createdAt || a.numeroSerie.localeCompare(b.numeroSerie, 'pt-BR'))
+    .map((group) => {
+      const dataRow = emptyRow()
+      dataRow[0] = group.identificacaoLaudo
+      dataRow[1] = group.numeroSerie
+      let dataCol = 2
+      for (const voltage of ENSAIO_EXCEL_VOLTAGES) {
+        const prefix = voltage.replace('V', '')
+        for (const testeNumero of ENSAIO_EXCEL_TESTES) {
+          for (const fase of ENSAIO_EXCEL_FASES) {
+            dataRow[dataCol++] = group.values[`${prefix}|${testeNumero}|${fase.key}.P`] ?? ''
+            dataRow[dataCol++] = group.values[`${prefix}|${testeNumero}|${fase.key}.E`] ?? ''
+          }
+        }
+      }
+      return dataRow
+    })
+
+  const aoa = [titleRow, testeRow, headerRow, ...dataRows]
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
+  ws['!merges'] = merges
+  ws['!cols'] = [
+    { wch: 32 },
+    { wch: 22 },
+    ...Array.from({ length: totalCols - 2 }, () => ({ wch: 12 })),
+  ]
+
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
+  for (let r = 3; r <= range.e.r; r += 1) {
+    for (let c = 2; c <= range.e.c; c += 1) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c })]
+      if (cell && typeof cell.v === 'number') cell.z = '0.00'
+    }
+  }
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'GERAR LAUDOS EM MASSA')
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+
+  const dateStamp = new Date().toISOString().slice(0, 10)
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="ensaios-analisadores-tensao-${dateStamp}.xlsx"`,
+  )
+  res.send(buffer)
 }

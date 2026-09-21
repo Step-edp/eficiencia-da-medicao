@@ -2123,6 +2123,30 @@ export const api = {
     ),
   listEnsaiosRealizados: () =>
     request<{ ensaios: EnsaioSessaoRecord[] }>('/api/analisadores-tensao/ensaios'),
+  downloadEnsaiosAnalisadoresExcel: async () => {
+    const response = await fetch('/api/analisadores-tensao/ensaios/excel', {
+      credentials: 'include',
+    })
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string }
+      throw new ApiError(
+        response.status,
+        payload.error ?? 'Não foi possível gerar o Excel dos ensaios.',
+      )
+    }
+    const blob = await response.blob()
+    const disposition = response.headers.get('Content-Disposition')
+    const match = disposition?.match(/filename="([^"]+)"/)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = match?.[1] ?? 'ensaios-analisadores-tensao.xlsx'
+    link.rel = 'noopener'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  },
   getEnsaioSessaoMedicoes: (ensaioId: string) =>
     request<{ ensaioId: string; medicoes: EnsaioSessaoMedicaoRecord[] }>(
       `/api/analisadores-tensao/ensaios/${ensaioId}`,

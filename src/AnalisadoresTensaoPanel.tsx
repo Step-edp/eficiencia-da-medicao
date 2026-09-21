@@ -230,6 +230,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   } | null>(null)
   const [ensaioToDelete, setEnsaioToDelete] = useState<EnsaioSessaoRecord | null>(null)
   const [deletingEnsaio, setDeletingEnsaio] = useState(false)
+  const [downloadingExcel, setDownloadingExcel] = useState(false)
 
   const [showEnsaiarForm, setShowEnsaiarForm] = useState(false)
   const [ensaiarSerieInput, setEnsaiarSerieInput] = useState('')
@@ -533,6 +534,24 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
     })
   }
 
+  const handleDownloadExcel = async () => {
+    setDownloadingExcel(true)
+    setFeedback(null)
+    try {
+      await api.downloadEnsaiosAnalisadoresExcel()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível baixar o Excel dos ensaios.',
+      })
+    } finally {
+      setDownloadingExcel(false)
+    }
+  }
+
   const confirmDeleteEnsaio = async () => {
     if (!ensaioToDelete) return
     setDeletingEnsaio(true)
@@ -579,52 +598,96 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
 
   return (
     <div className="analisadores-tensao-panel">
-      {readOnly ? null : (
-        <div className="area-actions right-aligned-actions">
-          {!showForm && !showEnsaiosRealizados ? (
-            <button
-              type="button"
-              className={`secondary-button${showEnsaiarForm ? ' analisador-form-close-button' : ''}`}
-              aria-label={showEnsaiarForm ? 'Fechar formulário' : undefined}
-              onClick={() => {
-                setShowEnsaiarForm((current) => !current)
-                setShowForm(false)
-                setShowEnsaiosRealizados(false)
-                setFeedback(null)
-                resetEnsaiarForm()
-              }}
-            >
-              {showEnsaiarForm ? '×' : 'Ensaiar analisador'}
-            </button>
-          ) : null}
-          {!showForm && !showEnsaiarForm ? (
-            <button
-              type="button"
-              className={`secondary-button${showEnsaiosRealizados ? ' analisador-form-close-button' : ''}`}
-              aria-label={showEnsaiosRealizados ? 'Fechar' : undefined}
-              onClick={toggleEnsaiosRealizados}
-            >
-              {showEnsaiosRealizados ? '×' : 'Ensaios realizados'}
-            </button>
-          ) : null}
-          {!showEnsaiarForm && !showEnsaiosRealizados ? (
-            <button
-              type="button"
-              className={`primary-button${showForm ? ' analisador-form-close-button' : ''}`}
-              aria-label={showForm ? 'Fechar formulário' : undefined}
-              onClick={() => {
-                setShowForm((current) => !current)
-                setShowEnsaiarForm(false)
-                setShowEnsaiosRealizados(false)
-                setFeedback(null)
-                resetForm()
-              }}
-            >
-              {showForm ? '×' : 'Cadastrar analisador'}
-            </button>
-          ) : null}
-        </div>
-      )}
+      <div className="area-actions right-aligned-actions">
+        {readOnly ? null : (
+          <>
+            {!showForm && !showEnsaiosRealizados ? (
+              <button
+                type="button"
+                className={`secondary-button${showEnsaiarForm ? ' analisador-form-close-button' : ''}`}
+                aria-label={showEnsaiarForm ? 'Fechar formulário' : undefined}
+                onClick={() => {
+                  setShowEnsaiarForm((current) => !current)
+                  setShowForm(false)
+                  setShowEnsaiosRealizados(false)
+                  setFeedback(null)
+                  resetEnsaiarForm()
+                }}
+              >
+                {showEnsaiarForm ? '×' : 'Ensaiar analisador'}
+              </button>
+            ) : null}
+            {!showForm && !showEnsaiarForm ? (
+              <button
+                type="button"
+                className={`secondary-button${showEnsaiosRealizados ? ' analisador-form-close-button' : ''}`}
+                aria-label={showEnsaiosRealizados ? 'Fechar' : undefined}
+                onClick={toggleEnsaiosRealizados}
+              >
+                {showEnsaiosRealizados ? '×' : 'Ensaios realizados'}
+              </button>
+            ) : null}
+            {!showEnsaiarForm && !showEnsaiosRealizados ? (
+              <button
+                type="button"
+                className={`primary-button${showForm ? ' analisador-form-close-button' : ''}`}
+                aria-label={showForm ? 'Fechar formulário' : undefined}
+                onClick={() => {
+                  setShowForm((current) => !current)
+                  setShowEnsaiarForm(false)
+                  setShowEnsaiosRealizados(false)
+                  setFeedback(null)
+                  resetForm()
+                }}
+              >
+                {showForm ? '×' : 'Cadastrar analisador'}
+              </button>
+            ) : null}
+          </>
+        )}
+        {!showForm && !showEnsaiarForm ? (
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => void handleDownloadExcel()}
+            disabled={downloadingExcel}
+            aria-label="Baixar dados de ensaio em Excel"
+            title="Baixar dados de ensaio em Excel"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M14 3v5h5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M8 13h8M8 16.5h5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+              <path
+                d="M17.2 19.2v-3.4M15.6 17.8L17.2 19.4 18.8 17.8"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        ) : null}
+      </div>
 
       {feedback ? (
         <LoginFeedback
