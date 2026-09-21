@@ -599,6 +599,7 @@ type EnsaioExcelMedicaoRow = {
   ensaio_id: string
   numero_serie: string
   identificacao_laudo: string
+  modelo: string
   voltage: '127V' | '220V'
   teste_numero: number
   padrao_fase_a: string
@@ -615,6 +616,7 @@ export async function exportEnsaiosExcel(_req: Request, res: Response) {
     `SELECT m.ensaio_id,
             a.numero_serie,
             a.identificacao_laudo,
+            a.modelo,
             m.voltage,
             m.teste_numero,
             m.padrao_fase_a::text AS padrao_fase_a,
@@ -629,7 +631,9 @@ export async function exportEnsaiosExcel(_req: Request, res: Response) {
      ORDER BY m.created_at DESC, a.numero_serie ASC, m.voltage ASC, m.teste_numero ASC`,
   )
 
-  const totalCols = 2 + ENSAIO_EXCEL_VOLTAGES.length * ENSAIO_EXCEL_TESTES.length * 6
+  const measurementCols = ENSAIO_EXCEL_VOLTAGES.length * ENSAIO_EXCEL_TESTES.length * 6
+  const modeloCol = 2 + measurementCols
+  const totalCols = modeloCol + 1
   const emptyRow = () => Array<string | number>(totalCols).fill('')
 
   const titleRow = emptyRow()
@@ -639,6 +643,7 @@ export async function exportEnsaiosExcel(_req: Request, res: Response) {
   const headerRow = emptyRow()
   headerRow[0] = 'N° CERTIFICADO DE CALIBRAÇÃO'
   headerRow[1] = 'PATRIMÔNIO/N°SÉRIE'
+  headerRow[modeloCol] = 'Modelo'
 
   const merges: XLSX.Range[] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }]
   let col = 2
@@ -657,6 +662,7 @@ export async function exportEnsaiosExcel(_req: Request, res: Response) {
   type GroupedEnsaio = {
     identificacaoLaudo: string
     numeroSerie: string
+    modelo: string
     createdAt: number
     values: Record<string, number | ''>
   }
@@ -669,6 +675,7 @@ export async function exportEnsaiosExcel(_req: Request, res: Response) {
       group = {
         identificacaoLaudo: row.identificacao_laudo,
         numeroSerie: row.numero_serie,
+        modelo: row.modelo,
         createdAt: row.created_at.getTime(),
         values: {},
       }
@@ -700,6 +707,7 @@ export async function exportEnsaiosExcel(_req: Request, res: Response) {
           }
         }
       }
+      dataRow[modeloCol] = group.modelo
       return dataRow
     })
 
@@ -709,12 +717,13 @@ export async function exportEnsaiosExcel(_req: Request, res: Response) {
   ws['!cols'] = [
     { wch: 32 },
     { wch: 22 },
-    ...Array.from({ length: totalCols - 2 }, () => ({ wch: 12 })),
+    ...Array.from({ length: measurementCols }, () => ({ wch: 12 })),
+    { wch: 14 },
   ]
 
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
   for (let r = 3; r <= range.e.r; r += 1) {
-    for (let c = 2; c <= range.e.c; c += 1) {
+    for (let c = 2; c < modeloCol; c += 1) {
       const cell = ws[XLSX.utils.encode_cell({ r, c })]
       if (cell && typeof cell.v === 'number') cell.z = '0.00'
     }
