@@ -330,6 +330,58 @@ function pickDocumentCoverSeals(documents: InspectionDocumentRecord[] | undefine
   }
 }
 
+function readingStatusFromText(value: string): string {
+  const normalized = value.toLowerCase()
+  if (/apagado/.test(normalized)) return 'Apagado'
+  if (/sem leitura/.test(normalized)) return 'Sem leitura'
+  if (/ileg[ií]vel/.test(normalized)) return 'Ilegível'
+  return ''
+}
+
+function isNotApplicableReading(value: string | null | undefined): boolean {
+  const text = value?.trim() ?? ''
+  if (!text) return false
+  return text === 'nao_aplicavel' || /n[aã]o aplic/.test(text.toLowerCase())
+}
+
+function pickDocumentReading(
+  documents: InspectionDocumentRecord[] | undefined,
+  campoReading?: string | null,
+  registeredReading?: string | null,
+): { meterReading: string; meterReadingPreset: string; meterReadingStatus: string } {
+  const preferred = pickPreferredInspectionDocument(documents, true)
+  const raw =
+    preferred?.extractedReading?.trim() ||
+    documents?.find((document) => document.extractedReading?.trim())?.extractedReading?.trim() ||
+    registeredReading?.trim() ||
+    ''
+
+  if (raw) {
+    const status = readingStatusFromText(raw)
+    if (status) {
+      return { meterReading: '', meterReadingPreset: '', meterReadingStatus: status }
+    }
+    if (isNotApplicableReading(raw)) {
+      return {
+        meterReading: 'Não aplicável',
+        meterReadingPreset: 'Não aplicável',
+        meterReadingStatus: '',
+      }
+    }
+    return { meterReading: raw, meterReadingPreset: '', meterReadingStatus: '' }
+  }
+
+  if (isNotApplicableReading(campoReading)) {
+    return {
+      meterReading: 'Não aplicável',
+      meterReadingPreset: 'Não aplicável',
+      meterReadingStatus: '',
+    }
+  }
+
+  return { meterReading: '', meterReadingPreset: '', meterReadingStatus: '' }
+}
+
 function emptyScheduleFields(): Partial<RatmFormData> {
   return {
     meter: '',
@@ -358,6 +410,9 @@ function emptyScheduleFields(): Partial<RatmFormData> {
     seal1Status: '',
     seal2: '',
     seal2Status: '',
+    meterReading: '',
+    meterReadingPreset: '',
+    meterReadingStatus: '',
   }
 }
 
@@ -658,11 +713,21 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         seal2: '',
         seal2Status: '',
       }
+      let meterReadingFields = {
+        meterReading: '',
+        meterReadingPreset: '',
+        meterReadingStatus: '',
+      }
       try {
         const documentsResponse = await api.listInspectionDocuments(schedule.id)
         extractedLacre = pickDocumentEnvelopeSeal(documentsResponse.documents)
         extractedClient = pickDocumentClient(documentsResponse.documents)
         coverSeals = pickDocumentCoverSeals(documentsResponse.documents)
+        meterReadingFields = pickDocumentReading(
+          documentsResponse.documents,
+          documentsResponse.conference?.campoReading,
+          documentsResponse.registeredReading,
+        )
         if (!coverSeals.seal1 && !coverSeals.seal1Status) {
           const campo = documentsResponse.conference?.campoCoverSeal?.trim() || ''
           const fromCampo = splitCoverSeal(campo, false)
@@ -700,6 +765,9 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         seal1Status: coverSeals.seal1Status,
         seal2: coverSeals.seal2,
         seal2Status: coverSeals.seal2Status,
+        meterReading: meterReadingFields.meterReading,
+        meterReadingPreset: meterReadingFields.meterReadingPreset,
+        meterReadingStatus: meterReadingFields.meterReadingStatus,
         clientPresent:
           schedule.clientPresent === 'sim'
             ? 'Sim'
