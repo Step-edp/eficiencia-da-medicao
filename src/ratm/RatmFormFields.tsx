@@ -258,6 +258,31 @@ function pickDocumentClient(documents: InspectionDocumentRecord[] | undefined): 
   return ''
 }
 
+let clientLookupGeneration = 0
+
+async function fillClientFromInspectionDocument(
+  scheduleId: string,
+  lookupGeneration: number,
+  onChange: (patch: Partial<RatmFormData>) => void,
+) {
+  for (let attempt = 0; attempt < 45; attempt += 1) {
+    if (lookupGeneration !== clientLookupGeneration) return
+    try {
+      const response = await api.getScheduleExtractedClient(scheduleId)
+      const name = response.extractedClient?.trim() || ''
+      if (name) {
+        if (lookupGeneration !== clientLookupGeneration) return
+        onChange({ client: name })
+        return
+      }
+      if (!response.pending && attempt > 0) return
+    } catch {
+      // OCR ainda pode estar rodando; tenta de novo.
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 2000))
+  }
+}
+
 function coverSealStatusFromText(value: string, allowNotApplicable = false): string {
   const normalized = value.toLowerCase()
   if (/n[aã]o aplic/.test(normalized)) return allowNotApplicable ? 'Não aplicável' : ''
@@ -621,7 +646,9 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       }
 
       const partnerLabel = formatSchedulePartnerAndTeamLabel(schedule)
+      const lookupGeneration = ++clientLookupGeneration
       const comparisonPromise = api.getScheduleEntryComparisons(schedule.id).catch(() => null)
+      void fillClientFromInspectionDocument(schedule.id, lookupGeneration, onChange)
 
       let extractedLacre = ''
       let extractedClient = ''

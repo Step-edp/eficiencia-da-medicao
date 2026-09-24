@@ -1972,7 +1972,33 @@ async function repairExtractedLacre(
   }
 }
 
-async function repairExtractedClient(
+const clientRepairJobs = new Map<string, Promise<void>>()
+
+function needsClientRepair(row: { extracted_client?: string | null }): boolean {
+  const current = row.extracted_client?.trim()
+  return !current || looksLikeReciboClient(current)
+}
+
+async function repairOneExtractedClient(row: {
+  id: string
+  extracted_client?: string | null
+}) {
+  const file = await query<{ file_data: Buffer }>(
+    `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
+    [row.id],
+  )
+  if (!file.rows[0]?.file_data) return
+
+  const next = await extractTitularFromInspectionPdf(file.rows[0].file_data)
+  if (!next) return
+  await query(`UPDATE meter_inspection_documents SET extracted_client = $2 WHERE id = $1`, [
+    row.id,
+    next,
+  ])
+  row.extracted_client = next
+}
+
+function enqueueRepairExtractedClient(
   rows: Array<{
     id?: string
     extracted_client?: string | null
@@ -1980,28 +2006,26 @@ async function repairExtractedClient(
   }>,
 ) {
   for (const row of rows) {
-    if (row.extracted_fields_manual) continue
-    if (row.extracted_client?.trim() && !looksLikeReciboClient(row.extracted_client)) continue
-    if (!row.id) continue
-
-    const file = await query<{ file_data: Buffer }>(
-      `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
-      [row.id],
+    if (!row.id || !needsClientRepair(row)) continue
+    if (clientRepairJobs.has(row.id)) continue
+    const documentId = row.id
+    clientRepairJobs.set(
+      documentId,
+      repairOneExtractedClient({ id: documentId, extracted_client: row.extracted_client })
+        .catch((error) => {
+          console.error('Falha ao extrair o nome do cliente do documento de inspeção:', error)
+        })
+        .finally(() => {
+          clientRepairJobs.delete(documentId)
+        }),
     )
-    if (!file.rows[0]?.file_data) continue
-
-    try {
-      const next = await extractTitularFromInspectionPdf(file.rows[0].file_data)
-      if (!next) continue
-      await query(`UPDATE meter_inspection_documents SET extracted_client = $2 WHERE id = $1`, [
-        row.id,
-        next,
-      ])
-      row.extracted_client = next
-    } catch (error) {
-      console.error('Falha ao extrair o nome do cliente do documento de inspeção:', error)
-    }
   }
+}
+
+function hasPendingClientRepair(
+  rows: Array<{ id?: string }>,
+): boolean {
+  return rows.some((row) => Boolean(row.id && clientRepairJobs.has(row.id)))
 }
 
 async function backfillMissingExtractions(
@@ -2337,6 +2361,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
   )
   const scheduleDateAdjusted = Boolean(scheduleDateAdjustment.rows[0]?.adjusted)
 
+  enqueueRepairExtractedClient(result.rows)
   await backfillMissingExtractions(result.rows)
   await repairEncontradoReading(result.rows)
   await repairMeterToiCollisions(
@@ -2478,7 +2503,7 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
     [meterScheduleId],
   )
 
-  await repairExtractedClient(documents.rows)
+  enqueueRepairExtractedClient(documents.rows)
   await repairExtractedNote(documents.rows, schedule.rows[0].note)
   await repairExtractedLacre(documents.rows)
 
@@ -2499,6 +2524,29 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
   )
 
   res.json({ meterScheduleId, comparisons, extractedClient, extractedLacre })
+}
+
+export async function getScheduleExtractedClient(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+
+  const documents = await query<{
+    id: string
+    doc_type: InspectionDocumentType
+    extracted_client: string | null
+    extracted_fields_manual: boolean | null
+  }>(
+    `SELECT id, doc_type, extracted_client, extracted_fields_manual
+     FROM meter_inspection_documents
+     WHERE meter_schedule_id = $1`,
+    [meterScheduleId],
+  )
+
+  enqueueRepairExtractedClient(documents.rows)
+
+  res.json({
+    extractedClient: pickExtractedClient(documents.rows),
+    pending: hasPendingClientRepair(documents.rows),
+  })
 }
 
 export async function downloadInspectionDocument(req: Request, res: Response) {

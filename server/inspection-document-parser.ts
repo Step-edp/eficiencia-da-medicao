@@ -1014,7 +1014,6 @@ export async function extractTitularFromInspectionPdf(
     const ocrText = await extractInspectionPdfTextViaOcr(buffer, {
       scale: 2,
       maxPages: 3,
-      topFraction: 0.6,
       stopWhen: (text) => Boolean(extractClientFromText(text)),
     })
     return extractClientFromText(ocrText)

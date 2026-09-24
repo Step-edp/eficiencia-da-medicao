@@ -2000,6 +2000,11 @@ export const api = {
     }>(`/api/meter-schedules/${meterScheduleId}/entry-comparisons`, {
       timeoutMs: 3 * 60 * 1000,
     }),
+  getScheduleExtractedClient: (meterScheduleId: string) =>
+    request<{ extractedClient?: string | null; pending?: boolean }>(
+      `/api/meter-schedules/${meterScheduleId}/extracted-client`,
+      { timeoutMs: 30_000 },
+    ),
   listInspectionPendencias: (forUserId?: string) => {
     const search = new URLSearchParams()
     if (forUserId) search.set('forUserId', forUserId)

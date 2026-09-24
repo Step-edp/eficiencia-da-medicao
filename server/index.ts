@@ -2,7 +2,7 @@ import express from 'express'
 import cookieParser from 'cookie-parser'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { query } from './db.js'
+import { warmupInspectionOcr } from './inspection-pdf-ocr.js'
 import { migrate } from './migrate.js'
 import { seed } from './seed.js'
 import { authRoutes } from './routes/users.js'
@@ -106,6 +106,7 @@ import {
   uploadInspectionPhotos,
   deleteInspectionPhoto,
   getScheduleEntryComparisons,
+  getScheduleExtractedClient,
   listInspectionPendencias,
   listWpaAnalysisMeters,
   updateInspectionWpa,
@@ -469,6 +470,11 @@ async function start() {
     getScheduleEntryComparisons,
   )
   app.get(
+    '/api/meter-schedules/:id/extracted-client',
+    requireAuth,
+    getScheduleExtractedClient,
+  )
+  app.get(
     '/api/meter-schedules/:id/inspection-documents',
     requireAuth,
     listInspectionDocuments,
@@ -672,6 +678,9 @@ async function start() {
     await migrate()
     await seed()
     console.log('Banco de dados pronto.')
+    void warmupInspectionOcr().catch((error) => {
+      console.error('Falha ao pré-carregar OCR de inspeção:', error)
+    })
   } catch (error) {
     const code =
       error && typeof error === 'object' && 'code' in error
