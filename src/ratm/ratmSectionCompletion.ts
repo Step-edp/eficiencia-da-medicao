@@ -82,7 +82,10 @@ export function isTestResultsSectionComplete(data: RatmFormData) {
     isFilled(data.damagedCoil) &&
     isFilled(data.apparentlyInOrder) &&
     isFilled(data.dielectricFailed) &&
-    isFilled(data.foreignBodyInMeter) &&
-    data.photos.every((photo) => isFilled(photo))
+    isFilled(data.foreignBodyInMeter)
   )
+}
+
+export function isPhotosSectionComplete(data: RatmFormData) {
+  return data.photos.every((photo) => isFilled(photo))
 }

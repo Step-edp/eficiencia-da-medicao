@@ -29,6 +29,7 @@ import {
   isSeal2SectionComplete,
   isMeasurementsSectionComplete,
   isTestResultsSectionComplete,
+  isPhotosSectionComplete,
 } from './ratmSectionCompletion'
 import { RatmDocumentFab } from './RatmDocumentFab'
 
@@ -680,6 +681,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const seal2Complete = isSeal2SectionComplete(data)
   const measurementsComplete = isMeasurementsSectionComplete(data)
   const testResultsComplete = isTestResultsSectionComplete(data)
+  const photosComplete = isPhotosSectionComplete(data)
   const skipCollaboratorChecks = excludesCollaboratorChecks(data)
   const visibleSchedulingTeamFields = getVisibleSchedulingTeamFieldKeys(data)
 
@@ -1167,7 +1169,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.testBench}
           options={TEST_BENCH_OPTIONS}
           onChange={(value) => onChange({ testBench: value })}
-          vertical
         />
 
         <RatmExpandableSection
@@ -1404,7 +1405,15 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               options={['Sim', 'Não']}
               onChange={(value) => onChange({ foreignBodyInMeter: value })}
             />
+          </div>
+        </RatmExpandableSection>
 
+        <RatmExpandableSection
+          title="Fotos"
+          accordionName={accordionName}
+          complete={photosComplete}
+        >
+          <div className="ratm-section-box-grid">
             {data.photos.map((photo, photoIndex) => (
               <PhotoUpload
                 key={photoIndex}
