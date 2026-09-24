@@ -357,10 +357,6 @@ function pickDocumentReading(
     ''
 
   if (raw) {
-    const status = readingStatusFromText(raw)
-    if (status) {
-      return { meterReading: '', meterReadingPreset: '', meterReadingStatus: status }
-    }
     if (isNotApplicableReading(raw)) {
       return {
         meterReading: 'Não aplicável',
@@ -368,7 +364,11 @@ function pickDocumentReading(
         meterReadingStatus: '',
       }
     }
-    return { meterReading: raw, meterReadingPreset: '', meterReadingStatus: '' }
+    return {
+      meterReading: raw,
+      meterReadingPreset: '',
+      meterReadingStatus: readingStatusFromText(raw),
+    }
   }
 
   if (isNotApplicableReading(campoReading)) {
