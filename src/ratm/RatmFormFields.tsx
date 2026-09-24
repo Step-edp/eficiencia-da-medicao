@@ -355,7 +355,10 @@ function parseInterruptedPhases(value: string): string[] {
 }
 
 function formatInterruptedPhases(phases: readonly string[]): string {
-  return INTERRUPTED_PHASES.filter((phase) => phases.includes(phase)).join(', ')
+  const ordered = INTERRUPTED_PHASES.filter((phase) => phases.includes(phase))
+  if (ordered.length <= 1) return ordered[0] ?? ''
+  if (ordered.length === 2) return `${ordered[0]} e ${ordered[1]}`
+  return `${ordered.slice(0, -1).join(', ')} e ${ordered[ordered.length - 1]}`
 }
 
 function interruptedPhaseChoiceValues(value: string): string[] {
