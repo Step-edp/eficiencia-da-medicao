@@ -2011,7 +2011,7 @@ function enqueueRepairExtractedClient(
     const documentId = row.id
     clientRepairJobs.set(
       documentId,
-      repairOneExtractedClient({ id: documentId, extracted_client: row.extracted_client })
+      repairOneExtractedClient(row as { id: string; extracted_client?: string | null })
         .catch((error) => {
           console.error('Falha ao extrair o nome do cliente do documento de inspeção:', error)
         })
@@ -2020,6 +2020,20 @@ function enqueueRepairExtractedClient(
         }),
     )
   }
+}
+
+async function repairExtractedClient(
+  rows: Array<{
+    id?: string
+    extracted_client?: string | null
+    extracted_fields_manual?: boolean | null
+  }>,
+) {
+  enqueueRepairExtractedClient(rows)
+  const pending = rows
+    .map((row) => (row.id ? clientRepairJobs.get(row.id) : undefined))
+    .filter((job): job is Promise<void> => Boolean(job))
+  await Promise.all(pending)
 }
 
 function hasPendingClientRepair(
@@ -2503,7 +2517,7 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
     [meterScheduleId],
   )
 
-  enqueueRepairExtractedClient(documents.rows)
+  await repairExtractedClient(documents.rows)
   await repairExtractedNote(documents.rows, schedule.rows[0].note)
   await repairExtractedLacre(documents.rows)
 
