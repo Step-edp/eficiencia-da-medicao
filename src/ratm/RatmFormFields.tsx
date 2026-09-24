@@ -330,18 +330,26 @@ function pickDocumentCoverSeals(documents: InspectionDocumentRecord[] | undefine
   }
 }
 
-function readingStatusFromText(value: string): string {
-  const normalized = value.toLowerCase()
-  if (/apagado/.test(normalized)) return 'Apagado'
-  if (/sem leitura/.test(normalized)) return 'Sem leitura'
-  if (/ileg[ií]vel/.test(normalized)) return 'Ilegível'
-  return ''
-}
+const METER_READING_PRESETS = ['Não aplicável', 'Apagado', 'Sem leitura', 'Ilegível'] as const
 
 function isNotApplicableReading(value: string | null | undefined): boolean {
   const text = value?.trim() ?? ''
   if (!text) return false
   return text === 'nao_aplicavel' || /n[aã]o aplic/.test(text.toLowerCase())
+}
+
+function readingPresetFromText(value: string | null | undefined): string {
+  const trimmed = value?.trim() ?? ''
+  if (!trimmed) return ''
+  if (isNotApplicableReading(trimmed)) return 'Não aplicável'
+  return METER_READING_PRESETS.includes(trimmed as (typeof METER_READING_PRESETS)[number])
+    ? trimmed
+    : ''
+}
+
+function readingStatusFromPreset(preset: string): string {
+  if (preset === 'Apagado' || preset === 'Sem leitura' || preset === 'Ilegível') return preset
+  return ''
 }
 
 function pickDocumentReading(
@@ -357,17 +365,11 @@ function pickDocumentReading(
     ''
 
   if (raw) {
-    if (isNotApplicableReading(raw)) {
-      return {
-        meterReading: 'Não aplicável',
-        meterReadingPreset: 'Não aplicável',
-        meterReadingStatus: '',
-      }
-    }
+    const preset = readingPresetFromText(raw)
     return {
-      meterReading: raw,
-      meterReadingPreset: '',
-      meterReadingStatus: readingStatusFromText(raw),
+      meterReading: preset || raw,
+      meterReadingPreset: preset,
+      meterReadingStatus: readingStatusFromPreset(preset),
     }
   }
 
@@ -1096,12 +1098,15 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           <input
             type="text"
             value={data.meterReading}
-            onChange={(event) =>
+            onChange={(event) => {
+              const next = event.target.value
+              const preset = readingPresetFromText(next)
               onChange({
-                meterReading: event.target.value,
-                meterReadingPreset: '',
+                meterReading: next,
+                meterReadingPreset: preset,
+                meterReadingStatus: readingStatusFromPreset(preset),
               })
-            }
+            }}
           />
         </label>
 
@@ -1109,21 +1114,15 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           legend=""
           name={`reading-preset-${index}`}
           value={data.meterReadingPreset}
-          options={['Não aplicável']}
-          onChange={(value) =>
+          options={[...METER_READING_PRESETS]}
+          onChange={(value) => {
+            const selected = data.meterReadingPreset === value ? '' : value
             onChange({
-              meterReadingPreset: value,
-              meterReading: value,
+              meterReadingPreset: selected,
+              meterReading: selected,
+              meterReadingStatus: readingStatusFromPreset(selected),
             })
-          }
-        />
-
-        <ClearableRadioGroup
-          legend="Status leitura"
-          name={`reading-status-${index}`}
-          value={data.meterReadingStatus}
-          options={['Apagado', 'Sem leitura', 'Ilegível']}
-          onChange={(value) => onChange({ meterReadingStatus: value })}
+          }}
         />
 
         <ClearableRadioGroup
