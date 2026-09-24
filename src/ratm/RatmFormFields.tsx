@@ -270,12 +270,22 @@ async function fillClientFromInspectionDocument(
     try {
       const response = await api.getScheduleExtractedClient(scheduleId)
       const name = response.extractedClient?.trim() || ''
-      if (name) {
+      const reading = readingFieldsFromValue(response.extractedReading)
+      const patch: Partial<RatmFormData> = {}
+      if (name) patch.client = name
+      if (reading.meterReading) Object.assign(patch, reading)
+      if (Object.keys(patch).length) {
         if (lookupGeneration !== clientLookupGeneration) return
-        onChange({ client: name })
+        onChange(patch)
+      }
+      const hasNumericReading = isNumericMeterReading(reading.meterReading)
+      if (
+        (name || !response.pending) &&
+        (hasNumericReading || !response.pending) &&
+        (!response.pending || attempt > 0)
+      ) {
         return
       }
-      if (!response.pending && attempt > 0) return
     } catch {
       // OCR ainda pode estar rodando; tenta de novo.
     }
@@ -352,24 +362,32 @@ function readingStatusFromPreset(preset: string): string {
   return ''
 }
 
+function isNumericMeterReading(value: string | null | undefined): boolean {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  return digits.length >= 3 && digits.length <= 8
+}
+
 function pickDocumentReading(
   documents: InspectionDocumentRecord[] | undefined,
   campoReading?: string | null,
   registeredReading?: string | null,
 ): { meterReading: string; meterReadingPreset: string; meterReadingStatus: string } {
-  const preferred = pickPreferredInspectionDocument(documents, true)
-  const raw =
-    preferred?.extractedReading?.trim() ||
-    documents?.find((document) => document.extractedReading?.trim())?.extractedReading?.trim() ||
-    registeredReading?.trim() ||
-    ''
+  const ordered = [
+    pickPreferredInspectionDocument(documents, true),
+    ...(documents ?? []),
+  ].filter((document): document is InspectionDocumentRecord => Boolean(document))
 
+  const readings = [
+    ...ordered.map((document) => document.extractedReading?.trim() || ''),
+    registeredReading?.trim() || '',
+  ].filter((value) => isNumericMeterReading(value))
+
+  const raw = readings[0] || ''
   if (raw) {
-    const preset = readingPresetFromText(raw)
     return {
-      meterReading: preset || raw,
-      meterReadingPreset: preset,
-      meterReadingStatus: readingStatusFromPreset(preset),
+      meterReading: raw,
+      meterReadingPreset: '',
+      meterReadingStatus: '',
     }
   }
 
@@ -381,6 +399,21 @@ function pickDocumentReading(
     }
   }
 
+  return { meterReading: '', meterReadingPreset: '', meterReadingStatus: '' }
+}
+
+function readingFieldsFromValue(value: string | null | undefined) {
+  const raw = value?.trim() || ''
+  if (isNumericMeterReading(raw)) {
+    return { meterReading: raw, meterReadingPreset: '', meterReadingStatus: '' }
+  }
+  if (isNotApplicableReading(raw)) {
+    return {
+      meterReading: 'Não aplicável',
+      meterReadingPreset: 'Não aplicável',
+      meterReadingStatus: '',
+    }
+  }
   return { meterReading: '', meterReadingPreset: '', meterReadingStatus: '' }
 }
 
@@ -784,6 +817,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       const comparisonResponse = await comparisonPromise
       if (comparisonResponse) {
         const comparisonLacre = comparisonResponse.extractedLacre?.trim() || ''
+        const comparisonReading = readingFieldsFromValue(comparisonResponse.extractedReading)
         onChange({
           entryComparisons: comparisonResponse.comparisons,
           entryFieldChecks: entryFieldChecksFromComparisons(comparisonResponse.comparisons),
@@ -793,6 +827,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               ? { client: extractedClient }
               : {}),
           enclosureSeal: extractedLacre || comparisonLacre || schedule.envelopeSeal || '',
+          ...(comparisonReading.meterReading ? comparisonReading : {}),
         })
       }
     } catch (error) {
@@ -1093,37 +1128,38 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           </div>
         </RatmExpandableSection>
 
-        <label className="full-width">
-          Leitura medidor
-          <input
-            type="text"
-            value={data.meterReading}
-            onChange={(event) => {
-              const next = event.target.value
-              const preset = readingPresetFromText(next)
+        <div className="numeric-field-block full-width">
+          <label>
+            Leitura medidor
+            <input
+              type="text"
+              value={data.meterReading}
+              onChange={(event) => {
+                const next = event.target.value
+                const preset = readingPresetFromText(next)
+                onChange({
+                  meterReading: next,
+                  meterReadingPreset: preset,
+                  meterReadingStatus: readingStatusFromPreset(preset),
+                })
+              }}
+            />
+          </label>
+          <ClearableRadioGroup
+            legend=""
+            name={`reading-preset-${index}`}
+            value={data.meterReadingPreset}
+            options={[...METER_READING_PRESETS]}
+            onChange={(value) => {
+              const selected = data.meterReadingPreset === value ? '' : value
               onChange({
-                meterReading: next,
-                meterReadingPreset: preset,
-                meterReadingStatus: readingStatusFromPreset(preset),
+                meterReadingPreset: selected,
+                meterReading: selected,
+                meterReadingStatus: readingStatusFromPreset(selected),
               })
             }}
           />
-        </label>
-
-        <ClearableRadioGroup
-          legend=""
-          name={`reading-preset-${index}`}
-          value={data.meterReadingPreset}
-          options={[...METER_READING_PRESETS]}
-          onChange={(value) => {
-            const selected = data.meterReadingPreset === value ? '' : value
-            onChange({
-              meterReadingPreset: selected,
-              meterReading: selected,
-              meterReadingStatus: readingStatusFromPreset(selected),
-            })
-          }}
-        />
+        </div>
 
         <ClearableRadioGroup
           legend="Mesa de ensaio"

@@ -63,8 +63,8 @@ const READING_LABEL_PATTERN = /lei[tr]ur[aeo](?:\s*k\s*w\s*h)?/i
 const READING_VALUE_PATTERN = /\b\d{3,8}\b/
 const READING_LABELED_VALUE_PATTERN =
   /lei[tr]ur[aeo](?:\s*k\s*w\s*h)?\s*[:\-]?\s*(\d{3,8})/gi
-const READING_LABELED_GAP_PATTERN =
-  /lei[tr]ur[aeo](?:\s*k\s*w\s*h)?[\s\S]{0,80}?(\d{3,8})/gi
+const EMPTY_TOI_READING_BEFORE_CONSTANTE =
+  /lei[tr]ur[aeo](?:\s*k\s*w\s*h)?\s*[:\-]?\s+constante\b/i
 
 function normalizeInspectionText(text: string): string {
   return text.replace(/\s+/g, ' ').trim()
@@ -800,23 +800,35 @@ function addReadingMatches(text: string, add: (value: string | null | undefined)
   for (const match of text.matchAll(new RegExp(READING_LABELED_VALUE_PATTERN.source, 'gi'))) {
     add(match[1])
   }
-  for (const match of text.matchAll(new RegExp(READING_LABELED_GAP_PATTERN.source, 'gi'))) {
-    add(match[1])
-  }
 }
 
 function collectReadingCandidates(text: string): string[] {
   const values: string[] = []
-  const add = (value: string | null | undefined) => {
+  const add = (value: string | null | undefined, minDigits = 3) => {
     const digits = String(value ?? '').replace(/\D/g, '')
-    if (digits.length < 3 || digits.length > 8) return
+    if (digits.length < minDigits || digits.length > 8) return
+    if (/^0+$/.test(digits)) return
     values.push(digits)
   }
 
   for (const match of text.matchAll(new RegExp(ENCONTRADO_READING_TAG.source, 'gi'))) {
-    add(match[1])
+    add(match[1], 1)
   }
   if (values.length) return values
+
+  // Na tabela do TOI a leitura fica na célula imediatamente antes de Constante.
+  const tableReadings = [
+    ...text.matchAll(
+      /lei[tr]ur[aeo](?:\s*k\s*w\s*h)?\s*[:\-]?\s*(\d{1,8})(?=\s+constante)/gi,
+    ),
+  ]
+  if (tableReadings.length) {
+    for (const match of tableReadings) add(match[1], 1)
+    return values
+  }
+  if (EMPTY_TOI_READING_BEFORE_CONSTANTE.test(text)) {
+    return []
+  }
 
   const encontradoWindow = sliceAfterLabelUntil(
     text,
@@ -825,7 +837,7 @@ function collectReadingCandidates(text: string): string[] {
   )
   if (encontradoWindow != null) {
     addReadingMatches(stripNonReadingFields(encontradoWindow), add)
-    return values
+    if (values.length) return values
   }
 
   const startMatch = text.match(DADOS_MEDICAO_START)
@@ -833,7 +845,8 @@ function collectReadingCandidates(text: string): string[] {
     const from = startMatch.index + startMatch[0].length
     const endMatch = text.slice(from).match(DADOS_MEDICAO_END)
     const to = endMatch?.index !== undefined ? from + endMatch.index : from + 1200
-    add(extractAfterLabel(text.slice(from, to), READING_LABEL_PATTERN, null, READING_VALUE_PATTERN))
+    add(extractAfterLabel(text.slice(from, to), READING_LABEL_PATTERN, /constante/i, READING_VALUE_PATTERN))
+    if (values.length) return values
   }
 
   const comunicadoStart = text.search(CSM_COMUNICADO_START)
@@ -847,7 +860,7 @@ function collectReadingCandidates(text: string): string[] {
       700,
     )
     addReadingMatches(stripNonReadingFields(untilInstalado ?? retirado), add)
-    if (untilInstalado != null) return values
+    if (values.length || untilInstalado != null) return values
   }
 
   addReadingMatches(text, add)
@@ -869,11 +882,28 @@ function pickReading(candidates: string[], excluded: Set<string>): string | null
     if (/^(19|20)\d{2}$/.test(value) && nonZero.some((other) => other !== value)) return false
     return true
   })
-  return typical[0] ?? nonZero[0] ?? unique[0] ?? null
+  return typical[0] ?? nonZero[0] ?? null
 }
 
 function extractReading(text: string, excluded: Set<string> = new Set()): string | null {
   return pickReading(collectReadingCandidates(text), excluded)
+}
+
+export function extractReadingFromText(text: string): string | null {
+  const normalized = normalizedSlice(text)
+  const toiNumbers = listKnownToiNumbers(normalized)
+  const excluded = new Set<string>()
+  for (const value of [
+    extractMeterEncontrado(normalized, toiNumbers),
+    extractComunicadoMeterRetirado(normalized, toiNumbers),
+    extractEnvelopeLacre(normalized),
+    extractToiNumber(normalized),
+    ...toiNumbers,
+  ]) {
+    const key = digitKey(value)
+    if (key) excluded.add(key)
+  }
+  return extractReading(normalized, excluded)
 }
 
 function formatExtractedScheduleDate(
@@ -1006,20 +1036,41 @@ export async function extractTitularFromInspectionPdf(
   buffer: Buffer,
   existingText?: string,
 ): Promise<string | null> {
-  const fromText = existingText ? extractClientFromText(existingText) : null
-  if (fromText) return fromText
+  const highlights = await extractInspectionHighlightsFromPdf(buffer, existingText)
+  return highlights.client
+}
+
+export async function extractInspectionHighlightsFromPdf(
+  buffer: Buffer,
+  existingText?: string,
+): Promise<{ client: string | null; reading: string | null }> {
+  const fromTextClient = existingText ? extractClientFromText(existingText) : null
+  const fromTextReading = existingText ? extractReadingFromText(existingText) : null
+  const emptyToiReading = existingText
+    ? EMPTY_TOI_READING_BEFORE_CONSTANTE.test(existingText)
+    : false
+  if (fromTextClient && (fromTextReading || emptyToiReading)) {
+    return { client: fromTextClient, reading: fromTextReading }
+  }
 
   try {
     const { extractInspectionPdfTextViaOcr } = await import('./inspection-pdf-ocr.js')
     const ocrText = await extractInspectionPdfTextViaOcr(buffer, {
       scale: 2,
       maxPages: 3,
-      stopWhen: (text) => Boolean(extractClientFromText(text)),
+      stopWhen: (text) => {
+        const hasClient = Boolean(extractClientFromText(text))
+        const hasReading = Boolean(extractReadingFromText(text))
+        return hasClient && (hasReading || EMPTY_TOI_READING_BEFORE_CONSTANTE.test(text))
+      },
     })
-    return extractClientFromText(ocrText)
+    return {
+      client: fromTextClient ?? extractClientFromText(ocrText),
+      reading: fromTextReading ?? extractReadingFromText(ocrText),
+    }
   } catch (error) {
-    console.error('Falha no OCR do titular da unidade consumidora:', error)
-    return null
+    console.error('Falha no OCR dos dados da unidade consumidora:', error)
+    return { client: fromTextClient, reading: fromTextReading }
   }
 }
 

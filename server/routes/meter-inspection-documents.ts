@@ -7,7 +7,7 @@ import {
   classifyInspectionDocument,
   countInspectionPdfPages,
   extractInspectionPdfText,
-  extractTitularFromInspectionPdf,
+  extractInspectionHighlightsFromPdf,
   looksLikeReciboClient,
   parseExtractedScheduleLabel,
   parseInspectionText,
@@ -407,6 +407,22 @@ function pickExtractedLacre(
   const fromPreferred = preferred?.extracted_lacre?.trim()
   if (fromPreferred) return fromPreferred
   return rows.find((row) => row.extracted_lacre?.trim())?.extracted_lacre?.trim() ?? null
+}
+
+function isNumericMeterReading(value: string | null | undefined): boolean {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  return digits.length >= 3 && digits.length <= 8
+}
+
+function pickExtractedReading(
+  rows: Array<{ doc_type: InspectionDocumentType; extracted_reading?: string | null }>,
+): string | null {
+  const preferredOrder: InspectionDocumentType[] = ['ambos', 'toi', 'comunicado']
+  for (const docType of preferredOrder) {
+    const value = rows.find((row) => row.doc_type === docType)?.extracted_reading?.trim()
+    if (value && isNumericMeterReading(value)) return value
+  }
+  return null
 }
 
 export type InspectionSummary = {
@@ -1609,15 +1625,19 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   let extractedClient: string | null = null
 
   const parsed = parseInspectionText(text)
+  const highlights =
+    parsed.client && parsed.reading
+      ? { client: parsed.client, reading: parsed.reading }
+      : await extractInspectionHighlightsFromPdf(fileBuffer, text)
   extractedScheduledAt = parsed.scheduledAt
   extractedMeterRetirado = parsed.meterRetirado
-  extractedClient = parsed.client ?? (await extractTitularFromInspectionPdf(fileBuffer, text))
+  extractedClient = parsed.client ?? highlights.client
   if (docType === 'toi' || docType === 'ambos') {
     extractedMeter = parsed.meterEncontrado
     extractedLacre = parsed.lacre
     extractedCoverSeal = parsed.coverSeal
     extractedCoverSeal2 = parsed.coverSeal2
-    extractedReading = parsed.reading
+    extractedReading = parsed.reading ?? highlights.reading
     extractedInstallation = parsed.installation
     extractedToi = parsed.toi
     extractedNote = parsed.note
@@ -1629,6 +1649,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     )
   } else if (docType === 'comunicado') {
     extractedLacre = parsed.lacre
+    extractedReading = parsed.reading ?? highlights.reading
     evaluation = evaluateComunicadoDocument(
       parsed.meterRetirado,
       schedule.rows[0].meter,
@@ -1855,7 +1876,7 @@ async function repairEncontradoReading(
 
       const assignments: string[] = []
       const values: Array<string | null> = []
-      if (readingChanged && (nextReading || parsed.meterEncontrado || parsed.meterRetirado)) {
+      if (readingChanged && nextReading) {
         assignments.push(`extracted_reading = $${assignments.length + 1}`)
         values.push(nextReading)
         row.extracted_reading = nextReading
@@ -1974,6 +1995,16 @@ async function repairExtractedLacre(
 
 const clientRepairJobs = new Map<string, Promise<void>>()
 
+function isPlaceholderReading(value: string | null | undefined): boolean {
+  const text = String(value ?? '').trim()
+  if (!text) return true
+  return /^(sem leitura|apagado|ileg[ií]vel|n[aã]o aplic[aá]vel|nao_aplicavel)$/i.test(text)
+}
+
+function needsReadingRepair(row: { extracted_reading?: string | null }): boolean {
+  return isPlaceholderReading(row.extracted_reading)
+}
+
 function needsClientRepair(row: { extracted_client?: string | null }): boolean {
   const current = row.extracted_client?.trim()
   return !current || looksLikeReciboClient(current)
@@ -1982,6 +2013,7 @@ function needsClientRepair(row: { extracted_client?: string | null }): boolean {
 async function repairOneExtractedClient(row: {
   id: string
   extracted_client?: string | null
+  extracted_reading?: string | null
 }) {
   const file = await query<{ file_data: Buffer }>(
     `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
@@ -1989,31 +2021,48 @@ async function repairOneExtractedClient(row: {
   )
   if (!file.rows[0]?.file_data) return
 
-  const next = await extractTitularFromInspectionPdf(file.rows[0].file_data)
-  if (!next) return
-  await query(`UPDATE meter_inspection_documents SET extracted_client = $2 WHERE id = $1`, [
-    row.id,
-    next,
-  ])
-  row.extracted_client = next
+  const highlights = await extractInspectionHighlightsFromPdf(file.rows[0].file_data)
+  const assignments: string[] = []
+  const values: string[] = []
+
+  if (highlights.client && needsClientRepair(row)) {
+    assignments.push(`extracted_client = $${assignments.length + 1}`)
+    values.push(highlights.client)
+    row.extracted_client = highlights.client
+  }
+  if (highlights.reading && isNumericMeterReading(highlights.reading) && needsReadingRepair(row)) {
+    assignments.push(`extracted_reading = $${assignments.length + 1}`)
+    values.push(highlights.reading)
+    row.extracted_reading = highlights.reading
+  }
+  if (!assignments.length) return
+
+  await query(
+    `UPDATE meter_inspection_documents SET ${assignments.join(', ')} WHERE id = $${assignments.length + 1}`,
+    [...values, row.id],
+  )
 }
 
 function enqueueRepairExtractedClient(
   rows: Array<{
     id?: string
     extracted_client?: string | null
+    extracted_reading?: string | null
     extracted_fields_manual?: boolean | null
   }>,
 ) {
   for (const row of rows) {
-    if (!row.id || !needsClientRepair(row)) continue
+    if (!row.id) continue
+    if (!needsClientRepair(row) && !needsReadingRepair(row)) continue
     if (clientRepairJobs.has(row.id)) continue
     const documentId = row.id
     clientRepairJobs.set(
       documentId,
-      repairOneExtractedClient(row as { id: string; extracted_client?: string | null })
+      repairOneExtractedClient(
+        row as { id: string; extracted_client?: string | null; extracted_reading?: string | null },
+      )
         .catch((error) => {
-          console.error('Falha ao extrair o nome do cliente do documento de inspeção:', error)
+          console.error('Falha ao extrair cliente/leitura do documento de inspeção:', error)
         })
         .finally(() => {
           clientRepairJobs.delete(documentId)
@@ -2525,6 +2574,7 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
   const extractedNote = pickExtractedNote(documents.rows, schedule.rows[0].note)
   const extractedClient = pickExtractedClient(documents.rows)
   const extractedLacre = pickExtractedLacre(documents.rows)
+  const extractedReading = pickExtractedReading(documents.rows)
   const comparisons = buildScheduleEntryComparisons(
     schedule.rows[0],
     toiExtraction
@@ -2537,7 +2587,7 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
     pickExtractedScheduledAt(documents.rows),
   )
 
-  res.json({ meterScheduleId, comparisons, extractedClient, extractedLacre })
+  res.json({ meterScheduleId, comparisons, extractedClient, extractedLacre, extractedReading })
 }
 
 export async function getScheduleExtractedClient(req: Request, res: Response) {
@@ -2547,9 +2597,10 @@ export async function getScheduleExtractedClient(req: Request, res: Response) {
     id: string
     doc_type: InspectionDocumentType
     extracted_client: string | null
+    extracted_reading: string | null
     extracted_fields_manual: boolean | null
   }>(
-    `SELECT id, doc_type, extracted_client, extracted_fields_manual
+    `SELECT id, doc_type, extracted_client, extracted_reading, extracted_fields_manual
      FROM meter_inspection_documents
      WHERE meter_schedule_id = $1`,
     [meterScheduleId],
@@ -2559,6 +2610,7 @@ export async function getScheduleExtractedClient(req: Request, res: Response) {
 
   res.json({
     extractedClient: pickExtractedClient(documents.rows),
+    extractedReading: pickExtractedReading(documents.rows),
     pending: hasPendingClientRepair(documents.rows),
   })
 }

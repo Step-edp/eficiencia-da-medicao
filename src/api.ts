@@ -1997,11 +1997,16 @@ export const api = {
       comparisons: ScheduleEntryComparisons
       extractedClient?: string | null
       extractedLacre?: string | null
+      extractedReading?: string | null
     }>(`/api/meter-schedules/${meterScheduleId}/entry-comparisons`, {
       timeoutMs: 3 * 60 * 1000,
     }),
   getScheduleExtractedClient: (meterScheduleId: string) =>
-    request<{ extractedClient?: string | null; pending?: boolean }>(
+    request<{
+      extractedClient?: string | null
+      extractedReading?: string | null
+      pending?: boolean
+    }>(
       `/api/meter-schedules/${meterScheduleId}/extracted-client`,
       { timeoutMs: 30_000 },
     ),
