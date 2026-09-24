@@ -56,6 +56,8 @@ export function isUnreadablePdfText(text: string): boolean {
 export type PdfOcrOptions = {
   scale?: number
   maxPages?: number
+  topFraction?: number
+  stopWhen?: (accumulatedText: string) => boolean
 }
 
 export async function extractInspectionPdfTextViaOcr(
@@ -72,6 +74,7 @@ export async function extractInspectionPdfTextViaOcr(
   const worker = await getOcrWorker()
   const pageCount = Math.min(pdf.numPages, options?.maxPages ?? MAX_OCR_PAGES)
   const scale = options?.scale ?? OCR_SCALE
+  const topFraction = Math.min(1, Math.max(0.2, options?.topFraction ?? 1))
   const parts: string[] = []
 
   for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
@@ -87,9 +90,20 @@ export async function extractInspectionPdfTextViaOcr(
       canvasFactory,
     } as never).promise
 
-    const { data } = await worker.recognize(pageCanvas.toBuffer('image/png'))
+    const cropHeight = Math.max(1, Math.floor(viewport.height * topFraction))
+    let image = pageCanvas
+    if (cropHeight < viewport.height) {
+      const cropped = createCanvas(viewport.width, cropHeight)
+      cropped.getContext('2d').drawImage(pageCanvas, 0, 0)
+      image = cropped
+    }
+
+    const { data } = await worker.recognize(image.toBuffer('image/png'))
     parts.push(data.text)
     canvasFactory.destroy(canvasRef)
+
+    const accumulated = parts.join('\n').replace(/\s+/g, ' ').trim()
+    if (options?.stopWhen?.(accumulated)) break
   }
 
   return parts.join('\n').replace(/\s+/g, ' ').trim()

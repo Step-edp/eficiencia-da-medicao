@@ -933,11 +933,20 @@ function extractToiNumber(text: string): string | null {
   )
 }
 
+function stripTitularNoise(raw: string): string {
+  return raw
+    .replace(/identifica\S*/gi, ' ')
+    .replace(/\b(?:rg|cpf|cnpj|cpe|cnp|rgi|rgicp\S*)\b/gi, ' ')
+    .replace(/[):]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function sanitizeTitularName(raw: string): string | null {
-  const cleaned = raw.replace(/\s+/g, ' ').trim()
+  const cleaned = stripTitularNoise(raw)
   if (cleaned.length < 5 || cleaned.length > 90) return null
   if (
-    /inspetor|prezado|edp\s+s[aã]o|solicitante|identifica|em\s+participar|convidamos|an[aá]lise\s+de\s+seu\s+medidor/i.test(
+    /inspetor|prezado|edp\s+s[aã]o|solicitante|em\s+participar|convidamos|an[aá]lise\s+de\s+seu\s+medidor/i.test(
       cleaned,
     )
   ) {
@@ -958,25 +967,39 @@ export function looksLikeReciboClient(value: string | null | undefined): boolean
   return (digits.length === 11 || digits.length === 14) && /[A-Za-zÀ-ÿ]{3,}/.test(text)
 }
 
-export function extractClientFromText(text: string): string | null {
-  const normalized = normalizedSlice(text)
-  const titularBlock = normalized.match(
-    /\bt\S{0,8}ular\s+da\s+unidade\s+consumidora(.{0,280}?)(?=usu[aá]rio\s+encontrado|endere[cç]o\s+da\s+unidade)/i,
-  )
-  if (!titularBlock) return null
+const TITULAR_COMPANY_OR_NAME =
+  /\b([A-ZÁÉÍÓÚÃÕÇ0-9]{2,}(?:\s+(?:DE|DA|DO|DOS|DAS|E|[A-ZÁÉÍÓÚÃÕÇ0-9]{2,})){1,12})\b/
 
-  const captured = titularBlock[1]
-  if (/em\s+participar|convidamos|an[aá]lise\s+de\s+seu\s+medidor/i.test(captured)) {
+const TITULAR_STOP =
+  /\b(?:usu\S{0,8}rio\s+encon\S{0,12}|endere\S{0,8}o\s+da\s+unidade|im[oó]vel\s+tempo|complemento|bairro)\b/i
+
+function nameFromTitularWindow(window: string): string | null {
+  if (/em\s+participar|convidamos|an[aá]lise\s+de\s+seu\s+medidor/i.test(window)) {
     return null
   }
+  const untilNextField = window.split(TITULAR_STOP)[0] ?? window
+  const stripped = stripTitularNoise(untilNextField)
+  const company = stripped.match(TITULAR_COMPANY_OR_NAME)
+  return sanitizeTitularName(company?.[1] ?? stripped)
+}
 
-  const cleaned = captured
-    .replace(/identifica[cç][aã]o\s+\S{0,40}/gi, ' ')
-    .replace(/\b(?:rg|cpf|cnpj|cpe|cnp|rgi)\b/gi, ' ')
-    .replace(/[):]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return sanitizeTitularName(cleaned)
+export function extractClientFromText(text: string): string | null {
+  const normalized = normalizedSlice(text)
+  const windows: string[] = []
+
+  const titularBlock = normalized.match(/\bt\S{0,10}ular\s+da\s+unidade\s+consumidora(.{0,400})/i)
+  if (titularBlock?.[1]) windows.push(titularBlock[1])
+
+  const beforeUsuario = normalized.match(
+    /unidade\s+consumidora(.{0,240}?)usu\S{0,8}rio\s+encon/i,
+  )
+  if (beforeUsuario?.[1]) windows.push(beforeUsuario[1])
+
+  for (const window of windows) {
+    const name = nameFromTitularWindow(window)
+    if (name) return name
+  }
+  return null
 }
 
 export async function extractTitularFromInspectionPdf(
@@ -988,7 +1011,12 @@ export async function extractTitularFromInspectionPdf(
 
   try {
     const { extractInspectionPdfTextViaOcr } = await import('./inspection-pdf-ocr.js')
-    const ocrText = await extractInspectionPdfTextViaOcr(buffer, { scale: 2, maxPages: 2 })
+    const ocrText = await extractInspectionPdfTextViaOcr(buffer, {
+      scale: 2,
+      maxPages: 3,
+      topFraction: 0.6,
+      stopWhen: (text) => Boolean(extractClientFromText(text)),
+    })
     return extractClientFromText(ocrText)
   } catch (error) {
     console.error('Falha no OCR do titular da unidade consumidora:', error)

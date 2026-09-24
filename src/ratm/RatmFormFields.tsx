@@ -236,6 +236,28 @@ function pickDocumentEnvelopeSeal(documents: InspectionDocumentRecord[] | undefi
   )
 }
 
+function looksLikeReciboClientName(value: string): boolean {
+  const text = value.trim()
+  if (!text) return false
+  if (/[·•]\s*\d{2,3}[.\d/-]{8,}/.test(text)) return true
+  if (/\s[-–—]\s*\d{2,3}(?:[.\s]?\d{3}){1,3}[./-]?\d{2}\b/.test(text)) return true
+  const digits = text.replace(/\D/g, '')
+  return (digits.length === 11 || digits.length === 14) && /[A-Za-zÀ-ÿ]{3,}/.test(text)
+}
+
+function pickDocumentClient(documents: InspectionDocumentRecord[] | undefined): string {
+  const ordered = [
+    pickPreferredInspectionDocument(documents, true),
+    ...(documents ?? []),
+  ].filter((document): document is InspectionDocumentRecord => Boolean(document))
+
+  for (const document of ordered) {
+    const value = document.extractedClient?.trim()
+    if (value && !looksLikeReciboClientName(value)) return value
+  }
+  return ''
+}
+
 function coverSealStatusFromText(value: string, allowNotApplicable = false): string {
   const normalized = value.toLowerCase()
   if (/n[aã]o aplic/.test(normalized)) return allowNotApplicable ? 'Não aplicável' : ''
@@ -602,6 +624,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       const comparisonPromise = api.getScheduleEntryComparisons(schedule.id).catch(() => null)
 
       let extractedLacre = ''
+      let extractedClient = ''
       let coverSeals = {
         seal1: '',
         seal1Status: '',
@@ -611,6 +634,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       try {
         const documentsResponse = await api.listInspectionDocuments(schedule.id)
         extractedLacre = pickDocumentEnvelopeSeal(documentsResponse.documents)
+        extractedClient = pickDocumentClient(documentsResponse.documents)
         coverSeals = pickDocumentCoverSeals(documentsResponse.documents)
         if (!coverSeals.seal1 && !coverSeals.seal1Status) {
           const campo = documentsResponse.conference?.campoCoverSeal?.trim() || ''
@@ -643,7 +667,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         note: schedule.note || '',
         csd: schedule.csd || '',
         partnerLabel,
-        client: '',
+        client: extractedClient,
         enclosureSeal: extractedLacre || schedule.envelopeSeal || '',
         seal1: coverSeals.seal1,
         seal1Status: coverSeals.seal1Status,
@@ -666,7 +690,11 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         onChange({
           entryComparisons: comparisonResponse.comparisons,
           entryFieldChecks: entryFieldChecksFromComparisons(comparisonResponse.comparisons),
-          client: comparisonResponse.extractedClient?.trim() || '',
+          ...(comparisonResponse.extractedClient?.trim()
+            ? { client: comparisonResponse.extractedClient.trim() }
+            : extractedClient
+              ? { client: extractedClient }
+              : {}),
           enclosureSeal: extractedLacre || comparisonLacre || schedule.envelopeSeal || '',
         })
       }

@@ -1801,6 +1801,7 @@ function mapInspectionDocumentRow(
     extractedCoverSeal2: row.extracted_cover_seal_2,
     extractedReading: row.extracted_reading,
     extractedScheduledAt: row.extracted_scheduled_at,
+    extractedClient: looksLikeReciboClient(row.extracted_client) ? null : row.extracted_client,
     registeredMeter,
     registeredLacre,
     registeredCoverSeal,
@@ -2477,8 +2478,8 @@ export async function getScheduleEntryComparisons(req: Request, res: Response) {
     [meterScheduleId],
   )
 
-  await repairExtractedNote(documents.rows, schedule.rows[0].note)
   await repairExtractedClient(documents.rows)
+  await repairExtractedNote(documents.rows, schedule.rows[0].note)
   await repairExtractedLacre(documents.rows)
 
   const toiExtraction = pickToiExtractionRow(documents.rows)
