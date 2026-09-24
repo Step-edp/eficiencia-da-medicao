@@ -5,7 +5,7 @@ import {
   type EntryFieldMatch,
   type InspectionDocumentRecord,
 } from '../api'
-import { formatSchedulePartnerAndTeamLabel } from '../schedulePartnerLabel'
+import { formatSchedulePartnerAndTeamLabel, formatScheduleInspectionByLabel } from '../schedulePartnerLabel'
 import {
   excludesCollaboratorChecks,
   getVisibleSchedulingTeamFieldKeys,
@@ -475,6 +475,7 @@ function emptyScheduleFields(): Partial<RatmFormData> {
     note: '',
     csd: '',
     partnerLabel: '',
+    fieldInspectionBy: '',
     clientPresent: '',
     schedulingNotes: '',
     deliveryDeadlineLabel: '',
@@ -778,6 +779,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       }
 
       const partnerLabel = formatSchedulePartnerAndTeamLabel(schedule)
+      const fieldInspectionBy = formatScheduleInspectionByLabel(schedule)
       const lookupGeneration = ++clientLookupGeneration
       const comparisonPromise = api.getScheduleEntryComparisons(schedule.id).catch(() => null)
       void fillClientFromInspectionDocument(schedule.id, lookupGeneration, onChange)
@@ -836,6 +838,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         note: schedule.note || '',
         csd: schedule.csd || '',
         partnerLabel,
+        fieldInspectionBy,
         client: extractedClient,
         enclosureSeal: extractedLacre || schedule.envelopeSeal || '',
         seal1: coverSeals.seal1,

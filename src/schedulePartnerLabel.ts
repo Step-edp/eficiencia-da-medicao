@@ -152,6 +152,52 @@ export function formatSchedulePartnerAndTeamLabel(
   return formatSchedulePartnerLabel(item)
 }
 
+function formatInspectionPerson(name?: string | null, registration?: string | null) {
+  const normalizedName = name?.trim()
+  const normalizedRegistration = registration?.trim()
+  if (!normalizedName && !normalizedRegistration) return ''
+  if (normalizedName && normalizedRegistration) {
+    return `${normalizedName} ${normalizedRegistration}`
+  }
+  return normalizedName || normalizedRegistration || ''
+}
+
+/** Equipe gravada no agendamento, no formato do RATM (Nome matrícula / Nome matrícula). */
+export function formatScheduleInspectionByLabel(
+  item: Pick<
+    MeterScheduleRecord,
+    | 'partnerName'
+    | 'partnerRegistration'
+    | 'createdByName'
+    | 'createdByRegistration'
+    | 'scheduledByName'
+    | 'toiCollaborator1Name'
+    | 'toiCollaborator1Registration'
+    | 'toiCollaborator2Name'
+    | 'toiCollaborator2Registration'
+    | 'toiTeamReason'
+  > &
+    ScheduleAuthorFields,
+) {
+  if (isToiTeamSchedule(item)) {
+    return [
+      formatInspectionPerson(item.toiCollaborator1Name, item.toiCollaborator1Registration),
+      formatInspectionPerson(item.toiCollaborator2Name, item.toiCollaborator2Registration),
+    ]
+      .filter(Boolean)
+      .join(' / ')
+  }
+
+  return [
+    formatInspectionPerson(item.createdByName, item.createdByRegistration) ||
+      item.scheduledByName?.trim() ||
+      '',
+    formatInspectionPerson(item.partnerName, item.partnerRegistration),
+  ]
+    .filter(Boolean)
+    .join(' / ')
+}
+
 export function scheduleAuditSearchText(
   item: Pick<
     MeterScheduleRecord,
