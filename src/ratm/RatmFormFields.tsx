@@ -48,6 +48,7 @@ type RadioGroupProps = {
   options: string[]
   onChange: (value: string) => void
   vertical?: boolean
+  selectedValues?: string[]
 }
 
 function codesForSelect(codes: Record<string, string>, current: string) {
@@ -342,6 +343,40 @@ function pickDocumentCoverSeals(documents: InspectionDocumentRecord[] | undefine
 }
 
 const METER_READING_PRESETS = ['Não aplicável', 'Apagado', 'Sem leitura', 'Ilegível'] as const
+const INTERRUPTED_PHASES = ['A', 'B', 'C'] as const
+const PHASE_NOT_APPLICABLE = 'Não aplicável'
+
+function parseInterruptedPhases(value: string): string[] {
+  const tokens = value
+    .split(/[,;/|+\s]+/)
+    .map((token) => token.trim().toUpperCase())
+    .filter(Boolean)
+  return INTERRUPTED_PHASES.filter((phase) => tokens.includes(phase))
+}
+
+function formatInterruptedPhases(phases: readonly string[]): string {
+  return INTERRUPTED_PHASES.filter((phase) => phases.includes(phase)).join(', ')
+}
+
+function interruptedPhaseChoiceValues(value: string): string[] {
+  if (!value.trim()) return []
+  if (value.trim() === PHASE_NOT_APPLICABLE || /n[aã]o aplic/i.test(value)) {
+    return [PHASE_NOT_APPLICABLE]
+  }
+  return parseInterruptedPhases(value)
+}
+
+function applyInterruptedPhaseChoice(current: string, clicked: string): string {
+  if (clicked === PHASE_NOT_APPLICABLE) {
+    return interruptedPhaseChoiceValues(current).includes(PHASE_NOT_APPLICABLE)
+      ? ''
+      : PHASE_NOT_APPLICABLE
+  }
+  const phases = new Set(parseInterruptedPhases(current))
+  if (phases.has(clicked)) phases.delete(clicked)
+  else phases.add(clicked)
+  return formatInterruptedPhases([...phases])
+}
 
 function isNotApplicableReading(value: string | null | undefined): boolean {
   const text = value?.trim() ?? ''
@@ -472,22 +507,24 @@ function ClearableRadioGroup({
   options,
   onChange,
   vertical = false,
+  selectedValues,
 }: RadioGroupProps) {
+  const multi = Boolean(selectedValues)
   return (
     <fieldset className="radio-fieldset ratm-choice-fieldset full-width">
       {legend ? <legend>{legend}</legend> : null}
       <div
         className={`ratm-choice-group${vertical ? ' is-vertical' : ''}`}
-        role="radiogroup"
+        role={multi ? 'group' : 'radiogroup'}
         aria-label={legend || name}
       >
         {options.map((option) => {
-          const selected = value === option
+          const selected = selectedValues?.includes(option) ?? value === option
           return (
             <button
               key={option}
               type="button"
-              role="radio"
+              role={multi ? 'checkbox' : 'radio'}
               aria-checked={selected}
               className={`ratm-choice-btn${selected ? ' is-selected' : ''}`}
               onClick={() => onChange(option)}
@@ -1236,22 +1273,36 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           onChange={(value) => onChange({ recorder: value })}
         />
 
-        <label className="full-width">
-          Fase Interrompida
-          <input
-            type="text"
+        <div className="numeric-field-block full-width">
+          <label>
+            Fase Interrompida
+            <input
+              type="text"
+              value={data.interruptedPhase}
+              onChange={(event) => {
+                const next = event.target.value
+                onChange({
+                  interruptedPhase: next,
+                  interruptedPhaseOption: next,
+                })
+              }}
+            />
+          </label>
+          <ClearableRadioGroup
+            legend=""
+            name={`phase-option-${index}`}
             value={data.interruptedPhase}
-            onChange={(event) => onChange({ interruptedPhase: event.target.value })}
+            selectedValues={interruptedPhaseChoiceValues(data.interruptedPhase)}
+            options={[PHASE_NOT_APPLICABLE, ...INTERRUPTED_PHASES]}
+            onChange={(value) => {
+              const next = applyInterruptedPhaseChoice(data.interruptedPhase, value)
+              onChange({
+                interruptedPhase: next,
+                interruptedPhaseOption: next,
+              })
+            }}
           />
-        </label>
-
-        <ClearableRadioGroup
-          legend=""
-          name={`phase-option-${index}`}
-          value={data.interruptedPhaseOption}
-          options={['Não aplicável', 'A', 'B', 'C']}
-          onChange={(value) => onChange({ interruptedPhaseOption: value })}
-        />
+        </div>
 
         <label className="full-width">
           Cód. Irregularidade
