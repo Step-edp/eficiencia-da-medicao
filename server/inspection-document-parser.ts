@@ -936,26 +936,43 @@ function extractToiNumber(text: string): string | null {
 function sanitizeTitularName(raw: string): string | null {
   const cleaned = raw.replace(/\s+/g, ' ').trim()
   if (cleaned.length < 5 || cleaned.length > 90) return null
-  if (/inspetor|prezado|edp\s+s[aã]o|solicitante|identifica/i.test(cleaned)) return null
+  if (
+    /inspetor|prezado|edp\s+s[aã]o|solicitante|identifica|em\s+participar|convidamos|an[aá]lise\s+de\s+seu\s+medidor/i.test(
+      cleaned,
+    )
+  ) {
+    return null
+  }
+  if (looksLikeReciboClient(cleaned)) return null
   const letters = (cleaned.match(/[A-Za-zÀ-ÿ]/g) ?? []).length
   if (letters < 5) return null
   return cleaned
 }
 
 export function looksLikeReciboClient(value: string | null | undefined): boolean {
-  return /·\s*\d{2,3}[.\d/-]{8,}/.test(String(value ?? ''))
+  const text = String(value ?? '').trim()
+  if (!text) return false
+  if (/[·•]\s*\d{2,3}[.\d/-]{8,}/.test(text)) return true
+  if (/\s[-–—]\s*\d{2,3}(?:[.\s]?\d{3}){1,3}[./-]?\d{2}\b/.test(text)) return true
+  const digits = text.replace(/\D/g, '')
+  return (digits.length === 11 || digits.length === 14) && /[A-Za-zÀ-ÿ]{3,}/.test(text)
 }
 
 export function extractClientFromText(text: string): string | null {
   const normalized = normalizedSlice(text)
   const titularBlock = normalized.match(
-    /\bt\S{0,8}ular\s+da\s+unidade\s+consumidora(.{0,260}?)(?=usu[aá]rio\s+encontrado|endere[cç]o\s+da\s+unidade)/i,
+    /\bt\S{0,8}ular\s+da\s+unidade\s+consumidora(.{0,280}?)(?=usu[aá]rio\s+encontrado|endere[cç]o\s+da\s+unidade)/i,
   )
   if (!titularBlock) return null
 
-  const cleaned = titularBlock[1]
-    .replace(/identifica[cç][aã]o\s+\S{0,32}/gi, ' ')
-    .replace(/\b(?:rg|cpf|cnpj|cpe|cnp)\b/gi, ' ')
+  const captured = titularBlock[1]
+  if (/em\s+participar|convidamos|an[aá]lise\s+de\s+seu\s+medidor/i.test(captured)) {
+    return null
+  }
+
+  const cleaned = captured
+    .replace(/identifica[cç][aã]o\s+\S{0,40}/gi, ' ')
+    .replace(/\b(?:rg|cpf|cnpj|cpe|cnp|rgi)\b/gi, ' ')
     .replace(/[):]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -971,7 +988,7 @@ export async function extractTitularFromInspectionPdf(
 
   try {
     const { extractInspectionPdfTextViaOcr } = await import('./inspection-pdf-ocr.js')
-    const ocrText = await extractInspectionPdfTextViaOcr(buffer, { scale: 2, maxPages: 1 })
+    const ocrText = await extractInspectionPdfTextViaOcr(buffer, { scale: 2, maxPages: 2 })
     return extractClientFromText(ocrText)
   } catch (error) {
     console.error('Falha no OCR do titular da unidade consumidora:', error)

@@ -384,13 +384,17 @@ function pickExtractedScheduledAt(
 function pickExtractedClient(
   rows: Array<{ doc_type: InspectionDocumentType; extracted_client?: string | null }>,
 ): string | null {
-  const preferred =
-    rows.find((row) => row.doc_type === 'ambos') ??
-    rows.find((row) => row.doc_type === 'comunicado') ??
-    rows.find((row) => row.doc_type === 'toi')
-  const fromPreferred = preferred?.extracted_client?.trim()
-  if (fromPreferred) return fromPreferred
-  return rows.find((row) => row.extracted_client?.trim())?.extracted_client?.trim() ?? null
+  const preferredOrder: InspectionDocumentType[] = ['ambos', 'toi', 'comunicado']
+  for (const docType of preferredOrder) {
+    const value = rows.find((row) => row.doc_type === docType)?.extracted_client?.trim()
+    if (value && !looksLikeReciboClient(value)) return value
+  }
+  return (
+    rows.find((row) => {
+      const value = row.extracted_client?.trim()
+      return Boolean(value && !looksLikeReciboClient(value))
+    })?.extracted_client?.trim() ?? null
+  )
 }
 
 function pickExtractedLacre(
