@@ -1,4 +1,4 @@
-/** Escopos CSD isentos da Agenda de férias obrigatória. */
+/** Escopos CSD que não usam o card Agenda de férias. */
 export function skipsVacationAgenda(workSubtype?: string | null) {
   const normalized = (workSubtype?.trim() ?? '')
     .replace(/\u2013/g, '-')

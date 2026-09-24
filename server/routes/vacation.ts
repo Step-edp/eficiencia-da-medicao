@@ -67,8 +67,6 @@ export type VacationMeta = {
   coveringFor: VacationCoverSummary[]
 }
 
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
-
 function toDateOnly(value: string | Date): string {
   if (typeof value === 'string') {
     return value.slice(0, 10)
@@ -132,7 +130,7 @@ export async function listUserVacationPeriods(userId: string) {
   return result.rows.map(toPeriodView)
 }
 
-/** Próximas férias obrigatórias (somente tipo ferias). */
+/** Próximas férias registradas (somente tipo ferias). */
 async function findNextVacation(userId: string) {
   const today = todayIso()
   const result = await query<VacationPeriodRow>(
@@ -168,8 +166,8 @@ async function findActiveAbsence(userId: string) {
 }
 
 /**
- * Garante o relógio de 7 dias quando não há próximo período de férias.
- * Qualquer ausência ativa (férias ou outra) bloqueia o portal e cobre o substituto.
+ * Férias e ausências são opcionais para todos os perfis.
+ * Somente uma ausência ativa bloqueia o portal e cobre o substituto.
  */
 export async function getVacationMetaForUser(
   userId: string,
@@ -193,30 +191,12 @@ export async function getVacationMetaForUser(
     findActiveAbsence(userId),
   ])
 
-  if (role === 'admin' || skipsVacationAgenda(workSubtype)) {
-    if (skipsVacationAgenda(workSubtype)) {
-      await query(
-        `UPDATE users SET vacation_required_since = NULL WHERE id = $1 AND vacation_required_since IS NOT NULL`,
-        [userId],
-      )
-    }
-    return {
-      vacationStatus: 'ok',
-      vacationDeadlineAt: null,
-      vacationRequiredSince: null,
-      nextVacation,
-      activeAbsence,
-      vacationSubstituteUserId: null,
-      vacationSubstituteName: null,
-      coveringFor,
-    }
-  }
+  await query(
+    `UPDATE users SET vacation_required_since = NULL WHERE id = $1 AND vacation_required_since IS NOT NULL`,
+    [userId],
+  )
 
-  if (activeAbsence) {
-    await query(
-      `UPDATE users SET vacation_required_since = NULL WHERE id = $1 AND vacation_required_since IS NOT NULL`,
-      [userId],
-    )
+  if (role !== 'admin' && !skipsVacationAgenda(workSubtype) && activeAbsence) {
     const substitute = await resolveSubstituteForAbsence(
       userId,
       activeAbsence.substituteUserId,
@@ -233,50 +213,12 @@ export async function getVacationMetaForUser(
     }
   }
 
-  if (nextVacation) {
-    await query(
-      `UPDATE users SET vacation_required_since = NULL WHERE id = $1 AND vacation_required_since IS NOT NULL`,
-      [userId],
-    )
-    return {
-      vacationStatus: 'ok',
-      vacationDeadlineAt: null,
-      vacationRequiredSince: null,
-      nextVacation,
-      activeAbsence: null,
-      vacationSubstituteUserId: null,
-      vacationSubstituteName: null,
-      coveringFor,
-    }
-  }
-
-  const current = await query<{ vacation_required_since: Date | null }>(
-    `SELECT vacation_required_since FROM users WHERE id = $1`,
-    [userId],
-  )
-  let since = current.rows[0]?.vacation_required_since ?? null
-
-  if (!since) {
-    const updated = await query<{ vacation_required_since: Date }>(
-      `UPDATE users
-       SET vacation_required_since = NOW()
-       WHERE id = $1
-       RETURNING vacation_required_since`,
-      [userId],
-    )
-    since = updated.rows[0]?.vacation_required_since ?? new Date()
-  }
-
-  const deadline = new Date(since.getTime() + SEVEN_DAYS_MS)
-  const status: VacationStatus =
-    Date.now() > deadline.getTime() ? 'bloqueado' : 'pendente'
-
   return {
-    vacationStatus: status,
-    vacationDeadlineAt: deadline.toISOString(),
-    vacationRequiredSince: since.toISOString(),
-    nextVacation: null,
-    activeAbsence: null,
+    vacationStatus: 'ok',
+    vacationDeadlineAt: null,
+    vacationRequiredSince: null,
+    nextVacation,
+    activeAbsence,
     vacationSubstituteUserId: null,
     vacationSubstituteName: null,
     coveringFor,
@@ -393,7 +335,7 @@ export async function listSubstituteCandidates(req: Request, res: Response) {
   })
 }
 
-/** Define/atualiza o próximo período de férias (obrigatório). */
+/** Define/atualiza o próximo período de férias. */
 export async function upsertMyNextVacation(req: Request, res: Response) {
   const userId = req.user!.id
   const role = req.user!.role

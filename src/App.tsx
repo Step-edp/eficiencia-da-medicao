@@ -2551,9 +2551,9 @@ function HomePanel({
     },
     {
       title: 'Agenda',
-      description: 'Registro obrigatório do próximo período de férias.',
+      description: 'Registro opcional de férias e demais ausências.',
       details:
-        'Informe suas próximas férias. Sem registro o status fica pendente; após 7 dias o perfil fica restrito à Agenda até registrar as férias.',
+        'Informe férias ou outra ausência quando quiser. Durante um período ativo, o portal fica com o substituto indicado.',
     },
   ]
 
@@ -2801,17 +2801,7 @@ function HomePanel({
   })()
 
   const gestaoArea = allAreas.find((area) => area.title === 'Gestão Operacional') ?? null
-  const agendaArea = allAreas.find((area) => area.title === 'Agenda') ?? null
 
-  const skipsVacation =
-    skipsVacationAgenda(currentUser.workSubtype) ||
-    skipsVacationAgenda(previewUser?.workSubtype) ||
-    skipsVacationAgenda(previewProfile?.match.workSubtype)
-
-  const isVacationBlocked =
-    !skipsVacation &&
-    currentUser.role !== 'admin' &&
-    currentUser.vacationStatus === 'bloqueado'
   const isOnAbsence =
     currentUser.role !== 'admin' &&
     (currentUser.vacationStatus === 'em_ausencia' ||
@@ -2846,11 +2836,6 @@ function HomePanel({
     if (isOnAbsence) {
       return
     }
-    if (isVacationBlocked && agendaArea) {
-      setSelectedOrgAreaId(null)
-      setSelectedArea(agendaArea)
-      return
-    }
     if (isGestorView && gestaoArea) {
       setSelectedArea(gestaoArea)
       if (!isAdmin && orgAreas.length === 1) {
@@ -2869,16 +2854,6 @@ function HomePanel({
     const response = await api.me()
     onCurrentUserChange(response.user)
   }
-
-  useEffect(() => {
-    if (!isVacationBlocked || !agendaArea) return
-    if (selectedArea?.title !== 'Agenda') {
-      setSelectedArea(agendaArea)
-      clearAreaSections()
-      setSelectedOrgCell(null)
-      setSelectedOrgSubcell(null)
-    }
-  }, [isVacationBlocked, agendaArea, selectedArea?.title])
 
   useEffect(() => {
     if (selectedArea?.title !== 'Agenda') {
@@ -2972,7 +2947,7 @@ function HomePanel({
 
   useEffect(() => {
     if (!navReady) return
-    if (!isGestorView || !gestaoArea || isVacationBlocked || isOnAbsence) return
+    if (!isGestorView || !gestaoArea || isOnAbsence) return
     if (!selectedArea) {
       setSelectedArea(gestaoArea)
       if (!savedNav?.selectedOrgCell) {
@@ -2989,7 +2964,6 @@ function HomePanel({
     isGestorView,
     gestaoArea,
     selectedArea,
-    isVacationBlocked,
     isOnAbsence,
     isAdmin,
     orgAreas,
@@ -3928,41 +3902,6 @@ function HomePanel({
     )
   }
 
-  // Compras puro (sem subáreas/processos de portal) segue no formulário dedicado —
-  // exceto se estiver bloqueado por férias: só Agenda.
-  if (isVacationBlocked) {
-    return (
-      <main className="shell">
-        <section className="home-card area-screen-card">
-          <TopActionBar
-            onBack={
-              agendaView === 'overview' ? undefined : () => setAgendaView('overview')
-            }
-            onLogout={onLogout}
-          />
-          <p className="section-tag">Agenda · Acesso restrito</p>
-          <h2>
-            {agendaViewTitle(agendaView, {
-              hasRegisteredVacation: Boolean(
-                currentUser.nextVacationStart && currentUser.nextVacationEnd,
-              ),
-            })}
-          </h2>
-          <AgendaPanel
-            locked
-            view={agendaView}
-            onViewChange={setAgendaView}
-            vacationStatus={currentUser.vacationStatus}
-            vacationDeadlineAt={currentUser.vacationDeadlineAt}
-            nextVacationStart={currentUser.nextVacationStart}
-            nextVacationEnd={currentUser.nextVacationEnd}
-            onSaved={refreshCurrentUser}
-          />
-        </section>
-      </main>
-    )
-  }
-
   const isPureComprasPortal =
     currentUser.role === 'compras' &&
     !(currentUser.accessAreas?.length) &&
@@ -4022,7 +3961,6 @@ function HomePanel({
               view={agendaView}
               onViewChange={setAgendaView}
               vacationStatus={currentUser.vacationStatus}
-              vacationDeadlineAt={currentUser.vacationDeadlineAt}
               nextVacationStart={currentUser.nextVacationStart}
               nextVacationEnd={currentUser.nextVacationEnd}
               onSaved={refreshCurrentUser}
@@ -6443,36 +6381,6 @@ function HomePanel({
             >
               ×
             </button>
-          </div>
-        ) : null}
-
-        {currentUser.role !== 'admin' &&
-        !skipsVacation &&
-        currentUser.vacationStatus === 'pendente' ? (
-          <div className="agenda-alert agenda-alert-pending" role="status">
-            <div className="agenda-alert-body">
-              <p className="agenda-alert-text">
-                <strong>Férias pendentes.</strong> Acesse a Agenda e registre o próximo período de
-                férias
-                {currentUser.vacationDeadlineAt
-                  ? ` até ${new Date(currentUser.vacationDeadlineAt).toLocaleString('pt-BR')}`
-                  : ' nos próximos 7 dias'}
-                . Depois disso o perfil fica restrito à Agenda até o registro das férias.
-              </p>
-              {agendaArea ? (
-                <button
-                  type="button"
-                  className="agenda-alert-action"
-                  onClick={() => {
-                    setSelectedOrgCell(null)
-                    setSelectedOrgSubcell(null)
-                    setSelectedArea(agendaArea)
-                  }}
-                >
-                  Ir para a Agenda
-                </button>
-              ) : null}
-            </div>
           </div>
         ) : null}
 

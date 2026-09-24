@@ -22,7 +22,6 @@ import {
   attachVacationMeta,
   getVacationMetaForUser,
 } from './vacation.js'
-import { skipsVacationAgenda } from '../vacation-exempt.js'
 
 /** Portais da home derivados do escopo do técnico (alinhado aos perfis de cadastro). */
 function accessAreasForTechnician(workArea: string, subtype: string): string[] {
@@ -1005,17 +1004,14 @@ export async function approveUser(req: Request, res: Response) {
     `UPDATE users
      SET approval_status = 'approved',
          approved_at = NOW(),
-         approved_by_user_id = $7,
+         approved_by_user_id = $6,
          rejected_at = NULL,
          rejection_reason = '',
          third_party_company = $2,
          work_subtype = $3,
          access_areas = $4::jsonb,
          access_processes = $5::jsonb,
-         vacation_required_since = CASE
-           WHEN $6::boolean THEN NULL
-           ELSE COALESCE(vacation_required_since, NOW())
-         END
+         vacation_required_since = NULL
      WHERE id = $1
        AND role = 'compras'
        AND approval_status = 'pending'
@@ -1026,7 +1022,6 @@ export async function approveUser(req: Request, res: Response) {
       storedSubtype,
       JSON.stringify(storedAccessAreas),
       JSON.stringify(storedAccessProcesses),
-      skipsVacationAgenda(storedSubtype),
       approverId,
     ],
   )

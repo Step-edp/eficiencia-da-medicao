@@ -1138,6 +1138,8 @@ export async function migrate() {
   const { seedIrregularityCodes } = await import('./routes/irregularity-codes.js')
   await seedIrregularityCodes()
 
+  await query(`UPDATE users SET vacation_required_since = NULL WHERE vacation_required_since IS NOT NULL`)
+
   const demmCsdAlignFlag = await query<{ key: string }>(
     `SELECT key FROM app_runtime_flags WHERE key = 'demm_csd_align_v1'`,
   )

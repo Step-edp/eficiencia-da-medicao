@@ -23,21 +23,6 @@ function formatDateBr(isoDate: string) {
   return `${day}/${month}/${year}`
 }
 
-function formatDeadline(iso: string | null | undefined) {
-  if (!iso) return null
-  try {
-    return new Date(iso).toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return iso
-  }
-}
-
 function periodLabel(period: VacationPeriod) {
   return period.absenceTypeLabel || (period.absenceType === 'ferias' ? 'Férias' : 'Ausência')
 }
@@ -58,7 +43,6 @@ export function agendaViewTitle(
 
 type AgendaPanelProps = {
   vacationStatus?: VacationStatus
-  vacationDeadlineAt?: string | null
   nextVacationStart?: string | null
   nextVacationEnd?: string | null
   locked?: boolean
@@ -69,7 +53,6 @@ type AgendaPanelProps = {
 
 export function AgendaPanel({
   vacationStatus,
-  vacationDeadlineAt,
   nextVacationStart,
   nextVacationEnd,
   locked = false,
@@ -78,8 +61,7 @@ export function AgendaPanel({
   onSaved,
 }: AgendaPanelProps) {
   const [periods, setPeriods] = useState<VacationPeriod[]>([])
-  const [status, setStatus] = useState<VacationStatus>(vacationStatus ?? 'pendente')
-  const [deadlineAt, setDeadlineAt] = useState<string | null>(vacationDeadlineAt ?? null)
+  const [status, setStatus] = useState<VacationStatus>(vacationStatus ?? 'ok')
   const [startDate, setStartDate] = useState(nextVacationStart ?? '')
   const [endDate, setEndDate] = useState(nextVacationEnd ?? '')
   const [absenceType, setAbsenceType] = useState<AbsenceType>('licenca')
@@ -117,12 +99,10 @@ export function AgendaPanel({
   const applyAgenda = (response: {
     periods: VacationPeriod[]
     vacationStatus: VacationStatus
-    vacationDeadlineAt: string | null
     nextVacation: VacationPeriod | null
   }) => {
     setPeriods(response.periods)
     setStatus(response.vacationStatus)
-    setDeadlineAt(response.vacationDeadlineAt)
     if (response.nextVacation) {
       setStartDate(response.nextVacation.startDate)
       setEndDate(response.nextVacation.endDate)
@@ -298,7 +278,6 @@ export function AgendaPanel({
     }
   }
 
-  const deadlineLabel = formatDeadline(deadlineAt)
   const displayStatus =
     locked
       ? 'bloqueado'
@@ -308,15 +287,6 @@ export function AgendaPanel({
 
   return (
     <div className="agenda-panel">
-      {displayStatus === 'bloqueado' ? (
-        <div className="agenda-alert agenda-alert-blocked" role="alert">
-          <strong>Perfil bloqueado.</strong> O prazo de 7 dias para registrar o próximo período de
-          férias expirou. Você só pode registrar as férias aqui; ao salvar o período, o perfil
-          é desbloqueado.
-          {deadlineLabel ? ` Prazo encerrou em ${deadlineLabel}.` : null}
-        </div>
-      ) : null}
-
       {displayStatus === 'em_ausencia' ? (
         <div className="agenda-alert agenda-alert-blocked" role="alert">
           <strong>Bloqueado por ausência.</strong> Durante o período ativo, as atividades ficam
@@ -324,21 +294,11 @@ export function AgendaPanel({
         </div>
       ) : null}
 
-      {displayStatus === 'pendente' ? (
-        <div className="agenda-alert agenda-alert-pending" role="status">
-          <strong>Férias pendentes.</strong> Registre o próximo período de férias
-          {deadlineLabel ? ` até ${deadlineLabel}` : ' nos próximos 7 dias'} para evitar o bloqueio
-          do perfil.
-        </div>
-      ) : null}
-
-      {displayStatus === 'ok' && !dismissedOkAlert ? (
+      {displayStatus === 'ok' && startDate && endDate && !dismissedOkAlert ? (
         <div className="agenda-alert agenda-alert-ok has-dismiss" role="status">
           <span className="agenda-alert-message">
-            <strong>Em dia.</strong>
-            {startDate && endDate
-              ? ` Próximas férias: ${formatDateBr(startDate)} a ${formatDateBr(endDate)}.`
-              : ' Próximo período de férias registrado.'}
+            <strong>Férias registradas.</strong>
+            {` Próximas férias: ${formatDateBr(startDate)} a ${formatDateBr(endDate)}.`}
           </span>
           <button
             type="button"
@@ -366,9 +326,7 @@ export function AgendaPanel({
                     ? startDate && endDate
                       ? `${formatDateBr(startDate)} a ${formatDateBr(endDate)}`
                       : 'Alterar período registrado'
-                    : locked
-                      ? 'Registre as férias para desbloquear o perfil'
-                      : 'Período obrigatório'
+                    : 'Registrar férias (opcional)'
                 }
                 onClick={() => openVacationForm()}
               >
@@ -401,11 +359,7 @@ export function AgendaPanel({
                 type="button"
                 className="agenda-action-chip"
                 disabled={locked || displayStatus === 'em_ausencia'}
-                title={
-                  locked
-                    ? 'Disponível após registrar as férias e desbloquear o perfil'
-                    : 'Licença, atestado e outros'
-                }
+                title="Licença, atestado e outros"
                 onClick={openAbsenceForm}
               >
                 <span className="agenda-action-chip-icon" aria-hidden="true">
