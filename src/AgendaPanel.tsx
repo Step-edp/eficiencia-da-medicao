@@ -278,22 +278,10 @@ export function AgendaPanel({
     }
   }
 
-  const displayStatus =
-    locked
-      ? 'bloqueado'
-      : status === 'em_ferias'
-        ? 'em_ausencia'
-        : status
+  const displayStatus = locked ? 'bloqueado' : status
 
   return (
     <div className="agenda-panel">
-      {displayStatus === 'em_ausencia' ? (
-        <div className="agenda-alert agenda-alert-blocked" role="alert">
-          <strong>Bloqueado por ausência.</strong> Durante o período ativo, as atividades ficam
-          com o substituto indicado no registro (ou, se ausente, o da liderança da área/célula).
-        </div>
-      ) : null}
-
       {displayStatus === 'ok' && startDate && endDate && !dismissedOkAlert ? (
         <div className="agenda-alert agenda-alert-ok has-dismiss" role="status">
           <span className="agenda-alert-message">

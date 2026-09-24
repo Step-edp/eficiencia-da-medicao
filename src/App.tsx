@@ -2553,7 +2553,7 @@ function HomePanel({
       title: 'Agenda',
       description: 'Registro opcional de férias e demais ausências.',
       details:
-        'Informe férias ou outra ausência quando quiser. Durante um período ativo, o portal fica com o substituto indicado.',
+        'Informe férias ou outra ausência quando quiser. O registro é opcional e não bloqueia o portal.',
     },
   ]
 
@@ -2802,10 +2802,6 @@ function HomePanel({
 
   const gestaoArea = allAreas.find((area) => area.title === 'Gestão Operacional') ?? null
 
-  const isOnAbsence =
-    currentUser.role !== 'admin' &&
-    (currentUser.vacationStatus === 'em_ausencia' ||
-      currentUser.vacationStatus === 'em_ferias')
   const coveringFor = currentUser.coveringFor ?? []
   const coveringKey = coveringFor.map((item) => item.userId).join('|')
   const [coveringAlertDismissed, setCoveringAlertDismissed] = useState(false)
@@ -2833,9 +2829,6 @@ function HomePanel({
     setSelectedOrgSubcell(null)
     setGestaoHomeTab('dash')
     clearAreaSections()
-    if (isOnAbsence) {
-      return
-    }
     if (isGestorView && gestaoArea) {
       setSelectedArea(gestaoArea)
       if (!isAdmin && orgAreas.length === 1) {
@@ -2947,7 +2940,7 @@ function HomePanel({
 
   useEffect(() => {
     if (!navReady) return
-    if (!isGestorView || !gestaoArea || isOnAbsence) return
+    if (!isGestorView || !gestaoArea) return
     if (!selectedArea) {
       setSelectedArea(gestaoArea)
       if (!savedNav?.selectedOrgCell) {
@@ -2964,7 +2957,6 @@ function HomePanel({
     isGestorView,
     gestaoArea,
     selectedArea,
-    isOnAbsence,
     isAdmin,
     orgAreas,
     savedNav?.selectedOrgCell,
@@ -3859,49 +3851,6 @@ function HomePanel({
     }
   }
 
-  // Em ausência (férias ou outro período): portal bloqueado; atividades com o substituto.
-  if (isOnAbsence) {
-    const start = currentUser.activeAbsenceStart ?? currentUser.nextVacationStart
-    const end = currentUser.activeAbsenceEnd ?? currentUser.nextVacationEnd
-    const periodLabel =
-      start && end
-        ? `${start.slice(8, 10)}/${start.slice(5, 7)}/${start.slice(0, 4)} a ${end.slice(8, 10)}/${end.slice(5, 7)}/${end.slice(0, 4)}`
-        : null
-    const absenceLabel = currentUser.activeAbsenceTypeLabel || 'Ausência'
-
-    return (
-      <main className="shell">
-        <section className="home-card area-screen-card">
-          <TopActionBar onLogout={onLogout} />
-          <p className="section-tag">Portal · Ausência</p>
-          <h2>Bloqueado devido a {absenceLabel.toLowerCase()}</h2>
-          <div className="agenda-alert agenda-alert-blocked" role="alert">
-            <strong>Seu acesso ao portal está bloqueado durante a ausência.</strong>
-            {periodLabel ? ` Período: ${periodLabel}.` : null}
-            {currentUser.vacationSubstituteName ? (
-              <>
-                {' '}
-                As suas atividades estão atreladas ao substituto{' '}
-                <strong>{currentUser.vacationSubstituteName}</strong> até o retorno.
-              </>
-            ) : (
-              <>
-                {' '}
-                Não há substituto definido para este período. Ao registrar férias ou ausência,
-                selecione um usuário cadastrado; se a pessoa ainda não estiver no sistema, ela
-                precisa se cadastrar primeiro.
-              </>
-            )}
-          </div>
-          <p>
-            Ao término do período, o acesso é restabelecido automaticamente. Use a Agenda para
-            registrar férias e demais ausências.
-          </p>
-        </section>
-      </main>
-    )
-  }
-
   const isPureComprasPortal =
     currentUser.role === 'compras' &&
     !(currentUser.accessAreas?.length) &&
@@ -3910,8 +3859,7 @@ function HomePanel({
       currentUser.workArea?.trim() === 'CSD' &&
       isFieldTeamCsdScope(currentUser.workSubtype)
     ) &&
-    !isConsumoIrregular(currentUser) &&
-    currentUser.vacationStatus === 'ok'
+    !isConsumoIrregular(currentUser)
 
   // Link fixo (#/compras/pedidos-homologacao) e perfil Compras puro abrem o formulário.
   if (isPureComprasPortal || activeRoute === 'compras-homologacao' || showPurchaseRequestForm) {

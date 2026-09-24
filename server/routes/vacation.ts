@@ -9,7 +9,6 @@ import {
   isAbsenceType,
   listActiveCoversForSubstitute,
 } from '../vacation-coverage.js'
-import { skipsVacationAgenda } from '../vacation-exempt.js'
 
 export type VacationStatus = 'ok' | 'pendente' | 'bloqueado' | 'em_ausencia' | 'em_ferias'
 
@@ -166,13 +165,13 @@ async function findActiveAbsence(userId: string) {
 }
 
 /**
- * Férias e ausências são opcionais para todos os perfis.
- * Somente uma ausência ativa bloqueia o portal e cobre o substituto.
+ * Férias e ausências são opcionais e nunca bloqueiam o portal.
+ * O substituto continua vendo a cobertura quando houver período ativo.
  */
 export async function getVacationMetaForUser(
   userId: string,
-  role: string,
-  workSubtype?: string | null,
+  _role: string,
+  _workSubtype?: string | null,
 ): Promise<VacationMeta> {
   const covering = await listActiveCoversForSubstitute(userId)
   const coveringFor: VacationCoverSummary[] = covering.map((item) => ({
@@ -196,22 +195,9 @@ export async function getVacationMetaForUser(
     [userId],
   )
 
-  if (role !== 'admin' && !skipsVacationAgenda(workSubtype) && activeAbsence) {
-    const substitute = await resolveSubstituteForAbsence(
-      userId,
-      activeAbsence.substituteUserId,
-    )
-    return {
-      vacationStatus: 'em_ausencia',
-      vacationDeadlineAt: null,
-      vacationRequiredSince: null,
-      nextVacation,
-      activeAbsence,
-      vacationSubstituteUserId: substitute?.substituteUserId ?? null,
-      vacationSubstituteName: substitute?.substituteName ?? null,
-      coveringFor,
-    }
-  }
+  const substitute = activeAbsence
+    ? await resolveSubstituteForAbsence(userId, activeAbsence.substituteUserId)
+    : null
 
   return {
     vacationStatus: 'ok',
@@ -219,8 +205,8 @@ export async function getVacationMetaForUser(
     vacationRequiredSince: null,
     nextVacation,
     activeAbsence,
-    vacationSubstituteUserId: null,
-    vacationSubstituteName: null,
+    vacationSubstituteUserId: substitute?.substituteUserId ?? null,
+    vacationSubstituteName: substitute?.substituteName ?? null,
     coveringFor,
   }
 }
