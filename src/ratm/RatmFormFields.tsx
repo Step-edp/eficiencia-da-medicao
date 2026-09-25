@@ -30,6 +30,7 @@ import {
   isAssayDataSectionComplete,
   isMeasurementsSectionComplete,
   isTestResultsSectionComplete,
+  isDocumentIssuesSectionComplete,
   isPhotosSectionComplete,
 } from './ratmSectionCompletion'
 import { RatmDocumentFab } from './RatmDocumentFab'
@@ -767,6 +768,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const assayDataComplete = isAssayDataSectionComplete(data)
   const measurementsComplete = isMeasurementsSectionComplete(data)
   const testResultsComplete = isTestResultsSectionComplete(data)
+  const documentIssuesComplete = isDocumentIssuesSectionComplete(data)
   const photosComplete = isPhotosSectionComplete(data)
   const skipCollaboratorChecks = excludesCollaboratorChecks(data)
   const visibleSchedulingTeamFields = getVisibleSchedulingTeamFieldKeys(data)
@@ -1586,6 +1588,39 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               options={['Sim', 'Não']}
               onChange={(value) => onChange({ foreignBodyInMeter: value })}
             />
+          </div>
+        </RatmExpandableSection>
+
+        <RatmExpandableSection
+          title="Pendências do documento"
+          accordionName={accordionName}
+          complete={documentIssuesComplete}
+        >
+          <div className="ratm-section-box-grid">
+            {(
+              [
+                ['missingEnvelopeNumber', 'Sem número de Invólucro'],
+                ['missingCoverSeal', 'Faltando lacre da tampa'],
+                ['missingFoundMeterNumber', 'Sem número de medidor encontrado'],
+                ['sealMissingOnToiPresentPhysically', 'Sem lacre no TOI, mas com lacre fisicamente'],
+                ['sealOnToiMissingPhysically', 'Com lacre no TOI, porém sem lacre fisicamente'],
+                ['sealViolatedOnToiOkPhysically', 'Lacre violado no TOI porém em ordem fisicamente'],
+                ['toiNotSentPhysically', 'TOI não enviado fisicamente'],
+                ['csmCutWithoutTeam', 'CSM cortado (sem nome de equipe)'],
+                ['deviceMissingOnToi', 'Sem dispositivo no TOI, porém com dispositivo e sem lacre'],
+                ['noDocumentSent', 'Nenhum documento enviado'],
+                ['csmNotSentPhysically', 'CSM não enviado fisicamente'],
+              ] as const
+            ).map(([fieldKey, label]) => (
+              <ClearableRadioGroup
+                key={fieldKey}
+                legend={label}
+                name={`${fieldKey}-${index}`}
+                value={data[fieldKey]}
+                options={['Sim', 'Não']}
+                onChange={(value) => onChange({ [fieldKey]: value })}
+              />
+            ))}
           </div>
         </RatmExpandableSection>
 

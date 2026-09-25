@@ -150,6 +150,17 @@ export type RatmFormData = {
   apparentlyInOrder: string
   dielectricFailed: string
   foreignBodyInMeter: string
+  missingEnvelopeNumber: string
+  missingCoverSeal: string
+  missingFoundMeterNumber: string
+  sealMissingOnToiPresentPhysically: string
+  sealOnToiMissingPhysically: string
+  sealViolatedOnToiOkPhysically: string
+  toiNotSentPhysically: string
+  csmCutWithoutTeam: string
+  deviceMissingOnToi: string
+  noDocumentSent: string
+  csmNotSentPhysically: string
   photos: string[]
 }
 
@@ -238,6 +249,17 @@ export function createEmptyRatmForm(): RatmFormData {
     apparentlyInOrder: '',
     dielectricFailed: '',
     foreignBodyInMeter: '',
+    missingEnvelopeNumber: '',
+    missingCoverSeal: '',
+    missingFoundMeterNumber: '',
+    sealMissingOnToiPresentPhysically: '',
+    sealOnToiMissingPhysically: '',
+    sealViolatedOnToiOkPhysically: '',
+    toiNotSentPhysically: '',
+    csmCutWithoutTeam: '',
+    deviceMissingOnToi: '',
+    noDocumentSent: '',
+    csmNotSentPhysically: '',
     photos: ['', '', '', ''],
   }
 }

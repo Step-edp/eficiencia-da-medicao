@@ -105,6 +105,22 @@ export function isTestResultsSectionComplete(data: RatmFormData) {
   )
 }
 
+export function isDocumentIssuesSectionComplete(data: RatmFormData) {
+  return (
+    isFilled(data.missingEnvelopeNumber) &&
+    isFilled(data.missingCoverSeal) &&
+    isFilled(data.missingFoundMeterNumber) &&
+    isFilled(data.sealMissingOnToiPresentPhysically) &&
+    isFilled(data.sealOnToiMissingPhysically) &&
+    isFilled(data.sealViolatedOnToiOkPhysically) &&
+    isFilled(data.toiNotSentPhysically) &&
+    isFilled(data.csmCutWithoutTeam) &&
+    isFilled(data.deviceMissingOnToi) &&
+    isFilled(data.noDocumentSent) &&
+    isFilled(data.csmNotSentPhysically)
+  )
+}
+
 export function isPhotosSectionComplete(data: RatmFormData) {
   return data.photos.every((photo) => isFilled(photo))
 }
