@@ -57,6 +57,8 @@ export type PdfOcrOptions = {
   scale?: number
   maxPages?: number
   topFraction?: number
+  startFraction?: number
+  endFraction?: number
   stopWhen?: (accumulatedText: string) => boolean
 }
 
@@ -90,11 +92,14 @@ export async function extractInspectionPdfTextViaOcr(
       canvasFactory,
     } as never).promise
 
-    const cropHeight = Math.max(1, Math.floor(viewport.height * topFraction))
+    const startFraction = Math.min(0.95, Math.max(0, options?.startFraction ?? 0))
+    const endFraction = Math.min(1, Math.max(startFraction + 0.05, options?.endFraction ?? topFraction))
+    const cropTop = Math.floor(viewport.height * startFraction)
+    const cropHeight = Math.max(1, Math.floor(viewport.height * endFraction) - cropTop)
     let image = pageCanvas
-    if (cropHeight < viewport.height) {
+    if (cropTop > 0 || cropHeight < viewport.height) {
       const cropped = createCanvas(viewport.width, cropHeight)
-      cropped.getContext('2d').drawImage(pageCanvas, 0, 0)
+      cropped.getContext('2d').drawImage(pageCanvas, 0, cropTop, viewport.width, cropHeight, 0, 0, viewport.width, cropHeight)
       image = cropped
     }
 

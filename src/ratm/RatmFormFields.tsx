@@ -852,7 +852,10 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         const documentsResponse = await api.listInspectionDocuments(schedule.id)
         extractedLacre = pickDocumentEnvelopeSeal(documentsResponse.documents)
         extractedClient = pickDocumentClient(documentsResponse.documents)
-        documentObservations = documentsResponse.documentObservations?.trim() || ''
+        documentObservations =
+          documentsResponse.documentObservations?.trim() ||
+          documentsResponse.observations?.trim() ||
+          ''
         coverSeals = pickDocumentCoverSeals(documentsResponse.documents)
         meterReadingFields = pickDocumentReading(
           documentsResponse.documents,

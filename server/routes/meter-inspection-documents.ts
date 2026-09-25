@@ -6,7 +6,7 @@ import { ENTRADA_TRAIL_STEP, hasMeterEntradaGiven } from '../lab-trail-status.js
 import {
   classifyInspectionDocument,
   countInspectionPdfPages,
-  extractDocumentObservations,
+  extractObservationsFromInspectionPdf,
   extractInspectionPdfText,
   extractInspectionHighlightsFromPdf,
   looksLikeReciboClient,
@@ -2338,12 +2338,16 @@ async function loadDocumentObservations(
     rows.find((row) => row.doc_type === 'comunicado')
   if (!preferred) return ''
 
-  const stored = await query<{ extracted_observations: string | null }>(
-    `SELECT extracted_observations FROM meter_inspection_documents WHERE id = $1`,
-    [preferred.id],
-  )
-  const current = stored.rows[0]?.extracted_observations?.trim()
-  if (current) return current
+  try {
+    const stored = await query<{ extracted_observations: string | null }>(
+      `SELECT extracted_observations FROM meter_inspection_documents WHERE id = $1`,
+      [preferred.id],
+    )
+    const current = stored.rows[0]?.extracted_observations?.trim()
+    if (current) return current
+  } catch (error) {
+    console.error('Falha ao ler observações gravadas do documento:', error)
+  }
 
   const file = await query<{ file_data: Buffer }>(
     `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
@@ -2352,8 +2356,7 @@ async function loadDocumentObservations(
   if (!file.rows[0]?.file_data) return ''
 
   try {
-    const text = await extractInspectionPdfText(file.rows[0].file_data)
-    const observations = extractDocumentObservations(text)?.trim() ?? ''
+    const observations = (await extractObservationsFromInspectionPdf(file.rows[0].file_data))?.trim() ?? ''
     if (observations) {
       await query(
         `UPDATE meter_inspection_documents SET extracted_observations = $2 WHERE id = $1`,
