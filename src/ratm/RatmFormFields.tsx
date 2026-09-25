@@ -749,9 +749,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const irregularityDescription =
     irregularityCodes[data.irregularityCode] ?? 'Selecione um código válido.'
 
-  const fieldIrregularityDescription =
-    irregularityCodes[data.fieldIrregularityCode] ?? 'Selecione um código válido.'
-
   useEffect(() => {
     const nextNotes = descriptionForCode(data.irregularityCode)
     if (data.irregularityNotes === nextNotes) return
@@ -759,14 +756,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     if (data.irregularityCode.trim() && !nextNotes) return
     onChange({ irregularityNotes: nextNotes })
   }, [data.irregularityCode, irregularityDescriptions, irregularityCodes])
-
-  useEffect(() => {
-    const nextDescription = descriptionForCode(data.fieldIrregularityCode)
-    if (data.fieldDocumentDescription === nextDescription) return
-    if (!data.fieldIrregularityCode.trim() && !data.fieldDocumentDescription.trim()) return
-    if (data.fieldIrregularityCode.trim() && !nextDescription) return
-    onChange({ fieldDocumentDescription: nextDescription })
-  }, [data.fieldIrregularityCode, irregularityDescriptions, irregularityCodes])
 
   const entryInfoComplete = isEntryInfoSectionComplete(data)
   const initialTestsComplete = isInitialTestsSectionComplete(data)
@@ -1372,33 +1361,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           options={['Sim', 'Não', 'Parcial']}
           onChange={(value) => onChange({ fieldReportCorrect: value })}
         />
-
-        <label className="full-width">
-          Código da irregularidade em campo
-          <select
-            value={data.fieldIrregularityCode}
-            onChange={(event) => {
-              const fieldIrregularityCode = event.target.value
-              onChange({
-                fieldIrregularityCode,
-                fieldDocumentDescription: descriptionForCode(fieldIrregularityCode),
-              })
-            }}
-          >
-            {Object.keys(codesForSelect(irregularityCodes, data.fieldIrregularityCode)).map(
-              (code) => (
-              <option key={code} value={code}>
-                {code}
-              </option>
-            ),
-            )}
-          </select>
-        </label>
-
-        <label className="full-width">
-          Descrição da irregularidade em campo
-          <input type="text" value={fieldIrregularityDescription} readOnly />
-        </label>
 
         <label className="full-width">
           Descrição
