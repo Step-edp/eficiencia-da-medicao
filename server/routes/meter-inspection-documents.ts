@@ -796,11 +796,7 @@ function buildScheduleEntryComparisons(
       document: extractedScheduledAt?.trim() || null,
       matches: compareScheduleDates(extractedScheduledAt, formatAvailableSlot(schedule.scheduled_at)),
     },
-    installation: buildEntryFieldMatch(
-      schedule.installation,
-      extraction?.extracted_installation ?? null,
-      'instalacao',
-    ),
+    installation: buildEntryFieldMatch(schedule.installation, null),
     toi: buildEntryFieldMatch(schedule.toi, extraction?.extracted_toi ?? null, 'toi'),
     note: buildEntryFieldMatch(schedule.note, extraction?.extracted_note ?? null, 'nota'),
     csd: buildEntryFieldMatch(schedule.csd, null),

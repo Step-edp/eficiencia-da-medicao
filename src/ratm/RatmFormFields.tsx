@@ -139,6 +139,7 @@ type EntryComparisonFieldProps = {
   check: EntryFieldCheck
   onCheckChange: (value: EntryFieldCheck) => void
   fullWidth?: boolean
+  hideDocument?: boolean
 }
 
 function EntryComparisonField({
@@ -147,8 +148,9 @@ function EntryComparisonField({
   check,
   onCheckChange,
   fullWidth = false,
+  hideDocument = false,
 }: EntryComparisonFieldProps) {
-  const suggested = suggestedCheckFromMatch(match?.matches)
+  const suggested = suggestedCheckFromMatch(hideDocument ? null : match?.matches)
 
   return (
     <div className={`ratm-readonly-field ratm-entry-comparison${fullWidth ? ' full-width' : ''}`}>
@@ -157,10 +159,12 @@ function EntryComparisonField({
         <EntryFieldVerifier value={check} suggested={suggested} onChange={onCheckChange} />
       </div>
       <div className="ratm-entry-comparison-grid">
-        <div className="ratm-entry-comparison-item">
-          <span className="ratm-entry-comparison-label">No documento</span>
-          <p className="ratm-readonly-value">{displayOrDash(match?.document)}</p>
-        </div>
+        {hideDocument ? null : (
+          <div className="ratm-entry-comparison-item">
+            <span className="ratm-entry-comparison-label">No documento</span>
+            <p className="ratm-readonly-value">{displayOrDash(match?.document)}</p>
+          </div>
+        )}
         <div className="ratm-entry-comparison-item">
           <span className="ratm-entry-comparison-label">Cadastrado</span>
           <p className="ratm-readonly-value">{displayOrDash(match?.registered)}</p>
@@ -977,6 +981,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               match={data.entryComparisons?.installation}
               check={data.entryFieldChecks.installation}
               onCheckChange={(value) => updateEntryFieldCheck('installation', value)}
+              hideDocument
             />
             <EntryComparisonField
               label="TOI"
