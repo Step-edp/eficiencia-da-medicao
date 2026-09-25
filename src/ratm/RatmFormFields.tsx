@@ -253,6 +253,14 @@ function looksLikeReciboClientName(value: string): boolean {
   return (digits.length === 11 || digits.length === 14) && /[A-Za-zÀ-ÿ]{3,}/.test(text)
 }
 
+function observationSentence(value: string): string {
+  const match = value.match(/((?:constat\w+|verific\w+)\s+.{8,160}?laborat[oó]rio)/i)
+  const sentence = match?.[1]?.replace(/\s+/g, ' ').trim() ?? ''
+  if (!sentence || sentence.length > 220) return ''
+  if (/caso o consumidor|órg[aã]o metrol|dezembro de\s+20|modelo do toi/i.test(sentence)) return ''
+  return sentence
+}
+
 function pickDocumentClient(documents: InspectionDocumentRecord[] | undefined): string {
   const ordered = [
     pickPreferredInspectionDocument(documents, true),
@@ -881,10 +889,9 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         const documentsResponse = await api.listInspectionDocuments(schedule.id)
         extractedLacre = pickDocumentEnvelopeSeal(documentsResponse.documents)
         extractedClient = pickDocumentClient(documentsResponse.documents)
-        documentObservations =
-          documentsResponse.documentObservations?.trim() ||
-          documentsResponse.observations?.trim() ||
-          ''
+        documentObservations = observationSentence(
+          documentsResponse.documentObservations?.trim() || '',
+        )
         coverSeals = pickDocumentCoverSeals(documentsResponse.documents)
         meterReadingFields = pickDocumentReading(
           documentsResponse.documents,

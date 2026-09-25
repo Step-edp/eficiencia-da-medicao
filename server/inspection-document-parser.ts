@@ -1014,29 +1014,31 @@ function nameFromTitularWindow(window: string): string | null {
   return sanitizeTitularName(company?.[1] ?? stripped)
 }
 
+const OBSERVATION_LEGAL_NOISE =
+  /caso o consumidor|órg[aã]o metrol|dezembro de\s+20|modelo do toi|n[uú]mero d[oe]\(?s\)?\s+lacre|tendo em vista a situa|p[aá]gina\s+\d/i
+
+export function isLegalObservationNoise(value: string): boolean {
+  return OBSERVATION_LEGAL_NOISE.test(value)
+}
+
 function cleanObservationText(value: string): string | null {
   const cleaned = value
     .replace(/\s+/g, ' ')
     .replace(/^[:\-–—\s]+/, '')
     .trim()
-  if (cleaned.length < 8) return null
-  if (/^tendo em vista a situa/i.test(cleaned)) return null
-  return cleaned.slice(0, 2000)
+  if (cleaned.length < 8 || cleaned.length > 220) return null
+  if (isLegalObservationNoise(cleaned)) return null
+  if (!/(?:constatamos|verificamos|ind[ií]cio|menor registro|verificar em laborat)/i.test(cleaned)) return null
+  return cleaned
 }
 
 export function extractDocumentObservations(text: string): string | null {
   const normalized = text.replace(/\s+/g, ' ').trim()
   if (!normalized) return null
-  const match = normalized.match(
-    /observa[cç][õo]es\s*:?\s*(.+?)(?=\s*(?:\d+\s*[.)]\s*(?:\(?\s*x\s*\)?)?\s*tendo em vista|tendo em vista a situa)|$)/i,
+  const sentence = normalized.match(
+    /((?:constat\w+|verific\w+)\s+.{8,160}?laborat[oó]rio)/i,
   )
-  const fromLabel = cleanObservationText(match?.[1] ?? '')
-  if (fromLabel) return fromLabel
-
-  const direct = normalized.match(
-    /((?:constatamos|verificamos|medidor).{8,280}?(?:laborat[oó]rio|kwh|consumo)[^.]{0,80}\.?)/i,
-  )
-  return cleanObservationText(direct?.[1] ?? '')
+  return cleanObservationText(sentence?.[1] ?? '')
 }
 
 export async function extractObservationsFromInspectionPdf(buffer: Buffer): Promise<string | null> {
@@ -1045,24 +1047,9 @@ export async function extractObservationsFromInspectionPdf(buffer: Buffer): Prom
   if (fromLayer) return fromLayer
 
   try {
-    const { extractInspectionPdfTextViaOcr } = await import('./inspection-pdf-ocr.js')
-    const bands = [
-      { startFraction: 0.42, endFraction: 0.82 },
-      { startFraction: 0.68, endFraction: 0.96 },
-    ]
-    let combined = ''
-    for (const band of bands) {
-      const ocrText = await extractInspectionPdfTextViaOcr(buffer, {
-        scale: 2.4,
-        maxPages: 1,
-        highContrast: true,
-        ...band,
-      })
-      combined = `${combined}\n${ocrText}`
-      const found = extractDocumentObservations(combined)
-      if (found) return found
-    }
-    return extractDocumentObservations(combined)
+    const { extractBlueTextFromInspectionPdf } = await import('./inspection-pdf-ocr.js')
+    const blueText = await extractBlueTextFromInspectionPdf(buffer)
+    return extractDocumentObservations(blueText)
   } catch (error) {
     console.error('Falha no OCR das observações do documento:', error)
     return null

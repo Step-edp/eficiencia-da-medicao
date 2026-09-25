@@ -7,6 +7,7 @@ import {
   classifyInspectionDocument,
   countInspectionPdfPages,
   extractObservationsFromInspectionPdf,
+  isLegalObservationNoise,
   extractInspectionPdfText,
   extractInspectionHighlightsFromPdf,
   looksLikeReciboClient,
@@ -2343,8 +2344,8 @@ async function loadDocumentObservations(
       `SELECT extracted_observations FROM meter_inspection_documents WHERE id = $1`,
       [preferred.id],
     )
-    const current = stored.rows[0]?.extracted_observations?.trim()
-    if (current) return current
+    const current = stored.rows[0]?.extracted_observations
+    if (current != null && !isLegalObservationNoise(current)) return current.trim()
   } catch (error) {
     console.error('Falha ao ler observações gravadas do documento:', error)
   }
@@ -2357,12 +2358,10 @@ async function loadDocumentObservations(
 
   try {
     const observations = (await extractObservationsFromInspectionPdf(file.rows[0].file_data))?.trim() ?? ''
-    if (observations) {
-      await query(
-        `UPDATE meter_inspection_documents SET extracted_observations = $2 WHERE id = $1`,
-        [preferred.id, observations],
-      )
-    }
+    await query(
+      `UPDATE meter_inspection_documents SET extracted_observations = $2 WHERE id = $1`,
+      [preferred.id, observations],
+    )
     return observations
   } catch (error) {
     console.error('Falha ao ler observações do documento de inspeção:', error)

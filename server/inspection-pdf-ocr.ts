@@ -127,3 +127,93 @@ export async function extractInspectionPdfTextViaOcr(
 
   return parts.join('\n').replace(/\s+/g, ' ').trim()
 }
+
+function isBluePixel(red: number, green: number, blue: number): boolean {
+  return blue > 80 && blue > red + 18 && red < 200
+}
+
+/** A observação do TOI é a frase azul abaixo do rótulo Observações. */
+export async function extractBlueTextFromInspectionPdf(buffer: Buffer): Promise<string> {
+  const canvasFactory = new NodeCanvasFactory()
+  const pdf = await getDocument({
+    data: new Uint8Array(buffer),
+    useSystemFonts: true,
+    disableFontFace: false,
+  }).promise
+  const page = await pdf.getPage(1)
+  const viewport = page.getViewport({ scale: 2.4 })
+  const pageCanvas = createCanvas(viewport.width, viewport.height)
+  const context = pageCanvas.getContext('2d')
+  await page.render({
+    canvasContext: context as unknown as CanvasRenderingContext2D,
+    viewport,
+    canvasFactory,
+  } as never).promise
+
+  const source = context.getImageData(0, 0, pageCanvas.width, pageCanvas.height)
+  const width = pageCanvas.width
+  const height = pageCanvas.height
+  const rowCounts = new Array<number>(height).fill(0)
+  for (let y = 0; y < height; y += 1) {
+    let count = 0
+    const row = y * width * 4
+    for (let x = 0; x < width; x += 1) {
+      const index = row + x * 4
+      if (isBluePixel(source.data[index], source.data[index + 1], source.data[index + 2])) count += 1
+    }
+    rowCounts[y] = count
+  }
+
+  const minPixels = Math.max(12, Math.floor(width * 0.004))
+  let start = -1
+  let bestStart = -1
+  let bestEnd = -1
+  let bestScore = 0
+  const scoreGroup = (groupStart: number, groupEnd: number) => {
+    const span = groupEnd - groupStart
+    if (span < 2 || span > height * 0.08) return
+    const center = (groupStart + groupEnd) / 2 / height
+    if (center < 0.5 || center > 0.8) return
+    let score = 0
+    for (let y = groupStart; y < groupEnd; y += 1) score += rowCounts[y]
+    if (score > bestScore) {
+      bestScore = score
+      bestStart = groupStart
+      bestEnd = groupEnd
+    }
+  }
+  for (let y = 0; y <= height; y += 1) {
+    const active = y < height && rowCounts[y] >= minPixels
+    if (active && start < 0) start = y
+    if (!active && start >= 0) {
+      scoreGroup(start, y)
+      start = -1
+    }
+  }
+  if (bestStart < 0) return ''
+
+  const pad = 8
+  const cropTop = Math.max(0, bestStart - pad)
+  const cropBottom = Math.min(height, bestEnd + pad)
+  const cropHeight = Math.max(1, cropBottom - cropTop)
+  const cropped = createCanvas(width, cropHeight)
+  const croppedContext = cropped.getContext('2d')
+  const pixels = croppedContext.createImageData(width, cropHeight)
+  for (let y = 0; y < cropHeight; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const sourceIndex = ((cropTop + y) * width + x) * 4
+      const targetIndex = (y * width + x) * 4
+      const ink = isBluePixel(source.data[sourceIndex], source.data[sourceIndex + 1], source.data[sourceIndex + 2])
+      const value = ink ? 0 : 255
+      pixels.data[targetIndex] = value
+      pixels.data[targetIndex + 1] = value
+      pixels.data[targetIndex + 2] = value
+      pixels.data[targetIndex + 3] = 255
+    }
+  }
+  croppedContext.putImageData(pixels, 0, 0)
+
+  const worker = await getOcrWorker()
+  const { data } = await worker.recognize(cropped.toBuffer('image/png'))
+  return data.text.replace(/\s+/g, ' ').trim()
+}
