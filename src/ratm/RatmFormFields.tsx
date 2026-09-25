@@ -1408,7 +1408,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         />
 
         <label className="full-width">
-          Descrição
+          Descrição de Campo
           <textarea
             rows={4}
             value={data.fieldDocumentDescription}
