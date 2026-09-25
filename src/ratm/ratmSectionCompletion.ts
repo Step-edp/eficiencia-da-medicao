@@ -64,6 +64,22 @@ function isMeasurementFieldComplete(value: string, preset: string) {
   return isFilled(value) || isFilled(preset)
 }
 
+export function isAssayDataSectionComplete(data: RatmFormData) {
+  return (
+    isMeasurementFieldComplete(data.meterReading, data.meterReadingPreset) &&
+    isFilled(data.testBench) &&
+    isFilled(data.march) &&
+    isFilled(data.recorder) &&
+    isFilled(data.interruptedPhase) &&
+    isFilled(data.irregularityCode) &&
+    isFilled(data.fieldReportCorrect) &&
+    isFilled(data.fieldIrregularityCode) &&
+    isFilled(data.laboratoryNotes) &&
+    isFilled(data.fieldInspectionBy) &&
+    isFilled(data.nsType)
+  )
+}
+
 export function isMeasurementsSectionComplete(data: RatmFormData) {
   return (
     isMeasurementFieldComplete(data.cn, data.cnPreset) &&

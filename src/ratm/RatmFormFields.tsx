@@ -27,6 +27,7 @@ import {
   isEnclosureSealSectionComplete,
   isSeal1SectionComplete,
   isSeal2SectionComplete,
+  isAssayDataSectionComplete,
   isMeasurementsSectionComplete,
   isTestResultsSectionComplete,
   isPhotosSectionComplete,
@@ -720,6 +721,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const enclosureSealComplete = isEnclosureSealSectionComplete(data)
   const seal1Complete = isSeal1SectionComplete(data)
   const seal2Complete = isSeal2SectionComplete(data)
+  const assayDataComplete = isAssayDataSectionComplete(data)
   const measurementsComplete = isMeasurementsSectionComplete(data)
   const testResultsComplete = isTestResultsSectionComplete(data)
   const photosComplete = isPhotosSectionComplete(data)
@@ -1173,6 +1175,11 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           </div>
         </RatmExpandableSection>
 
+        <RatmExpandableSection
+          title="Dados do ensaio"
+          accordionName={accordionName}
+          complete={assayDataComplete}
+        >
         <div className="numeric-field-block full-width">
           <label>
             Leitura medidor
@@ -1213,55 +1220,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           options={TEST_BENCH_OPTIONS}
           onChange={(value) => onChange({ testBench: value })}
         />
-
-        <RatmExpandableSection
-          title="Medições (CN, CI, CP)"
-          accordionName={accordionName}
-          complete={measurementsComplete}
-        >
-          <div className="ratm-section-box-grid">
-            {(['cn', 'ci', 'cp', 'cnRi', 'cnRc'] as const).map((fieldKey) => {
-              const labels: Record<typeof fieldKey, string> = {
-                cn: 'CN',
-                ci: 'CI',
-                cp: 'CP',
-                cnRi: 'CN_R_I',
-                cnRc: 'CN_R_C',
-              }
-              const presetKey = `${fieldKey}Preset` as keyof RatmFormData
-
-              return (
-                <div key={fieldKey} className="full-width numeric-field-block">
-                  <label>
-                    {labels[fieldKey]}
-                    <input
-                      type="text"
-                      value={data[fieldKey]}
-                      onChange={(event) =>
-                        onChange({
-                          [fieldKey]: event.target.value,
-                          [presetKey]: '',
-                        })
-                      }
-                    />
-                  </label>
-                  <ClearableRadioGroup
-                    legend=""
-                    name={`${fieldKey}-preset-${index}`}
-                    value={String(data[presetKey])}
-                    options={['-100', 'Não aplicável']}
-                    onChange={(value) =>
-                      onChange({
-                        [presetKey]: value,
-                        [fieldKey]: value,
-                      })
-                    }
-                  />
-                </div>
-              )
-            })}
-          </div>
-        </RatmExpandableSection>
 
         <ClearableRadioGroup
           legend="Marcha"
@@ -1400,6 +1358,56 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           onChange={(value) => onChange({ nsType: value })}
           vertical
         />
+        </RatmExpandableSection>
+
+        <RatmExpandableSection
+          title="Medições (CN, CI, CP)"
+          accordionName={accordionName}
+          complete={measurementsComplete}
+        >
+          <div className="ratm-section-box-grid">
+            {(['cn', 'ci', 'cp', 'cnRi', 'cnRc'] as const).map((fieldKey) => {
+              const labels: Record<typeof fieldKey, string> = {
+                cn: 'CN',
+                ci: 'CI',
+                cp: 'CP',
+                cnRi: 'CN_R_I',
+                cnRc: 'CN_R_C',
+              }
+              const presetKey = `${fieldKey}Preset` as keyof RatmFormData
+
+              return (
+                <div key={fieldKey} className="full-width numeric-field-block">
+                  <label>
+                    {labels[fieldKey]}
+                    <input
+                      type="text"
+                      value={data[fieldKey]}
+                      onChange={(event) =>
+                        onChange({
+                          [fieldKey]: event.target.value,
+                          [presetKey]: '',
+                        })
+                      }
+                    />
+                  </label>
+                  <ClearableRadioGroup
+                    legend=""
+                    name={`${fieldKey}-preset-${index}`}
+                    value={String(data[presetKey])}
+                    options={['-100', 'Não aplicável']}
+                    onChange={(value) =>
+                      onChange({
+                        [presetKey]: value,
+                        [fieldKey]: value,
+                      })
+                    }
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </RatmExpandableSection>
 
         <RatmExpandableSection
           title="Resultados de ensaio"
