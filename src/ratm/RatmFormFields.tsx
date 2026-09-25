@@ -5,7 +5,7 @@ import {
   type EntryFieldMatch,
   type InspectionDocumentRecord,
 } from '../api'
-import { formatSchedulePartnerAndTeamLabel, formatScheduleInspectionCollaborators } from '../schedulePartnerLabel'
+import { formatSchedulePartnerAndTeamLabel, scheduleInspectionCollaboratorFields } from '../schedulePartnerLabel'
 import {
   excludesCollaboratorChecks,
   getVisibleSchedulingTeamFieldKeys,
@@ -461,6 +461,39 @@ function readingFieldsFromValue(value: string | null | undefined) {
   return { meterReading: '', meterReadingPreset: '', meterReadingStatus: '' }
 }
 
+function collaboratorLine(name: string, registration: string) {
+  return [name.trim(), registration.trim()].filter(Boolean).join(' ')
+}
+
+function collaboratorPatch(
+  data: RatmFormData,
+  patch: Partial<
+    Pick<
+      RatmFormData,
+      | 'fieldCollaborator1Name'
+      | 'fieldCollaborator1Registration'
+      | 'fieldCollaborator2Name'
+      | 'fieldCollaborator2Registration'
+    >
+  >,
+): Partial<RatmFormData> {
+  const next = { ...data, ...patch }
+  const fieldCollaborator1 = collaboratorLine(
+    next.fieldCollaborator1Name,
+    next.fieldCollaborator1Registration,
+  )
+  const fieldCollaborator2 = collaboratorLine(
+    next.fieldCollaborator2Name,
+    next.fieldCollaborator2Registration,
+  )
+  return {
+    ...patch,
+    fieldCollaborator1,
+    fieldCollaborator2,
+    fieldInspectionBy: [fieldCollaborator1, fieldCollaborator2].filter(Boolean).join(' / '),
+  }
+}
+
 function emptyScheduleFields(): Partial<RatmFormData> {
   return {
     meter: '',
@@ -483,7 +516,11 @@ function emptyScheduleFields(): Partial<RatmFormData> {
     fieldInspectionBy: '',
     fieldDocumentDescription: '',
     fieldCollaborator1: '',
+    fieldCollaborator1Name: '',
+    fieldCollaborator1Registration: '',
     fieldCollaborator2: '',
+    fieldCollaborator2Name: '',
+    fieldCollaborator2Registration: '',
     clientPresent: '',
     schedulingNotes: '',
     deliveryDeadlineLabel: '',
@@ -787,8 +824,9 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       }
 
       const partnerLabel = formatSchedulePartnerAndTeamLabel(schedule)
-      const [fieldCollaborator1, fieldCollaborator2] =
-        formatScheduleInspectionCollaborators(schedule)
+      const [collaborator1, collaborator2] = scheduleInspectionCollaboratorFields(schedule)
+      const fieldCollaborator1 = [collaborator1.name, collaborator1.registration].filter(Boolean).join(' ')
+      const fieldCollaborator2 = [collaborator2.name, collaborator2.registration].filter(Boolean).join(' ')
       const fieldInspectionBy = [fieldCollaborator1, fieldCollaborator2].filter(Boolean).join(' / ')
       const lookupGeneration = ++clientLookupGeneration
       const comparisonPromise = api.getScheduleEntryComparisons(schedule.id).catch(() => null)
@@ -852,7 +890,11 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         partnerLabel,
         fieldInspectionBy,
         fieldCollaborator1,
+        fieldCollaborator1Name: collaborator1.name,
+        fieldCollaborator1Registration: collaborator1.registration,
         fieldCollaborator2,
+        fieldCollaborator2Name: collaborator2.name,
+        fieldCollaborator2Registration: collaborator2.registration,
         client: extractedClient,
         fieldDocumentDescription: documentObservations,
         enclosureSeal: extractedLacre || schedule.envelopeSeal || '',
@@ -1363,43 +1405,67 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           />
         </label>
 
-        <label className="full-width">
-          Colaborador 1
-          <input
-            type="text"
-            value={data.fieldCollaborator1}
-            onChange={(event) => {
-              const fieldCollaborator1 = event.target.value
-              onChange({
-                fieldCollaborator1,
-                fieldInspectionBy: [fieldCollaborator1, data.fieldCollaborator2]
-                  .map((value) => value.trim())
-                  .filter(Boolean)
-                  .join(' / '),
-              })
-            }}
-            placeholder="Nome e matrícula"
-          />
-        </label>
+        <div className="ratm-collaborator-fields">
+          <label>
+            Nome do colaborador 1
+            <input
+              type="text"
+              value={data.fieldCollaborator1Name}
+              onChange={(event) =>
+                onChange(
+                  collaboratorPatch(data, {
+                    fieldCollaborator1Name: event.target.value,
+                  }),
+                )
+              }
+            />
+          </label>
+          <label>
+            Matrícula
+            <input
+              type="text"
+              value={data.fieldCollaborator1Registration}
+              onChange={(event) =>
+                onChange(
+                  collaboratorPatch(data, {
+                    fieldCollaborator1Registration: event.target.value,
+                  }),
+                )
+              }
+            />
+          </label>
+        </div>
 
-        <label className="full-width">
-          Colaborador 2
-          <input
-            type="text"
-            value={data.fieldCollaborator2}
-            onChange={(event) => {
-              const fieldCollaborator2 = event.target.value
-              onChange({
-                fieldCollaborator2,
-                fieldInspectionBy: [data.fieldCollaborator1, fieldCollaborator2]
-                  .map((value) => value.trim())
-                  .filter(Boolean)
-                  .join(' / '),
-              })
-            }}
-            placeholder="Nome e matrícula"
-          />
-        </label>
+        <div className="ratm-collaborator-fields">
+          <label>
+            Nome do colaborador 2
+            <input
+              type="text"
+              value={data.fieldCollaborator2Name}
+              onChange={(event) =>
+                onChange(
+                  collaboratorPatch(data, {
+                    fieldCollaborator2Name: event.target.value,
+                  }),
+                )
+              }
+            />
+          </label>
+          <label>
+            Matrícula
+            <input
+              type="text"
+              value={data.fieldCollaborator2Registration}
+              onChange={(event) =>
+                onChange(
+                  collaboratorPatch(data, {
+                    fieldCollaborator2Registration: event.target.value,
+                  }),
+                )
+              }
+            />
+          </label>
+        </div>
 
         <ClearableRadioGroup
           legend="Tipo NS"

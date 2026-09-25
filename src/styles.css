@@ -8109,6 +8109,12 @@ input[type='file'] {
   line-height: 1.35;
 }
 
+.ratm-collaborator-fields {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
 .ratm-schedule-details {
   display: grid;
   gap: 14px;
@@ -8211,6 +8217,7 @@ input[type='file'] {
 }
 
 @media (max-width: 720px) {
+  .ratm-collaborator-fields,
   .ratm-schedule-details {
     grid-template-columns: 1fr;
   }

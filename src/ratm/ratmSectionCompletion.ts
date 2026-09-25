@@ -75,8 +75,10 @@ export function isAssayDataSectionComplete(data: RatmFormData) {
     isFilled(data.fieldReportCorrect) &&
     isFilled(data.fieldIrregularityCode) &&
     isFilled(data.laboratoryNotes) &&
-    isFilled(data.fieldCollaborator1) &&
-    isFilled(data.fieldCollaborator2) &&
+    isFilled(data.fieldCollaborator1Name) &&
+    isFilled(data.fieldCollaborator1Registration) &&
+    isFilled(data.fieldCollaborator2Name) &&
+    isFilled(data.fieldCollaborator2Registration) &&
     isFilled(data.nsType)
   )
 }

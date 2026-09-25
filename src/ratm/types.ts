@@ -137,7 +137,11 @@ export type RatmFormData = {
   fieldDocumentDescription: string
   fieldInspectionBy: string
   fieldCollaborator1: string
+  fieldCollaborator1Name: string
+  fieldCollaborator1Registration: string
   fieldCollaborator2: string
+  fieldCollaborator2Name: string
+  fieldCollaborator2Registration: string
   nsType: string
   brokenMeter: string
   displayOff: string
@@ -221,7 +225,11 @@ export function createEmptyRatmForm(): RatmFormData {
     fieldDocumentDescription: '',
     fieldInspectionBy: '',
     fieldCollaborator1: '',
+    fieldCollaborator1Name: '',
+    fieldCollaborator1Registration: '',
     fieldCollaborator2: '',
+    fieldCollaborator2Name: '',
+    fieldCollaborator2Registration: '',
     nsType: '',
     brokenMeter: '',
     displayOff: '',
@@ -251,6 +259,22 @@ export function normalizeRatmForm(data?: Partial<RatmFormData> | null): RatmForm
     const [first, second] = form.fieldInspectionBy.split(/\s*\/\s*/)
     form.fieldCollaborator1 = first?.trim() ?? ''
     form.fieldCollaborator2 = second?.trim() ?? ''
+  }
+  const splitCollaborator = (value: string) => {
+    const trimmed = value.trim()
+    const match = trimmed.match(/^(.*\D)\s+(\d{3,})$/)
+    if (!match) return { name: trimmed, registration: '' }
+    return { name: match[1].trim(), registration: match[2] }
+  }
+  if (!form.fieldCollaborator1Name && !form.fieldCollaborator1Registration && form.fieldCollaborator1) {
+    const split = splitCollaborator(form.fieldCollaborator1)
+    form.fieldCollaborator1Name = split.name
+    form.fieldCollaborator1Registration = split.registration
+  }
+  if (!form.fieldCollaborator2Name && !form.fieldCollaborator2Registration && form.fieldCollaborator2) {
+    const split = splitCollaborator(form.fieldCollaborator2)
+    form.fieldCollaborator2Name = split.name
+    form.fieldCollaborator2Registration = split.registration
   }
   return form
 }

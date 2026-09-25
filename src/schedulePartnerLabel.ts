@@ -152,16 +152,6 @@ export function formatSchedulePartnerAndTeamLabel(
   return formatSchedulePartnerLabel(item)
 }
 
-function formatInspectionPerson(name?: string | null, registration?: string | null) {
-  const normalizedName = name?.trim()
-  const normalizedRegistration = registration?.trim()
-  if (!normalizedName && !normalizedRegistration) return ''
-  if (normalizedName && normalizedRegistration) {
-    return `${normalizedName} ${normalizedRegistration}`
-  }
-  return normalizedName || normalizedRegistration || ''
-}
-
 type ScheduleInspectionPeople = Pick<
   MeterScheduleRecord,
   | 'partnerName'
@@ -177,21 +167,45 @@ type ScheduleInspectionPeople = Pick<
 > &
   ScheduleAuthorFields
 
-/** Colaborador 1 e colaborador 2 da inspeção de campo, no formato Nome matrícula. */
-export function formatScheduleInspectionCollaborators(item: ScheduleInspectionPeople): [string, string] {
+export type InspectionCollaboratorFields = {
+  name: string
+  registration: string
+}
+
+function inspectionCollaborator(
+  name?: string | null,
+  registration?: string | null,
+): InspectionCollaboratorFields {
+  return {
+    name: name?.trim() ?? '',
+    registration: registration?.trim() ?? '',
+  }
+}
+
+/** Nome e matrícula de cada colaborador da inspeção de campo. */
+export function scheduleInspectionCollaboratorFields(
+  item: ScheduleInspectionPeople,
+): [InspectionCollaboratorFields, InspectionCollaboratorFields] {
   if (isToiTeamSchedule(item)) {
     return [
-      formatInspectionPerson(item.toiCollaborator1Name, item.toiCollaborator1Registration),
-      formatInspectionPerson(item.toiCollaborator2Name, item.toiCollaborator2Registration),
+      inspectionCollaborator(item.toiCollaborator1Name, item.toiCollaborator1Registration),
+      inspectionCollaborator(item.toiCollaborator2Name, item.toiCollaborator2Registration),
     ]
   }
 
-  return [
-    formatInspectionPerson(item.createdByName, item.createdByRegistration) ||
-      item.scheduledByName?.trim() ||
-      '',
-    formatInspectionPerson(item.partnerName, item.partnerRegistration),
-  ]
+  const created = inspectionCollaborator(item.createdByName, item.createdByRegistration)
+  const first = created.name || created.registration
+    ? created
+    : inspectionCollaborator(item.scheduledByName, '')
+
+  return [first, inspectionCollaborator(item.partnerName, item.partnerRegistration)]
+}
+
+/** Colaborador 1 e colaborador 2 da inspeção de campo, no formato Nome matrícula. */
+export function formatScheduleInspectionCollaborators(item: ScheduleInspectionPeople): [string, string] {
+  return scheduleInspectionCollaboratorFields(item).map((person) =>
+    [person.name, person.registration].filter(Boolean).join(' '),
+  ) as [string, string]
 }
 
 /** Equipe gravada no agendamento, no formato do RATM (Nome matrícula / Nome matrícula). */

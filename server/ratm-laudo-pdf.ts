@@ -58,10 +58,17 @@ function textValue(value: unknown) {
   return normalized || '—'
 }
 
+function collaboratorLabel(name: unknown, registration: unknown, fallback: unknown) {
+  const parts = [name, registration].map((value) => String(value ?? '').trim()).filter(Boolean)
+  if (parts.length) return parts.join(' ')
+  return String(fallback ?? '').trim()
+}
+
 function inspectionByLabel(form: Record<string, unknown>) {
-  const collaborators = [form.fieldCollaborator1, form.fieldCollaborator2]
-    .map((value) => String(value ?? '').trim())
-    .filter(Boolean)
+  const collaborators = [
+    collaboratorLabel(form.fieldCollaborator1Name, form.fieldCollaborator1Registration, form.fieldCollaborator1),
+    collaboratorLabel(form.fieldCollaborator2Name, form.fieldCollaborator2Registration, form.fieldCollaborator2),
+  ].filter(Boolean)
   if (collaborators.length) return collaborators.join(' / ')
   return String(form.fieldInspectionBy ?? '').trim()
 }
