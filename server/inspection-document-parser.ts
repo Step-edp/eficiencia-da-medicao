@@ -1055,6 +1055,7 @@ export async function extractObservationsFromInspectionPdf(buffer: Buffer): Prom
       const ocrText = await extractInspectionPdfTextViaOcr(buffer, {
         scale: 2.4,
         maxPages: 1,
+        highContrast: true,
         ...band,
       })
       combined = `${combined}\n${ocrText}`

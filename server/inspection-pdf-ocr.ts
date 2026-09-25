@@ -59,6 +59,7 @@ export type PdfOcrOptions = {
   topFraction?: number
   startFraction?: number
   endFraction?: number
+  highContrast?: boolean
   stopWhen?: (accumulatedText: string) => boolean
 }
 
@@ -101,6 +102,19 @@ export async function extractInspectionPdfTextViaOcr(
       const cropped = createCanvas(viewport.width, cropHeight)
       cropped.getContext('2d').drawImage(pageCanvas, 0, cropTop, viewport.width, cropHeight, 0, 0, viewport.width, cropHeight)
       image = cropped
+    }
+
+    if (options?.highContrast) {
+      const contrastContext = image.getContext('2d')
+      const pixels = contrastContext.getImageData(0, 0, image.width, image.height)
+      for (let index = 0; index < pixels.data.length; index += 4) {
+        const gray = pixels.data[index] * 0.3 + pixels.data[index + 1] * 0.59 + pixels.data[index + 2] * 0.11
+        const value = gray < 175 ? 0 : 255
+        pixels.data[index] = value
+        pixels.data[index + 1] = value
+        pixels.data[index + 2] = value
+      }
+      contrastContext.putImageData(pixels, 0, 0)
     }
 
     const { data } = await worker.recognize(image.toBuffer('image/png'))

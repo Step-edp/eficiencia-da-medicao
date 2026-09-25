@@ -865,6 +865,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
       let extractedLacre = ''
       let extractedClient = ''
+      let documentObservations = ''
       let coverSeals = {
         seal1: '',
         seal1Status: '',
@@ -880,6 +881,10 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         const documentsResponse = await api.listInspectionDocuments(schedule.id)
         extractedLacre = pickDocumentEnvelopeSeal(documentsResponse.documents)
         extractedClient = pickDocumentClient(documentsResponse.documents)
+        documentObservations =
+          documentsResponse.documentObservations?.trim() ||
+          documentsResponse.observations?.trim() ||
+          ''
         coverSeals = pickDocumentCoverSeals(documentsResponse.documents)
         meterReadingFields = pickDocumentReading(
           documentsResponse.documents,
@@ -925,6 +930,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         fieldCollaborator2Name: collaborator2.name,
         fieldCollaborator2Registration: collaborator2.registration,
         client: extractedClient,
+        fieldDocumentDescription: documentObservations,
         enclosureSeal: extractedLacre || schedule.envelopeSeal || '',
         seal1: coverSeals.seal1,
         seal1Status: coverSeals.seal1Status,
