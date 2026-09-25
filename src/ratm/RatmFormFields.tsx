@@ -1430,7 +1430,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         >
           <div className="ratm-section-box-grid">
             <ClearableRadioGroup
-              legend="Medidor quebrado/ furado"
+              legend="Medidor quebrado • furado"
               name={`broken-meter-${index}`}
               value={data.brokenMeter}
               options={['Sim', 'Não']}
@@ -1438,7 +1438,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             />
 
             <ClearableRadioGroup
-              legend="Display apagado/ não liga"
+              legend="Display apagado • não liga"
               name={`display-off-${index}`}
               value={data.displayOff}
               options={['Sim', 'Não']}
