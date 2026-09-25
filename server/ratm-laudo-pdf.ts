@@ -58,6 +58,14 @@ function textValue(value: unknown) {
   return normalized || '—'
 }
 
+function inspectionByLabel(form: Record<string, unknown>) {
+  const collaborators = [form.fieldCollaborator1, form.fieldCollaborator2]
+    .map((value) => String(value ?? '').trim())
+    .filter(Boolean)
+  if (collaborators.length) return collaborators.join(' / ')
+  return String(form.fieldInspectionBy ?? '').trim()
+}
+
 function formatDate(isoDate: string) {
   const date = new Date(isoDate)
   if (Number.isNaN(date.getTime())) return '—'
@@ -319,7 +327,7 @@ function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
     },
     {
       left: ['Medidor (nº de série)', textValue(form.meter || laudo.meter)],
-      right: ['Solicitante', textValue(form.fieldInspectionBy || laudo.createdByName)],
+      right: ['Solicitante', textValue(inspectionByLabel(form) || laudo.createdByName)],
     },
     {
       left: ['Marca / Modelo', textValue(form.itemLookup)],
@@ -593,7 +601,7 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   const y = doc.y
   const gap = 12
   const boxW = (CONTENT_WIDTH - gap * 2) / 3
-  const elaborador = textValue(laudo.formData.fieldInspectionBy || laudo.createdByName)
+  const elaborador = textValue(inspectionByLabel(laudo.formData) || laudo.createdByName)
   const boxes = [
     { title: 'ELABORADO POR', name: elaborador, role: 'Técnico do Laboratório' },
     { title: 'REVISADO POR', name: '—', role: 'Responsável Técnico' },

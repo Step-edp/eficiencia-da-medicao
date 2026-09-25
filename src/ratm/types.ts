@@ -135,6 +135,8 @@ export type RatmFormData = {
   fieldIrregularityCode: string
   laboratoryNotes: string
   fieldInspectionBy: string
+  fieldCollaborator1: string
+  fieldCollaborator2: string
   nsType: string
   brokenMeter: string
   displayOff: string
@@ -216,6 +218,8 @@ export function createEmptyRatmForm(): RatmFormData {
     fieldIrregularityCode: '23',
     laboratoryNotes: '',
     fieldInspectionBy: '',
+    fieldCollaborator1: '',
+    fieldCollaborator2: '',
     nsType: '',
     brokenMeter: '',
     displayOff: '',
@@ -230,7 +234,7 @@ export function createEmptyRatmForm(): RatmFormData {
 
 /** Garante campos novos em rascunhos/laudos antigos. */
 export function normalizeRatmForm(data?: Partial<RatmFormData> | null): RatmFormData {
-  return {
+  const form: RatmFormData = {
     ...createEmptyRatmForm(),
     ...(data ?? {}),
     entryFieldChecks: {
@@ -241,4 +245,10 @@ export function normalizeRatmForm(data?: Partial<RatmFormData> | null): RatmForm
       ? [...data.photos, '', '', '', ''].slice(0, 4)
       : ['', '', '', ''],
   }
+  if (!form.fieldCollaborator1 && !form.fieldCollaborator2 && form.fieldInspectionBy.trim()) {
+    const [first, second] = form.fieldInspectionBy.split(/\s*\/\s*/)
+    form.fieldCollaborator1 = first?.trim() ?? ''
+    form.fieldCollaborator2 = second?.trim() ?? ''
+  }
+  return form
 }

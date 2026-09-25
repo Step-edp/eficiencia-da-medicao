@@ -162,30 +162,28 @@ function formatInspectionPerson(name?: string | null, registration?: string | nu
   return normalizedName || normalizedRegistration || ''
 }
 
-/** Equipe gravada no agendamento, no formato do RATM (Nome matrícula / Nome matrícula). */
-export function formatScheduleInspectionByLabel(
-  item: Pick<
-    MeterScheduleRecord,
-    | 'partnerName'
-    | 'partnerRegistration'
-    | 'createdByName'
-    | 'createdByRegistration'
-    | 'scheduledByName'
-    | 'toiCollaborator1Name'
-    | 'toiCollaborator1Registration'
-    | 'toiCollaborator2Name'
-    | 'toiCollaborator2Registration'
-    | 'toiTeamReason'
-  > &
-    ScheduleAuthorFields,
-) {
+type ScheduleInspectionPeople = Pick<
+  MeterScheduleRecord,
+  | 'partnerName'
+  | 'partnerRegistration'
+  | 'createdByName'
+  | 'createdByRegistration'
+  | 'scheduledByName'
+  | 'toiCollaborator1Name'
+  | 'toiCollaborator1Registration'
+  | 'toiCollaborator2Name'
+  | 'toiCollaborator2Registration'
+  | 'toiTeamReason'
+> &
+  ScheduleAuthorFields
+
+/** Colaborador 1 e colaborador 2 da inspeção de campo, no formato Nome matrícula. */
+export function formatScheduleInspectionCollaborators(item: ScheduleInspectionPeople): [string, string] {
   if (isToiTeamSchedule(item)) {
     return [
       formatInspectionPerson(item.toiCollaborator1Name, item.toiCollaborator1Registration),
       formatInspectionPerson(item.toiCollaborator2Name, item.toiCollaborator2Registration),
     ]
-      .filter(Boolean)
-      .join(' / ')
   }
 
   return [
@@ -194,8 +192,11 @@ export function formatScheduleInspectionByLabel(
       '',
     formatInspectionPerson(item.partnerName, item.partnerRegistration),
   ]
-    .filter(Boolean)
-    .join(' / ')
+}
+
+/** Equipe gravada no agendamento, no formato do RATM (Nome matrícula / Nome matrícula). */
+export function formatScheduleInspectionByLabel(item: ScheduleInspectionPeople) {
+  return formatScheduleInspectionCollaborators(item).filter(Boolean).join(' / ')
 }
 
 export function scheduleAuditSearchText(

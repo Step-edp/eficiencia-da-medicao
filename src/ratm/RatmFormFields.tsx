@@ -5,7 +5,7 @@ import {
   type EntryFieldMatch,
   type InspectionDocumentRecord,
 } from '../api'
-import { formatSchedulePartnerAndTeamLabel, formatScheduleInspectionByLabel } from '../schedulePartnerLabel'
+import { formatSchedulePartnerAndTeamLabel, formatScheduleInspectionCollaborators } from '../schedulePartnerLabel'
 import {
   excludesCollaboratorChecks,
   getVisibleSchedulingTeamFieldKeys,
@@ -481,6 +481,8 @@ function emptyScheduleFields(): Partial<RatmFormData> {
     csd: '',
     partnerLabel: '',
     fieldInspectionBy: '',
+    fieldCollaborator1: '',
+    fieldCollaborator2: '',
     clientPresent: '',
     schedulingNotes: '',
     deliveryDeadlineLabel: '',
@@ -785,7 +787,9 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       }
 
       const partnerLabel = formatSchedulePartnerAndTeamLabel(schedule)
-      const fieldInspectionBy = formatScheduleInspectionByLabel(schedule)
+      const [fieldCollaborator1, fieldCollaborator2] =
+        formatScheduleInspectionCollaborators(schedule)
+      const fieldInspectionBy = [fieldCollaborator1, fieldCollaborator2].filter(Boolean).join(' / ')
       const lookupGeneration = ++clientLookupGeneration
       const comparisonPromise = api.getScheduleEntryComparisons(schedule.id).catch(() => null)
       void fillClientFromInspectionDocument(schedule.id, lookupGeneration, onChange)
@@ -845,6 +849,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         csd: schedule.csd || '',
         partnerLabel,
         fieldInspectionBy,
+        fieldCollaborator1,
+        fieldCollaborator2,
         client: extractedClient,
         enclosureSeal: extractedLacre || schedule.envelopeSeal || '',
         seal1: coverSeals.seal1,
@@ -1355,12 +1361,40 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         </label>
 
         <label className="full-width">
-          Inspeção de campo realizada por:
+          Colaborador 1
           <input
             type="text"
-            value={data.fieldInspectionBy}
-            onChange={(event) => onChange({ fieldInspectionBy: event.target.value })}
-            placeholder="Maurício 6757 / Célio 6153"
+            value={data.fieldCollaborator1}
+            onChange={(event) => {
+              const fieldCollaborator1 = event.target.value
+              onChange({
+                fieldCollaborator1,
+                fieldInspectionBy: [fieldCollaborator1, data.fieldCollaborator2]
+                  .map((value) => value.trim())
+                  .filter(Boolean)
+                  .join(' / '),
+              })
+            }}
+            placeholder="Nome e matrícula"
+          />
+        </label>
+
+        <label className="full-width">
+          Colaborador 2
+          <input
+            type="text"
+            value={data.fieldCollaborator2}
+            onChange={(event) => {
+              const fieldCollaborator2 = event.target.value
+              onChange({
+                fieldCollaborator2,
+                fieldInspectionBy: [data.fieldCollaborator1, fieldCollaborator2]
+                  .map((value) => value.trim())
+                  .filter(Boolean)
+                  .join(' / '),
+              })
+            }}
+            placeholder="Nome e matrícula"
           />
         </label>
 
