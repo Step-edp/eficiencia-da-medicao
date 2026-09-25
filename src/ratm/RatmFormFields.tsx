@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import {
   api,
   ApiError,
@@ -719,6 +719,38 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     {},
   )
   const accordionName = `ratm-sections-${index}`
+  const registrationLookupRef = useRef({ 1: 0, 2: 0 })
+
+  const handleCollaboratorRegistration = (
+    slot: 1 | 2,
+    registration: string,
+  ) => {
+    const registrationPatch =
+      slot === 1
+        ? { fieldCollaborator1Registration: registration }
+        : { fieldCollaborator2Registration: registration }
+    onChange(collaboratorPatch(data, registrationPatch))
+    const trimmed = registration.trim()
+    if (trimmed.length < 3) return
+    const lookupId = ++registrationLookupRef.current[slot]
+    window.setTimeout(() => {
+      void api
+        .lookupUserByRegistration(trimmed)
+        .then((user) => {
+          if (registrationLookupRef.current[slot] !== lookupId || !user.name.trim()) return
+          const name = user.name.trim()
+          onChange(
+            collaboratorPatch(
+              data,
+              slot === 1
+                ? { fieldCollaborator1Registration: registration, fieldCollaborator1Name: name }
+                : { fieldCollaborator2Registration: registration, fieldCollaborator2Name: name },
+            ),
+          )
+        })
+        .catch(() => undefined)
+    }, 350)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -1382,6 +1414,14 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
         <div className="ratm-collaborator-fields">
           <label>
+            Matrícula
+            <input
+              type="text"
+              value={data.fieldCollaborator1Registration}
+              onChange={(event) => handleCollaboratorRegistration(1, event.target.value)}
+            />
+          </label>
+          <label>
             Nome do colaborador 1
             <input
               type="text"
@@ -1395,23 +1435,17 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               }
             />
           </label>
+        </div>
+
+        <div className="ratm-collaborator-fields">
           <label>
             Matrícula
             <input
               type="text"
-              value={data.fieldCollaborator1Registration}
-              onChange={(event) =>
-                onChange(
-                  collaboratorPatch(data, {
-                    fieldCollaborator1Registration: event.target.value,
-                  }),
-                )
-              }
+              value={data.fieldCollaborator2Registration}
+              onChange={(event) => handleCollaboratorRegistration(2, event.target.value)}
             />
           </label>
-        </div>
-
-        <div className="ratm-collaborator-fields">
           <label>
             Nome do colaborador 2
             <input
@@ -1421,20 +1455,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                 onChange(
                   collaboratorPatch(data, {
                     fieldCollaborator2Name: event.target.value,
-                  }),
-                )
-              }
-            />
-          </label>
-          <label>
-            Matrícula
-            <input
-              type="text"
-              value={data.fieldCollaborator2Registration}
-              onChange={(event) =>
-                onChange(
-                  collaboratorPatch(data, {
-                    fieldCollaborator2Registration: event.target.value,
                   }),
                 )
               }

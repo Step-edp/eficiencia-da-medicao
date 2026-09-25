@@ -756,6 +756,30 @@ export async function exchangeSsoToken(req: Request, res: Response) {
   res.json({ user: await mapUserWithVacation(user) })
 }
 
+export async function lookupUserByRegistration(req: Request, res: Response) {
+  const registration = String(req.params.registration ?? '').trim()
+  if (!registration) {
+    res.status(400).json({ error: 'Informe a matrícula.' })
+    return
+  }
+
+  const result = await query<{ name: string; registration: string }>(
+    `SELECT name, registration
+     FROM users
+     WHERE UPPER(registration) = $1
+       AND approval_status = 'approved'
+     LIMIT 1`,
+    [registration.toUpperCase()],
+  )
+  const user = result.rows[0]
+  if (!user) {
+    res.status(404).json({ error: 'Usuário não encontrado.' })
+    return
+  }
+
+  res.json({ name: user.name, registration: user.registration })
+}
+
 export async function listUsers(req: Request, res: Response) {
   const includePassword = req.user?.role === 'admin'
   const result = await query<UserRow>(
@@ -1812,6 +1836,7 @@ export const authRoutes = {
   createEmbedToken: [requireAuth, createEmbedToken],
   exchangeSsoToken,
   listUsers: [requireAuth, requireAdminOrLabMedicao, listUsers],
+  lookupUserByRegistration: [requireAuth, lookupUserByRegistration],
   listUserProfilePhotos: [requireAuth, requireAdminOrLabMedicao, listUserProfilePhotos],
   approveUser: [requireAuth, requireAdmin, approveUser],
   updateUser: [requireAuth, requireAdmin, updateUser],

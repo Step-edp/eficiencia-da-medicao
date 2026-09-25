@@ -8112,7 +8112,7 @@ input[type='file'] {
 .ratm-collaborator-fields {
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
 }
 
 .ratm-schedule-details {

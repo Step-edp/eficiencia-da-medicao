@@ -1064,6 +1064,10 @@ export const api = {
       method: 'POST',
     }),
   listUsers: () => request<{ users: AppUser[] }>('/api/users'),
+  lookupUserByRegistration: (registration: string) =>
+    request<{ name: string; registration: string }>(
+      `/api/users/by-registration/${encodeURIComponent(registration)}`,
+    ),
   listUserProfilePhotos: (ids: string[]) =>
     request<{ photos: Record<string, string> }>('/api/users/profile-photos', {
       method: 'POST',
