@@ -216,13 +216,6 @@ export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWork
       />
 
       <div className="ratm-workflow-actions">
-        <button
-          className="secondary-button"
-          type="button"
-          onClick={() => setConfirmCloseOpen(true)}
-        >
-          Alterar quantidade
-        </button>
         {activeIndex < count - 1 ? (
           <button className="primary-button" type="button" onClick={handleNext}>
             Próximo RATM
