@@ -327,6 +327,7 @@ export type InspectionDocumentParseResult = {
   note: string | null
   scheduledAt: string | null
   client: string | null
+  observations: string | null
 }
 
 export type InspectionDocumentType = 'toi' | 'comunicado' | 'ambos' | 'desconhecido'
@@ -1013,6 +1014,17 @@ function nameFromTitularWindow(window: string): string | null {
   return sanitizeTitularName(company?.[1] ?? stripped)
 }
 
+export function extractDocumentObservations(text: string): string | null {
+  const normalized = text.replace(/\s+/g, ' ').trim()
+  if (!normalized) return null
+  const match = normalized.match(
+    /observa[cç][õo]es\s*:?\s*(.+?)(?=\s*(?:\d+\s*[.)]\s*(?:\(?\s*x\s*\)?)?\s*tendo em vista|tendo em vista a situa)|$)/i,
+  )
+  const value = match?.[1]?.replace(/\s+/g, ' ').trim() ?? ''
+  if (value.length < 8) return null
+  return value.slice(0, 2000)
+}
+
 export function extractClientFromText(text: string): string | null {
   const normalized = normalizedSlice(text)
   const windows: string[] = []
@@ -1119,6 +1131,7 @@ export function parseInspectionText(text: string): InspectionDocumentParseResult
     note: extractNoteNumber(normalized, excludedNoteKeys),
     scheduledAt: extractScheduledAt(normalized),
     client: extractClientFromText(normalized),
+    observations: extractDocumentObservations(normalized),
   }
 }
 

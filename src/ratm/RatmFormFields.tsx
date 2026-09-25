@@ -481,6 +481,7 @@ function emptyScheduleFields(): Partial<RatmFormData> {
     csd: '',
     partnerLabel: '',
     fieldInspectionBy: '',
+    fieldDocumentDescription: '',
     fieldCollaborator1: '',
     fieldCollaborator2: '',
     clientPresent: '',
@@ -712,7 +713,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
   const fieldIrregularityDescription =
     irregularityCodes[data.fieldIrregularityCode] ?? 'Selecione um código válido.'
-  const fieldIrregularityCatalogDescription = descriptionForCode(data.fieldIrregularityCode)
 
   useEffect(() => {
     const nextNotes = descriptionForCode(data.irregularityCode)
@@ -796,6 +796,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
       let extractedLacre = ''
       let extractedClient = ''
+      let documentObservations = ''
       let coverSeals = {
         seal1: '',
         seal1Status: '',
@@ -811,6 +812,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         const documentsResponse = await api.listInspectionDocuments(schedule.id)
         extractedLacre = pickDocumentEnvelopeSeal(documentsResponse.documents)
         extractedClient = pickDocumentClient(documentsResponse.documents)
+        documentObservations = documentsResponse.documentObservations?.trim() || ''
         coverSeals = pickDocumentCoverSeals(documentsResponse.documents)
         meterReadingFields = pickDocumentReading(
           documentsResponse.documents,
@@ -852,6 +854,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         fieldCollaborator1,
         fieldCollaborator2,
         client: extractedClient,
+        fieldDocumentDescription: documentObservations,
         enclosureSeal: extractedLacre || schedule.envelopeSeal || '',
         seal1: coverSeals.seal1,
         seal1Status: coverSeals.seal1Status,
@@ -1346,8 +1349,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           Descrição
           <textarea
             rows={4}
-            value={fieldIrregularityCatalogDescription}
-            readOnly
+            value={data.fieldDocumentDescription}
+            onChange={(event) => onChange({ fieldDocumentDescription: event.target.value })}
           />
         </label>
 

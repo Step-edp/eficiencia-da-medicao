@@ -6,6 +6,7 @@ import { ENTRADA_TRAIL_STEP, hasMeterEntradaGiven } from '../lab-trail-status.js
 import {
   classifyInspectionDocument,
   countInspectionPdfPages,
+  extractDocumentObservations,
   extractInspectionPdfText,
   extractInspectionHighlightsFromPdf,
   looksLikeReciboClient,
@@ -45,6 +46,7 @@ type InspectionDocumentRow = {
   extracted_toi: string | null
   extracted_note: string | null
   extracted_client?: string | null
+  extracted_observations?: string | null
   extracted_fields_manual?: boolean
   blocked: boolean
   block_reason: string | null
@@ -1619,6 +1621,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   let extractedToi: string | null = null
   let extractedNote: string | null = null
   let extractedClient: string | null = null
+  let extractedObservations: string | null = null
 
   const parsed = parseInspectionText(text)
   const highlights =
@@ -1628,6 +1631,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   extractedScheduledAt = parsed.scheduledAt
   extractedMeterRetirado = parsed.meterRetirado
   extractedClient = parsed.client ?? highlights.client
+  extractedObservations = parsed.observations
   if (docType === 'toi' || docType === 'ambos') {
     extractedMeter = parsed.meterEncontrado
     extractedLacre = parsed.lacre
@@ -1659,9 +1663,10 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
       id, meter_schedule_id, doc_type, file_name, file_data,
       extracted_meter, extracted_meter_retirado, extracted_lacre, extracted_cover_seal, extracted_cover_seal_2, extracted_reading,
       extracted_scheduled_at, extracted_installation, extracted_toi, extracted_note, extracted_client,
+      extracted_observations,
       blocked, block_reason, created_by_user_id
     )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
      ON CONFLICT (meter_schedule_id, doc_type) DO UPDATE SET
        file_name = EXCLUDED.file_name,
        file_data = EXCLUDED.file_data,
@@ -1676,6 +1681,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
        extracted_toi = EXCLUDED.extracted_toi,
        extracted_note = EXCLUDED.extracted_note,
        extracted_client = EXCLUDED.extracted_client,
+       extracted_observations = EXCLUDED.extracted_observations,
        blocked = EXCLUDED.blocked,
        block_reason = EXCLUDED.block_reason,
        created_at = NOW(),
@@ -1701,6 +1707,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
       extractedToi,
       extractedNote,
       extractedClient,
+      extractedObservations,
       evaluation.blocked,
       evaluation.reason,
       req.user?.id ?? null,
@@ -2322,6 +2329,44 @@ async function repairMisclassifiedInspectionDocuments(
   }
 }
 
+async function loadDocumentObservations(
+  rows: Array<{ id: string; doc_type: string }>,
+): Promise<string> {
+  const preferred =
+    rows.find((row) => row.doc_type === 'ambos') ??
+    rows.find((row) => row.doc_type === 'toi') ??
+    rows.find((row) => row.doc_type === 'comunicado')
+  if (!preferred) return ''
+
+  const stored = await query<{ extracted_observations: string | null }>(
+    `SELECT extracted_observations FROM meter_inspection_documents WHERE id = $1`,
+    [preferred.id],
+  )
+  const current = stored.rows[0]?.extracted_observations?.trim()
+  if (current) return current
+
+  const file = await query<{ file_data: Buffer }>(
+    `SELECT file_data FROM meter_inspection_documents WHERE id = $1`,
+    [preferred.id],
+  )
+  if (!file.rows[0]?.file_data) return ''
+
+  try {
+    const text = await extractInspectionPdfText(file.rows[0].file_data)
+    const observations = extractDocumentObservations(text)?.trim() ?? ''
+    if (observations) {
+      await query(
+        `UPDATE meter_inspection_documents SET extracted_observations = $2 WHERE id = $1`,
+        [preferred.id, observations],
+      )
+    }
+    return observations
+  } catch (error) {
+    console.error('Falha ao ler observações do documento de inspeção:', error)
+    return ''
+  }
+}
+
 export async function listInspectionDocuments(req: Request, res: Response) {
   const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
 
@@ -2497,6 +2542,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     photos: await loadInspectionPhotos(meterScheduleId),
     canManagePhotos: userCanManage,
     canEditWpa: userCanManage,
+    documentObservations: await loadDocumentObservations(result.rows),
     observations: schedule.rows[0].inspection_observations ?? '',
     analysisCompleted: Boolean(schedule.rows[0].inspection_analysis_completed_at),
     analysisCompletedAt: schedule.rows[0].inspection_analysis_completed_at?.toISOString() ?? null,

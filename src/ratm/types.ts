@@ -134,6 +134,7 @@ export type RatmFormData = {
   fieldReportCorrect: string
   fieldIrregularityCode: string
   laboratoryNotes: string
+  fieldDocumentDescription: string
   fieldInspectionBy: string
   fieldCollaborator1: string
   fieldCollaborator2: string
@@ -217,6 +218,7 @@ export function createEmptyRatmForm(): RatmFormData {
     fieldReportCorrect: '',
     fieldIrregularityCode: '23',
     laboratoryNotes: '',
+    fieldDocumentDescription: '',
     fieldInspectionBy: '',
     fieldCollaborator1: '',
     fieldCollaborator2: '',

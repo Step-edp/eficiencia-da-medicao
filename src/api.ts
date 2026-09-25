@@ -1856,6 +1856,7 @@ export const api = {
       canManagePhotos?: boolean
       canEditWpa?: boolean
       observations?: string
+      documentObservations?: string
       analysisCompleted?: boolean
       analysisCompletedAt?: string | null
       analysisBlocked?: boolean

@@ -1000,6 +1000,8 @@ export async function migrate() {
   await query(`
     ALTER TABLE meter_inspection_documents
       ADD COLUMN IF NOT EXISTS extracted_client TEXT;
+    ALTER TABLE meter_inspection_documents
+      ADD COLUMN IF NOT EXISTS extracted_observations TEXT;
   `)
 
   await query(`
