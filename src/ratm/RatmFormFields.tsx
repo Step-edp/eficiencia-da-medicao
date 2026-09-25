@@ -707,7 +707,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
   const irregularityDescription =
     irregularityCodes[data.irregularityCode] ?? 'Selecione um código válido.'
-  const irregularityCatalogDescription = descriptionForCode(data.irregularityCode)
 
   const fieldIrregularityDescription =
     irregularityCodes[data.fieldIrregularityCode] ?? 'Selecione um código válido.'
@@ -1303,8 +1302,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           Descrição
           <textarea
             rows={4}
-            value={irregularityCatalogDescription || data.irregularityNotes}
-            readOnly
+            value={data.irregularityNotes}
+            onChange={(event) => onChange({ irregularityNotes: event.target.value })}
           />
         </label>
 
