@@ -1371,7 +1371,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           value={data.nsType}
           options={['Consumo irregular (CI)', 'Falha na medição (FM)']}
           onChange={(value) => onChange({ nsType: value })}
-          vertical
         />
         </RatmExpandableSection>
 
