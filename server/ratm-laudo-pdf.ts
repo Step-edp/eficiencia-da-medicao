@@ -495,8 +495,7 @@ function drawResultado(
 
   const code = String(form.irregularityCode ?? '').trim()
   const notes = String(form.irregularityNotes ?? '').trim()
-  const documentDescription = String(form.fieldDocumentDescription ?? '').trim()
-  const description = documentDescription || notes || irregularityDescriptions[code] || ''
+  const description = notes || irregularityDescriptions[code] || ''
 
   const details = [
     `Irregularidade: ${irregularityLabel(form, irregularityCodes)}`,

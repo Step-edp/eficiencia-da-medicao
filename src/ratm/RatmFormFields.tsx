@@ -757,7 +757,10 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     if (data.irregularityNotes === nextNotes) return
     if (!data.irregularityCode.trim() && !data.irregularityNotes.trim()) return
     if (data.irregularityCode.trim() && !nextNotes) return
-    onChange({ irregularityNotes: nextNotes })
+    onChange({
+      irregularityNotes: nextNotes,
+      fieldDocumentDescription: nextNotes,
+    })
   }, [data.irregularityCode, irregularityDescriptions, irregularityCodes])
 
   const entryInfoComplete = isEntryInfoSectionComplete(data)
@@ -836,7 +839,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
       let extractedLacre = ''
       let extractedClient = ''
-      let documentObservations = ''
       let coverSeals = {
         seal1: '',
         seal1Status: '',
@@ -852,10 +854,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         const documentsResponse = await api.listInspectionDocuments(schedule.id)
         extractedLacre = pickDocumentEnvelopeSeal(documentsResponse.documents)
         extractedClient = pickDocumentClient(documentsResponse.documents)
-        documentObservations =
-          documentsResponse.documentObservations?.trim() ||
-          documentsResponse.observations?.trim() ||
-          ''
         coverSeals = pickDocumentCoverSeals(documentsResponse.documents)
         meterReadingFields = pickDocumentReading(
           documentsResponse.documents,
@@ -901,7 +899,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         fieldCollaborator2Name: collaborator2.name,
         fieldCollaborator2Registration: collaborator2.registration,
         client: extractedClient,
-        fieldDocumentDescription: documentObservations,
         enclosureSeal: extractedLacre || schedule.envelopeSeal || '',
         seal1: coverSeals.seal1,
         seal1Status: coverSeals.seal1Status,
@@ -1335,9 +1332,11 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             value={data.irregularityCode}
             onChange={(event) => {
               const irregularityCode = event.target.value
+              const irregularityNotes = descriptionForCode(irregularityCode)
               onChange({
                 irregularityCode,
-                irregularityNotes: descriptionForCode(irregularityCode),
+                irregularityNotes,
+                fieldDocumentDescription: irregularityNotes,
               })
             }}
           >
@@ -1359,7 +1358,13 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           <textarea
             rows={4}
             value={data.irregularityNotes}
-            onChange={(event) => onChange({ irregularityNotes: event.target.value })}
+            onChange={(event) => {
+              const irregularityNotes = event.target.value
+              onChange({
+                irregularityNotes,
+                fieldDocumentDescription: irregularityNotes,
+              })
+            }}
           />
         </label>
 
@@ -1396,7 +1401,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           Descrição
           <textarea
             rows={4}
-            value={data.fieldDocumentDescription}
+            value={data.fieldDocumentDescription || data.irregularityNotes}
             onChange={(event) => onChange({ fieldDocumentDescription: event.target.value })}
           />
         </label>
