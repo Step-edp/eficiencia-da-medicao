@@ -1827,6 +1827,11 @@ export const api = {
       `/api/meter-schedules/${meterScheduleId}/inspection-document/${docType}`,
       { method: 'DELETE' },
     ),
+  deleteAllInspectionDocuments: (meterScheduleId: string) =>
+    request<{ ok: true; meterScheduleId: string; deleted: number }>(
+      `/api/meter-schedules/${meterScheduleId}/inspection-documents`,
+      { method: 'DELETE' },
+    ),
   getInspectionDocumentFileUrl: (meterScheduleId: string, docType: InspectionDocumentType) =>
     `/api/meter-schedules/${meterScheduleId}/inspection-document/${docType}`,
   getInspectionDocumentDownloadUrl: (

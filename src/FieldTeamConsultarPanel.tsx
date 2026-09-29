@@ -30,6 +30,8 @@ type FieldTeamSchedulesPanelProps = {
   allTrailSteps?: boolean
   /** Laboratório pode corrigir dados do agendamento. */
   allowEdit?: boolean
+  /** Laboratório pode excluir o documento de inspeção anexado. */
+  allowDeleteInspection?: boolean
 }
 
 type EnvelopePreview = {
@@ -512,6 +514,7 @@ export function FieldTeamConsultarPanel({
   allowCancelSchedule = true,
   allTrailSteps = false,
   allowEdit = false,
+  allowDeleteInspection = false,
 }: FieldTeamSchedulesPanelProps) {
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -522,6 +525,7 @@ export function FieldTeamConsultarPanel({
   const [envelopePreview, setEnvelopePreview] = useState<EnvelopePreview | null>(null)
   const [selectedSchedule, setSelectedSchedule] = useState<MeterScheduleRecord | null>(null)
   const [uploadingInspectionId, setUploadingInspectionId] = useState<string | null>(null)
+  const [deletingInspectionId, setDeletingInspectionId] = useState<string | null>(null)
   const [inspectionDocumentTarget, setInspectionDocumentTarget] = useState<{
     meter: string
     scheduleId: string
@@ -652,6 +656,34 @@ export function FieldTeamConsultarPanel({
       })
     } finally {
       setUploadingInspectionId(null)
+    }
+  }
+
+  const handleDeleteInspectionDocuments = async (target: { id: string; meter: string }) => {
+    const confirmed = window.confirm(
+      `Excluir o documento de inspeção do medidor ${target.meter}?`,
+    )
+    if (!confirmed) return
+
+    setDeletingInspectionId(target.id)
+    setFeedback(null)
+    try {
+      await api.deleteAllInspectionDocuments(target.id)
+      setFeedback({
+        type: 'success',
+        message: `Documento de inspeção do medidor ${target.meter} excluído.`,
+      })
+      void loadInspectionPendencias()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível excluir o documento de inspeção.',
+      })
+    } finally {
+      setDeletingInspectionId(null)
     }
   }
 
@@ -1024,6 +1056,22 @@ export function FieldTeamConsultarPanel({
                             }
                           >
                             Ver
+                          </button>
+                        ) : null}
+                        {allowDeleteInspection && (summary?.hasToi || summary?.hasComunicado) ? (
+                          <button
+                            type="button"
+                            className="danger-button"
+                            title="Excluir documento de inspeção"
+                            disabled={deletingInspectionId === item.id}
+                            onClick={() =>
+                              void handleDeleteInspectionDocuments({
+                                id: item.id,
+                                meter: item.meter,
+                              })
+                            }
+                          >
+                            {deletingInspectionId === item.id ? 'Excluindo...' : 'Excluir'}
                           </button>
                         ) : null}
                       </div>

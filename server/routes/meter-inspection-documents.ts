@@ -2858,6 +2858,58 @@ export async function deleteInspectionDocument(req: Request, res: Response) {
   res.json({ ok: true, meterScheduleId: existing.meter_schedule_id })
 }
 
+export async function deleteAllInspectionDocuments(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+  if (!meterScheduleId) {
+    res.status(400).json({ error: 'Agendamento inválido.' })
+    return
+  }
+
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error: 'Somente administradores e usuários do Laboratório de Medição podem excluir documentos.',
+    })
+    return
+  }
+
+  const deletable = await assertInspectionDocumentDeletable(meterScheduleId)
+  if (!deletable.ok) {
+    res.status(409).json({ error: deletable.error })
+    return
+  }
+
+  const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
+  const ids = scheduleIds.length ? scheduleIds : [meterScheduleId]
+  const existing = await query<{ id: string; doc_type: string; meter_schedule_id: string }>(
+    `SELECT id, doc_type, meter_schedule_id
+     FROM meter_inspection_documents
+     WHERE meter_schedule_id = ANY($1::text[])`,
+    [ids],
+  )
+  if (!existing.rows.length) {
+    res.status(404).json({ error: 'Documento de inspeção não encontrado.' })
+    return
+  }
+
+  await query(
+    `DELETE FROM meter_inspection_documents WHERE id = ANY($1::text[])`,
+    [existing.rows.map((row) => row.id)],
+  )
+
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'meter_inspection_document',
+    entityId: existing.rows[0].id,
+    summary: `Documento(s) de inspeção removido(s) do agendamento ${meterScheduleId}`,
+    metadata: {
+      meterScheduleId,
+      deleted: existing.rows.map((row) => ({ id: row.id, docType: row.doc_type })),
+    },
+  })
+
+  res.json({ ok: true, meterScheduleId, deleted: existing.rows.length })
+}
+
 export async function listInspectionPendencias(req: Request, res: Response) {
   const forUserId =
     typeof req.query.forUserId === 'string' && req.query.forUserId.trim()

@@ -5634,6 +5634,7 @@ function HomePanel({
                 allTrailSteps
                 allowEdit={!labMedicaoReadOnly}
                 allowCancelSchedule={false}
+                allowDeleteInspection={!labMedicaoReadOnly}
               />
             ) : selectedLabMeasurementSection === 'Base de medidores recebidos' ? (
               <EntradaPanel
