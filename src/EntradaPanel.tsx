@@ -1859,7 +1859,8 @@ export function EntradaPanel({
     view === 'overview' ||
     view === 'demmEntrada' ||
     view === 'demmRejected' ||
-    view === 'metersWithoutDemm'
+    view === 'metersWithoutDemm' ||
+    view === 'demmHistorico'
   const openDemmMenu = () => {
     if (demmMenuOpen) return
     demmReturnViewRef.current = view
@@ -1874,7 +1875,6 @@ export function EntradaPanel({
     else if (target === 'csdPendencias') openCsdPendencias()
     else if (target === 'inspectionPendencias') openInspectionPendencias()
     else if (target === 'weekMeters') openWeekMeters()
-    else if (target === 'demmHistorico') openDemmHistorico()
     else if (target === 'receivedMetersBase') setView('receivedMetersBase')
     else openDash()
   }
@@ -1935,6 +1935,15 @@ export function EntradaPanel({
               onClick={() => openMetersWithoutDemm()}
             >
               Medidores sem DEMM
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'demmHistorico'}
+              className={view === 'demmHistorico' ? 'active' : ''}
+              onClick={() => openDemmHistorico()}
+            >
+              Histórico de DEMM
             </button>
           </>
         ) : (
@@ -2018,15 +2027,6 @@ export function EntradaPanel({
           onClick={() => openWeekMeters()}
         >
           Medidores da semana
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'demmHistorico'}
-          className={view === 'demmHistorico' ? 'active' : ''}
-          onClick={() => openDemmHistorico()}
-        >
-          Histórico de DEMM
         </button>
         <button
           type="button"
