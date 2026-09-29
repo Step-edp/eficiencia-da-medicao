@@ -141,6 +141,8 @@ type EntryComparisonFieldProps = {
   onCheckChange: (value: EntryFieldCheck) => void
   fullWidth?: boolean
   hideDocument?: boolean
+  /** Mostra só o valor lido no documento, sem conferência com o cadastro. */
+  documentOnly?: boolean
 }
 
 function EntryComparisonField({
@@ -150,8 +152,18 @@ function EntryComparisonField({
   onCheckChange,
   fullWidth = false,
   hideDocument = false,
+  documentOnly = false,
 }: EntryComparisonFieldProps) {
-  const suggested = suggestedCheckFromMatch(hideDocument ? null : match?.matches)
+  const suggested = suggestedCheckFromMatch(hideDocument || documentOnly ? null : match?.matches)
+
+  if (documentOnly) {
+    return (
+      <div className={`ratm-readonly-field${fullWidth ? ' full-width' : ''}`}>
+        <span className="ratm-readonly-label">{label}</span>
+        <p className="ratm-readonly-value">{displayOrDash(match?.document)}</p>
+      </div>
+    )
+  }
 
   return (
     <div className={`ratm-readonly-field ratm-entry-comparison${fullWidth ? ' full-width' : ''}`}>
@@ -1047,11 +1059,12 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           ) : null}
 
           <EntryComparisonField
-            label="Data de agendamento"
+            label="Data de ensaio"
             match={data.entryComparisons?.scheduleDate}
             check={data.entryFieldChecks.scheduleDate}
             onCheckChange={(value) => updateEntryFieldCheck('scheduleDate', value)}
             fullWidth
+            documentOnly
           />
 
           <div className="ratm-schedule-details" aria-label="Informações do agendamento">
