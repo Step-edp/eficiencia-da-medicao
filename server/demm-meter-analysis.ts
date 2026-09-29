@@ -14,6 +14,8 @@ export type DemmMeterAnalysis = {
   scheduledAtLabel: string | null
   appStatus: DemmMeterAppStatus
   blocked: boolean
+  /** Análise de inspeção concluída e sem bloqueio: pronto para entrada, ainda não recebido. */
+  analyzed: boolean
 }
 
 function resolveDemmMeterAppStatus(
@@ -50,9 +52,10 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
       trail_step: string
       received_at: Date | null
       inspection_analysis_block_reason: string | null
+      inspection_analysis_completed_at: Date | null
     }>(
       `SELECT DISTINCT ON (${NORMALIZED_METER_SQL}) id, meter, scheduled_at, trail_step, received_at,
-              inspection_analysis_block_reason
+              inspection_analysis_block_reason, inspection_analysis_completed_at
        FROM meter_schedules
        WHERE delay_dismissed_at IS NULL
          AND ${NORMALIZED_METER_SQL} = ANY($1::text[])
@@ -76,6 +79,7 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
         receivedAt: row.received_at,
         scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
         blocked: Boolean(row.inspection_analysis_block_reason?.trim()),
+        analyzed: Boolean(row.inspection_analysis_completed_at),
       },
     ]),
   )
@@ -98,6 +102,7 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
       scheduledAtLabel: schedule?.scheduledAtLabel ?? null,
       appStatus,
       blocked: Boolean(schedule?.blocked),
+      analyzed: appStatus === 'agendado' && Boolean(schedule?.analyzed) && !schedule?.blocked,
     }
   })
 }

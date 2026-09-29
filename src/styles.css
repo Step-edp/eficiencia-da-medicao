@@ -2736,6 +2736,11 @@ button {
   color: #d6ffe7;
 }
 
+.demm-status-badge.is-analyzed {
+  background: rgba(24, 216, 240, 0.16);
+  color: #c8f7ff;
+}
+
 .demm-status-badge.is-not-scheduled {
   background: rgba(255, 124, 124, 0.16);
   color: #ffd7d7;

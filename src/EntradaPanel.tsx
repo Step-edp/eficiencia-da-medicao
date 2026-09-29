@@ -270,6 +270,7 @@ function weekMeterInspectionLabel(item: WeekMeterRecord) {
 
 function demmMeterAppStatusLabel(item: DemmMeterAnalysisRecord) {
   if (item.blocked) return 'Bloqueado'
+  if (item.analyzed && item.appStatus === 'agendado') return 'Analisado'
   switch (item.appStatus) {
     case 'recebido':
       return 'Recebido'
@@ -288,6 +289,7 @@ function demmMeterAppStatusLabel(item: DemmMeterAnalysisRecord) {
 
 function demmMeterAppStatusClass(item: DemmMeterAnalysisRecord) {
   if (item.blocked) return 'is-blocked'
+  if (item.analyzed && item.appStatus === 'agendado') return 'is-analyzed'
   switch (item.appStatus) {
     case 'recebido':
       return 'is-received'
