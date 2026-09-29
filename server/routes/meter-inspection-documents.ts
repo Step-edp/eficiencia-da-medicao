@@ -869,6 +869,7 @@ const WPA_CONFERENCE_VALUES = new Set([
   'nao_aplicavel',
   'nao_visivel',
   'sem_registro_fotografico',
+  'nao_abriu_wpa',
 ])
 
 function isWpaConferenceValue(value: string | null | undefined) {
