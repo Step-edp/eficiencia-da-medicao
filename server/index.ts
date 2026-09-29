@@ -89,6 +89,7 @@ import {
   getCsdDemmHistorico,
   getEntradaCsdDashboard,
   listWeekMeters,
+  listMetersWithoutDemm,
   receiveWeekMeter,
   receiveWeekMeterPassive,
   receiveDemmDocumentBulk,
@@ -592,6 +593,7 @@ async function start() {
   app.get('/api/csds/demm-historico', requireAuth, getCsdDemmHistorico)
   app.get('/api/csds/entrada-dashboard', requireAuth, getEntradaCsdDashboard)
   app.get('/api/demm-week-meters', requireAuth, listWeekMeters)
+  app.get('/api/demm-meters-without-demm', requireAuth, listMetersWithoutDemm)
   app.post(
     '/api/demm-week-meters/receive',
     requireAuth,

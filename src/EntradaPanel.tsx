@@ -12,6 +12,7 @@ import {
   type MeterInspectionDocumentadoRecord,
   type MeterInspectionPendenciaRecord,
   type MeterRegistryRecord,
+  type MeterWithoutDemmRecord,
   type WeekMeterRecord,
   type WeekMeterStatus,
 } from './api'
@@ -1097,6 +1098,7 @@ export type EntradaPanelView =
   | 'overview'
   | 'demmEntrada'
   | 'demmRejected'
+  | 'metersWithoutDemm'
   | 'metersBase'
   | 'wpaAnalyzed'
   | 'wpaBlocked'
@@ -1153,6 +1155,9 @@ export function EntradaPanel({
   const [inspectionPendenciasSearchQuery, setInspectionPendenciasSearchQuery] = useState('')
   const [uploadingInspectionId, setUploadingInspectionId] = useState<string | null>(null)
   const [receivingMeter, setReceivingMeter] = useState<string | null>(null)
+  const [metersWithoutDemm, setMetersWithoutDemm] = useState<MeterWithoutDemmRecord[]>([])
+  const [metersWithoutDemmLoading, setMetersWithoutDemmLoading] = useState(false)
+  const [metersWithoutDemmSearchQuery, setMetersWithoutDemmSearchQuery] = useState('')
   const [weekMeters, setWeekMeters] = useState<WeekMeterRecord[]>([])
   const [weekMetersLoading, setWeekMetersLoading] = useState(false)
   const [weekMetersStatusFilter, setWeekMetersStatusFilter] = useState<'todos' | WeekMeterStatus>(
@@ -1782,6 +1787,32 @@ export function EntradaPanel({
     void loadData()
   }
 
+  const loadMetersWithoutDemm = useCallback(async () => {
+    setMetersWithoutDemmLoading(true)
+    try {
+      const response = await api.listMetersWithoutDemm()
+      setMetersWithoutDemm(response.meters)
+    } catch (error) {
+      setMetersWithoutDemm([])
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível carregar os medidores sem DEMM.',
+      })
+    } finally {
+      setMetersWithoutDemmLoading(false)
+    }
+  }, [])
+
+  const openMetersWithoutDemm = () => {
+    setView('metersWithoutDemm')
+    setFeedback(null)
+    setMetersWithoutDemmSearchQuery('')
+    void loadMetersWithoutDemm()
+  }
+
   const openDash = () => {
     setView('dash')
     setFeedback(null)
@@ -1823,7 +1854,11 @@ export function EntradaPanel({
     ) : null
 
   const wpaPendingCount = wpaMeters.length
-  const demmMenuOpen = view === 'overview' || view === 'demmEntrada' || view === 'demmRejected'
+  const demmMenuOpen =
+    view === 'overview' ||
+    view === 'demmEntrada' ||
+    view === 'demmRejected' ||
+    view === 'metersWithoutDemm'
 
   const renderEntradaTabBar = () => (
     <>
@@ -1974,6 +2009,15 @@ export function EntradaPanel({
                 {rejectedDemmDocuments.length}
               </span>
             ) : null}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'metersWithoutDemm'}
+            className={view === 'metersWithoutDemm' ? 'active' : ''}
+            onClick={() => openMetersWithoutDemm()}
+          >
+            Medidores sem DEMM
           </button>
         </div>
       ) : null}
@@ -3523,6 +3567,103 @@ export function EntradaPanel({
             onClose={() => setAnalysisModal(null)}
           />
         ) : null}
+      </>
+    )
+  }
+
+  if (view === 'metersWithoutDemm') {
+    const searchQuery = normalizeWpaSearch(metersWithoutDemmSearchQuery)
+    const filteredMeters = metersWithoutDemm.filter((item) => {
+      if (!searchQuery) return true
+      const haystack = [item.meter, item.csd, item.installation, item.toi, item.note]
+        .filter(Boolean)
+        .join(' ')
+      return normalizeWpaSearch(haystack).includes(searchQuery)
+    })
+
+    return (
+      <>
+        <div className="entrada-panel">
+          {renderEntradaTabBar()}
+          {renderFixedFeedback()}
+
+          <section className="entrada-section" aria-label="Medidores sem DEMM">
+            <div className="entrada-section-heading">
+              <h3 className="entrada-section-title">Medidores sem DEMM</h3>
+              <p className="demm-analysis-summary">
+                {metersWithoutDemmLoading
+                  ? 'Carregando medidores...'
+                  : `${filteredMeters.length} medidor(es) aguardando entrada sem DEMM`}
+              </p>
+            </div>
+
+            <div className="week-meters-filters">
+            <label className="consultar-search week-meters-search">
+              <span className="sr-only">Pesquisar medidores sem DEMM</span>
+              <span className="consultar-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+                  <path
+                    d="M20 20l-3.5-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <input
+                type="search"
+                value={metersWithoutDemmSearchQuery}
+                placeholder="Pesquisar por medidor, CSD, instalação, TOI ou nota..."
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(event) => setMetersWithoutDemmSearchQuery(event.target.value)}
+              />
+            </label>
+            </div>
+
+            {metersWithoutDemmLoading && metersWithoutDemm.length === 0 ? (
+              <p className="entrada-panel-empty">Carregando medidores...</p>
+            ) : filteredMeters.length === 0 ? (
+              <p className="entrada-panel-empty">
+                {metersWithoutDemm.length === 0
+                  ? 'Nenhum medidor aguardando entrada está fora de uma DEMM.'
+                  : 'Nenhum medidor encontrado para a pesquisa informada.'}
+              </p>
+            ) : (
+              <div className="entrada-table-wrap">
+                <table className="data-table entrada-table">
+                  <thead>
+                    <tr>
+                      <th>Medidor</th>
+                      <th>CSD</th>
+                      <th>Instalação</th>
+                      <th>TOI</th>
+                      <th>Nota</th>
+                      <th>Data de ensaio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredMeters.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <MeterLink meter={item.meter} onOpen={openMeterDetail} />
+                        </td>
+                        <td>{item.csd || '—'}</td>
+                        <td>{item.installation || '—'}</td>
+                        <td>{item.toi || '—'}</td>
+                        <td>{item.note || '—'}</td>
+                        <td>{item.scheduledAtLabel || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+        {meterDetailModal}
       </>
     )
   }

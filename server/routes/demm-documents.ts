@@ -13,7 +13,10 @@ import {
   ENSAIAR_TRAIL_STEP,
   getNextStatusAfterEntrada,
   hasMeterEntradaGiven,
+  normalizedMeterColumnSql,
+  STILL_AWAITING_ENTRADA_SQL,
 } from '../lab-trail-status.js'
+import { formatAvailableSlot } from '../schedule-slots.js'
 import {
   isMeterDeliveryLate,
   lastFridayBeforeAssay,
@@ -1062,6 +1065,56 @@ export async function listWeekMeters(_req: Request, res: Response) {
       blockReason: summary?.blockReasons ?? null,
     }
   })
+
+  res.json({ meters, total: meters.length })
+}
+
+export async function listMetersWithoutDemm(_req: Request, res: Response) {
+  const meterSql = normalizedMeterColumnSql('ms')
+  const result = await query<{
+    id: string
+    meter: string
+    csd: string
+    installation: string
+    toi: string
+    note: string
+    scheduled_at: Date
+  }>(
+    `SELECT id, meter, csd, installation, toi, note, scheduled_at
+     FROM (
+       SELECT DISTINCT ON (${meterSql})
+              ms.id, ms.meter, ms.csd, ms.installation, ms.toi, ms.note, ms.scheduled_at
+       FROM meter_schedules ms
+       WHERE ms.delay_dismissed_at IS NULL
+         AND BTRIM(ms.trail_step) = $1
+         AND ${STILL_AWAITING_ENTRADA_SQL}
+         AND ${meterSql} NOT IN (
+           SELECT LPAD(RIGHT(REGEXP_REPLACE(item->>'meter', '[^0-9]', '', 'g'), 8), 8, '0')
+           FROM demm_documents d
+           CROSS JOIN LATERAL jsonb_array_elements(
+             CASE
+               WHEN jsonb_typeof(d.extracted_meters) = 'array' THEN d.extracted_meters
+               ELSE '[]'::jsonb
+             END
+           ) AS item
+           WHERE COALESCE(BTRIM(item->>'meter'), '') <> ''
+         )
+       ORDER BY ${meterSql}, ms.scheduled_at ASC
+     ) meters
+     ORDER BY scheduled_at ASC, meter ASC`,
+    [ENTRADA_TRAIL_STEP],
+  )
+
+  const meters = result.rows.map((row) => ({
+    id: row.id,
+    meter: row.meter,
+    csd: row.csd?.trim() || null,
+    installation: row.installation?.trim() || null,
+    toi: row.toi?.trim() || null,
+    note: row.note?.trim() || null,
+    scheduledAt: row.scheduled_at.toISOString(),
+    scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
+  }))
 
   res.json({ meters, total: meters.length })
 }

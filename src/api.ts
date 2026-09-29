@@ -889,6 +889,17 @@ export type EntradaCsdDashboardData = {
 
 export type WeekMeterStatus = 'nao_agendado' | 'sem_documento_inspecao' | 'bloqueado' | 'liberado'
 
+export type MeterWithoutDemmRecord = {
+  id: string
+  meter: string
+  csd: string | null
+  installation: string | null
+  toi: string | null
+  note: string | null
+  scheduledAt: string
+  scheduledAtLabel: string | null
+}
+
 export type WeekMeterRecord = {
   meter: string
   csdId: string | null
@@ -1790,6 +1801,8 @@ export const api = {
     request<EntradaCsdDashboardData>('/api/csds/entrada-dashboard'),
   listWeekMeters: () =>
     request<{ meters: WeekMeterRecord[]; total: number }>('/api/demm-week-meters'),
+  listMetersWithoutDemm: () =>
+    request<{ meters: MeterWithoutDemmRecord[]; total: number }>('/api/demm-meters-without-demm'),
   receiveWeekMeter: (payload: { meter: string; scheduleId?: string | null }) =>
     request<{ ok: true; meter: string; scheduleId: string; receivedAt: string }>(
       '/api/demm-week-meters/receive',
