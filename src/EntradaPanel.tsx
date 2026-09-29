@@ -1212,6 +1212,7 @@ export function EntradaPanel({
   const [profilePhotos, setProfilePhotos] = useState<Record<string, string>>({})
 
   const onTrailCountsChangeRef = useRef(onTrailCountsChange)
+  const demmReturnViewRef = useRef<EntradaPanelView>('dash')
   useEffect(() => {
     onTrailCountsChangeRef.current = onTrailCountsChange
   }, [onTrailCountsChange])
@@ -1859,6 +1860,24 @@ export function EntradaPanel({
     view === 'demmEntrada' ||
     view === 'demmRejected' ||
     view === 'metersWithoutDemm'
+  const openDemmMenu = () => {
+    if (demmMenuOpen) return
+    demmReturnViewRef.current = view
+    openOverview()
+  }
+
+  const leaveDemmMenu = () => {
+    const target = demmReturnViewRef.current
+    if (target === 'metersBase') openMetersBase()
+    else if (target === 'wpaAnalyzed') openWpaAnalyzed()
+    else if (target === 'wpaBlocked') openWpaBlocked()
+    else if (target === 'csdPendencias') openCsdPendencias()
+    else if (target === 'inspectionPendencias') openInspectionPendencias()
+    else if (target === 'weekMeters') openWeekMeters()
+    else if (target === 'demmHistorico') openDemmHistorico()
+    else if (target === 'receivedMetersBase') setView('receivedMetersBase')
+    else openDash()
+  }
 
   const renderEntradaTabBar = () => (
     <>
@@ -1868,15 +1887,62 @@ export function EntradaPanel({
         role="tablist"
         aria-label="Ações da entrada"
       >
+        {demmMenuOpen ? (
+          <>
+            <button type="button" onClick={leaveDemmMenu}>
+              Voltar
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'overview'}
+              className={view === 'overview' ? 'active' : ''}
+              onClick={() => openOverview()}
+            >
+              DEMMs cadastradas
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'demmEntrada'}
+              className={view === 'demmEntrada' ? 'active' : ''}
+              onClick={() => openDemmEntrada()}
+            >
+              DEMMs com entrada
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'demmRejected'}
+              className={view === 'demmRejected' ? 'active' : ''}
+              onClick={() => openDemmRejected()}
+            >
+              DEMMs rejeitadas
+              {rejectedDemmDocuments.length > 0 ? (
+                <span
+                  className="lab-trail-step-badge"
+                  aria-label={`${rejectedDemmDocuments.length} DEMM${rejectedDemmDocuments.length === 1 ? '' : 's'} rejeitada${rejectedDemmDocuments.length === 1 ? '' : 's'}`}
+                >
+                  {rejectedDemmDocuments.length}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'metersWithoutDemm'}
+              className={view === 'metersWithoutDemm' ? 'active' : ''}
+              onClick={() => openMetersWithoutDemm()}
+            >
+              Medidores sem DEMM
+            </button>
+          </>
+        ) : (
         <button
           type="button"
           role="tab"
-          aria-selected={demmMenuOpen}
-          aria-expanded={demmMenuOpen}
-          className={demmMenuOpen ? 'active' : ''}
-          onClick={() => {
-            if (!demmMenuOpen) openOverview()
-          }}
+          aria-selected={false}
+          onClick={openDemmMenu}
         >
           DEMM
           {rejectedDemmDocuments.length > 0 ? (
@@ -1888,6 +1954,9 @@ export function EntradaPanel({
             </span>
           ) : null}
         </button>
+        )}
+        {!demmMenuOpen ? (
+        <>
         <button
           type="button"
           role="tab"
@@ -1968,59 +2037,9 @@ export function EntradaPanel({
         >
           Dash
         </button>
+        </>
+        ) : null}
       </div>
-      {demmMenuOpen ? (
-        <div
-          className="panel-switch entrada-demm-switch entrada-demm-submenu"
-          role="tablist"
-          aria-label="Opções de DEMM"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === 'overview'}
-            className={view === 'overview' ? 'active' : ''}
-            onClick={() => openOverview()}
-          >
-            DEMMs cadastradas
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === 'demmEntrada'}
-            className={view === 'demmEntrada' ? 'active' : ''}
-            onClick={() => openDemmEntrada()}
-          >
-            DEMMs com entrada
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === 'demmRejected'}
-            className={view === 'demmRejected' ? 'active' : ''}
-            onClick={() => openDemmRejected()}
-          >
-            DEMMs rejeitadas
-            {rejectedDemmDocuments.length > 0 ? (
-              <span
-                className="lab-trail-step-badge"
-                aria-label={`${rejectedDemmDocuments.length} DEMM${rejectedDemmDocuments.length === 1 ? '' : 's'} rejeitada${rejectedDemmDocuments.length === 1 ? '' : 's'}`}
-              >
-                {rejectedDemmDocuments.length}
-              </span>
-            ) : null}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === 'metersWithoutDemm'}
-            className={view === 'metersWithoutDemm' ? 'active' : ''}
-            onClick={() => openMetersWithoutDemm()}
-          >
-            Medidores sem DEMM
-          </button>
-        </div>
-      ) : null}
     </div>
     </>
   )
