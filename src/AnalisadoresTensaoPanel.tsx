@@ -215,6 +215,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   )
   const [searchNumeroSerie, setSearchNumeroSerie] = useState('')
   const [situacaoFilter, setSituacaoFilter] = useState<SituacaoFilter>('Todos')
+  const [calibracaoSort, setCalibracaoSort] = useState<'asc' | 'desc'>('asc')
   const [laudoAnalisador, setLaudoAnalisador] = useState<AnalisadorTensaoRecord | null>(null)
 
   const [showEnsaiosRealizados, setShowEnsaiosRealizados] = useState(false)
@@ -325,9 +326,10 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         if (!a.dataUltimaCalibracao && !b.dataUltimaCalibracao) return 0
         if (!a.dataUltimaCalibracao) return 1
         if (!b.dataUltimaCalibracao) return -1
-        return a.dataUltimaCalibracao.localeCompare(b.dataUltimaCalibracao)
+        const order = a.dataUltimaCalibracao.localeCompare(b.dataUltimaCalibracao)
+        return calibracaoSort === 'asc' ? order : -order
       })
-  }, [analisadores, searchNumeroSerie, situacaoFilter])
+  }, [analisadores, calibracaoSort, searchNumeroSerie, situacaoFilter])
 
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault()
@@ -1159,7 +1161,31 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                     <th>VN</th>
                     <th>Vmáx</th>
                     <th>Instrumento</th>
-                    <th>Última calibração</th>
+                    <th>
+                      <button
+                        type="button"
+                        className={`table-date-sort${calibracaoSort === 'asc' ? ' is-asc' : ' is-desc'}`}
+                        onClick={() =>
+                          setCalibracaoSort((current) => (current === 'asc' ? 'desc' : 'asc'))
+                        }
+                        aria-label={
+                          calibracaoSort === 'asc'
+                            ? 'Última calibração do menor para o maior. Ordenar do maior para o menor.'
+                            : 'Última calibração do maior para o menor. Ordenar do menor para o maior.'
+                        }
+                        title={
+                          calibracaoSort === 'asc' ? 'Menor para maior' : 'Maior para menor'
+                        }
+                      >
+                        Última calibração
+                        <span className="table-date-sort-icon" aria-hidden="true">
+                          <svg viewBox="0 0 12 16">
+                            <path className="sort-up" d="M6 1.2 10.2 6.2H1.8z" />
+                            <path className="sort-down" d="M6 14.8 1.8 9.8h8.4z" />
+                          </svg>
+                        </span>
+                      </button>
+                    </th>
                     <th>Resultado</th>
                     <th>Situação</th>
                     <th>Cadastrado por</th>

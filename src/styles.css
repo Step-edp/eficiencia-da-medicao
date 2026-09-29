@@ -6275,6 +6275,42 @@ body.laudo-viewer-open {
   font-weight: 600;
 }
 
+.table-date-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+}
+
+.table-date-sort-icon {
+  display: inline-flex;
+  width: 0.7rem;
+  height: 0.95rem;
+  flex: 0 0 auto;
+}
+
+.table-date-sort-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.table-date-sort .sort-up,
+.table-date-sort .sort-down {
+  fill: rgba(255, 255, 255, 0.35);
+}
+
+.table-date-sort.is-asc .sort-up,
+.table-date-sort.is-desc .sort-down {
+  fill: #9eeaff;
+}
+
 .data-table td {
   color: var(--text-soft);
 }
