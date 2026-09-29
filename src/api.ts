@@ -1843,6 +1843,8 @@ export const api = {
       registeredCsd?: string | null
       installationMark?: 'wrong' | 'adjusted' | null
       previousInstallation?: string | null
+      toiMark?: 'wrong' | 'adjusted' | null
+      previousToi?: string | null
       noteMark?: 'wrong' | 'adjusted' | null
       previousNote?: string | null
       registeredLacre: string | null

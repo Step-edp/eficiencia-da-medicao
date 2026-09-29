@@ -310,7 +310,7 @@ function ScheduleMetaEditableRow({
       </p>
       {error ? <FormFieldError message={error} /> : null}
       <FillingCorrectionNote
-        field={field === 'instalacao' ? 'installation' : 'note'}
+        field={field === 'instalacao' ? 'installation' : field === 'toi' ? 'toi' : 'note'}
         mark={mark}
         previous={previous ?? undefined}
       />
@@ -892,9 +892,13 @@ export function InspectionDocumentAnalysisModal({
   const [registeredCsd, setRegisteredCsd] = useState<string | null>(null)
   const [installationMark, setInstallationMark] = useState<FillingCorrectionMark | null>(null)
   const [previousInstallation, setPreviousInstallation] = useState<string | null>(null)
+  const [toiMark, setToiMark] = useState<FillingCorrectionMark | null>(null)
+  const [previousToi, setPreviousToi] = useState<string | null>(null)
   const [noteMark, setNoteMark] = useState<FillingCorrectionMark | null>(null)
   const [previousNote, setPreviousNote] = useState<string | null>(null)
-  const [editingMetaField, setEditingMetaField] = useState<'instalacao' | 'nota' | null>(null)
+  const [editingMetaField, setEditingMetaField] = useState<'instalacao' | 'toi' | 'nota' | null>(
+    null,
+  )
   const [metaDraft, setMetaDraft] = useState('')
   const [metaError, setMetaError] = useState<string | null>(null)
   const [savingMeta, setSavingMeta] = useState(false)
@@ -955,6 +959,8 @@ export function InspectionDocumentAnalysisModal({
       setRegisteredCsd(response.registeredCsd?.trim() || null)
       setInstallationMark(response.installationMark ?? null)
       setPreviousInstallation(response.previousInstallation?.trim() || null)
+      setToiMark(response.toiMark ?? null)
+      setPreviousToi(response.previousToi?.trim() || null)
       setNoteMark(response.noteMark ?? null)
       setPreviousNote(response.previousNote?.trim() || null)
       const nextConference = response.conference ?? {
@@ -1230,9 +1236,15 @@ export function InspectionDocumentAnalysisModal({
     setMetaError(null)
   }
 
-  const startScheduleMetaEdit = (field: 'instalacao' | 'nota') => {
+  const startScheduleMetaEdit = (field: 'instalacao' | 'toi' | 'nota') => {
     setEditingMetaField(field)
-    setMetaDraft(field === 'instalacao' ? registeredInstallation ?? '' : registeredNote ?? '')
+    setMetaDraft(
+      field === 'instalacao'
+        ? registeredInstallation ?? ''
+        : field === 'toi'
+          ? registeredToi ?? ''
+          : registeredNote ?? '',
+    )
     setMetaError(null)
   }
 
@@ -1243,7 +1255,7 @@ export function InspectionDocumentAnalysisModal({
       setMetaError(error)
       return
     }
-    if (!registeredToi?.trim() || !registeredCsd?.trim()) {
+    if ((editingMetaField !== 'toi' && !registeredToi?.trim()) || !registeredCsd?.trim()) {
       setMetaError('Não foi possível carregar TOI e CSD para salvar a correção.')
       return
     }
@@ -1252,7 +1264,7 @@ export function InspectionDocumentAnalysisModal({
     try {
       const { schedule: updated } = await api.updateMeterSchedule(scheduleId, {
         installation: editingMetaField === 'instalacao' ? metaDraft : registeredInstallation ?? '',
-        toi: registeredToi,
+        toi: editingMetaField === 'toi' ? metaDraft : registeredToi ?? '',
         note: editingMetaField === 'nota' ? metaDraft : registeredNote ?? '',
         csd: registeredCsd,
       })
@@ -1262,6 +1274,8 @@ export function InspectionDocumentAnalysisModal({
       setRegisteredCsd(updated.csd)
       setInstallationMark(updated.installationMark ?? null)
       setPreviousInstallation(updated.previousInstallation?.trim() || null)
+      setToiMark(updated.toiMark ?? null)
+      setPreviousToi(updated.previousToi?.trim() || null)
       setNoteMark(updated.noteMark ?? null)
       setPreviousNote(updated.previousNote?.trim() || null)
       cancelScheduleMetaEdit()
@@ -1270,7 +1284,9 @@ export function InspectionDocumentAnalysisModal({
         message:
           editingMetaField === 'instalacao'
             ? 'Instalação corrigida no agendamento.'
-            : 'Nota corrigida no agendamento.',
+            : editingMetaField === 'toi'
+              ? 'TOI corrigido no agendamento.'
+              : 'Nota corrigida no agendamento.',
       })
       onDocumentsChanged?.()
       await loadDocuments({ silent: true })
@@ -1652,6 +1668,22 @@ export function InspectionDocumentAnalysisModal({
                     mark={installationMark}
                     previous={previousInstallation}
                     onStartEdit={() => startScheduleMetaEdit('instalacao')}
+                    onDraftChange={setMetaDraft}
+                    onSave={() => void saveScheduleMetaField()}
+                    onCancel={cancelScheduleMetaEdit}
+                  />
+                  <ScheduleMetaEditableRow
+                    label="TOI"
+                    value={registeredToi}
+                    field="toi"
+                    canEdit={canEditWpa}
+                    editing={editingMetaField === 'toi'}
+                    draft={metaDraft}
+                    error={editingMetaField === 'toi' ? metaError : null}
+                    saving={savingMeta}
+                    mark={toiMark}
+                    previous={previousToi}
+                    onStartEdit={() => startScheduleMetaEdit('toi')}
                     onDraftChange={setMetaDraft}
                     onSave={() => void saveScheduleMetaField()}
                     onCancel={cancelScheduleMetaEdit}

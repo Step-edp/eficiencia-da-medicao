@@ -2510,6 +2510,8 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     meter_reading: string
     installation_wrong: boolean | null
     previous_installation: string | null
+    toi_wrong: boolean | null
+    previous_toi: string | null
     note_wrong: boolean | null
     previous_note: string | null
     source: string
@@ -2528,7 +2530,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     inspection_analysis_blocked_at: Date | null
   }>(
     `SELECT id, meter, installation, toi, note, csd, envelope_seal, cover_seal, meter_reading, source, scheduled_at,
-            installation_wrong, previous_installation, note_wrong, previous_note,
+            installation_wrong, previous_installation, toi_wrong, previous_toi, note_wrong, previous_note,
             envelope_photo, inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
             inspection_wpa_cover_seal_2, inspection_wpa_reading, inspection_observations,
             inspection_schedule_lacre, inspection_schedule_meter, inspection_analysis_completed_at,
@@ -2623,6 +2625,8 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     registeredCsd: schedule.rows[0].csd?.trim() || null,
     installationMark: schedule.rows[0].installation_wrong ? 'adjusted' : null,
     previousInstallation: schedule.rows[0].previous_installation?.trim() || null,
+    toiMark: schedule.rows[0].toi_wrong ? 'adjusted' : null,
+    previousToi: schedule.rows[0].previous_toi?.trim() || null,
     noteMark: schedule.rows[0].note_wrong ? 'adjusted' : null,
     previousNote: schedule.rows[0].previous_note?.trim() || null,
     registeredLacre,
