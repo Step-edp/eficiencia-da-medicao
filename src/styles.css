@@ -1876,12 +1876,6 @@ button {
   min-width: 0;
 }
 
-.entrada-panel-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .panel-switch.entrada-demm-switch {
   display: flex;
   flex-wrap: nowrap;
