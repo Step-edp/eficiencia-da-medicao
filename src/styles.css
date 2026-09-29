@@ -1910,6 +1910,11 @@ button {
   margin-left: 6px;
 }
 
+.entrada-demm-submenu {
+  width: fit-content;
+  max-width: 100%;
+}
+
 .entrada-wpa-pending-alert {
   display: flex;
   align-items: center;

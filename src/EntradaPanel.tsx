@@ -1823,6 +1823,7 @@ export function EntradaPanel({
     ) : null
 
   const wpaPendingCount = wpaMeters.length
+  const demmMenuOpen = view === 'overview' || view === 'demmEntrada' || view === 'demmRejected'
 
   const renderEntradaTabBar = () => (
     <>
@@ -1830,34 +1831,19 @@ export function EntradaPanel({
       <div
         className="panel-switch entrada-demm-switch"
         role="tablist"
-        aria-label="Ações DEMM"
+        aria-label="Ações da entrada"
       >
         <button
           type="button"
           role="tab"
-          aria-selected={view === 'overview'}
-          className={view === 'overview' ? 'active' : ''}
-          onClick={() => openOverview()}
+          aria-selected={demmMenuOpen}
+          aria-expanded={demmMenuOpen}
+          className={demmMenuOpen ? 'active' : ''}
+          onClick={() => {
+            if (!demmMenuOpen) openOverview()
+          }}
         >
-          DEMMs cadastradas
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'demmEntrada'}
-          className={view === 'demmEntrada' ? 'active' : ''}
-          onClick={() => openDemmEntrada()}
-        >
-          DEMMs com entrada
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'demmRejected'}
-          className={view === 'demmRejected' ? 'active' : ''}
-          onClick={() => openDemmRejected()}
-        >
-          DEMMs rejeitadas
+          DEMM
           {rejectedDemmDocuments.length > 0 ? (
             <span
               className="lab-trail-step-badge"
@@ -1948,6 +1934,49 @@ export function EntradaPanel({
           Dash
         </button>
       </div>
+      {demmMenuOpen ? (
+        <div
+          className="panel-switch entrada-demm-switch entrada-demm-submenu"
+          role="tablist"
+          aria-label="Opções de DEMM"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'overview'}
+            className={view === 'overview' ? 'active' : ''}
+            onClick={() => openOverview()}
+          >
+            DEMMs cadastradas
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'demmEntrada'}
+            className={view === 'demmEntrada' ? 'active' : ''}
+            onClick={() => openDemmEntrada()}
+          >
+            DEMMs com entrada
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'demmRejected'}
+            className={view === 'demmRejected' ? 'active' : ''}
+            onClick={() => openDemmRejected()}
+          >
+            DEMMs rejeitadas
+            {rejectedDemmDocuments.length > 0 ? (
+              <span
+                className="lab-trail-step-badge"
+                aria-label={`${rejectedDemmDocuments.length} DEMM${rejectedDemmDocuments.length === 1 ? '' : 's'} rejeitada${rejectedDemmDocuments.length === 1 ? '' : 's'}`}
+              >
+                {rejectedDemmDocuments.length}
+              </span>
+            ) : null}
+          </button>
+        </div>
+      ) : null}
     </div>
     </>
   )
