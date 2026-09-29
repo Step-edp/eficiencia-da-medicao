@@ -2460,7 +2460,26 @@ button {
 }
 
 .inspection-document-comparison-grid.is-four {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 8.75rem;
+  align-items: start;
+}
+
+.inspection-document-comparison-grid.is-four .inspection-document-comparison-item strong,
+.inspection-document-comparison-grid.is-four .inspection-document-wpa-input,
+.inspection-document-comparison-grid.is-four .inspection-document-comparison-value-row {
+  min-height: 2.2rem;
+}
+
+.inspection-document-comparison-grid.is-four .inspection-document-comparison-item strong {
+  display: flex;
+  align-items: center;
+}
+
+.inspection-document-comparison-grid.is-four .inspection-document-comparison-status {
+  align-self: start;
+  width: 8.75rem;
+  margin-top: 1.05rem;
+  min-height: 2.2rem;
 }
 
 .inspection-document-comparison-item {
