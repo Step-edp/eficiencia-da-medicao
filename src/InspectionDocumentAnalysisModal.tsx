@@ -132,6 +132,22 @@ function draftFromDocument(document: InspectionDocumentRecord): DocumentFieldsDr
   }
 }
 
+function displayedDocumentDraft(
+  document: InspectionDocumentRecord,
+  documentDrafts: Record<string, DocumentFieldsDraft>,
+): DocumentFieldsDraft {
+  const storedDraft = documentDrafts[document.docType] ?? draftFromDocument(document)
+  const mergedDraft = draftFromDocument(document)
+  return {
+    meter: storedDraft.meter.trim() || mergedDraft.meter,
+    lacre: storedDraft.lacre.trim() || mergedDraft.lacre,
+    coverSeal: storedDraft.coverSeal.trim() || mergedDraft.coverSeal,
+    coverSeal2: storedDraft.coverSeal2.trim() || mergedDraft.coverSeal2,
+    reading: storedDraft.reading.trim() || mergedDraft.reading,
+    scheduledAt: storedDraft.scheduledAt.trim() || mergedDraft.scheduledAt,
+  }
+}
+
 function inspectionDocTypeLabel(docType: InspectionDocumentType) {
   switch (docType) {
     case 'toi':
@@ -561,7 +577,7 @@ function resolveDocumentAnalysisStatus(
   const campoCoverSeal = canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal
   const campoCoverSeal2 = canEditWpa ? wpaDraft.coverSeal2 : conference?.campoCoverSeal2
   const campoReading = canEditWpa ? wpaDraft.reading : conference?.campoReading
-  const documentoDraft = documentDrafts[document.docType] ?? draftFromDocument(document)
+  const documentoDraft = displayedDocumentDraft(document, documentDrafts)
   const documentoMeter = canEditWpa
     ? documentoDraft.meter
     : (document.extractedMeterRetirado ?? document.extractedMeter)
@@ -1184,9 +1200,9 @@ export function InspectionDocumentAnalysisModal({
     if (!canEditWpa || analysisCompleted || loading || documents.length === 0 || !hasToi || !hasComunicado) {
       return false
     }
-    return documents.every(
-      (document) => resolveDocumentAnalysisStatus(document, analysisContext).status === 'ok',
-    )
+    const document = mergedAnalysisDocument(documents)
+    if (!document) return false
+    return resolveDocumentAnalysisStatus(document, analysisContext).status === 'ok'
   }, [analysisCompleted, analysisContext, canEditWpa, documents, hasComunicado, hasToi, loading])
 
   const handleSaveAnalysis = async () => {
@@ -1672,16 +1688,7 @@ export function InspectionDocumentAnalysisModal({
                 document,
                 analysisContext,
               )
-              const storedDraft = documentDrafts[document.docType] ?? draftFromDocument(document)
-              const mergedDraft = draftFromDocument(document)
-              const documentoDraft = {
-                meter: storedDraft.meter.trim() || mergedDraft.meter,
-                lacre: storedDraft.lacre.trim() || mergedDraft.lacre,
-                coverSeal: storedDraft.coverSeal.trim() || mergedDraft.coverSeal,
-                coverSeal2: storedDraft.coverSeal2.trim() || mergedDraft.coverSeal2,
-                reading: storedDraft.reading.trim() || mergedDraft.reading,
-                scheduledAt: storedDraft.scheduledAt.trim() || mergedDraft.scheduledAt,
-              }
+              const documentoDraft = displayedDocumentDraft(document, documentDrafts)
               const documentoMeter = canEditWpa
                 ? documentoDraft.meter
                 : (document.extractedMeterRetirado ?? document.extractedMeter)

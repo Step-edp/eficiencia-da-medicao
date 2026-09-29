@@ -3469,9 +3469,6 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
     if (!hasInspectionText(doc.extracted_reading)) {
       reasons.push('Leitura não informada no documento.')
     }
-    if (!hasInspectionText(doc.extracted_scheduled_at)) {
-      reasons.push('Data de agendamento não informada no documento.')
-    }
     if (doc.blocked && doc.block_reason) {
       if (!isIgnorableRegisteredDivergence(doc.block_reason, ignorable)) {
         reasons.push(doc.block_reason)
@@ -3479,6 +3476,9 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
     }
   }
 
+  if (!hasInspectionText(pickExtractedScheduledAt(documents.rows))) {
+    reasons.push('Data de agendamento não informada no documento.')
+  }
   if (!hasInspectionText(scheduleMeterFields.scheduleMeter)) {
     reasons.push('Medidor não informado no agendamento.')
   }
