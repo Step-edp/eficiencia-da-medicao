@@ -2460,7 +2460,7 @@ button {
 }
 
 .inspection-document-comparison-grid.is-four {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
 }
 
 .inspection-document-comparison-item {

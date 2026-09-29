@@ -724,12 +724,10 @@ function ComparisonField({
   campo,
   documento,
   agendamento,
-  laboratorio,
   kind = 'digits',
   campoEmpty = '',
   documentoEmpty = '—',
   agendamentoEmpty = '—',
-  laboratorioEmpty = '—',
   campoEditable = false,
   documentoEditable = false,
   onCampoChange,
@@ -751,12 +749,10 @@ function ComparisonField({
   campo?: string | null
   documento?: string | null
   agendamento?: string | null
-  laboratorio?: string | null
   kind?: 'digits' | 'date' | 'text'
   campoEmpty?: string
   documentoEmpty?: string
   agendamentoEmpty?: string
-  laboratorioEmpty?: string
   campoEditable?: boolean
   documentoEditable?: boolean
   onCampoChange?: (value: string) => void
@@ -786,7 +782,7 @@ function ComparisonField({
         ? false
         : null
       : wpaMatches
-    : conferenceMatches([campo, documento, agendamento, laboratorio], kind)
+    : conferenceMatches([campo, documento, agendamento], kind)
   return (
     <div className="inspection-document-comparison">
       <dt>{label}</dt>
@@ -903,10 +899,6 @@ function ComparisonField({
                 <span>Anterior: {agendamentoOriginal}</span>
               </p>
             ) : null}
-          </div>
-          <div className="inspection-document-comparison-item">
-            <span className="inspection-document-comparison-label">Laboratório</span>
-            <strong>{displayConferenceValue(laboratorio, laboratorioEmpty)}</strong>
           </div>
           <div className="inspection-document-comparison-status">
             {adjusted ? (
@@ -1797,8 +1789,6 @@ export function InspectionDocumentAnalysisModal({
                     campo={canEditWpa ? wpaDraft.meter : conference?.campoMeter}
                     documento={documentoMeter}
                     agendamento={scheduleMeterValue}
-                    laboratorio={conference?.labMeter}
-                    laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
                     agendamentoEditable={canEditWpa}
@@ -1818,8 +1808,6 @@ export function InspectionDocumentAnalysisModal({
                         ? wpaDraft.scheduleLacre
                         : (conference?.scheduleLacre ?? document.registeredLacre)
                     }
-                    laboratorio={conference?.labLacre}
-                    laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
                     agendamentoEditable={canEditWpa}
@@ -1850,9 +1838,7 @@ export function InspectionDocumentAnalysisModal({
                     kind="text"
                     campo={canEditWpa ? wpaDraft.coverSeal : conference?.campoCoverSeal}
                     documento={documentoCoverSeal}
-                    laboratorio={conference?.labCoverSeal}
                     agendamentoEmpty="Não aplicável"
-                    laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
                     onCampoChange={(value) => handleWpaChange('coverSeal', value)}
@@ -1866,7 +1852,6 @@ export function InspectionDocumentAnalysisModal({
                     campo={canEditWpa ? wpaDraft.coverSeal2 : conference?.campoCoverSeal2}
                     documento={documentoCoverSeal2}
                     agendamentoEmpty="Não aplicável"
-                    laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
                     onCampoChange={(value) => handleWpaChange('coverSeal2', value)}
@@ -1878,9 +1863,7 @@ export function InspectionDocumentAnalysisModal({
                     label="Leitura"
                     campo={canEditWpa ? wpaDraft.reading : conference?.campoReading}
                     documento={documentoReading}
-                    laboratorio={conference?.labReading}
                     agendamentoEmpty="Não aplicável"
-                    laboratorioEmpty="Pendente"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
                     onCampoChange={(value) => handleWpaChange('reading', value)}
@@ -1893,9 +1876,7 @@ export function InspectionDocumentAnalysisModal({
                     kind="date"
                     documento={documentoScheduledAt}
                     agendamento={conference?.scheduleScheduleDate}
-                    laboratorio={conference?.labScheduleDate}
                     campoEmpty="Não aplicável"
-                    laboratorioEmpty="Não aplicável"
                     documentoEditable={canEditWpa}
                     onDocumentoChange={(value) =>
                       handleDocumentoChange(document.docType, 'scheduledAt', value)
