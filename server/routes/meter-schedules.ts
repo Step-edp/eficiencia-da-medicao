@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
-import { validateScheduleNumericField } from '../numeric-field-validation.js'
+import { normalizeScheduleMeter, validateScheduleNumericField } from '../numeric-field-validation.js'
 import { fixBulkScheduleCollaboratorsFromCsv, fixBulkScheduleCsdFromCsv, fixBulkScheduleDigitsFromCsv, fixBulkScheduleNotesFromCsv, fixBulkScheduleUsersFromCsv, importMeterSchedulesFromCsv } from '../import-meter-schedules-bulk.js'
 import {
   findNextAvailableSlot,
@@ -26,6 +26,24 @@ import {
 import { STILL_AWAITING_ENTRADA_SQL, normalizedMeterColumnSql } from '../lab-trail-status.js'
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
+
+async function findMeterAlreadyInBase(meter: string) {
+  const normalized = normalizeScheduleMeter(meter)
+  if (!normalized) return false
+  const existing = await query<{ found: number }>(
+    `SELECT 1 AS found
+     FROM meter_schedules
+     WHERE delay_dismissed_at IS NULL
+       AND ${normalizedMeterColumnSql()} = $1
+     UNION ALL
+     SELECT 1 AS found
+     FROM meter_registry
+     WHERE ${normalizedMeterColumnSql()} = $1
+     LIMIT 1`,
+    [normalized],
+  )
+  return Boolean(existing.rows[0])
+}
 const BACKOFFICE_SCOPE = 'Lavratura de TOI - Backoffice'
 const LAVRATURA_SUBTYPE_SQL = `REPLACE(REPLACE(REPLACE(TRIM(COALESCE(work_subtype, '')), '–', '-'), '—', '-'), '−', '-')`
 
@@ -855,16 +873,9 @@ export async function createMeterSchedule(req: Request, res: Response) {
     }
   }
 
-  const duplicate = await query<{ id: string }>(
-    `SELECT id FROM meter_schedules
-     WHERE meter = $1 AND trail_step = $2 AND delay_dismissed_at IS NULL
-     LIMIT 1`,
-    [normalized.meter, ENTRADA_TRAIL_STEP],
-  )
-
-  if (duplicate.rows[0]) {
+  if (await findMeterAlreadyInBase(normalized.meter)) {
     res.status(409).json({
-      error: `O medidor ${normalized.meter} já está agendado e aguardando entrada no laboratório.`,
+      error: `O medidor ${normalized.meter} já existe na base e não pode ser agendado novamente.`,
     })
     return
   }
@@ -1063,6 +1074,13 @@ export async function createPassiveMeterSchedule(req: Request, res: Response) {
     normalized.toiCollaborator1Registration = resolvedTeam.collaborator1.registration
     normalized.toiCollaborator2Name = resolvedTeam.collaborator2.name
     normalized.toiCollaborator2Registration = resolvedTeam.collaborator2.registration
+  }
+
+  if (await findMeterAlreadyInBase(normalized.meter)) {
+    res.status(409).json({
+      error: `O medidor ${normalized.meter} já existe na base e não pode ser agendado novamente.`,
+    })
+    return
   }
 
   const id = `schedule-${Date.now()}-${normalized.meter}`

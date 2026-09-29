@@ -3,6 +3,7 @@ import { pathToFileURL } from 'node:url'
 import { existsSync, readFileSync } from 'node:fs'
 import { query } from './db.js'
 import { ENTRADA_TRAIL_STEP } from './routes/meter-schedules.js'
+import { normalizedMeterColumnSql } from './lab-trail-status.js'
 import {
   formatScheduleNumericField,
   normalizeScheduleMeter,
@@ -320,14 +321,20 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
     throw new Error('Nenhuma linha válida encontrada no CSV.')
   }
 
+  const normalizedMeters = rows.map((row) => normalizeScheduleMeter(row.meter))
   const [scheduleExisting, registryExisting, csdResult] = await Promise.all([
     query<{ meter: string }>(
-      `SELECT DISTINCT meter FROM meter_schedules WHERE meter = ANY($1::text[])`,
-      [rows.map((row) => row.meter)],
+      `SELECT DISTINCT ${normalizedMeterColumnSql()} AS meter
+       FROM meter_schedules
+       WHERE delay_dismissed_at IS NULL
+         AND ${normalizedMeterColumnSql()} = ANY($1::text[])`,
+      [normalizedMeters],
     ),
     query<{ meter: string }>(
-      `SELECT meter FROM meter_registry WHERE meter = ANY($1::text[])`,
-      [rows.map((row) => row.meter)],
+      `SELECT ${normalizedMeterColumnSql()} AS meter
+       FROM meter_registry
+       WHERE ${normalizedMeterColumnSql()} = ANY($1::text[])`,
+      [normalizedMeters],
     ),
     query<{ name: string; cities: string[] | null }>(
       `SELECT name, cities FROM csds ORDER BY name ASC`,
@@ -354,7 +361,8 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
   }
 
   for (const row of rows) {
-    if (duplicateSet.has(row.meter)) {
+    const normalizedMeter = normalizeScheduleMeter(row.meter)
+    if (duplicateSet.has(normalizedMeter)) {
       result.skippedDuplicates.push(row.meter)
       continue
     }
@@ -405,7 +413,7 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
       ],
     )
 
-    duplicateSet.add(row.meter)
+    duplicateSet.add(normalizedMeter)
     result.created += 1
     if (createdByUserId) {
       result.userLinked += 1
