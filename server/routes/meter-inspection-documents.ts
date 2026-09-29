@@ -428,11 +428,17 @@ function pickExtractedReading(
   return null
 }
 
+export const WRONG_INSPECTION_DOCUMENT_KIND = 'wrong_inspection_document'
+export const WRONG_INSPECTION_DOCUMENT_DESCRIPTION = 'Documento inserido errado'
+export const WRONG_INSPECTION_DOCUMENT_REASON =
+  'Documento inserido errado. Nenhuma informação bate com o cadastro.'
+
 export type InspectionSummary = {
   hasToi: boolean
   hasComunicado: boolean
   anyBlocked: boolean
   blockReasons: string | null
+  wrongDocument: boolean
 }
 
 type ScheduleForInspectionAggregate = {
@@ -536,6 +542,8 @@ export function aggregateInspectionForSchedule(
 
   const extraction = pickToiExtractionRow(documents)
   const extractedNote = pickExtractedNote(documents, schedule.note)
+  let toiMismatch = false
+  let noteMismatch = false
   if (extraction || extractedNote) {
     const comparisons = buildScheduleEntryComparisons(
       {
@@ -563,6 +571,8 @@ export function aggregateInspectionForSchedule(
           },
       pickExtractedScheduledAt(documents),
     )
+    toiMismatch = comparisons.toi.matches === false
+    noteMismatch = comparisons.note.matches === false
     const fieldLabels: Array<[string, EntryFieldMatch]> = [
       ['Instalação', comparisons.installation],
       ['TOI', comparisons.toi],
@@ -592,12 +602,19 @@ export function aggregateInspectionForSchedule(
     }
   }
 
-  const uniqueReasons = [...new Set(reasons)]
+  const meterMismatch = reasons.some((reason) =>
+    /diverge do medidor (encontrado|retirado)/i.test(reason),
+  )
+  const wrongDocument = meterMismatch && toiMismatch && noteMismatch
+  const uniqueReasons = wrongDocument
+    ? [WRONG_INSPECTION_DOCUMENT_REASON]
+    : [...new Set(reasons)]
   return {
     hasToi,
     hasComunicado,
     anyBlocked: uniqueReasons.length > 0,
     blockReasons: uniqueReasons.length ? uniqueReasons.join(' | ') : null,
+    wrongDocument,
   }
 }
 
@@ -1082,6 +1099,103 @@ async function insertLabImportedDocumentDeviation(params: {
       params.createdByUserId,
     ],
   )
+}
+
+async function syncWrongInspectionDocumentDeviations(
+  items: Array<{
+    scheduleId: string
+    meter: string
+    wrongDocument: boolean
+    hasDocuments: boolean
+  }>,
+) {
+  if (!items.length) return
+
+  const resolvedIds = items
+    .filter((item) => item.hasDocuments && !item.wrongDocument)
+    .map((item) => item.scheduleId)
+  if (resolvedIds.length) {
+    await query(
+      `UPDATE toi_schedule_deviations
+       SET physically_adjusted_at = COALESCE(physically_adjusted_at, NOW())
+       WHERE kind = $1
+         AND physically_adjusted_at IS NULL
+         AND meter_schedule_id = ANY($2::text[])`,
+      [WRONG_INSPECTION_DOCUMENT_KIND, resolvedIds],
+    )
+  }
+
+  const wrongItems = items.filter((item) => item.wrongDocument)
+  if (!wrongItems.length) return
+
+  const wrongIds = wrongItems.map((item) => item.scheduleId)
+  const existing = await query<{ meter_schedule_id: string; pending: boolean }>(
+    `SELECT meter_schedule_id, physically_adjusted_at IS NULL AS pending
+     FROM toi_schedule_deviations
+     WHERE kind = $1
+       AND meter_schedule_id = ANY($2::text[])`,
+    [WRONG_INSPECTION_DOCUMENT_KIND, wrongIds],
+  )
+  const pendingIds = new Set(
+    existing.rows.filter((row) => row.pending).map((row) => row.meter_schedule_id),
+  )
+  const knownIds = new Set(existing.rows.map((row) => row.meter_schedule_id))
+  const reopenIds = wrongIds.filter((id) => knownIds.has(id) && !pendingIds.has(id))
+  if (reopenIds.length) {
+    await query(
+      `UPDATE toi_schedule_deviations
+       SET physically_adjusted_at = NULL,
+           physically_adjusted_by_user_id = NULL
+       WHERE kind = $1
+         AND meter_schedule_id = ANY($2::text[])`,
+      [WRONG_INSPECTION_DOCUMENT_KIND, reopenIds],
+    )
+  }
+  const missing = wrongItems.filter((item) => !knownIds.has(item.scheduleId))
+  if (!missing.length) return
+
+  const uploaders = await query<{
+    meter_schedule_id: string
+    user_id: string | null
+    name: string | null
+    registration: string | null
+  }>(
+    `SELECT DISTINCT ON (d.meter_schedule_id)
+            d.meter_schedule_id,
+            d.created_by_user_id AS user_id,
+            u.name,
+            u.registration
+     FROM meter_inspection_documents d
+     LEFT JOIN users u ON u.id = d.created_by_user_id
+     WHERE d.meter_schedule_id = ANY($1::text[])
+     ORDER BY d.meter_schedule_id, d.created_at DESC`,
+    [missing.map((item) => item.scheduleId)],
+  )
+  const uploaderBySchedule = new Map(uploaders.rows.map((row) => [row.meter_schedule_id, row]))
+
+  for (const [index, item] of missing.entries()) {
+    const uploader = uploaderBySchedule.get(item.scheduleId)
+    await query(
+      `INSERT INTO toi_schedule_deviations (
+         id, meter_schedule_id, meter, kind, description,
+         scheduled_label, document_label, previous_scheduled_at, adjusted_scheduled_at,
+         collaborator1_name, collaborator1_registration,
+         collaborator2_name, collaborator2_registration, created_by_user_id
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW(),$8,$9,'','',$10)`,
+      [
+        `wrong-doc-${item.scheduleId}-${index}`,
+        item.scheduleId,
+        item.meter,
+        WRONG_INSPECTION_DOCUMENT_KIND,
+        WRONG_INSPECTION_DOCUMENT_DESCRIPTION,
+        `Medidor cadastrado ${item.meter}`,
+        'Nenhuma informação bate com o cadastro',
+        uploader?.name?.trim() ?? '',
+        uploader?.registration?.trim() ?? '',
+        uploader?.user_id ?? null,
+      ],
+    )
+  }
 }
 
 const WPA_PHOTO_DEVIATIONS = [
@@ -1733,6 +1847,18 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   )
   const presence = await loadDocTypePresence(meterScheduleId)
   const aggregate = aggregateInspectionForSchedule(schedule.rows[0], storedDocuments.rows)
+  try {
+    await syncWrongInspectionDocumentDeviations([
+      {
+        scheduleId: meterScheduleId,
+        meter: schedule.rows[0].meter,
+        wrongDocument: aggregate.wrongDocument,
+        hasDocuments: storedDocuments.rows.length > 0,
+      },
+    ])
+  } catch (error) {
+    console.error('Não foi possível registrar o desvio de documento inserido errado.', error)
+  }
 
   const registeredMeter = schedule.rows[0].meter
   const registeredLacre = schedule.rows[0].envelope_seal || null
@@ -2840,13 +2966,26 @@ export async function listInspectionPendencias(req: Request, res: Response) {
   const byScheduleId: Record<string, InspectionSummary> = {}
   const pendencias = []
   const documentados = []
+  const wrongDocumentSync: Array<{
+    scheduleId: string
+    meter: string
+    wrongDocument: boolean
+    hasDocuments: boolean
+  }> = []
 
   for (const row of schedules.rows) {
+    const documentsForSchedule = docsByScheduleId.get(row.id) ?? []
     const summary = withAnalysisBlock(
-      aggregateInspectionForSchedule(row, docsByScheduleId.get(row.id) ?? []),
+      aggregateInspectionForSchedule(row, documentsForSchedule),
       row.inspection_analysis_block_reason,
     )
     byScheduleId[row.id] = summary
+    wrongDocumentSync.push({
+      scheduleId: row.id,
+      meter: row.meter,
+      wrongDocument: summary.wrongDocument,
+      hasDocuments: documentsForSchedule.length > 0,
+    })
 
     const base = {
       id: row.id,
@@ -2869,12 +3008,18 @@ export async function listInspectionPendencias(req: Request, res: Response) {
       blockReasons: summary.blockReasons,
     }
 
-    if (!(summary.hasToi && summary.hasComunicado)) {
+    if (!(summary.hasToi && summary.hasComunicado) || summary.wrongDocument) {
       pendencias.push(base)
     }
     if (summary.hasToi || summary.hasComunicado) {
       documentados.push(base)
     }
+  }
+
+  try {
+    await syncWrongInspectionDocumentDeviations(wrongDocumentSync)
+  } catch (error) {
+    console.error('Não foi possível sincronizar desvios de documento inserido errado.', error)
   }
 
   res.json({
@@ -3026,11 +3171,24 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
   }
 
   const meters = []
+  const wrongDocumentSync: Array<{
+    scheduleId: string
+    meter: string
+    wrongDocument: boolean
+    hasDocuments: boolean
+  }> = []
   for (const row of schedules.rows) {
+    const documentsForSchedule = docsByScheduleId.get(row.id) ?? []
     const summary = withAnalysisBlock(
-      aggregateInspectionForSchedule(row, docsByScheduleId.get(row.id) ?? []),
+      aggregateInspectionForSchedule(row, documentsForSchedule),
       row.inspection_analysis_block_reason,
     )
+    wrongDocumentSync.push({
+      scheduleId: row.id,
+      meter: row.meter,
+      wrongDocument: summary.wrongDocument,
+      hasDocuments: documentsForSchedule.length > 0,
+    })
     if (!summary.hasToi && !summary.hasComunicado) continue
 
     meters.push({
@@ -3058,6 +3216,12 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
       analysisBlockReason: row.inspection_analysis_block_reason?.trim() || null,
       analysisBlockedAt: row.inspection_analysis_blocked_at?.toISOString() ?? null,
     })
+  }
+
+  try {
+    await syncWrongInspectionDocumentDeviations(wrongDocumentSync)
+  } catch (error) {
+    console.error('Não foi possível sincronizar desvios de documento inserido errado.', error)
   }
 
   res.json({ meters })
@@ -4153,6 +4317,7 @@ export async function listScheduleDateAdjustments(req: Request, res: Response) {
      WHERE (
        $1 = false
        OR ms.created_by_user_id = $4
+       OR (d.kind = 'wrong_inspection_document' AND d.created_by_user_id = $4)
        OR (
          $2 <> ''
          AND (
