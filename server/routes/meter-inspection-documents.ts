@@ -3307,6 +3307,23 @@ function hasInspectionText(value: string | null | undefined) {
   return Boolean(value?.trim())
 }
 
+function firstFilledDocumentField<T extends { doc_type: string }>(
+  rows: T[],
+  read: (row: T) => string | null | undefined,
+) {
+  const preferredOrder = ['ambos', 'toi', 'comunicado']
+  for (const docType of preferredOrder) {
+    const row = rows.find((item) => item.doc_type === docType)
+    const value = row ? read(row)?.trim() : ''
+    if (value) return value
+  }
+  for (const row of rows) {
+    const value = read(row)?.trim()
+    if (value) return value
+  }
+  return null
+}
+
 export async function loadInspectionAnalysisStatusByMeter(meters: string[]) {
   const normalizedMeters = [
     ...new Set(meters.map((meter) => normalizeScheduleMeter(meter)).filter(Boolean)),
@@ -3452,23 +3469,32 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
     else if (isWpaIncompatible(value)) reasons.push(`WPA incompatível: ${label}.`)
   }
 
-  for (const doc of documents.rows) {
+  const hasToiDocument = documents.rows.some((doc) => {
     const docType = effectiveInspectionDocType(doc)
-    const documentoMeter = doc.extracted_meter_retirado?.trim() || doc.extracted_meter?.trim() || null
-    if (!hasInspectionText(documentoMeter)) {
-      reasons.push('Medidor retirado não informado no documento.')
+    return docType === 'toi' || docType === 'ambos'
+  })
+  const documentoMeter = firstFilledDocumentField(
+    documents.rows,
+    (doc) => doc.extracted_meter_retirado?.trim() || doc.extracted_meter?.trim() || null,
+  )
+  if (!hasInspectionText(documentoMeter)) {
+    reasons.push('Medidor retirado não informado no documento.')
+  }
+  if (hasToiDocument) {
+    if (!hasInspectionText(firstFilledDocumentField(documents.rows, (doc) => doc.extracted_lacre))) {
+      reasons.push('Lacre do invólucro não informado no documento.')
     }
-    if (docType === 'toi' || docType === 'ambos') {
-      if (!hasInspectionText(doc.extracted_lacre)) {
-        reasons.push('Lacre do invólucro não informado no documento.')
-      }
-      if (!hasInspectionText(doc.extracted_cover_seal)) {
-        reasons.push('Lacre da tampa não informado no documento.')
-      }
+    if (
+      !hasInspectionText(firstFilledDocumentField(documents.rows, (doc) => doc.extracted_cover_seal))
+    ) {
+      reasons.push('Lacre da tampa não informado no documento.')
     }
-    if (!hasInspectionText(doc.extracted_reading)) {
-      reasons.push('Leitura não informada no documento.')
-    }
+  }
+  if (!hasInspectionText(firstFilledDocumentField(documents.rows, (doc) => doc.extracted_reading))) {
+    reasons.push('Leitura não informada no documento.')
+  }
+
+  for (const doc of documents.rows) {
     if (doc.blocked && doc.block_reason) {
       if (!isIgnorableRegisteredDivergence(doc.block_reason, ignorable)) {
         reasons.push(doc.block_reason)
