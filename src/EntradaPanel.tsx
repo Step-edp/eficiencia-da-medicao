@@ -1213,6 +1213,7 @@ export function EntradaPanel({
 
   const onTrailCountsChangeRef = useRef(onTrailCountsChange)
   const demmReturnViewRef = useRef<EntradaPanelView>('dash')
+  const analysisReturnViewRef = useRef<EntradaPanelView>('dash')
   useEffect(() => {
     onTrailCountsChangeRef.current = onTrailCountsChange
   }, [onTrailCountsChange])
@@ -1861,6 +1862,8 @@ export function EntradaPanel({
     view === 'demmRejected' ||
     view === 'metersWithoutDemm' ||
     view === 'demmHistorico'
+  const analysisMenuOpen =
+    view === 'metersBase' || view === 'wpaAnalyzed' || view === 'wpaBlocked'
   const openDemmMenu = () => {
     if (demmMenuOpen) return
     demmReturnViewRef.current = view
@@ -1872,6 +1875,26 @@ export function EntradaPanel({
     if (target === 'metersBase') openMetersBase()
     else if (target === 'wpaAnalyzed') openWpaAnalyzed()
     else if (target === 'wpaBlocked') openWpaBlocked()
+    else if (target === 'csdPendencias') openCsdPendencias()
+    else if (target === 'inspectionPendencias') openInspectionPendencias()
+    else if (target === 'weekMeters') openWeekMeters()
+    else if (target === 'receivedMetersBase') setView('receivedMetersBase')
+    else openDash()
+  }
+
+  const openAnalysisMenu = () => {
+    if (analysisMenuOpen) return
+    analysisReturnViewRef.current = view
+    openMetersBase()
+  }
+
+  const leaveAnalysisMenu = () => {
+    const target = analysisReturnViewRef.current
+    if (target === 'overview') openOverview()
+    else if (target === 'demmEntrada') openDemmEntrada()
+    else if (target === 'demmRejected') openDemmRejected()
+    else if (target === 'metersWithoutDemm') openMetersWithoutDemm()
+    else if (target === 'demmHistorico') openDemmHistorico()
     else if (target === 'csdPendencias') openCsdPendencias()
     else if (target === 'inspectionPendencias') openInspectionPendencias()
     else if (target === 'weekMeters') openWeekMeters()
@@ -1946,7 +1969,7 @@ export function EntradaPanel({
               Histórico de DEMM
             </button>
           </>
-        ) : (
+        ) : analysisMenuOpen ? null : (
         <button
           type="button"
           role="tab"
@@ -1964,16 +1987,57 @@ export function EntradaPanel({
           ) : null}
         </button>
         )}
-        {!demmMenuOpen ? (
+        {analysisMenuOpen ? (
+          <>
+            <button type="button" onClick={leaveAnalysisMenu}>
+              Voltar
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'metersBase'}
+              className={view === 'metersBase' ? 'active' : ''}
+              onClick={() => openMetersBase()}
+            >
+              Análise
+              {wpaPendingCount > 0 ? (
+                <span
+                  className="lab-trail-step-badge"
+                  aria-label={`${wpaPendingCount} pendente${wpaPendingCount === 1 ? '' : 's'} de análise`}
+                >
+                  {wpaPendingCount}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'wpaAnalyzed'}
+              className={view === 'wpaAnalyzed' ? 'active' : ''}
+              onClick={() => openWpaAnalyzed()}
+            >
+              Analisados
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'wpaBlocked'}
+              className={view === 'wpaBlocked' ? 'active' : ''}
+              onClick={() => openWpaBlocked()}
+            >
+              Bloqueados
+            </button>
+          </>
+        ) : null}
+        {!demmMenuOpen && !analysisMenuOpen ? (
         <>
         <button
           type="button"
           role="tab"
-          aria-selected={view === 'metersBase'}
-          className={view === 'metersBase' ? 'active' : ''}
-          onClick={() => openMetersBase()}
+          aria-selected={false}
+          onClick={openAnalysisMenu}
         >
-          Análise
+          Análises
           {wpaPendingCount > 0 ? (
             <span
               className="lab-trail-step-badge"
@@ -1982,24 +2046,6 @@ export function EntradaPanel({
               {wpaPendingCount}
             </span>
           ) : null}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'wpaAnalyzed'}
-          className={view === 'wpaAnalyzed' ? 'active' : ''}
-          onClick={() => openWpaAnalyzed()}
-        >
-          Analisados
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'wpaBlocked'}
-          className={view === 'wpaBlocked' ? 'active' : ''}
-          onClick={() => openWpaBlocked()}
-        >
-          Bloqueados
         </button>
         <button
           type="button"
