@@ -905,7 +905,7 @@ function expectedEnvelopeSealForEvaluation(
   scheduleLacre: string | null | undefined,
 ) {
   const conference = scheduleLacre?.trim()
-  if (conference && WPA_CONFERENCE_VALUES.has(conference)) return conference
+  if (conference) return conference
   return envelopeSeal?.trim() || null
 }
 
@@ -1238,6 +1238,20 @@ function pickSavedWpa(saved: string | null | undefined) {
 function readWpaText(value: unknown) {
   const trimmed = typeof value === 'string' ? value.trim() : ''
   return WPA_CONFERENCE_VALUES.has(trimmed) ? trimmed : ''
+}
+
+function readScheduleLacreText(value: unknown) {
+  const trimmed = typeof value === 'string' ? value.trim().slice(0, 80) : ''
+  return trimmed
+}
+
+function resolveDisplayedScheduleLacre(
+  saved: string | null | undefined,
+  registeredLacre: string | null | undefined,
+) {
+  const trimmed = saved?.trim()
+  if (trimmed) return trimmed
+  return registeredLacre?.trim() || null
 }
 
 function wpaFieldsMatchingOption(
@@ -2643,8 +2657,10 @@ export async function listInspectionDocuments(req: Request, res: Response) {
       scheduleMeter: scheduleMeterFields.scheduleMeter,
       scheduleMeterOriginal: scheduleMeterFields.scheduleMeterOriginal,
       scheduleMeterAdjusted: scheduleMeterFields.scheduleMeterAdjusted,
-      scheduleLacre:
-        pickSavedWpa(schedule.rows[0].inspection_schedule_lacre) ?? registeredLacre,
+      scheduleLacre: resolveDisplayedScheduleLacre(
+        schedule.rows[0].inspection_schedule_lacre,
+        registeredLacre,
+      ),
       scheduleCoverSeal: registeredCoverSeal,
       scheduleReading: registeredReading,
       scheduleScheduleDate: scheduleDateLabel,
@@ -3414,8 +3430,11 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
     row.meter,
     row.inspection_schedule_meter,
   )
-  const scheduleLacre =
-    pickSavedWpa(row.inspection_schedule_lacre) ?? row.envelope_seal?.trim() ?? null
+  const envelopeEvidence = await loadEnvelopeEvidenceForSchedule(meterScheduleId)
+  const scheduleLacre = resolveDisplayedScheduleLacre(
+    row.inspection_schedule_lacre,
+    row.envelope_seal?.trim() || envelopeEvidence.seal,
+  )
   const scheduleDateLabel = formatAvailableSlot(row.scheduled_at)
 
   const wpaFields: Array<[string, string | null]> = [
@@ -3817,7 +3836,7 @@ export async function updateInspectionWpa(req: Request, res: Response) {
   const coverSeal = readWpaText(req.body?.coverSeal)
   const coverSeal2 = readWpaText(req.body?.coverSeal2)
   const reading = readWpaText(req.body?.reading)
-  const scheduleLacre = readWpaText(req.body?.scheduleLacre)
+  const scheduleLacre = readScheduleLacreText(req.body?.scheduleLacre)
   const scheduleMeterInput = readScheduleMeterText(req.body?.scheduleMeter)
 
   if (scheduleMeterInput) {
