@@ -145,6 +145,52 @@ function inspectionDocTypeLabel(docType: InspectionDocumentType) {
   }
 }
 
+function openInspectionDocumentLabel(docType: InspectionDocumentType) {
+  switch (docType) {
+    case 'toi':
+      return 'Abrir TOI'
+    case 'comunicado':
+      return 'Abrir CSM'
+    default:
+      return 'Abrir PDF'
+  }
+}
+
+function filledText(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+function mergedAnalysisDocument(documents: InspectionDocumentRecord[]) {
+  const ambos = documents.find((item) => item.docType === 'ambos')
+  if (ambos) return ambos
+  const toi = documents.find((item) => item.docType === 'toi')
+  const csm = documents.find((item) => item.docType === 'comunicado')
+  if (toi && csm) {
+    const reasons = [toi.blockReason, csm.blockReason].map((reason) => reason?.trim()).filter(Boolean)
+    return {
+      ...toi,
+      extractedMeter: filledText(toi.extractedMeter) ?? csm.extractedMeter,
+      extractedMeterRetirado: filledText(toi.extractedMeterRetirado) ?? csm.extractedMeterRetirado,
+      extractedLacre: filledText(toi.extractedLacre) ?? csm.extractedLacre,
+      extractedCoverSeal: filledText(toi.extractedCoverSeal) ?? csm.extractedCoverSeal,
+      extractedCoverSeal2: filledText(toi.extractedCoverSeal2) ?? csm.extractedCoverSeal2,
+      extractedReading: filledText(toi.extractedReading) ?? csm.extractedReading,
+      extractedScheduledAt: filledText(toi.extractedScheduledAt) ?? csm.extractedScheduledAt,
+      blocked: toi.blocked || csm.blocked,
+      blockReason: reasons.length ? reasons.join(' | ') : null,
+    }
+  }
+  return toi ?? csm ?? documents[0] ?? null
+}
+
+function inspectionDocumentsForView(documents: InspectionDocumentRecord[]) {
+  const order: Record<string, number> = { toi: 0, ambos: 1, comunicado: 2 }
+  return [...documents].sort(
+    (left, right) => (order[left.docType] ?? 9) - (order[right.docType] ?? 9),
+  )
+}
+
 function formatDateTime(isoDate: string) {
   return new Intl.DateTimeFormat('pt-BR', {
     dateStyle: 'short',
@@ -1615,12 +1661,27 @@ export function InspectionDocumentAnalysisModal({
           <p className="entrada-panel-empty">Nenhum documento de inspeção anexado.</p>
         ) : (
           <div className="inspection-document-list">
-            {documents.map((document) => {
+            {(() => {
+              const document = mergedAnalysisDocument(documents)
+              if (!document) return null
+              const viewDocuments = inspectionDocumentsForView(documents)
+              const separateToiAndCsm =
+                documents.some((item) => item.docType === 'toi') &&
+                documents.some((item) => item.docType === 'comunicado')
               const { status, displayReason, reasons } = resolveDocumentAnalysisStatus(
                 document,
                 analysisContext,
               )
-              const documentoDraft = documentDrafts[document.docType] ?? draftFromDocument(document)
+              const storedDraft = documentDrafts[document.docType] ?? draftFromDocument(document)
+              const mergedDraft = draftFromDocument(document)
+              const documentoDraft = {
+                meter: storedDraft.meter.trim() || mergedDraft.meter,
+                lacre: storedDraft.lacre.trim() || mergedDraft.lacre,
+                coverSeal: storedDraft.coverSeal.trim() || mergedDraft.coverSeal,
+                coverSeal2: storedDraft.coverSeal2.trim() || mergedDraft.coverSeal2,
+                reading: storedDraft.reading.trim() || mergedDraft.reading,
+                scheduledAt: storedDraft.scheduledAt.trim() || mergedDraft.scheduledAt,
+              }
               const documentoMeter = canEditWpa
                 ? documentoDraft.meter
                 : (document.extractedMeterRetirado ?? document.extractedMeter)
@@ -1647,7 +1708,7 @@ export function InspectionDocumentAnalysisModal({
               return (
               <article key={document.id} className="inspection-document-card">
                 <div className="inspection-document-card-header">
-                  <strong>{inspectionDocTypeLabel(document.docType)}</strong>
+                  <strong>{separateToiAndCsm ? 'TOI + CSM' : inspectionDocTypeLabel(document.docType)}</strong>
                   <span
                     className={`inspection-document-status is-${status}`}
                   >
@@ -1710,7 +1771,14 @@ export function InspectionDocumentAnalysisModal({
                   <div>
                     <dt>Anexado por</dt>
                     <dd>
-                      {formatAttachedBy(document.createdByName, document.createdByRegistration)}
+                      {separateToiAndCsm
+                        ? viewDocuments
+                            .map(
+                              (item) =>
+                                `${inspectionDocTypeLabel(item.docType)}: ${formatAttachedBy(item.createdByName, item.createdByRegistration)}`,
+                            )
+                            .join(' · ')
+                        : formatAttachedBy(document.createdByName, document.createdByRegistration)}
                     </dd>
                   </div>
                   <div>
@@ -1873,27 +1941,20 @@ export function InspectionDocumentAnalysisModal({
                 </section>
 
                 <div className="inspection-document-card-actions">
-                  <a
-                    className="inspection-document-card-action"
-                    href={api.getInspectionDocumentFileUrl(
-                      document.meterScheduleId,
-                      document.docType,
-                    )}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Abrir PDF
-                  </a>
-                  <a
-                    className="inspection-document-card-action"
-                    href={api.getInspectionDocumentDownloadUrl(
-                      document.meterScheduleId,
-                      document.docType,
-                    )}
-                    download
-                  >
-                    Baixar PDF
-                  </a>
+                  {viewDocuments.map((item) => (
+                    <a
+                      key={item.id}
+                      className="inspection-document-card-action"
+                      href={api.getInspectionDocumentFileUrl(
+                        item.meterScheduleId,
+                        item.docType,
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {openInspectionDocumentLabel(item.docType)}
+                    </a>
+                  ))}
                   {!viewOnly ? (
                     <button
                       type="button"
@@ -1904,20 +1965,27 @@ export function InspectionDocumentAnalysisModal({
                       {uploadingPhotos ? 'Enviando...' : 'Enviar fotos'}
                     </button>
                   ) : null}
-                  {canDelete ? (
-                    <button
-                      type="button"
-                      className="inspection-document-card-action is-danger"
-                      disabled={deletingDocType === document.docType}
-                      onClick={() => void handleDeleteDocument(document)}
-                    >
-                      {deletingDocType === document.docType ? 'Excluindo...' : 'Excluir'}
-                    </button>
-                  ) : null}
+                  {canDelete
+                    ? viewDocuments.map((item) => (
+                        <button
+                          key={`delete-${item.id}`}
+                          type="button"
+                          className="inspection-document-card-action is-danger"
+                          disabled={deletingDocType === item.docType}
+                          onClick={() => void handleDeleteDocument(item)}
+                        >
+                          {deletingDocType === item.docType
+                            ? 'Excluindo...'
+                            : viewDocuments.length > 1
+                              ? `Excluir ${inspectionDocTypeLabel(item.docType)}`
+                              : 'Excluir'}
+                        </button>
+                      ))
+                    : null}
                 </div>
               </article>
             )
-            })}
+            })()}
           </div>
         )}
 
