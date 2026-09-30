@@ -2193,10 +2193,29 @@ button {
 
 .inspection-document-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.45rem;
+}
+
+.inspection-document-status-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.inspection-document-reprocess {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+
+.inspection-document-reprocess svg {
+  width: 16px;
+  height: 16px;
 }
 
 .inspection-document-card-meta {

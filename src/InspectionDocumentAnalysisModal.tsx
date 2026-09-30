@@ -18,6 +18,7 @@ import {
   type NumericFieldKey,
 } from './numericFieldValidation'
 import { readImageAsDataUrl } from './readImageAsDataUrl'
+import { readFileAsBase64 } from './fileUtils'
 import {
   joinInspectionReasons,
   missingInspectionDocumentReasons,
@@ -981,6 +982,8 @@ export function InspectionDocumentAnalysisModal({
   const [previewPhoto, setPreviewPhoto] = useState<{ src: string; caption: string } | null>(null)
   const photoInputId = useId()
   const photoInputRef = useRef<HTMLInputElement | null>(null)
+  const reprocessInputRef = useRef<HTMLInputElement | null>(null)
+  const [reprocessingDocument, setReprocessingDocument] = useState(false)
   const [deletingDocType, setDeletingDocType] = useState<InspectionDocumentType | null>(null)
   const [adjustingDocType, setAdjustingDocType] = useState<InspectionDocumentType | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
@@ -1595,6 +1598,53 @@ export function InspectionDocumentAnalysisModal({
     }
   }
 
+  const handleReprocessDocument = async (file: File | undefined) => {
+    if (!file || reprocessingDocument) return
+    const isPdf =
+      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+    if (!isPdf) {
+      setFeedback({ type: 'error', message: 'Envie um arquivo PDF.' })
+      if (reprocessInputRef.current) reprocessInputRef.current.value = ''
+      return
+    }
+
+    const confirmed = window.confirm(
+      'Substituir o PDF e atualizar os dados extraídos? O usuário que importou o documento receberá o desvio "Importado documento errado".',
+    )
+    if (!confirmed) {
+      if (reprocessInputRef.current) reprocessInputRef.current.value = ''
+      return
+    }
+
+    setReprocessingDocument(true)
+    setFeedback(null)
+    try {
+      const fileBase64 = await readFileAsBase64(file)
+      await api.reprocessInspectionDocument(scheduleId, {
+        fileName: file.name,
+        fileBase64,
+      })
+      await loadDocuments()
+      onDocumentsChanged?.()
+      setFeedback({
+        type: 'success',
+        message:
+          'Documento reprocessado. Os dados do PDF foram atualizados e o desvio foi registrado para quem importou.',
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível reprocessar o documento.',
+      })
+    } finally {
+      setReprocessingDocument(false)
+      if (reprocessInputRef.current) reprocessInputRef.current.value = ''
+    }
+  }
+
   return createPortal(
     <div
       className="inspection-analysis-screen"
@@ -1709,11 +1759,51 @@ export function InspectionDocumentAnalysisModal({
               <article key={document.id} className="inspection-document-card">
                 <div className="inspection-document-card-header">
                   <strong>{separateToiAndCsm ? 'TOI + CSM' : inspectionDocTypeLabel(document.docType)}</strong>
-                  <span
-                    className={`inspection-document-status is-${status}`}
-                  >
-                    {status === 'blocked' ? 'Bloqueado' : status === 'ok' ? 'OK' : 'Pendente'}
-                  </span>
+                  <div className="inspection-document-status-wrap">
+                    <span className={`inspection-document-status is-${status}`}>
+                      {status === 'blocked' ? 'Bloqueado' : status === 'ok' ? 'OK' : 'Pendente'}
+                    </span>
+                    {status === 'blocked' && canEditWpa ? (
+                      <>
+                        <button
+                          type="button"
+                          className="icon-button inspection-document-reprocess"
+                          aria-label="Reprocessar documento"
+                          title="Reprocessar documento"
+                          disabled={reprocessingDocument}
+                          onClick={() => reprocessInputRef.current?.click()}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                              d="M21 12a9 9 0 0 0-9-9 9 9 0 0 0-8.5 6M3 12a9 9 0 0 0 9 9 9 9 0 0 0 8.5-6"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                            />
+                            <path
+                              d="M3 4v5h5M21 20v-5h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                        <input
+                          ref={reprocessInputRef}
+                          type="file"
+                          accept="application/pdf,.pdf"
+                          hidden
+                          onChange={(event) => {
+                            const selected = event.target.files?.[0]
+                            void handleReprocessDocument(selected)
+                          }}
+                        />
+                      </>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="inspection-document-card-meta">

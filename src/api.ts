@@ -1835,6 +1835,18 @@ export const api = {
         timeoutMs: 10 * 60 * 1000,
       },
     ),
+  reprocessInspectionDocument: (
+    meterScheduleId: string,
+    payload: { fileName: string; fileBase64: string },
+  ) =>
+    request<{ document: InspectionDocumentRecord }>(
+      `/api/meter-schedules/${meterScheduleId}/inspection-document`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ ...payload, reprocessWrongImport: true }),
+        timeoutMs: 10 * 60 * 1000,
+      },
+    ),
   deleteInspectionDocument: (meterScheduleId: string, docType: InspectionDocumentType) =>
     request<{ ok: true; meterScheduleId: string }>(
       `/api/meter-schedules/${meterScheduleId}/inspection-document/${docType}`,

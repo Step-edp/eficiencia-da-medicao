@@ -432,6 +432,8 @@ export const WRONG_INSPECTION_DOCUMENT_KIND = 'wrong_inspection_document'
 export const WRONG_INSPECTION_DOCUMENT_DESCRIPTION = 'Documento inserido errado'
 export const WRONG_INSPECTION_DOCUMENT_REASON =
   'Documento inserido errado. Nenhuma informação bate com o cadastro.'
+const IMPORTED_WRONG_DOCUMENT_KIND = 'imported_wrong_document'
+const IMPORTED_WRONG_DOCUMENT_DESCRIPTION = 'Importado documento errado'
 
 export type InspectionSummary = {
   hasToi: boolean
@@ -1199,6 +1201,37 @@ async function syncWrongInspectionDocumentDeviations(
   }
 }
 
+async function insertImportedWrongDocumentDeviation(params: {
+  scheduleId: string
+  meter: string
+  importerName: string
+  importerRegistration: string
+  importerUserId: string | null
+  previousFileName: string
+  nextFileName: string
+}) {
+  await query(
+    `INSERT INTO toi_schedule_deviations (
+       id, meter_schedule_id, meter, kind, description,
+       scheduled_label, document_label, previous_scheduled_at, adjusted_scheduled_at,
+       collaborator1_name, collaborator1_registration,
+       collaborator2_name, collaborator2_registration, created_by_user_id
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW(),$8,$9,'','',$10)`,
+    [
+      `wrong-import-${Date.now()}-${params.scheduleId}`,
+      params.scheduleId,
+      params.meter,
+      IMPORTED_WRONG_DOCUMENT_KIND,
+      IMPORTED_WRONG_DOCUMENT_DESCRIPTION,
+      params.previousFileName,
+      params.nextFileName,
+      params.importerName,
+      params.importerRegistration,
+      params.importerUserId,
+    ],
+  )
+}
+
 const WPA_PHOTO_DEVIATIONS = [
   {
     option: 'sem_registro_fotografico',
@@ -1631,7 +1664,12 @@ async function loadDocTypePresence(meterScheduleId: string) {
 
 export async function uploadInspectionDocument(req: Request, res: Response) {
   const requestedScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
-  const { fileName, fileBase64 } = req.body as { fileName?: string; fileBase64?: string }
+  const { fileName, fileBase64, reprocessWrongImport } = req.body as {
+    fileName?: string
+    fileBase64?: string
+    reprocessWrongImport?: boolean
+  }
+  const replacingWrongImport = reprocessWrongImport === true
 
   if (!fileName?.trim() || !fileBase64?.trim()) {
     res.status(400).json({ error: 'Envie o documento de inspeção.' })
@@ -1685,6 +1723,14 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
   if (schedule.rows[0].delay_dismissed_at) {
     res.status(400).json({
       error: 'Este medidor foi excluído da lista e não recebe mais documentos.',
+    })
+    return
+  }
+
+  if (replacingWrongImport && !(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error:
+        'Somente administradores e usuários do Laboratório de Medição podem reprocessar o documento.',
     })
     return
   }
@@ -1786,6 +1832,40 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     )
   }
 
+  let previousImporters: Array<{
+    doc_type: string
+    file_name: string
+    user_id: string | null
+    name: string | null
+    registration: string | null
+  }> = []
+  if (replacingWrongImport) {
+    const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
+    const ids = scheduleIds.length ? scheduleIds : [meterScheduleId]
+    const previous = await query<{
+      doc_type: string
+      file_name: string
+      user_id: string | null
+      name: string | null
+      registration: string | null
+    }>(
+      `SELECT d.doc_type, d.file_name,
+              d.created_by_user_id AS user_id,
+              u.name,
+              u.registration
+       FROM meter_inspection_documents d
+       LEFT JOIN users u ON u.id = d.created_by_user_id
+       WHERE d.meter_schedule_id = ANY($1::text[])
+       ORDER BY d.created_at DESC`,
+      [ids],
+    )
+    if (!previous.rows.length) {
+      res.status(400).json({ error: 'Não há documento importado para reprocessar.' })
+      return
+    }
+    previousImporters = previous.rows
+  }
+
   const id = `inspdoc-${Date.now()}-${meterScheduleId}-${docType}`
 
   const insert = await query<Omit<InspectionDocumentRow, 'created_by_registration'>>(
@@ -1815,7 +1895,11 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
        blocked = EXCLUDED.blocked,
        block_reason = EXCLUDED.block_reason,
        created_at = NOW(),
-       created_by_user_id = EXCLUDED.created_by_user_id
+       created_by_user_id = EXCLUDED.created_by_user_id,
+       extracted_fields_manual = CASE
+         WHEN $21::boolean THEN FALSE
+         ELSE meter_inspection_documents.extracted_fields_manual
+       END
      RETURNING id, meter_schedule_id, doc_type, file_name, extracted_meter, extracted_meter_retirado,
                extracted_lacre, extracted_cover_seal, extracted_cover_seal_2, extracted_reading, extracted_scheduled_at,
                extracted_installation, extracted_toi, extracted_note, extracted_client,
@@ -1841,6 +1925,7 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
       evaluation.blocked,
       evaluation.reason,
       req.user?.id ?? null,
+      replacingWrongImport,
     ],
   )
 
@@ -1911,7 +1996,23 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     hasComunicado: presence.hasComunicado,
   }
 
-  if (await canManageInspectionDocuments(req)) {
+  if (replacingWrongImport) {
+    const previous =
+      previousImporters.find((row) => row.doc_type === docType) ?? previousImporters[0]
+    try {
+      await insertImportedWrongDocumentDeviation({
+        scheduleId: meterScheduleId,
+        meter: schedule.rows[0].meter,
+        importerName: previous?.name?.trim() ?? '',
+        importerRegistration: previous?.registration?.trim() ?? '',
+        importerUserId: previous?.user_id ?? null,
+        previousFileName: previous?.file_name?.trim() || 'Documento anterior',
+        nextFileName: fileName.trim(),
+      })
+    } catch (error) {
+      console.error('Não foi possível registrar o desvio de documento importado errado.', error)
+    }
+  } else if (await canManageInspectionDocuments(req)) {
     const people = collaboratorsFromSchedule(schedule.rows[0])
     await insertLabImportedDocumentDeviation({
       scheduleId: meterScheduleId,
@@ -1926,7 +2027,9 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     action: 'create',
     entityType: 'meter_inspection_document',
     entityId: document.id,
-    summary: `Documento de inspeção (${docType}) anexado ao agendamento ${meterScheduleId}${document.blocked ? ' (bloqueado)' : ''}`,
+    summary: replacingWrongImport
+      ? `Documento de inspeção (${docType}) reprocessado no agendamento ${meterScheduleId}. Importado documento errado.`
+      : `Documento de inspeção (${docType}) anexado ao agendamento ${meterScheduleId}${document.blocked ? ' (bloqueado)' : ''}`,
     newData: document,
     metadata: { meterScheduleId },
   })
@@ -4419,7 +4522,10 @@ export async function listScheduleDateAdjustments(req: Request, res: Response) {
      WHERE (
        $1 = false
        OR ms.created_by_user_id = $4
-       OR (d.kind = 'wrong_inspection_document' AND d.created_by_user_id = $4)
+       OR (
+         d.kind IN ('wrong_inspection_document', 'imported_wrong_document')
+         AND d.created_by_user_id = $4
+       )
        OR (
          $2 <> ''
          AND (
