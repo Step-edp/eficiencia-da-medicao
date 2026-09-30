@@ -838,8 +838,12 @@ function ComparisonField({
                   <input
                     type="text"
                     className={`inspection-document-wpa-input${agendamentoAdjusted ? ' is-adjusted' : ''}`}
-                    value={agendamento ?? ''}
-                    placeholder={agendamentoEmpty}
+                    value={parseWpaConferenceOption(agendamento) ? '' : (agendamento ?? '')}
+                    placeholder={
+                      parseWpaConferenceOption(agendamento)
+                        ? wpaConferenceLabel(agendamento)
+                        : agendamentoEmpty
+                    }
                     inputMode={kind === 'digits' ? 'numeric' : 'text'}
                     aria-label={`${label} no agendamento`}
                     onChange={(event) => onAgendamentoChange?.(event.target.value)}
@@ -1902,15 +1906,7 @@ export function InspectionDocumentAnalysisModal({
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
                     agendamentoEditable={canEditWpa}
-                    agendamentoExtraOption={
-                      document.registeredLacre &&
-                      !parseWpaConferenceOption(document.registeredLacre)
-                        ? document.registeredLacre
-                        : conference?.scheduleLacre &&
-                            !parseWpaConferenceOption(conference.scheduleLacre)
-                          ? conference.scheduleLacre
-                          : null
-                    }
+                    agendamentoInputKind="text"
                     onCampoChange={(value) => handleWpaChange('lacre', value)}
                     onDocumentoChange={(value) => handleDocumentoChange(document.docType, 'lacre', value)}
                     onAgendamentoChange={(value) => handleWpaChange('scheduleLacre', value)}

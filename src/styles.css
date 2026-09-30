@@ -2574,8 +2574,10 @@ button {
   cursor: pointer;
 }
 
+.inspection-document-comparison-value-row .inspection-document-wpa-input,
 .inspection-document-comparison-value-row .inspection-document-wpa-select {
   flex: 1 1 auto;
+  width: auto;
   min-width: 0;
 }
 
