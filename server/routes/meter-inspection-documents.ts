@@ -1609,6 +1609,7 @@ async function resolveCanonicalEntradaScheduleId(meterScheduleId: string): Promi
     `SELECT DISTINCT ON (${NORMALIZED_METER_SQL}) id
      FROM meter_schedules
      WHERE trail_step = $2
+       AND delay_dismissed_at IS NULL
        AND ${NORMALIZED_METER_SQL} = (
          SELECT ${NORMALIZED_METER_SQL} FROM meter_schedules WHERE id = $1
        )

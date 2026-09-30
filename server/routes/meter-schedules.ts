@@ -1674,7 +1674,8 @@ export async function cancelMeterSchedule(req: Request, res: Response) {
     return
   }
 
-  if (req.user?.role !== 'admin') {
+  const labOrAdmin = await canEditLabSchedule(req)
+  if (!labOrAdmin) {
     const userId = req.user?.id ?? ''
     const allowedCsdNames = userId ? await resolvePontoFocalCsdNames(userId) : []
     if (allowedCsdNames === null) {
@@ -1724,7 +1725,9 @@ export async function cancelMeterSchedule(req: Request, res: Response) {
     action: 'update',
     entityType: 'meter_schedule',
     entityId: schedule.id,
-    summary: `Agendamento do medidor ${schedule.meter} excluído${req.user?.role === 'admin' ? ' pelo administrador' : ' pelo ponto focal'}`,
+    summary: `Agendamento do medidor ${schedule.meter} excluído${
+      req.user?.role === 'admin' ? ' pelo administrador' : labOrAdmin ? ' pelo laboratório' : ' pelo ponto focal'
+    }`,
     oldData: { delayDismissedAt: null, delayJustification: row.delay_justification ?? '' },
     newData: {
       delayDismissedAt: updated.rows[0].delay_dismissed_at,
