@@ -378,6 +378,10 @@ export async function listMeterSchedules(req: Request, res: Response) {
     req.query.allTrailSteps === '1' ||
     req.query.allTrailSteps === 'true' ||
     req.query.allTrailSteps === 'yes'
+  const excludeAnalyzed =
+    req.query.excludeAnalyzed === '1' ||
+    req.query.excludeAnalyzed === 'true' ||
+    req.query.excludeAnalyzed === 'yes'
   const meterSearch =
     typeof req.query.meter === 'string' && req.query.meter.trim()
       ? req.query.meter.trim()
@@ -412,6 +416,9 @@ export async function listMeterSchedules(req: Request, res: Response) {
     filters.push(`ms.delay_dismissed_at IS NULL`)
     if (trailStep === ENTRADA_TRAIL_STEP) {
       filters.push(STILL_AWAITING_ENTRADA_SQL)
+    }
+    if (excludeAnalyzed) {
+      filters.push(`ms.inspection_analysis_completed_at IS NULL`)
     }
   }
 

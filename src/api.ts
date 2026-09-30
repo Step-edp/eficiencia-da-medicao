@@ -1614,6 +1614,7 @@ export const api = {
       forUserId?: string
       meter?: string
       allTrailSteps?: boolean
+      excludeAnalyzed?: boolean
     },
   ) => {
     const search = new URLSearchParams()
@@ -1621,6 +1622,7 @@ export const api = {
     else if (options?.gallery) search.set('gallery', '1')
     else if (options?.allTrailSteps) search.set('allTrailSteps', '1')
     else if (trailStep) search.set('trailStep', trailStep)
+    if (options?.excludeAnalyzed) search.set('excludeAnalyzed', '1')
     if (options?.mine) search.set('mine', '1')
     if (options?.forUserId) search.set('forUserId', options.forUserId)
     const queryString = search.toString()

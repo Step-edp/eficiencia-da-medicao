@@ -65,7 +65,10 @@ export function LabAgendarPanel({
       ) : (
         <>
           {readOnly ? <p>Agendamentos realizados (visualização).</p> : null}
-          <FieldTeamConsultarPanel allowCancelSchedule={allowCancelSchedule && !readOnly} />
+          <FieldTeamConsultarPanel
+            allowCancelSchedule={allowCancelSchedule && !readOnly}
+            excludeAnalyzed
+          />
         </>
       )}
     </>

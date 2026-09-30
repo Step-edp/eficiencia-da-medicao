@@ -32,6 +32,8 @@ type FieldTeamSchedulesPanelProps = {
   allowEdit?: boolean
   /** Laboratório pode excluir o documento de inspeção anexado. */
   allowDeleteInspection?: boolean
+  /** Lista Medidores agendados: omite quem já foi para Analisados. */
+  excludeAnalyzed?: boolean
 }
 
 type EnvelopePreview = {
@@ -515,6 +517,7 @@ export function FieldTeamConsultarPanel({
   allTrailSteps = false,
   allowEdit = false,
   allowDeleteInspection = false,
+  excludeAnalyzed = false,
 }: FieldTeamSchedulesPanelProps) {
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -564,6 +567,7 @@ export function FieldTeamConsultarPanel({
         mine: isMine,
         forUserId: !isMine && scopeUserId ? scopeUserId : undefined,
         allTrailSteps,
+        excludeAnalyzed,
       })
       setSchedules(allTrailSteps ? rows : rows.filter(stillAwaitingEntrada))
     } catch (error) {
@@ -580,7 +584,7 @@ export function FieldTeamConsultarPanel({
     } finally {
       setLoading(false)
     }
-  }, [allTrailSteps, isMine, scopeUserId])
+  }, [allTrailSteps, excludeAnalyzed, isMine, scopeUserId])
 
   useEffect(() => {
     void load()
