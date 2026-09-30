@@ -926,6 +926,18 @@ function isIgnorableRegisteredDivergence(
   return false
 }
 
+function sealDivergenceResolved(
+  reason: string,
+  documentLacre: string | null | undefined,
+  scheduleLacre: string | null | undefined,
+) {
+  if (!/diverge do lacre cadastrado/i.test(reason)) return false
+  if (isWpaNotApplicable(scheduleLacre)) return true
+  const documentSeal = normalizeSeal(documentLacre)
+  const scheduledSeal = normalizeSeal(scheduleLacre)
+  return Boolean(documentSeal && scheduledSeal && documentSeal === scheduledSeal)
+}
+
 function withAnalysisBlock(
   summary: InspectionSummary,
   analysisBlockReason: string | null | undefined,
@@ -2044,6 +2056,7 @@ function mapInspectionDocumentRow(
   registeredLacre: string | null = null,
   registeredCoverSeal: string | null = null,
   registeredReading: string | null = null,
+  evaluationLacre: string | null = registeredLacre,
 ) {
   const evaluation =
     (row.doc_type === 'toi' || row.doc_type === 'ambos') && registeredMeter
@@ -2051,7 +2064,7 @@ function mapInspectionDocumentRow(
           row.extracted_lacre,
           row.extracted_meter,
           registeredMeter,
-          registeredLacre,
+          evaluationLacre,
           row.extracted_meter_retirado,
         )
       : row.doc_type === 'comunicado' && registeredMeter
@@ -2734,6 +2747,15 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     schedule.rows[0].inspection_schedule_meter,
   )
   const effectiveScheduleMeter = scheduleMeterFields.scheduleMeter || registeredMeter
+  const skipScheduleLacre =
+    isWpaNotApplicable(schedule.rows[0].inspection_wpa_lacre) ||
+    isWpaNotApplicable(schedule.rows[0].inspection_schedule_lacre)
+  const evaluationLacre = skipScheduleLacre
+    ? 'nao_aplicavel'
+    : expectedEnvelopeSealForEvaluation(
+        registeredLacre,
+        schedule.rows[0].inspection_schedule_lacre,
+      )
 
   res.json({
     meter: registeredMeter,
@@ -2784,6 +2806,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
         registeredLacre,
         registeredCoverSeal,
         registeredReading,
+        evaluationLacre,
       ),
     ),
     complete: presence.complete,
@@ -3535,17 +3558,6 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
   if (!presence.hasToi) reasons.push('Anexe o TOI.')
   if (!presence.hasComunicado) reasons.push('Anexe o CSM.')
 
-  const summary = aggregateInspectionForSchedule(row, documents.rows)
-  const ignorable = notApplicableWaivers(row)
-  if (summary.anyBlocked && summary.blockReasons) {
-    for (const reason of summary.blockReasons.split('|')) {
-      const trimmed = reason.trim()
-      if (trimmed && !isIgnorableRegisteredDivergence(trimmed, ignorable)) {
-        reasons.push(trimmed)
-      }
-    }
-  }
-
   const scheduleMeterFields = await loadScheduleMeterConferenceFields(
     meterScheduleId,
     row.meter,
@@ -3557,6 +3569,18 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
     row.envelope_seal?.trim() || envelopeEvidence.seal,
   )
   const scheduleDateLabel = formatAvailableSlot(row.scheduled_at)
+
+  const summary = aggregateInspectionForSchedule(row, documents.rows)
+  const ignorable = notApplicableWaivers(row)
+  if (summary.anyBlocked && summary.blockReasons) {
+    for (const reason of summary.blockReasons.split('|')) {
+      const trimmed = reason.trim()
+      if (!trimmed || isIgnorableRegisteredDivergence(trimmed, ignorable)) continue
+      const documentLacre = documents.rows.find((doc) => doc.extracted_lacre?.trim())?.extracted_lacre
+      if (sealDivergenceResolved(trimmed, documentLacre, scheduleLacre)) continue
+      reasons.push(trimmed)
+    }
+  }
 
   const wpaFields: Array<[string, string | null]> = [
     ['medidor', pickSavedWpa(row.inspection_wpa_meter)],
@@ -3600,9 +3624,17 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
 
   for (const doc of documents.rows) {
     if (doc.blocked && doc.block_reason) {
-      if (!isIgnorableRegisteredDivergence(doc.block_reason, ignorable)) {
-        reasons.push(doc.block_reason)
+      if (isIgnorableRegisteredDivergence(doc.block_reason, ignorable)) continue
+      if (
+        sealDivergenceResolved(
+          doc.block_reason,
+          doc.extracted_lacre,
+          scheduleLacre,
+        )
+      ) {
+        continue
       }
+      reasons.push(doc.block_reason)
     }
   }
 
@@ -4116,8 +4148,14 @@ export async function updateInspectionExtracted(req: Request, res: Response) {
     return
   }
 
-  const schedule = await query<{ meter: string; envelope_seal: string }>(
-    `SELECT meter, envelope_seal FROM meter_schedules WHERE id = $1`,
+  const schedule = await query<{
+    meter: string
+    envelope_seal: string
+    inspection_schedule_lacre: string | null
+    inspection_wpa_lacre: string | null
+  }>(
+    `SELECT meter, envelope_seal, inspection_schedule_lacre, inspection_wpa_lacre
+     FROM meter_schedules WHERE id = $1`,
     [document.meter_schedule_id],
   )
   const currentSchedule = schedule.rows[0]
@@ -4136,6 +4174,15 @@ export async function updateInspectionExtracted(req: Request, res: Response) {
   const reading = readField(req.body?.reading) || null
   const scheduledAt = readField(req.body?.scheduledAt) || null
 
+  const skipScheduleLacre =
+    isWpaNotApplicable(currentSchedule.inspection_wpa_lacre) ||
+    isWpaNotApplicable(currentSchedule.inspection_schedule_lacre)
+  const evaluationLacre = skipScheduleLacre
+    ? 'nao_aplicavel'
+    : expectedEnvelopeSealForEvaluation(
+        currentSchedule.envelope_seal || null,
+        currentSchedule.inspection_schedule_lacre,
+      )
   const evaluation =
     docType === 'comunicado'
       ? evaluateComunicadoDocument(meter, currentSchedule.meter)
@@ -4143,7 +4190,7 @@ export async function updateInspectionExtracted(req: Request, res: Response) {
           lacre,
           meter,
           currentSchedule.meter,
-          currentSchedule.envelope_seal || null,
+          evaluationLacre,
           meter,
         )
 

@@ -436,6 +436,19 @@ function shouldSuppressMeterBlockReason(
   return Boolean(documentMeter && scheduledMeter && documentMeter === scheduledMeter)
 }
 
+function shouldSuppressSealBlockReason(
+  blockReason: string | null | undefined,
+  documentoLacre: string | null | undefined,
+  scheduleLacre: string | null | undefined,
+) {
+  if (!blockReason?.trim()) return false
+  if (!/diverge do lacre cadastrado/i.test(blockReason)) return false
+  if (isNotApplicable(scheduleLacre)) return true
+  const documentSeal = normalizeConferenceDigits(documentoLacre)
+  const scheduledSeal = normalizeConferenceDigits(scheduleLacre)
+  return Boolean(documentSeal && scheduledSeal && documentSeal === scheduledSeal)
+}
+
 function shouldSuppressNotApplicableBlockReason(
   blockReason: string | null | undefined,
   wpaDraft: {
@@ -597,6 +610,7 @@ function resolveDocumentAnalysisStatus(
   const requireToiFields = hasToi || document.docType === 'toi' || document.docType === 'ambos'
   const effectiveBlockReason =
     shouldSuppressMeterBlockReason(document.blockReason, documentoMeter, scheduleMeterValue) ||
+    shouldSuppressSealBlockReason(document.blockReason, documentoLacre, scheduleLacreValue) ||
     shouldSuppressNotApplicableBlockReason(document.blockReason, wpaDraft)
       ? null
       : document.blockReason
