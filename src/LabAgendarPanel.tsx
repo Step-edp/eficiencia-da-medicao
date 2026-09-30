@@ -7,9 +7,13 @@ type LabAgendarTab = 'novo' | 'lista' | 'dash'
 
 type LabAgendarPanelProps = {
   readOnly?: boolean
+  allowCancelSchedule?: boolean
 }
 
-export function LabAgendarPanel({ readOnly = false }: LabAgendarPanelProps) {
+export function LabAgendarPanel({
+  readOnly = false,
+  allowCancelSchedule = false,
+}: LabAgendarPanelProps) {
   const [tab, setTab] = useState<LabAgendarTab>('lista')
   const activeTab = tab === 'novo' && readOnly ? 'lista' : tab
 
@@ -61,7 +65,7 @@ export function LabAgendarPanel({ readOnly = false }: LabAgendarPanelProps) {
       ) : (
         <>
           {readOnly ? <p>Agendamentos realizados (visualização).</p> : null}
-          <FieldTeamConsultarPanel allowCancelSchedule={false} />
+          <FieldTeamConsultarPanel allowCancelSchedule={allowCancelSchedule && !readOnly} />
         </>
       )}
     </>

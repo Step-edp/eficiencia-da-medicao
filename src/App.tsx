@@ -5633,7 +5633,7 @@ function HomePanel({
               <FieldTeamConsultarPanel
                 allTrailSteps
                 allowEdit={!labMedicaoReadOnly}
-                allowCancelSchedule={false}
+                allowCancelSchedule={isAdmin && !labMedicaoReadOnly}
                 allowDeleteInspection={!labMedicaoReadOnly}
               />
             ) : selectedLabMeasurementSection === 'Base de medidores recebidos' ? (
@@ -5689,7 +5689,10 @@ function HomePanel({
                 onTrailCountsChange={refreshTrailStepCounts}
               />
             ) : selectedLabMeasurementSection === 'Agendar' ? (
-              <LabAgendarPanel readOnly={labMedicaoReadOnly} />
+              <LabAgendarPanel
+                readOnly={labMedicaoReadOnly}
+                allowCancelSchedule={isAdmin && !labMedicaoReadOnly}
+              />
             ) : selectedLabMeasurementSection === 'Ensaiar' ? (
               labMedicaoReadOnly ? (
                 <p>

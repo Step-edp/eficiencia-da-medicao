@@ -1717,7 +1717,7 @@ export async function cancelMeterSchedule(req: Request, res: Response) {
     action: 'update',
     entityType: 'meter_schedule',
     entityId: schedule.id,
-    summary: `Agendamento do medidor ${schedule.meter} excluído pelo ponto focal`,
+    summary: `Agendamento do medidor ${schedule.meter} excluído${req.user?.role === 'admin' ? ' pelo administrador' : ' pelo ponto focal'}`,
     oldData: { delayDismissedAt: null, delayJustification: row.delay_justification ?? '' },
     newData: {
       delayDismissedAt: updated.rows[0].delay_dismissed_at,
