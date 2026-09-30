@@ -5,7 +5,9 @@ const PATRIMONIO_METER_PATTERN = /\b00(\d{8})\b/g
 const SPACED_PATRIMONIO_METER_PATTERN = /\b00(?:[\s.]*\d){8}\b/g
 const DOCUMENT_NUMBER_PATTERN = /n[uú]mero\s+documento\s*:?\s*(\d+)/i
 const EMISSION_DATE_PATTERN = /data\s+de\s+emiss[aã]o\s*:?\s*(\d{2}[./]\d{2}[./]\d{4})/i
-const DEMM_OCR_SCALE = 2
+// Escala 2 deixa o dígito pequeno demais no scan e o OCR troca 6 por 8
+// (0014076081 vira 0014078081). Escala 3 lê o patrimônio certo.
+const DEMM_OCR_SCALE = 3
 const DEMM_OCR_MAX_PAGES = 8
 
 type TextItem = {
