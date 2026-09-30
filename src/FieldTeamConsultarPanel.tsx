@@ -1081,13 +1081,24 @@ export function FieldTeamConsultarPanel({
                     <td>
                       <button
                         type="button"
-                        className="danger-button"
+                        className="icon-button schedule-cancel-button"
+                        aria-label={`Excluir agendamento do medidor ${item.meter}`}
+                        title="Excluir agendamento"
                         onClick={(event) => {
                           event.stopPropagation()
                           openCancel(item)
                         }}
                       >
-                        Excluir
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path
+                            d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
                       </button>
                     </td>
                   ) : null}

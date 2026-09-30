@@ -2218,6 +2218,19 @@ button {
   height: 16px;
 }
 
+.schedule-cancel-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: #ffb3aa;
+  border-color: rgba(231, 76, 60, 0.45);
+}
+
+.schedule-cancel-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 .inspection-document-card-meta {
   display: grid;
   gap: 0.35rem;
