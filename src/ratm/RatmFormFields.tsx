@@ -136,6 +136,81 @@ function EditPencilIcon() {
   )
 }
 
+function meterModelFormPatch(model: MeterModelRecord | null): Partial<RatmFormData> {
+  if (!model) {
+    return {
+      meterModelId: '',
+      meterModelManufacturer: '',
+      meterModelMeterType: '',
+      meterModelVoltage: '',
+      meterModelCurrent: '',
+      meterModelWiresElements: '',
+      meterModelAccuracyClass: '',
+      meterModelConstant: '',
+    }
+  }
+  return {
+    meterModelId: String(model.id),
+    meterModelManufacturer: model.manufacturer,
+    meterModelMeterType: model.meterType,
+    meterModelVoltage: model.voltage,
+    meterModelCurrent: model.current,
+    meterModelWiresElements: model.wiresElements,
+    meterModelAccuracyClass: model.accuracyClass,
+    meterModelConstant: model.constant,
+  }
+}
+
+function EditableTextLine({
+  label,
+  value,
+  onCommit,
+}: {
+  label: string
+  value: string
+  onCommit: (value: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!editing) return
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [editing])
+
+  return (
+    <div className="ratm-readonly-field">
+      <span className="ratm-readonly-label">{label}</span>
+      {editing ? (
+        <input
+          ref={inputRef}
+          type="text"
+          aria-label={label}
+          value={value}
+          onChange={(event) => onCommit(event.target.value)}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === 'Escape') event.currentTarget.blur()
+          }}
+        />
+      ) : (
+        <div className="ratm-client-line">
+          <p>{displayOrDash(value)}</p>
+          <button
+            className="ratm-client-edit"
+            type="button"
+            aria-label={`Editar ${label}`}
+            onClick={() => setEditing(true)}
+          >
+            <EditPencilIcon />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function EntryCollaboratorField({
   label,
   value,
@@ -915,6 +990,19 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const entryInfoComplete = isEntryInfoSectionComplete(data)
   const selectedMeterModel =
     meterModels.find((model) => String(model.id) === data.meterModelId) ?? null
+  const meterModelSnapshotEmpty =
+    !data.meterModelManufacturer &&
+    !data.meterModelMeterType &&
+    !data.meterModelVoltage &&
+    !data.meterModelCurrent &&
+    !data.meterModelWiresElements &&
+    !data.meterModelAccuracyClass &&
+    !data.meterModelConstant
+
+  useEffect(() => {
+    if (!selectedMeterModel || !meterModelSnapshotEmpty) return
+    onChange(meterModelFormPatch(selectedMeterModel))
+  }, [selectedMeterModel, meterModelSnapshotEmpty])
   const initialTestsComplete = isInitialTestsSectionComplete(data)
   const enclosureSealComplete = isEnclosureSealSectionComplete(data)
   const seal1Complete = isSeal1SectionComplete(data)
@@ -1333,7 +1421,11 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               Modelo
               <select
                 value={data.meterModelId}
-                onChange={(event) => onChange({ meterModelId: event.target.value })}
+                onChange={(event) => {
+                  const model =
+                    meterModels.find((entry) => String(entry.id) === event.target.value) ?? null
+                  onChange(meterModelFormPatch(model))
+                }}
               >
                 <option value="">Selecione o modelo</option>
                 {meterModels.map((model) => {
@@ -1355,23 +1447,25 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                 {meterModelsError}
               </p>
             ) : null}
-            {selectedMeterModel ? (
+            {data.meterModelId ? (
               <div className="ratm-model-details">
                 {(
                   [
-                    ['Fabricante', selectedMeterModel.manufacturer],
-                    ['Tipo', selectedMeterModel.meterType],
-                    ['Tensão', selectedMeterModel.voltage],
-                    ['Corrente', selectedMeterModel.current],
-                    ['Fios • Elementos', selectedMeterModel.wiresElements],
-                    ['Classe', selectedMeterModel.accuracyClass],
-                    ['Constante', selectedMeterModel.constant],
+                    ['Fabricante', 'meterModelManufacturer', data.meterModelManufacturer],
+                    ['Tipo', 'meterModelMeterType', data.meterModelMeterType],
+                    ['Tensão', 'meterModelVoltage', data.meterModelVoltage],
+                    ['Corrente', 'meterModelCurrent', data.meterModelCurrent],
+                    ['Fios • Elementos', 'meterModelWiresElements', data.meterModelWiresElements],
+                    ['Classe', 'meterModelAccuracyClass', data.meterModelAccuracyClass],
+                    ['Constante', 'meterModelConstant', data.meterModelConstant],
                   ] as const
-                ).map(([label, value]) => (
-                  <div className="ratm-readonly-field" key={label}>
-                    <span className="ratm-readonly-label">{label}</span>
-                    <p>{displayOrDash(value)}</p>
-                  </div>
+                ).map(([label, field, value]) => (
+                  <EditableTextLine
+                    key={field}
+                    label={label}
+                    value={value}
+                    onCommit={(next) => onChange({ [field]: next })}
+                  />
                 ))}
               </div>
             ) : null}

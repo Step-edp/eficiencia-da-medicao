@@ -8199,6 +8199,12 @@ input[type='file'] {
   gap: 4px 8px;
 }
 
+.ratm-model-details .ratm-readonly-field > input {
+  flex: 1 1 8rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .ratm-model-details p {
   margin: 0;
   color: var(--text-main);

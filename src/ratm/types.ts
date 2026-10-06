@@ -96,6 +96,13 @@ export type RatmFormData = {
   deliveryDeadlineLabel: string
   client: string
   meterModelId: string
+  meterModelManufacturer: string
+  meterModelMeterType: string
+  meterModelVoltage: string
+  meterModelCurrent: string
+  meterModelWiresElements: string
+  meterModelAccuracyClass: string
+  meterModelConstant: string
   analysisRequest: string
   clientAccompanied: string
   satisfactionWhatsapp: string
@@ -196,6 +203,13 @@ export function createEmptyRatmForm(): RatmFormData {
     deliveryDeadlineLabel: '',
     client: '',
     meterModelId: '',
+    meterModelManufacturer: '',
+    meterModelMeterType: '',
+    meterModelVoltage: '',
+    meterModelCurrent: '',
+    meterModelWiresElements: '',
+    meterModelAccuracyClass: '',
+    meterModelConstant: '',
     analysisRequest: '',
     clientAccompanied: '',
     satisfactionWhatsapp: '',
