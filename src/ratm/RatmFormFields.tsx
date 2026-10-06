@@ -102,6 +102,112 @@ function displayOrDash(value?: string | null) {
   return trimmed || '—'
 }
 
+const UNREGISTERED_COLLABORATOR = 'Colaborador não cadastrado'
+
+type PortalCollaborator = {
+  id: string
+  name: string
+  registration: string
+}
+
+function collaboratorChoiceLabel(user: PortalCollaborator) {
+  const registration = user.registration.trim()
+  return registration ? `${user.name.trim()} (${registration})` : user.name.trim()
+}
+
+function collaboratorChoiceParts(value: string) {
+  const trimmed = value.trim()
+  if (trimmed.toLocaleLowerCase('pt-BR') === UNREGISTERED_COLLABORATOR.toLocaleLowerCase('pt-BR')) {
+    return { name: UNREGISTERED_COLLABORATOR, registration: '' }
+  }
+  const match = trimmed.match(/^(.*)\s+\(([^)]+)\)\s*$/)
+  if (match) return { name: match[1].trim(), registration: match[2].trim() }
+  return { name: trimmed, registration: '' }
+}
+
+function EditPencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 16.5V20h3.5L18.8 8.7l-3.5-3.5L4 16.5zm15.7-9.2a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-1.2 1.2 3.5 3.5 1.7-1.7z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function EntryCollaboratorField({
+  label,
+  value,
+  users,
+  onCommit,
+}: {
+  label: string
+  value: string
+  users: PortalCollaborator[]
+  onCommit: (value: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const selectRef = useRef<HTMLSelectElement>(null)
+  const current = value.trim()
+  const listed = users.some((user) => collaboratorChoiceLabel(user) === current)
+
+  useEffect(() => {
+    if (!editing) return
+    selectRef.current?.focus()
+  }, [editing])
+
+  return (
+    <div className="ratm-readonly-field">
+      <span className="ratm-readonly-label">{label}</span>
+      {editing ? (
+        <select
+          ref={selectRef}
+          className="ratm-collaborator-select"
+          aria-label={label}
+          value={current}
+          onChange={(event) => {
+            const next = event.target.value
+            if (!next) return
+            onCommit(next)
+            setEditing(false)
+          }}
+          onBlur={() => {
+            window.setTimeout(() => setEditing(false), 120)
+          }}
+        >
+          {current && current !== UNREGISTERED_COLLABORATOR && !listed ? (
+            <option value={current}>{current}</option>
+          ) : (
+            <option value="">Selecione</option>
+          )}
+          <option value={UNREGISTERED_COLLABORATOR}>{UNREGISTERED_COLLABORATOR}</option>
+          {users.map((user) => {
+            const optionLabel = collaboratorChoiceLabel(user)
+            return (
+              <option key={user.id} value={optionLabel}>
+                {optionLabel}
+              </option>
+            )
+          })}
+        </select>
+      ) : (
+        <div className="ratm-client-line">
+          <p>{displayOrDash(current)}</p>
+          <button
+            className="ratm-client-edit"
+            type="button"
+            aria-label={`Editar ${label}`}
+            onClick={() => setEditing(true)}
+          >
+            <EditPencilIcon />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function suggestedCheckFromMatch(matches: boolean | null | undefined): EntryFieldCheck {
   if (matches === true) return 'correct'
   if (matches === false) return 'incorrect'
@@ -682,6 +788,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const [editingClient, setEditingClient] = useState(false)
   const [meterModels, setMeterModels] = useState<MeterModelRecord[]>([])
   const [meterModelsError, setMeterModelsError] = useState('')
+  const [portalUsers, setPortalUsers] = useState<PortalCollaborator[]>([])
   const clientInputRef = useRef<HTMLInputElement>(null)
   const accordionName = `ratm-sections-${index}`
   const registrationLookupRef = useRef({ 1: 0, 2: 0 })
@@ -759,6 +866,30 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     }
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .listUsers()
+      .then((response) => {
+        if (cancelled) return
+        const next = response.users
+          .filter((user) => user.approvalStatus === 'approved' && user.name.trim())
+          .map((user) => ({
+            id: user.id,
+            name: user.name.trim(),
+            registration: user.registration.trim(),
+          }))
+          .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR', { sensitivity: 'base' }))
+        setPortalUsers(next)
+      })
+      .catch(() => {
+        if (!cancelled) setPortalUsers([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const descriptionForCode = (code: string) => {
     if (!code.trim()) return ''
     return irregularityDescriptions[code] || irregularityCodes[code] || ''
@@ -814,6 +945,47 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         ...data.entryFieldChecks,
         [key]: value,
       },
+    })
+  }
+
+  const shownCollaborator = (slot: 1 | 2) => {
+    const key = slot === 1 ? 'collaborator1' : 'collaborator2'
+    const registered = data.entryComparisons?.[key]?.registered?.trim() || ''
+    if (registered) return registered
+    const name = slot === 1 ? data.fieldCollaborator1Name : data.fieldCollaborator2Name
+    const registration =
+      slot === 1 ? data.fieldCollaborator1Registration : data.fieldCollaborator2Registration
+    return collaboratorChoiceLabel({ id: '', name, registration })
+  }
+
+  const commitCollaborator = (slot: 1 | 2, value: string) => {
+    const parts = collaboratorChoiceParts(value)
+    const key = slot === 1 ? 'collaborator1' : 'collaborator2'
+    const comparisons = data.entryComparisons
+    onChange({
+      ...collaboratorPatch(
+        data,
+        slot === 1
+          ? {
+              fieldCollaborator1Name: parts.name,
+              fieldCollaborator1Registration: parts.registration,
+            }
+          : {
+              fieldCollaborator2Name: parts.name,
+              fieldCollaborator2Registration: parts.registration,
+            },
+      ),
+      ...(comparisons
+        ? {
+            entryComparisons: {
+              ...comparisons,
+              [key]: {
+                ...comparisons[key],
+                registered: value.trim(),
+              },
+            },
+          }
+        : {}),
     })
   }
 
@@ -1123,17 +1295,29 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                 </p>
               </div>
             ) : (
-              visibleSchedulingTeamFields.map((fieldKey) => (
-                <EntryComparisonField
-                  key={fieldKey}
-                  label={schedulingTeamFieldLabels[fieldKey]}
-                  match={data.entryComparisons?.[fieldKey]}
-                  check={data.entryFieldChecks[fieldKey]}
-                  onCheckChange={(value) => updateEntryFieldCheck(fieldKey, value)}
-                  hideDocument
-                  hideVerifier
-                />
-              ))
+              visibleSchedulingTeamFields.map((fieldKey) =>
+                fieldKey === 'collaborator1' || fieldKey === 'collaborator2' ? (
+                  <EntryCollaboratorField
+                    key={fieldKey}
+                    label={schedulingTeamFieldLabels[fieldKey]}
+                    value={shownCollaborator(fieldKey === 'collaborator1' ? 1 : 2)}
+                    users={portalUsers}
+                    onCommit={(value) =>
+                      commitCollaborator(fieldKey === 'collaborator1' ? 1 : 2, value)
+                    }
+                  />
+                ) : (
+                  <EntryComparisonField
+                    key={fieldKey}
+                    label={schedulingTeamFieldLabels[fieldKey]}
+                    match={data.entryComparisons?.[fieldKey]}
+                    check={data.entryFieldChecks[fieldKey]}
+                    onCheckChange={(value) => updateEntryFieldCheck(fieldKey, value)}
+                    hideDocument
+                    hideVerifier
+                  />
+                ),
+              )
             )}
           </div>
           </div>
