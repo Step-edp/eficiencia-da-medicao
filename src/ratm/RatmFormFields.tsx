@@ -19,7 +19,6 @@ import {
   createEmptyEntryFieldChecks,
   entryFieldChecksFromComparisons,
   IRREGULARITY_CODES,
-  TEST_BENCH_OPTIONS,
 } from './types'
 import {
   isEntryInfoSectionComplete,
@@ -763,6 +762,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   )
   const [meterModels, setMeterModels] = useState<MeterModelRecord[]>([])
   const [meterModelsError, setMeterModelsError] = useState('')
+  const [standardBenches, setStandardBenches] = useState<string[]>([])
+  const [standardBenchesLoaded, setStandardBenchesLoaded] = useState(false)
   const [portalUsers, setPortalUsers] = useState<PortalCollaborator[]>([])
   const accordionName = `ratm-sections-${index}`
   const registrationLookupRef = useRef({ 1: 0, 2: 0 })
@@ -834,6 +835,33 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       .catch(() => {
         if (cancelled) return
         setMeterModelsError('Não foi possível carregar os modelos de medidores.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .listStandardCertificates()
+      .then(({ certificates }) => {
+        if (cancelled) return
+        const next = [
+          ...new Set(
+            certificates
+              .filter((certificate) => certificate.certificateType === 'Padrão')
+              .map((certificate) => (certificate.assetNumber || certificate.serial).trim())
+              .filter(Boolean),
+          ),
+        ].sort((left, right) => left.localeCompare(right, 'pt-BR', { numeric: true }))
+        setStandardBenches(next)
+      })
+      .catch(() => {
+        if (!cancelled) setStandardBenches([])
+      })
+      .finally(() => {
+        if (!cancelled) setStandardBenchesLoaded(true)
       })
     return () => {
       cancelled = true
@@ -1509,13 +1537,21 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           accordionName={accordionName}
           complete={Boolean(data.testBench.trim())}
         >
-          <ClearableRadioGroup
-            legend=""
-            name={`bench-${index}`}
-            value={data.testBench}
-            options={TEST_BENCH_OPTIONS}
-            onChange={(value) => onChange({ testBench: value })}
-          />
+          {standardBenchesLoaded && standardBenches.length === 0 && !data.testBench.trim() ? (
+            <p className="field-hint">Nenhum certificado do tipo Padrão cadastrado.</p>
+          ) : (
+            <ClearableRadioGroup
+              legend=""
+              name={`bench-${index}`}
+              value={data.testBench}
+              options={
+                data.testBench.trim() && !standardBenches.includes(data.testBench.trim())
+                  ? [data.testBench.trim(), ...standardBenches]
+                  : standardBenches
+              }
+              onChange={(value) => onChange({ testBench: value })}
+            />
+          )}
         </RatmExpandableSection>
 
         <RatmExpandableSection

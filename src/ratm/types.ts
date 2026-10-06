@@ -177,8 +177,6 @@ export const IRREGULARITY_CODES: Record<string, string> = {
   '23': 'MANCAL FORA DE POSIÇÃO',
 }
 
-export const TEST_BENCH_OPTIONS = ['45079', '4137', '49093']
-
 export function createEmptyRatmForm(): RatmFormData {
   return {
     meterSearch: '',

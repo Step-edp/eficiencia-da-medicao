@@ -439,29 +439,33 @@ async function loadPadraoEnsaio(testBench: unknown): Promise<PadraoEnsaio> {
 
   try {
     const stored = await query<{
-      equipment_number: string
-      numero_serie: string
-      modelo: string
-      fabricante: string
-      classe: string
-      identificacao_laudo: string
+      asset_number: string
+      serial: string
+      model: string
+      manufacturer: string
+      accuracy_class: string
+      certificate_number: string
+      valid_until: string | null
     }>(
-      `SELECT equipment_number, numero_serie, modelo, fabricante, classe, identificacao_laudo
-       FROM analisadores_tensao
-       WHERE equipment_number = $1 OR numero_serie = $1
+      `SELECT asset_number, serial, model, manufacturer, accuracy_class,
+              certificate_number, valid_until::text AS valid_until
+       FROM standard_certificates
+       WHERE certificate_type = 'Padrão'
+         AND (LOWER(TRIM(asset_number)) = LOWER(TRIM($1)) OR LOWER(TRIM(serial)) = LOWER(TRIM($1)))
        LIMIT 1`,
       [key],
     )
     const row = stored.rows[0]
     if (!row) return empty
+    const [year, month, day] = String(row.valid_until ?? '').slice(0, 10).split('-')
     return {
-      patrimonio: textValue(row.equipment_number || key),
-      serial: textValue(row.numero_serie),
-      modelo: textValue(row.modelo),
-      fabricante: textValue(row.fabricante),
-      classe: textValue(row.classe),
-      certificado: textValue(row.identificacao_laudo),
-      validade: '—',
+      patrimonio: textValue(row.asset_number || key),
+      serial: textValue(row.serial),
+      modelo: textValue(row.model),
+      fabricante: textValue(row.manufacturer),
+      classe: textValue(row.accuracy_class),
+      certificado: textValue(row.certificate_number),
+      validade: year && month && day ? `${day}/${month}/${year}` : '—',
     }
   } catch (error) {
     console.error('Não foi possível carregar o padrão de ensaio do laudo.', error)
