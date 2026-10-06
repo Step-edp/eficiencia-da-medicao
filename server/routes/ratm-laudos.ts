@@ -44,6 +44,38 @@ function mapRatmLaudo(row: RatmLaudoRow) {
   }
 }
 
+async function loadLaboratorioMedicaoUser(userId: string | null | undefined) {
+  if (!userId) return null
+  const result = await query<{
+    id: string
+    name: string
+    registration: string
+    work_area: string
+    work_subtype: string
+    approval_status: string
+  }>(
+    `SELECT id, name, registration, work_area, work_subtype, approval_status
+     FROM users
+     WHERE id = $1`,
+    [userId],
+  )
+  const user = result.rows[0]
+  if (!user || user.approval_status !== 'approved') return null
+  const subtype = (user.work_subtype ?? '')
+    .trim()
+    .replace(/\u2013/g, '-')
+    .replace(/\u2014/g, '-')
+  if (user.work_area?.trim() !== 'Medição' || subtype !== 'Laboratório de Medição') return null
+  return user
+}
+
+function formatPortalUser(user: { name: string; registration: string }) {
+  const name = user.name.trim()
+  const registration = user.registration.trim()
+  if (name && registration) return `${name} (${registration})`
+  return name || registration
+}
+
 function normalizedMeterSql(column: string) {
   return `LPAD(RIGHT(REGEXP_REPLACE(${column}, '[^0-9]', '', 'g'), 8), 8, '0')`
 }
@@ -126,6 +158,14 @@ export async function createRatmLaudos(req: Request, res: Response) {
     return
   }
 
+  const assayUser = await loadLaboratorioMedicaoUser(req.user?.id)
+  if (!assayUser) {
+    res.status(403).json({
+      error: 'Somente usuários do Laboratório de Medição podem realizar o ensaio.',
+    })
+    return
+  }
+
   const batchId = Date.now()
   const createdLaudos = []
 
@@ -186,7 +226,7 @@ export async function createRatmLaudos(req: Request, res: Response) {
         id, ratm_number, meter, client, status, form_data, created_by_user_id
       ) VALUES ($1, $2, $3, $4, 'Pendente', $5::jsonb, $6)
       RETURNING *`,
-      [id, ratmNumber, meter, client, JSON.stringify(forms[index]), req.user?.id ?? null],
+      [id, ratmNumber, meter, client, JSON.stringify(forms[index]), assayUser.id],
     )
 
     createdLaudos.push(mapRatmLaudo(result.rows[0]))
@@ -314,15 +354,33 @@ export async function approveRatmLaudo(req: Request, res: Response) {
     return
   }
 
-  const approver = req.user?.id
-    ? await query<{ name: string }>('SELECT name FROM users WHERE id = $1', [req.user.id])
-    : null
-  const approvedByName = approver?.rows[0]?.name?.trim() || req.user?.registration || ''
+  const approver = await loadLaboratorioMedicaoUser(req.user?.id)
+  if (!approver) {
+    res.status(403).json({
+      error: 'Somente usuários do Laboratório de Medição podem aprovar o laudo.',
+    })
+    return
+  }
+
+  const assayUser = await loadLaboratorioMedicaoUser(existing.rows[0].created_by_user_id)
+  if (!assayUser) {
+    res.status(403).json({
+      error: 'O ensaio precisa ter sido realizado por um usuário do Laboratório de Medição.',
+    })
+    return
+  }
+
+  if (approver.id === assayUser.id) {
+    res.status(403).json({
+      error: 'Quem realizou o ensaio não pode aprovar o próprio laudo.',
+    })
+    return
+  }
 
   const formData = {
     ...existing.rows[0].form_data,
     clientAccompanied: clientPresent,
-    ratmApprovedBy: approvedByName,
+    ratmApprovedBy: formatPortalUser(approver),
     satisfactionWhatsapp:
       clientPresent === 'Sim'
         ? satisfactionWhatsapp.length === 10 || satisfactionWhatsapp.length === 11

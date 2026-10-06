@@ -7,6 +7,8 @@ type RatmAprovacaoPanelProps = {
   onLaudoUpdated: (laudo: RatmLaudo) => void
   onLaudoApproved: (laudo: RatmLaudo) => void
   readOnly?: boolean
+  approverUserId?: string
+  approverIsLab?: boolean
 }
 
 export function RatmAprovacaoPanel({
@@ -14,6 +16,8 @@ export function RatmAprovacaoPanel({
   onLaudoUpdated,
   onLaudoApproved,
   readOnly = false,
+  approverUserId,
+  approverIsLab = false,
 }: RatmAprovacaoPanelProps) {
   const [viewingLaudo, setViewingLaudo] = useState<RatmLaudo | null>(null)
   const pendingLaudos = laudos.filter((laudo) => laudo.status === 'Pendente' && !laudo.revokedAt)
@@ -61,6 +65,8 @@ export function RatmAprovacaoPanel({
         <RatmLaudoViewer
           laudo={viewingLaudo}
           readOnly={readOnly}
+          approverUserId={approverUserId}
+          approverIsLab={approverIsLab}
           onClose={() => setViewingLaudo(null)}
           onUpdated={(laudo) => {
             onLaudoUpdated(laudo)

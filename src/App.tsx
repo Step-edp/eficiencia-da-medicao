@@ -5712,6 +5712,8 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Aprovação de RATM' ? (
               <RatmAprovacaoPanel
                 readOnly={labMedicaoReadOnly}
+                approverUserId={currentUser.id}
+                approverIsLab={isLabMedicaoOperator(currentUser)}
                 laudos={ratmLaudos}
                 onLaudoUpdated={(laudo) => {
                   setRatmLaudos((prev) =>

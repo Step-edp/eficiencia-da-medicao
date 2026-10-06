@@ -16,6 +16,8 @@ type RatmLaudoViewerProps = {
   onUpdated: (laudo: RatmLaudo) => void
   onApproved: (laudo: RatmLaudo) => void
   readOnly?: boolean
+  approverUserId?: string
+  approverIsLab?: boolean
 }
 
 function laudoToFormData(laudo: RatmLaudo): RatmFormData {
@@ -28,6 +30,8 @@ export function RatmLaudoViewer({
   onUpdated,
   onApproved,
   readOnly = false,
+  approverUserId,
+  approverIsLab = false,
 }: RatmLaudoViewerProps) {
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [currentLaudo, setCurrentLaudo] = useState(laudo)
@@ -176,6 +180,15 @@ export function RatmLaudoViewer({
     }
   }
 
+  const isOwnAssay = Boolean(
+    approverUserId && currentLaudo.createdByUserId && currentLaudo.createdByUserId === approverUserId,
+  )
+  const approvalBlockMessage = !approverIsLab
+    ? 'Somente um usuário do Laboratório de Medição pode aprovar o laudo.'
+    : isOwnAssay
+      ? 'Quem realizou o ensaio não pode aprovar o próprio laudo.'
+      : ''
+
   return createPortal(
     <div className="laudo-modal-overlay" role="presentation">
       <section
@@ -309,7 +322,12 @@ export function RatmLaudoViewer({
               <button
                 className="reserve-button"
                 type="button"
-                disabled={actionLoading || currentLaudo.status !== 'Pendente' || !clientPresent}
+                disabled={
+                  actionLoading ||
+                  currentLaudo.status !== 'Pendente' ||
+                  !clientPresent ||
+                  Boolean(approvalBlockMessage)
+                }
                 onClick={handleApproveClick}
               >
                 Aprovar
@@ -336,6 +354,12 @@ export function RatmLaudoViewer({
             </>
           )}
         </div>
+
+        {approvalBlockMessage && mode === 'view' && !readOnly && currentLaudo.status === 'Pendente' ? (
+          <p className="generated-password-empty" role="status">
+            {approvalBlockMessage}
+          </p>
+        ) : null}
 
         {showApproveConfirm ? (
           <div

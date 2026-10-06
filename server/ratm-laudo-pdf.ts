@@ -64,21 +64,6 @@ function textValue(value: unknown) {
   return normalized || '—'
 }
 
-function collaboratorLabel(name: unknown, registration: unknown, fallback: unknown) {
-  const parts = [name, registration].map((value) => String(value ?? '').trim()).filter(Boolean)
-  if (parts.length) return parts.join(' ')
-  return String(fallback ?? '').trim()
-}
-
-function inspectionByLabel(form: Record<string, unknown>) {
-  const collaborators = [
-    collaboratorLabel(form.fieldCollaborator1Name, form.fieldCollaborator1Registration, form.fieldCollaborator1),
-    collaboratorLabel(form.fieldCollaborator2Name, form.fieldCollaborator2Registration, form.fieldCollaborator2),
-  ].filter(Boolean)
-  if (collaborators.length) return collaborators.join(' / ')
-  return String(form.fieldInspectionBy ?? '').trim()
-}
-
 function formatDate(isoDate: string) {
   const date = new Date(isoDate)
   if (Number.isNaN(date.getTime())) return '—'
@@ -849,7 +834,13 @@ function drawReferencias(doc: PdfDocument) {
 
 function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   const form = laudo.formData
-  const ensaioPor = textValue(inspectionByLabel(form) || laudo.createdByName)
+  const assayName = laudo.createdByName?.trim() ?? ''
+  const assayRegistration = laudo.createdByRegistration?.trim() ?? ''
+  const ensaioPor = assayName
+    ? assayRegistration
+      ? `${assayName} (${assayRegistration})`
+      : assayName
+    : '—'
   const aprovadoPor = laudo.status === 'Aprovado' ? textValue(form.ratmApprovedBy) : '—'
   const rowStart = 14
   const rowStep = 36
