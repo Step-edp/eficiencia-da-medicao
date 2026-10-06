@@ -190,8 +190,8 @@ export function CertificadosPadroesPanel({
   const startEdit = (certificate: StandardCertificateRecord) => {
     setEditingId(certificate.id)
     setForm({
-      assetNumber: certificate.assetNumber,
-      serial: certificate.serial,
+      assetNumber: certificate.assetNumber || certificate.serial,
+      serial: certificate.assetNumber || certificate.serial,
       model: certificate.model,
       manufacturer: certificate.manufacturer,
       accuracyClass: certificate.accuracyClass,
@@ -233,7 +233,7 @@ export function CertificadosPadroesPanel({
 
     const payload = {
       assetNumber: form.assetNumber.trim(),
-      serial: form.serial.trim(),
+      serial: form.assetNumber.trim(),
       model: form.model.trim(),
       manufacturer: form.manufacturer.trim(),
       accuracyClass: form.accuracyClass.trim(),
@@ -443,21 +443,14 @@ export function CertificadosPadroesPanel({
           </div>
 
           <label>
-            Patrimônio
+            Patrimônio • Serial
             <input
               type="text"
               value={form.assetNumber}
-              onChange={(event) => updateField('assetNumber', event.target.value)}
-              required
-              disabled={submitting}
-            />
-          </label>
-          <label>
-            Serial
-            <input
-              type="text"
-              value={form.serial}
-              onChange={(event) => updateField('serial', event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value
+                setForm((current) => ({ ...current, assetNumber: value, serial: value }))
+              }}
               required
               disabled={submitting}
             />
@@ -561,8 +554,7 @@ export function CertificadosPadroesPanel({
           <table className="data-table">
             <thead>
               <tr>
-                <th>Patrimônio</th>
-                <th>Serial</th>
+                <th>Patrimônio • Serial</th>
                 <th>Modelo</th>
                 <th>Fabricante</th>
                 <th>Classe de exatidão</th>
@@ -578,8 +570,7 @@ export function CertificadosPadroesPanel({
             <tbody>
               {certificates.map((certificate) => (
                 <tr key={certificate.id}>
-                  <td>{certificate.assetNumber}</td>
-                  <td>{certificate.serial}</td>
+                  <td>{certificate.assetNumber || certificate.serial}</td>
                   <td>{certificate.model}</td>
                   <td>{certificate.manufacturer}</td>
                   <td>{certificate.accuracyClass}</td>
