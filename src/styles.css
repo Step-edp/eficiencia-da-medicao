@@ -4518,6 +4518,14 @@ button {
   line-height: 1.2;
 }
 
+.approval-item-actions .approval-action-button.is-approve {
+  border: 0;
+  color: #031424;
+  font-weight: 700;
+  background: linear-gradient(135deg, #5bf000 0%, #39ff00 55%, #34df9a 100%);
+  box-shadow: 0 10px 22px rgba(59, 240, 0, 0.24);
+}
+
 .approval-reject-form {
   display: grid;
   gap: 12px;

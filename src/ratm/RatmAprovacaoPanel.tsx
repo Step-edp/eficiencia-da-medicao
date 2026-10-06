@@ -32,6 +32,8 @@ export function RatmAprovacaoPanel({
         formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt),
         laudo.meter,
         laudo.client,
+        laudo.createdByName,
+        laudo.createdByRegistration,
         new Date(laudo.createdAt).toLocaleString('pt-BR'),
       ]
         .join(' ')
@@ -68,6 +70,14 @@ export function RatmAprovacaoPanel({
                 <strong>Laudo {formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)}</strong>
                 <span>Medidor: {laudo.meter}</span>
                 <span>Cliente: {laudo.client}</span>
+                <span>
+                  Ensaio realizado por:{' '}
+                  {laudo.createdByName || laudo.createdByRegistration
+                    ? `${laudo.createdByName || '—'}${
+                        laudo.createdByRegistration ? ` (${laudo.createdByRegistration})` : ''
+                      }`
+                    : '—'}
+                </span>
                 <span>Gerado em {new Date(laudo.createdAt).toLocaleString('pt-BR')}</span>
               </div>
               <div className="approval-item-actions">
@@ -92,7 +102,7 @@ export function RatmAprovacaoPanel({
                 )}
                 {readOnly ? null : (
                   <button
-                    className="secondary-button approval-action-button"
+                    className="secondary-button approval-action-button is-approve"
                     type="button"
                     onClick={() => {
                       setViewerMode('view')
