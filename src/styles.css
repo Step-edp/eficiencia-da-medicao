@@ -1045,7 +1045,8 @@ button {
   justify-content: flex-end;
 }
 
-.irregularity-codes-panel .area-actions {
+.irregularity-codes-panel .area-actions,
+.certificados-padroes-panel .area-actions {
   margin: 0.35rem 0 1.5rem;
 }
 
