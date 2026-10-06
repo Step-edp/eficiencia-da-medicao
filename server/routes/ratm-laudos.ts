@@ -93,14 +93,15 @@ async function revokeActiveLaudosForMeter(meter: string, exceptId?: string) {
 
 async function findActiveLaudosForMeter(meter: string) {
   const normalized = normalizeScheduleMeter(meter)
-  if (!normalized) return []
-  return query<{ id: string; status: string }>(
+  if (!normalized) return [] as Array<{ id: string; status: string }>
+  const result = await query<{ id: string; status: string }>(
     `SELECT id, status
      FROM ratm_laudos
      WHERE revoked_at IS NULL
        AND ${normalizedMeterSql('meter')} = $1`,
     [normalized],
   )
+  return result.rows
 }
 
 function currentRatmYear() {
@@ -232,14 +233,14 @@ export async function createRatmLaudos(req: Request, res: Response) {
     }
 
     const activeLaudos = await findActiveLaudosForMeter(meter)
-    if (activeLaudos.rows.some((row) => row.status === 'Aprovado')) {
+    if (activeLaudos.some((row) => row.status === 'Aprovado')) {
       res.status(409).json({
         error: `O medidor ${meter} já possui laudo aprovado e não pode ser substituído.`,
       })
       return
     }
 
-    const hasPendingLaudo = activeLaudos.rows.some((row) => row.status === 'Pendente')
+    const hasPendingLaudo = activeLaudos.some((row) => row.status === 'Pendente')
     if (hasPendingLaudo && req.body?.replacePending !== true) {
       res.status(409).json({
         error: 'Esse medidor já foi ensaiado, deseja substituir o relatório?',
