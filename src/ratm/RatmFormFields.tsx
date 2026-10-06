@@ -1578,16 +1578,10 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           <div className="ratm-section-box-grid">
             {(
               [
-                ['missingEnvelopeNumber', 'Sem número de Invólucro'],
-                ['missingCoverSeal', 'Faltando lacre da tampa'],
-                ['missingFoundMeterNumber', 'Sem número de medidor encontrado'],
-                ['sealMissingOnToiPresentPhysically', 'Sem lacre no TOI, mas com lacre fisicamente'],
-                ['sealOnToiMissingPhysically', 'Com lacre no TOI, porém sem lacre fisicamente'],
                 ['sealViolatedOnToiOkPhysically', 'Lacre violado no TOI porém em ordem fisicamente'],
                 ['toiNotSentPhysically', 'TOI não enviado fisicamente'],
                 ['csmCutWithoutTeam', 'CSM cortado (sem nome de equipe)'],
                 ['deviceMissingOnToi', 'Sem dispositivo no TOI, porém com dispositivo e sem lacre'],
-                ['noDocumentSent', 'Nenhum documento enviado'],
                 ['csmNotSentPhysically', 'CSM não enviado fisicamente'],
               ] as const
             ).map(([fieldKey, label]) => (
