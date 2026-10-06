@@ -915,6 +915,13 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
     .replace(/\s*\([^)]*\)\s*$/, '')
     .trim()
   const aprovadoPor = laudo.status === 'Aprovado' ? textValue(approvedName) : '—'
+  const clientAbsent =
+    String(form.clientAccompanied ?? '')
+      .trim()
+      .toLocaleLowerCase('pt-BR')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') === 'nao'
+  const clientSignature = clientAbsent ? 'Não aplicável' : ''
   const rowStart = ROW_START
   const rowStep = 16
   const rows: Array<{ left: [string, string]; right: [string, string] }> = [
@@ -923,8 +930,8 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
       right: ['Cliente compareceu', firstText(form.clientAccompanied)],
     },
     {
-      left: ['Assinatura do Cliente', ''],
-      right: ['CPF do Cliente', ''],
+      left: ['Assinatura do Cliente', clientSignature],
+      right: ['CPF do Cliente', clientSignature],
     },
     {
       left: ['Ensaio realizado por', ensaioPor],
