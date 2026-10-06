@@ -857,8 +857,8 @@ export function CertificadosPadroesPanel({
                 <th>Número do certificado</th>
                 <th>Tipo</th>
                 <th>Data de Calibração</th>
-                <th>Validade</th>
-                <th aria-label="Prazo em anos" />
+                <th>Válido até</th>
+                <th>Prazo de validade</th>
                 <th>Data de bloqueio preventivo</th>
                 <th>Status</th>
                 <th aria-label="PDF" />
