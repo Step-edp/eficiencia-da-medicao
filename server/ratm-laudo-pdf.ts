@@ -920,10 +920,11 @@ function drawReferencias(doc: PdfDocument) {
     'O Cliente deverá comparecer a uma agência de atendimento ou interpor recurso no prazo de 15 dias (Art. 253 da Resolução nº 1.000 da ANEEL).',
   ]
   doc.font('Helvetica').fontSize(6).fillColor(COLORS.text)
-  paragraphs.forEach((paragraph) => {
+  paragraphs.forEach((paragraph, index) => {
+    const y = doc.y
     const height = doc.heightOfString(paragraph, { width: CONTENT_WIDTH, align: 'justify' })
-    doc.text(paragraph, PAGE.margin, doc.y, { width: CONTENT_WIDTH, align: 'justify' })
-    doc.y += height + 3
+    doc.text(paragraph, PAGE.margin, y, { width: CONTENT_WIDTH, align: 'justify' })
+    doc.y = y + height + (index === paragraphs.length - 1 ? 0 : 2)
   })
 }
 
