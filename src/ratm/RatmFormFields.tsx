@@ -1107,6 +1107,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               match={data.entryComparisons?.note}
               check={data.entryFieldChecks.note}
               onCheckChange={(value) => updateEntryFieldCheck('note', value)}
+              hideDocument
               hideVerifier
             />
             <EntryComparisonField
