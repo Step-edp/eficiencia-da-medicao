@@ -64,7 +64,7 @@ export function RatmAprovacaoPanel({
               </div>
               <div className="approval-item-actions">
                 <button
-                  className="secondary-button compact-button"
+                  className="secondary-button approval-action-button"
                   type="button"
                   onClick={() => handleOpenPdf(laudo.id)}
                 >
@@ -72,7 +72,7 @@ export function RatmAprovacaoPanel({
                 </button>
                 {readOnly ? null : (
                   <button
-                    className="secondary-button compact-button"
+                    className="secondary-button approval-action-button"
                     type="button"
                     onClick={() => {
                       setViewerMode('edit')
@@ -84,7 +84,7 @@ export function RatmAprovacaoPanel({
                 )}
                 {readOnly ? null : (
                   <button
-                    className="reserve-button compact-button"
+                    className="secondary-button approval-action-button"
                     type="button"
                     onClick={() => {
                       setViewerMode('view')
