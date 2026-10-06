@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'r
 import {
   api,
   ApiError,
-  type EntryFieldMatch,
   type InspectionDocumentRecord,
   type MeterModelRecord,
 } from '../api'
@@ -15,7 +14,7 @@ import {
   isMeterReadyForEnsaio,
   METER_NOT_RECEIVED_MESSAGE,
 } from './meterEnsaioEligibility'
-import type { EntryFieldCheck, RatmFormData } from './types'
+import type { RatmFormData } from './types'
 import {
   createEmptyEntryFieldChecks,
   entryFieldChecksFromComparisons,
@@ -279,106 +278,6 @@ function EntryCollaboratorField({
           </button>
         </div>
       )}
-    </div>
-  )
-}
-
-function suggestedCheckFromMatch(matches: boolean | null | undefined): EntryFieldCheck {
-  if (matches === true) return 'correct'
-  if (matches === false) return 'incorrect'
-  return ''
-}
-
-function EntryFieldVerifier({
-  value,
-  suggested,
-  onChange,
-}: {
-  value: EntryFieldCheck
-  suggested?: EntryFieldCheck
-  onChange: (value: EntryFieldCheck) => void
-}) {
-  return (
-    <span className="ratm-entry-verifier" role="group" aria-label="Verificação do campo">
-      <button
-        type="button"
-        className={`ratm-entry-verifier-btn is-correct${value === 'correct' ? ' is-selected' : ''}${!value && suggested === 'correct' ? ' is-suggested' : ''}`}
-        aria-pressed={value === 'correct'}
-        aria-label="Marcar como correto"
-        title={!value && suggested === 'correct' ? 'Sugerido: correto' : 'Correto'}
-        onClick={() => onChange(value === 'correct' ? '' : 'correct')}
-      >
-        ✓
-      </button>
-      <button
-        type="button"
-        className={`ratm-entry-verifier-btn is-incorrect${value === 'incorrect' ? ' is-selected' : ''}${!value && suggested === 'incorrect' ? ' is-suggested' : ''}`}
-        aria-pressed={value === 'incorrect'}
-        aria-label="Marcar como incorreto"
-        title={!value && suggested === 'incorrect' ? 'Sugerido: incorreto' : 'Incorreto'}
-        onClick={() => onChange(value === 'incorrect' ? '' : 'incorrect')}
-      >
-        ✗
-      </button>
-    </span>
-  )
-}
-
-type EntryComparisonFieldProps = {
-  label: string
-  match: EntryFieldMatch | null | undefined
-  check: EntryFieldCheck
-  onCheckChange: (value: EntryFieldCheck) => void
-  fullWidth?: boolean
-  hideDocument?: boolean
-  hideVerifier?: boolean
-  /** Mostra só o valor lido no documento, sem conferência com o cadastro. */
-  documentOnly?: boolean
-}
-
-function EntryComparisonField({
-  label,
-  match,
-  check,
-  onCheckChange,
-  fullWidth = false,
-  hideDocument = false,
-  hideVerifier = false,
-  documentOnly = false,
-}: EntryComparisonFieldProps) {
-  const suggested = suggestedCheckFromMatch(hideDocument || documentOnly ? null : match?.matches)
-
-  if (documentOnly) {
-    return (
-      <div className={`ratm-readonly-field${fullWidth ? ' full-width' : ''}`}>
-        <span className="ratm-readonly-label">{label}</span>
-        <p className="ratm-readonly-value">{displayOrDash(match?.document)}</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className={`ratm-readonly-field ratm-entry-comparison${fullWidth ? ' full-width' : ''}`}>
-      <div className="ratm-readonly-field-header">
-        <span className="ratm-readonly-label">{label}</span>
-        {hideVerifier ? null : (
-          <EntryFieldVerifier value={check} suggested={suggested} onChange={onCheckChange} />
-        )}
-      </div>
-      <div className="ratm-entry-comparison-grid">
-        {hideDocument ? null : (
-          <div className="ratm-entry-comparison-item">
-            <span className="ratm-entry-comparison-label">No documento</span>
-            <p className="ratm-readonly-value">{displayOrDash(match?.document)}</p>
-          </div>
-        )}
-        <div className="ratm-entry-comparison-item">
-        {hideDocument ? null : (
-          <span className="ratm-entry-comparison-label">Cadastrado</span>
-        )}
-        <p className="ratm-readonly-value">{displayOrDash(match?.registered)}</p>
-        </div>
-      </div>
     </div>
   )
 }
