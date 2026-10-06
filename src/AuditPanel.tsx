@@ -29,7 +29,7 @@ export function AuditPanel() {
         message:
           error instanceof ApiError
             ? error.message
-            : 'Não foi possível carregar o histórico de auditoria.',
+            : 'Não foi possível carregar o log do sistema.',
       })
     } finally {
       setLoading(false)
@@ -71,7 +71,7 @@ export function AuditPanel() {
       {loading && logs.length === 0 ? (
         <p className="audit-panel-empty">Carregando histórico...</p>
       ) : logs.length === 0 ? (
-        <p className="audit-panel-empty">Nenhum registro de auditoria encontrado.</p>
+        <p className="audit-panel-empty">Nenhum registro encontrado.</p>
       ) : (
         <>
           <div className="audit-table-wrap">

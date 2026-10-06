@@ -1107,7 +1107,7 @@ function ItemIcon({ title }: { title: string }) {
     'Grandes Clientes': 'building',
     'Padrões': 'ruler',
     'Pesquisa de satisfação': 'smile',
-    Auditoria: 'shield',
+    'Log do sistema': 'shield',
     Inventário: 'archive',
     Sucata: 'trash',
     Apresentação: 'presentation',
@@ -2039,7 +2039,10 @@ function HomePanel({
   )
   const [selectedLabMeasurementSection, setSelectedLabMeasurementSection] = useState<
     string | null
-  >(() => savedNav?.selectedLabMeasurementSection ?? null)
+  >(() => {
+    const saved = savedNav?.selectedLabMeasurementSection ?? null
+    return saved === 'Auditoria' ? 'Log do sistema' : saved
+  })
   const [inventarioMonthTitle, setInventarioMonthTitle] = useState<string | null>(null)
   const [showPurchaseRequestForm, setShowPurchaseRequestForm] = useState(
     () => activeRoute === 'compras-homologacao',
@@ -2469,7 +2472,6 @@ function HomePanel({
   ]
 
   const labHighlightedSections = [
-    'Auditoria',
     'Analisadores de Tensão',
     'Inventário',
     'Aferição de Padrões BT',
@@ -2484,6 +2486,7 @@ function HomePanel({
     'Reagendar',
     'Alteração de data',
     'Desvios',
+    'Log do sistema',
     'Criar Modelo',
     'Galeria',
     'Apresentação',
@@ -2726,7 +2729,10 @@ function HomePanel({
           processes.map((item) => ({
             processKey: item.processKey,
             area: item.area,
-            process: item.process,
+            process:
+              item.area === 'Laboratório de Medição' && item.process === 'Auditoria'
+                ? 'Log do sistema'
+                : item.process,
           })),
         )
       })
@@ -5623,7 +5629,7 @@ function HomePanel({
                 readOnly={labMedicaoReadOnly}
                 onOpenCountChange={setOpenSupportCount}
               />
-            ) : selectedLabMeasurementSection === 'Auditoria' ? (
+            ) : selectedLabMeasurementSection === 'Log do sistema' ? (
               <AuditPanel />
             ) : selectedLabMeasurementSection === 'Galeria' ? (
               <GalleryPanel />
