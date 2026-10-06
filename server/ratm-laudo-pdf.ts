@@ -784,8 +784,12 @@ function drawResultado(
   const savedNotes = String(form.irregularityNotes ?? '').trim()
   const catalogDescription = code ? irregularityDescriptions[code]?.trim() || '' : ''
   const irregularityText = writtenName || code || '—'
+  const irregularityLower = irregularityText === '—' ? '' : irregularityText.toLocaleLowerCase('pt-BR')
+  const irregularity = irregularityLower
+    ? irregularityLower.charAt(0).toLocaleUpperCase('pt-BR') + irregularityLower.slice(1)
+    : '—'
   const fields: Array<[string, string]> = [
-    ['Irregularidade', irregularityText === '—' ? '—' : irregularityText.toLocaleLowerCase('pt-BR')],
+    ['Irregularidade', irregularity],
     ['Observações da irregularidade', savedNotes || catalogDescription || '—'],
   ]
 
