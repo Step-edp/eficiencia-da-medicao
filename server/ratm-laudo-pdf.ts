@@ -32,12 +32,14 @@ const IRREGULARITY_CODES: Record<string, string> = {
 const PAGE = {
   width: 595.28,
   height: 841.89,
-  margin: 36,
-  footer: 48,
+  margin: 22,
 }
 
 const CONTENT_WIDTH = PAGE.width - PAGE.margin * 2
-const CONTENT_BOTTOM = PAGE.height - PAGE.margin - PAGE.footer
+const SECTION_GAP = 3
+const ROW_START = 5
+const ROW_STEP = 16
+const BOX_TAIL = 3
 
 const COLORS = {
   navy: '#0B3A66',
@@ -55,7 +57,6 @@ const COLORS = {
   textMuted: '#5B6B7C',
   textLight: '#8A97A8',
   white: '#FFFFFF',
-  footerBar: '#0A2540',
 }
 
 function textValue(value: unknown) {
@@ -127,15 +128,12 @@ function formatPercent(value: number | null) {
   return `${value > 0 ? '+' : ''}${formatted}%`
 }
 
-function ensureSpace(doc: PdfDocument, height: number) {
-  if (doc.y + height > CONTENT_BOTTOM) {
-    doc.addPage()
-    doc.y = PAGE.margin
-  }
+function ensureSpace(_doc: PdfDocument, _height: number) {
+  // O laudo permanece em uma única folha; seções não abrem página nova.
 }
 
 const SITE_LOGO_FILE = 'EDP_2022.svg'
-const SITE_LOGO_HEIGHT = 36
+const SITE_LOGO_HEIGHT = 18
 
 function resolveSiteLogoPath() {
   const here = path.dirname(fileURLToPath(import.meta.url))
@@ -217,20 +215,20 @@ function drawRevokedWatermark(doc: PdfDocument) {
 }
 
 function drawSectionTitle(doc: PdfDocument, index: number, title: string) {
-  ensureSpace(doc, 28)
+  ensureSpace(doc, 14)
   const y = doc.y
-  doc.circle(PAGE.margin + 7, y + 7, 8).fill(COLORS.navy)
+  doc.circle(PAGE.margin + 6, y + 5, 6).fill(COLORS.navy)
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(7)
+    .fillColor(COLORS.white)
+    .text(String(index), PAGE.margin, y + 2, { width: 12, align: 'center', lineBreak: false })
   doc
     .font('Helvetica-Bold')
     .fontSize(8)
-    .fillColor(COLORS.white)
-    .text(String(index), PAGE.margin + 1, y + 3, { width: 12, align: 'center', lineBreak: false })
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(11)
     .fillColor(COLORS.titleBlue)
-    .text(title, PAGE.margin + 22, y + 1, { lineBreak: false })
-  doc.y = y + 20
+    .text(title, PAGE.margin + 16, y + 1, { lineBreak: false })
+  doc.y = y + 12
 }
 
 function drawFieldPair(
@@ -242,15 +240,15 @@ function drawFieldPair(
   value: string,
   valueColor = COLORS.text,
 ) {
-  doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.textMuted).text(label, x, y, {
+  doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.textMuted).text(label, x, y, {
     width,
     lineBreak: false,
   })
   doc
     .font('Helvetica-Bold')
-    .fontSize(9)
+    .fontSize(7.5)
     .fillColor(valueColor)
-    .text(value, x, y + 13, { width, lineBreak: false })
+    .text(value, x, y + 7, { width, lineBreak: false })
 }
 
 function drawYesNoBadge(
@@ -274,8 +272,8 @@ function drawYesNoBadge(
   const fill = favorable ? COLORS.greenSoft : COLORS.redSoft
   const ink = favorable ? COLORS.green : COLORS.red
   const label = positive ? 'Sim' : 'Não'
-  const badgeWidth = positive ? 46 : 48
-  const badgeHeight = 15
+  const badgeWidth = positive ? 40 : 42
+  const badgeHeight = 12
   doc.roundedRect(x, y, badgeWidth, badgeHeight, 8).fill(fill)
 
   const iconX = x + 8
@@ -295,70 +293,59 @@ function drawYesNoBadge(
 
 function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   const logoWidth = drawEdpMark(doc, PAGE.margin, PAGE.margin)
-  const brandX = PAGE.margin + logoWidth + 12
+  const brandX = PAGE.margin + logoWidth + 8
   doc
     .font('Helvetica-Bold')
-    .fontSize(9)
-    .fillColor(COLORS.navy)
-    .text('Laboratório de Medição', brandX, PAGE.margin + 8, { lineBreak: false })
-  doc
-    .font('Helvetica')
     .fontSize(8)
-    .fillColor(COLORS.textMuted)
-    .text('EDP SP', brandX, PAGE.margin + 22, { lineBreak: false })
-
-  const rightX = PAGE.width - PAGE.margin - 170
+    .fillColor(COLORS.navy)
+    .text('Laboratório de Medição', brandX, PAGE.margin + 1, { lineBreak: false })
   doc
     .font('Helvetica')
     .fontSize(7)
     .fillColor(COLORS.textMuted)
-    .text('N DO RELATÓRIO', rightX, PAGE.margin + 2, { width: 170, align: 'right', lineBreak: false })
+    .text('EDP SP', brandX, PAGE.margin + 11, { lineBreak: false })
+
+  const rightX = PAGE.width - PAGE.margin - 150
+  doc
+    .font('Helvetica')
+    .fontSize(6.5)
+    .fillColor(COLORS.textMuted)
+    .text('N DO RELATÓRIO', rightX, PAGE.margin, { width: 150, align: 'right', lineBreak: false })
   doc
     .font('Helvetica-Bold')
-    .fontSize(10)
+    .fontSize(8)
     .fillColor(COLORS.navyDark)
-    .text(buildLaudoNumber(laudo), rightX, PAGE.margin + 12, {
-      width: 170,
-      align: 'right',
-      lineBreak: false,
-    })
-  doc
-    .font('Helvetica')
-    .fontSize(7)
-    .fillColor(COLORS.textMuted)
-    .text('DATA DE EMISSÃO', rightX, PAGE.margin + 28, {
-      width: 170,
-      align: 'right',
-      lineBreak: false,
-    })
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(9)
-    .fillColor(COLORS.text)
-    .text(formatDate(laudo.createdAt), rightX, PAGE.margin + 38, {
-      width: 170,
+    .text(buildLaudoNumber(laudo), rightX, PAGE.margin + 8, {
+      width: 150,
       align: 'right',
       lineBreak: false,
     })
 
+  const lineY = PAGE.margin + 22
   doc
-    .moveTo(PAGE.margin, PAGE.margin + 54)
-    .lineTo(PAGE.width - PAGE.margin, PAGE.margin + 54)
+    .moveTo(PAGE.margin, lineY)
+    .lineTo(PAGE.width - PAGE.margin, lineY)
     .strokeColor(COLORS.grayBorder)
     .lineWidth(1)
     .stroke()
 
   const title = 'RATM • RELATÓRIO DE AVALIAÇÃO TÉCNICA DE MEDIDOR'
-  const titleY = PAGE.margin + 64
-  doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.titleBlue)
+  const titleY = lineY + 5
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.titleBlue)
   const titleHeight = doc.currentLineHeight()
   doc.text(title, PAGE.margin, titleY, {
     width: CONTENT_WIDTH,
     align: 'center',
     lineBreak: false,
   })
+  doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.textMuted)
+  doc.text(`Emissão ${formatDate(laudo.createdAt)}`, PAGE.margin, titleY + titleHeight, {
+    width: CONTENT_WIDTH,
+    align: 'center',
+    lineBreak: false,
+  })
 
-  doc.y = titleY + titleHeight + 10
+  doc.y = titleY + titleHeight + 12
 }
 
 function firstText(...values: unknown[]) {
@@ -372,8 +359,8 @@ function firstText(...values: unknown[]) {
 function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   drawSectionTitle(doc, 1, 'DADOS DA INSTALAÇÃO')
   const form = laudo.formData
-  const rowStart = 14
-  const rowStep = 28
+  const rowStart = ROW_START
+  const rowStep = ROW_STEP
   const rows: Array<{ left: [string, string]; right: [string, string] | null }> = [
     {
       left: [
@@ -391,7 +378,7 @@ function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
       right: null,
     },
   ]
-  const boxHeight = rowStart + rows.length * rowStep + 10
+  const boxHeight = rowStart + rows.length * rowStep + BOX_TAIL
   ensureSpace(doc, boxHeight + 16)
   const y = doc.y
   doc
@@ -410,7 +397,7 @@ function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
     if (row.right) drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
   })
 
-  doc.y = y + boxHeight + 14
+  doc.y = y + boxHeight + SECTION_GAP
 }
 
 type PadraoEnsaio = {
@@ -473,30 +460,18 @@ async function loadPadraoEnsaio(testBench: unknown): Promise<PadraoEnsaio> {
   }
 }
 
-function drawInfoIcon(doc: PdfDocument, cx: number, cy: number) {
-  doc.circle(cx, cy, 5.5).fill(COLORS.titleBlue)
-  doc.circle(cx, cy - 2.1, 0.9).fill(COLORS.white)
-  doc.roundedRect(cx - 0.7, cy - 0.3, 1.4, 3.5, 0.5).fill(COLORS.white)
-}
-
 function drawPadraoEnsaio(doc: PdfDocument, padrao: PadraoEnsaio) {
   drawSectionTitle(doc, 2, 'DADOS DO PADRÃO DE ENSAIO')
-  ensureSpace(doc, 36)
   const introY = doc.y
-  const iconCenterY = introY + 6
-  drawInfoIcon(doc, PAGE.margin + 6, iconCenterY)
-  doc.font('Helvetica').fontSize(8).fillColor(COLORS.text)
-  const textY = iconCenterY - 8 * 0.35
-  doc.text(
-    'Padrão de ensaio: Equipamento de alta precisão usado como referência para verificar se um medidor de energia está medindo corretamente.',
-    PAGE.margin + 16,
-    textY,
-    { width: CONTENT_WIDTH - 16 },
-  )
-  doc.y = Math.max(doc.y, introY + 28)
+  doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.text)
+  const intro =
+    'Padrão de ensaio: equipamento de alta precisão usado como referência para verificar se um medidor de energia está medindo corretamente.'
+  const introHeight = doc.heightOfString(intro, { width: CONTENT_WIDTH })
+  doc.text(intro, PAGE.margin, introY, { width: CONTENT_WIDTH })
+  doc.y = introY + introHeight + 2
 
-  const rowStart = 14
-  const rowStep = 28
+  const rowStart = ROW_START
+  const rowStep = ROW_STEP
   const rows = [
     {
       left: ['Patrimônio • Serial', padrao.patrimonio !== '—' ? padrao.patrimonio : padrao.serial],
@@ -515,7 +490,7 @@ function drawPadraoEnsaio(doc: PdfDocument, padrao: PadraoEnsaio) {
       right: null,
     },
   ]
-  const boxHeight = rowStart + rows.length * rowStep + 10
+  const boxHeight = rowStart + rows.length * rowStep + BOX_TAIL
   ensureSpace(doc, boxHeight + 16)
   const y = doc.y
   doc
@@ -535,16 +510,16 @@ function drawPadraoEnsaio(doc: PdfDocument, padrao: PadraoEnsaio) {
     if (row.right) drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
   })
 
-  doc.y = y + boxHeight + 14
+  doc.y = y + boxHeight + SECTION_GAP
 }
 
 function drawLocalEnsaio(doc: PdfDocument) {
   drawSectionTitle(doc, 3, 'LOCAL DE ENSAIO')
   const address =
     'Av. Cassiano Ricardo, 1973 - Jardim Alvorada, São José dos Campos - SP'
-  doc.font('Helvetica').fontSize(9)
-  const textHeight = doc.heightOfString(address, { width: CONTENT_WIDTH - 24 })
-  const boxHeight = textHeight + 20
+  doc.font('Helvetica').fontSize(7)
+  const textHeight = doc.heightOfString(address, { width: CONTENT_WIDTH - 16 })
+  const boxHeight = textHeight + 10
   ensureSpace(doc, boxHeight + 16)
   const y = doc.y
   doc
@@ -552,8 +527,8 @@ function drawLocalEnsaio(doc: PdfDocument) {
     .strokeColor(COLORS.grayBorder)
     .lineWidth(1)
     .stroke()
-  doc.fillColor(COLORS.text).text(address, PAGE.margin + 12, y + 10, { width: CONTENT_WIDTH - 24 })
-  doc.y = y + boxHeight + 14
+  doc.fillColor(COLORS.text).text(address, PAGE.margin + 8, y + 5, { width: CONTENT_WIDTH - 16 })
+  doc.y = y + boxHeight + SECTION_GAP
 }
 
 type MeterEnergyData = {
@@ -672,8 +647,8 @@ async function resolveMeterEnergyData(
 function drawDadosMedidor(doc: PdfDocument, laudo: RatmLaudoPdfInput, meterData: MeterEnergyData) {
   drawSectionTitle(doc, 4, 'DADOS DO MEDIDOR DE ENERGIA')
   const form = laudo.formData
-  const rowStart = 14
-  const rowStep = 28
+  const rowStart = ROW_START
+  const rowStep = ROW_STEP
   const rows: Array<{ left: [string, string]; right: [string, string] | null }> = [
     {
       left: ['Número do Medidor', firstText(form.meter, laudo.meter)],
@@ -700,7 +675,7 @@ function drawDadosMedidor(doc: PdfDocument, laudo: RatmLaudoPdfInput, meterData:
       right: ['Status do 2º lacre', firstText(form.seal2Status)],
     },
   ]
-  const boxHeight = rowStart + rows.length * rowStep + 10
+  const boxHeight = rowStart + rows.length * rowStep + BOX_TAIL
   ensureSpace(doc, boxHeight + 16)
   const y = doc.y
   doc
@@ -719,13 +694,13 @@ function drawDadosMedidor(doc: PdfDocument, laudo: RatmLaudoPdfInput, meterData:
     if (row.right) drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
   })
 
-  doc.y = y + boxHeight + 14
+  doc.y = y + boxHeight + SECTION_GAP
 }
 
 function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
   drawSectionTitle(doc, 5, 'INSPEÇÃO GERAL')
-  const rowStart = 14
-  const rowStep = 32
+  const rowStart = ROW_START
+  const rowStep = 18
   const rows: Array<{ left: [string, string]; right: [string, string] | null }> = [
     {
       left: ['Medidor quebrado • furado', firstText(form.brokenMeter)],
@@ -744,7 +719,7 @@ function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
       right: null,
     },
   ]
-  const boxHeight = rowStart + rows.length * rowStep + 10
+  const boxHeight = rowStart + rows.length * rowStep + BOX_TAIL
   ensureSpace(doc, boxHeight + 16)
   const y = doc.y
   doc
@@ -766,11 +741,11 @@ function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
         width: colW - 8,
         lineBreak: false,
       })
-      drawYesNoBadge(doc, fieldX, rowY + 12, field[1], field[0] === 'Visualmente em ordem')
+      drawYesNoBadge(doc, fieldX, rowY + 7, field[1], field[0] === 'Visualmente em ordem')
     })
   })
 
-  doc.y = y + boxHeight + 14
+  doc.y = y + boxHeight + SECTION_GAP
 }
 
 function formatAccuracy(value: unknown) {
@@ -798,8 +773,8 @@ function accuracyColor(value: unknown, meterType: string) {
 
 function drawResultadosEnsaio(doc: PdfDocument, form: Record<string, unknown>, meterType: string) {
   drawSectionTitle(doc, 6, 'RESULTADOS DE ENSAIO')
-  const rowStart = 14
-  const rowStep = 28
+  const rowStart = ROW_START
+  const rowStep = ROW_STEP
   const rows: Array<[string, unknown]> = [
     ['Exatidão em Carga Nominal Ativa • Fator de Potência 1,0', form.cn],
     ['Exatidão em Carga Indutiva Ativa • Fator de Potência 0,5', form.ci],
@@ -807,7 +782,7 @@ function drawResultadosEnsaio(doc: PdfDocument, form: Record<string, unknown>, m
     ['Exatidão em Carga Nominal Reativa • Fator de Potência 0,5', form.cnRi],
     ['Exatidão em Carga Nominal Reativa • Fator de Potência 0,8 Capacitiva', form.cnRc],
   ]
-  const boxHeight = rowStart + rows.length * rowStep + 10
+  const boxHeight = rowStart + rows.length * rowStep + BOX_TAIL
   ensureSpace(doc, boxHeight + 16)
   const y = doc.y
   doc
@@ -828,20 +803,20 @@ function drawResultadosEnsaio(doc: PdfDocument, form: Record<string, unknown>, m
     )
   })
 
-  doc.y = y + boxHeight + 14
+  doc.y = y + boxHeight + SECTION_GAP
 }
 
 function drawTestesRegistrador(doc: PdfDocument, form: Record<string, unknown>) {
   drawSectionTitle(doc, 7, 'TESTES DE REGISTRADOR')
-  const rowStart = 14
-  const rowStep = 28
+  const rowStart = ROW_START
+  const rowStep = ROW_STEP
   const rows: Array<{ left: [string, string]; right: [string, string] | null }> = [
     {
       left: ['Registrador • Mostrador', firstText(form.recorder)],
       right: ['Registro de Energia Sem Carga', firstText(form.march)],
     },
   ]
-  const boxHeight = rowStart + rows.length * rowStep + 10
+  const boxHeight = rowStart + rows.length * rowStep + BOX_TAIL
   ensureSpace(doc, boxHeight + 16)
   const y = doc.y
   doc
@@ -860,7 +835,7 @@ function drawTestesRegistrador(doc: PdfDocument, form: Record<string, unknown>) 
     if (row.right) drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
   })
 
-  doc.y = y + boxHeight + 14
+  doc.y = y + boxHeight + SECTION_GAP
 }
 
 function drawResultado(
@@ -886,13 +861,13 @@ function drawResultado(
   ]
 
   const innerWidth = CONTENT_WIDTH - 24
-  const paddingTop = 14
-  const labelGap = 13
-  const blockGap = 10
-  doc.font('Helvetica-Bold').fontSize(9)
-  const valueHeights = fields.map(([, value]) => Math.max(doc.heightOfString(value, { width: innerWidth }), 11))
+  const paddingTop = 6
+  const labelGap = 8
+  const blockGap = 3
+  doc.font('Helvetica-Bold').fontSize(7.5)
+  const valueHeights = fields.map(([, value]) => Math.max(doc.heightOfString(value, { width: innerWidth }), 9))
   const boxHeight =
-    paddingTop + valueHeights.reduce((sum, height) => sum + labelGap + height, 0) + blockGap * (fields.length - 1) + 12
+    paddingTop + valueHeights.reduce((sum, height) => sum + labelGap + height, 0) + blockGap * (fields.length - 1) + 4
 
   ensureSpace(doc, boxHeight + 16)
   const y = doc.y
@@ -904,18 +879,18 @@ function drawResultado(
 
   let cursor = y + paddingTop
   fields.forEach(([label, value], index) => {
-    doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.textMuted).text(label, PAGE.margin + 12, cursor, {
+    doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.textMuted).text(label, PAGE.margin + 8, cursor, {
       width: innerWidth,
       lineBreak: false,
     })
     cursor += labelGap
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.text).text(value, PAGE.margin + 12, cursor, {
+    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(COLORS.text).text(value, PAGE.margin + 8, cursor, {
       width: innerWidth,
     })
     cursor += valueHeights[index] + blockGap
   })
 
-  doc.y = y + boxHeight + 14
+  doc.y = y + boxHeight + SECTION_GAP
 }
 
 function drawReferencias(doc: PdfDocument) {
@@ -924,11 +899,11 @@ function drawReferencias(doc: PdfDocument) {
     'Análise realizada conforme procedimentos estabelecidos pela Portaria nº 493 de 10/12/2021, emitida pelo órgão metrológico oficial INMETRO, admitindo erros máximos para medidores em serviço de ±4,0% para medidores eletromecânicos e ±1,3% para medidores eletrônicos.',
     'O Cliente deverá comparecer a uma agência de atendimento ou interpor recurso no prazo de 15 dias (Art. 253 da Resolução nº 1.000 da ANEEL).',
   ]
-  ensureSpace(doc, 78)
-  doc.font('Helvetica').fontSize(8).fillColor(COLORS.text)
+  doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.text)
   paragraphs.forEach((paragraph) => {
+    const height = doc.heightOfString(paragraph, { width: CONTENT_WIDTH, align: 'justify' })
     doc.text(paragraph, PAGE.margin, doc.y, { width: CONTENT_WIDTH, align: 'justify' })
-    doc.moveDown(0.55)
+    doc.y += height + 3
   })
 }
 
@@ -940,8 +915,8 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
     .replace(/\s*\([^)]*\)\s*$/, '')
     .trim()
   const aprovadoPor = laudo.status === 'Aprovado' ? textValue(approvedName) : '—'
-  const rowStart = 14
-  const rowStep = 36
+  const rowStart = ROW_START
+  const rowStep = 16
   const rows: Array<{ left: [string, string]; right: [string, string] }> = [
     {
       left: ['Análise a pedido', firstText(form.analysisRequest)],
@@ -956,7 +931,7 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
       right: ['RATM aprovado por', aprovadoPor],
     },
   ]
-  const boxHeight = rowStart + rows.length * rowStep + 8
+  const boxHeight = rowStart + rows.length * rowStep + BOX_TAIL
   ensureSpace(doc, boxHeight + 16)
   const y = doc.y
   doc
@@ -976,19 +951,19 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
       { x: rightX, label: row.right[0], value: row.right[1] },
     ]
     pair.forEach((field) => {
-      doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.textMuted).text(field.label, field.x, rowY, {
+      doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.textMuted).text(field.label, field.x, rowY, {
         width: colW - 8,
         lineBreak: false,
       })
       if (field.value) {
-        doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.text).text(field.value, field.x, rowY + 13, {
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor(COLORS.text).text(field.value, field.x, rowY + 7, {
           width: colW - 8,
           lineBreak: false,
         })
       } else {
         doc
-          .moveTo(field.x, rowY + 26)
-          .lineTo(field.x + colW - 16, rowY + 26)
+          .moveTo(field.x, rowY + 12)
+          .lineTo(field.x + colW - 16, rowY + 12)
           .strokeColor(COLORS.grayBorder)
           .lineWidth(0.8)
           .stroke()
@@ -996,31 +971,7 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
     })
   })
 
-  doc.y = y + boxHeight + 14
-}
-
-function drawFooter(doc: PdfDocument, page: number, total: number) {
-  const bottomMargin = doc.page.margins.bottom
-  doc.page.margins.bottom = 0
-
-  const barY = PAGE.height - 28
-  const labelY = barY + 9
-  doc.rect(0, barY, PAGE.width, 28).fill(COLORS.footerBar)
-
-  doc.font('Helvetica').fontSize(7).fillColor('#B8C9DA')
-  doc.text('EDP SP — Laboratório de Medição', PAGE.margin, labelY, { lineBreak: false })
-
-  const slogan = 'ENERGIA QUE TRANSFORMA O AMANHÃ'
-  doc.font('Helvetica-Bold').fontSize(7).fillColor(COLORS.white)
-  const sloganWidth = doc.widthOfString(slogan)
-  doc.text(slogan, (PAGE.width - sloganWidth) / 2, labelY, { lineBreak: false })
-
-  const pageLabel = `Página ${page} de ${total}`
-  doc.font('Helvetica').fontSize(7).fillColor('#B8C9DA')
-  const pageLabelWidth = doc.widthOfString(pageLabel)
-  doc.text(pageLabel, PAGE.width - PAGE.margin - pageLabelWidth, labelY, { lineBreak: false })
-
-  doc.page.margins.bottom = bottomMargin
+  doc.y = y + boxHeight + SECTION_GAP
 }
 
 export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Response) {
@@ -1050,7 +1001,7 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
     size: 'A4',
     margins: {
       top: PAGE.margin,
-      bottom: PAGE.margin + PAGE.footer,
+      bottom: 10,
       left: PAGE.margin,
       right: PAGE.margin,
     },
@@ -1080,11 +1031,12 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   drawReferencias(doc)
   drawAssinaturas(doc, laudo)
 
-  const range = doc.bufferedPageRange()
-  for (let index = 0; index < range.count; index += 1) {
-    doc.switchToPage(range.start + index)
-    if (laudo.revokedAt) drawRevokedWatermark(doc)
-    drawFooter(doc, index + 1, range.count)
+  if (laudo.revokedAt) {
+    const range = doc.bufferedPageRange()
+    for (let index = 0; index < range.count; index += 1) {
+      doc.switchToPage(range.start + index)
+      drawRevokedWatermark(doc)
+    }
   }
 
   doc.flushPages()
