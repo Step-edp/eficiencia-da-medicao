@@ -96,6 +96,7 @@ export type RatmFormData = {
   deliveryDeadlineLabel: string
   client: string
   meterModelId: string
+  meterModelName: string
   meterModelManufacturer: string
   meterModelMeterType: string
   meterModelVoltage: string
@@ -203,6 +204,7 @@ export function createEmptyRatmForm(): RatmFormData {
     deliveryDeadlineLabel: '',
     client: '',
     meterModelId: '',
+    meterModelName: '',
     meterModelManufacturer: '',
     meterModelMeterType: '',
     meterModelVoltage: '',

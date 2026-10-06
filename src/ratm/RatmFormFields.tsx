@@ -139,6 +139,7 @@ function meterModelFormPatch(model: MeterModelRecord | null): Partial<RatmFormDa
   if (!model) {
     return {
       meterModelId: '',
+      meterModelName: '',
       meterModelManufacturer: '',
       meterModelMeterType: '',
       meterModelVoltage: '',
@@ -150,6 +151,7 @@ function meterModelFormPatch(model: MeterModelRecord | null): Partial<RatmFormDa
   }
   return {
     meterModelId: String(model.id),
+    meterModelName: model.name,
     meterModelManufacturer: model.manufacturer,
     meterModelMeterType: model.meterType,
     meterModelVoltage: model.voltage,
@@ -882,6 +884,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const selectedMeterModel =
     meterModels.find((model) => String(model.id) === data.meterModelId) ?? null
   const meterModelSnapshotEmpty =
+    !data.meterModelName &&
     !data.meterModelManufacturer &&
     !data.meterModelMeterType &&
     !data.meterModelVoltage &&

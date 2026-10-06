@@ -613,6 +613,58 @@ async function loadMeterEnergyData(meter: string): Promise<MeterEnergyData> {
   }
 }
 
+async function loadMeterModelName(modelId: string) {
+  const id = Number(modelId)
+  if (!Number.isFinite(id) || id <= 0) return '—'
+  try {
+    const stored = await query<{ name: string }>(
+      `SELECT name FROM meter_models WHERE id = $1`,
+      [id],
+    )
+    return textValue(stored.rows[0]?.name)
+  } catch (error) {
+    console.error('Não foi possível carregar o nome do modelo do laudo.', error)
+    return '—'
+  }
+}
+
+function formFieldText(form: Record<string, unknown>, key: string) {
+  return textValue(form[key])
+}
+
+function hasAssayMeterModel(form: Record<string, unknown>) {
+  if (formFieldText(form, 'meterModelId') !== '—') return true
+  return [
+    'meterModelName',
+    'meterModelManufacturer',
+    'meterModelMeterType',
+    'meterModelVoltage',
+    'meterModelCurrent',
+    'meterModelWiresElements',
+    'meterModelAccuracyClass',
+  ].some((key) => formFieldText(form, key) !== '—')
+}
+
+async function resolveMeterEnergyData(
+  form: Record<string, unknown>,
+  meter: string,
+): Promise<MeterEnergyData> {
+  if (!hasAssayMeterModel(form)) return loadMeterEnergyData(meter)
+
+  let modelo = formFieldText(form, 'meterModelName')
+  if (modelo === '—') modelo = await loadMeterModelName(String(form.meterModelId ?? ''))
+
+  return {
+    tipo: formFieldText(form, 'meterModelMeterType'),
+    fabricante: formFieldText(form, 'meterModelManufacturer'),
+    modelo,
+    tensao: formFieldText(form, 'meterModelVoltage'),
+    corrente: formFieldText(form, 'meterModelCurrent'),
+    fiosElementos: formFieldText(form, 'meterModelWiresElements'),
+    classe: formFieldText(form, 'meterModelAccuracyClass'),
+  }
+}
+
 function drawDadosMedidor(doc: PdfDocument, laudo: RatmLaudoPdfInput, meterData: MeterEnergyData) {
   drawSectionTitle(doc, 4, 'DADOS DO MEDIDOR DE ENERGIA')
   const form = laudo.formData
@@ -1006,7 +1058,7 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   drawDadosMedidor(
     doc,
     laudo,
-    await loadMeterEnergyData(String(form.meter ?? laudo.meter ?? '').trim()),
+    await resolveMeterEnergyData(form, String(form.meter ?? laudo.meter ?? '').trim()),
   )
   drawEnsaios(doc, form)
   drawResultadosEnsaio(doc, form)
