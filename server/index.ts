@@ -16,6 +16,7 @@ import { softwareRoutes, createSoftware } from './routes/softwares.js'
 import {
   standardCertificateRoutes,
   createStandardCertificate,
+  updateStandardCertificate,
   deleteStandardCertificate,
 } from './routes/standard-certificates.js'
 import {
@@ -272,6 +273,12 @@ async function start() {
     createStandardCertificate,
   )
   app.get('/api/standard-certificates/:id/pdf', ...wrap(standardCertificateRoutes.pdf))
+  app.patch(
+    '/api/standard-certificates/:id',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    updateStandardCertificate,
+  )
   app.delete(
     '/api/standard-certificates/:id',
     requireAuth,

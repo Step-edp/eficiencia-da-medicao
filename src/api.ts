@@ -1456,6 +1456,26 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  updateStandardCertificate: (
+    id: number,
+    payload: {
+      assetNumber: string
+      serial: string
+      model: string
+      manufacturer: string
+      accuracyClass: string
+      certificateNumber: string
+      certificateType: 'Padrão' | 'Hipot'
+      calibratedOn: string
+      validUntil: string
+      pdf?: string
+      pdfName?: string
+    },
+  ) =>
+    request<{ certificate: StandardCertificateRecord }>(`/api/standard-certificates/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
   getStandardCertificatePdf: (id: number) =>
     request<{ pdf: string; pdfName: string }>(`/api/standard-certificates/${id}/pdf`),
   deleteStandardCertificate: (id: number) =>

@@ -49,6 +49,51 @@ function textField(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function readCertificateBody(body: Record<string, unknown> | undefined) {
+  return {
+    assetNumber: textField(body?.assetNumber),
+    serial: textField(body?.serial),
+    model: textField(body?.model),
+    manufacturer: textField(body?.manufacturer),
+    accuracyClass: textField(body?.accuracyClass),
+    certificateNumber: textField(body?.certificateNumber),
+    certificateType: textField(body?.certificateType),
+    calibratedOn: textField(body?.calibratedOn),
+    validUntil: textField(body?.validUntil),
+    pdf: textField(body?.pdf),
+    pdfName: textField(body?.pdfName) || 'certificado.pdf',
+  }
+}
+
+function certificateFieldError(fields: ReturnType<typeof readCertificateBody>, requirePdf: boolean) {
+  if (
+    !fields.assetNumber ||
+    !fields.serial ||
+    !fields.model ||
+    !fields.manufacturer ||
+    !fields.accuracyClass ||
+    !fields.certificateNumber
+  ) {
+    return 'Preencha todos os campos do certificado.'
+  }
+  if (!CERTIFICATE_TYPES.includes(fields.certificateType as (typeof CERTIFICATE_TYPES)[number])) {
+    return 'Selecione o tipo Padrão ou Hipot.'
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fields.calibratedOn)) {
+    return 'Informe a data de calibração.'
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fields.validUntil)) {
+    return 'Informe a validade do certificado.'
+  }
+  if (requirePdf && (!fields.pdf.startsWith('data:application/pdf') || fields.pdf.length > MAX_PDF_CHARS)) {
+    return 'Importe um PDF de até 15 MB.'
+  }
+  if (fields.pdf && (!fields.pdf.startsWith('data:application/pdf') || fields.pdf.length > MAX_PDF_CHARS)) {
+    return 'Importe um PDF de até 15 MB.'
+  }
+  return ''
+}
+
 export async function listStandardCertificates(_req: Request, res: Response) {
   const result = await query<CertificateRow>(
     `SELECT id, asset_number, serial, model, manufacturer, accuracy_class,
@@ -61,42 +106,25 @@ export async function listStandardCertificates(_req: Request, res: Response) {
 }
 
 export async function createStandardCertificate(req: Request, res: Response) {
-  const assetNumber = textField(req.body?.assetNumber)
-  const serial = textField(req.body?.serial)
-  const model = textField(req.body?.model)
-  const manufacturer = textField(req.body?.manufacturer)
-  const accuracyClass = textField(req.body?.accuracyClass)
-  const certificateNumber = textField(req.body?.certificateNumber)
-  const certificateType = textField(req.body?.certificateType)
-  const calibratedOn = textField(req.body?.calibratedOn)
-  const validUntil = textField(req.body?.validUntil)
-  const pdf = textField(req.body?.pdf)
-  const pdfName = textField(req.body?.pdfName) || 'certificado.pdf'
-
-  if (!assetNumber || !serial || !model || !manufacturer || !accuracyClass || !certificateNumber) {
-    res.status(400).json({ error: 'Preencha todos os campos do certificado.' })
+  const fields = readCertificateBody(req.body)
+  const fieldError = certificateFieldError(fields, true)
+  if (fieldError) {
+    res.status(400).json({ error: fieldError })
     return
   }
-
-  if (!CERTIFICATE_TYPES.includes(certificateType as (typeof CERTIFICATE_TYPES)[number])) {
-    res.status(400).json({ error: 'Selecione o tipo Padrão ou Hipot.' })
-    return
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(calibratedOn)) {
-    res.status(400).json({ error: 'Informe a data de calibração.' })
-    return
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(validUntil)) {
-    res.status(400).json({ error: 'Informe a validade do certificado.' })
-    return
-  }
-
-  if (!pdf.startsWith('data:application/pdf') || pdf.length > MAX_PDF_CHARS) {
-    res.status(400).json({ error: 'Importe um PDF de até 15 MB.' })
-    return
-  }
+  const {
+    assetNumber,
+    serial,
+    model,
+    manufacturer,
+    accuracyClass,
+    certificateNumber,
+    certificateType,
+    calibratedOn,
+    validUntil,
+    pdf,
+    pdfName,
+  } = fields
 
   const result = await query<CertificateRow>(
     `INSERT INTO standard_certificates (
@@ -132,6 +160,102 @@ export async function createStandardCertificate(req: Request, res: Response) {
   })
 
   res.status(201).json({ certificate: created })
+}
+
+export async function updateStandardCertificate(req: Request, res: Response) {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: 'Identificador inválido.' })
+    return
+  }
+
+  const fields = readCertificateBody(req.body)
+  const fieldError = certificateFieldError(fields, false)
+  if (fieldError) {
+    res.status(400).json({ error: fieldError })
+    return
+  }
+
+  const existing = await query<{ id: number }>(
+    `SELECT id FROM standard_certificates WHERE id = $1`,
+    [id],
+  )
+  if (!existing.rows[0]) {
+    res.status(404).json({ error: 'Certificado não encontrado.' })
+    return
+  }
+
+  const replacePdf = Boolean(fields.pdf)
+  const result = await query<CertificateRow>(
+    replacePdf
+      ? `UPDATE standard_certificates
+         SET asset_number = $2,
+             serial = $3,
+             model = $4,
+             manufacturer = $5,
+             accuracy_class = $6,
+             certificate_number = $7,
+             certificate_type = $8,
+             calibrated_on = $9::date,
+             valid_until = $10::date,
+             pdf = $11,
+             pdf_name = $12
+         WHERE id = $1
+         RETURNING id, asset_number, serial, model, manufacturer, accuracy_class,
+                   certificate_number, certificate_type, calibrated_on::text AS calibrated_on,
+                   valid_until::text AS valid_until, pdf_name, created_at`
+      : `UPDATE standard_certificates
+         SET asset_number = $2,
+             serial = $3,
+             model = $4,
+             manufacturer = $5,
+             accuracy_class = $6,
+             certificate_number = $7,
+             certificate_type = $8,
+             calibrated_on = $9::date,
+             valid_until = $10::date
+         WHERE id = $1
+         RETURNING id, asset_number, serial, model, manufacturer, accuracy_class,
+                   certificate_number, certificate_type, calibrated_on::text AS calibrated_on,
+                   valid_until::text AS valid_until, pdf_name, created_at`,
+    replacePdf
+      ? [
+          id,
+          fields.assetNumber,
+          fields.serial,
+          fields.model,
+          fields.manufacturer,
+          fields.accuracyClass,
+          fields.certificateNumber,
+          fields.certificateType,
+          fields.calibratedOn,
+          fields.validUntil,
+          fields.pdf,
+          fields.pdfName,
+        ]
+      : [
+          id,
+          fields.assetNumber,
+          fields.serial,
+          fields.model,
+          fields.manufacturer,
+          fields.accuracyClass,
+          fields.certificateNumber,
+          fields.certificateType,
+          fields.calibratedOn,
+          fields.validUntil,
+        ],
+  )
+
+  const updated = mapCertificate(result.rows[0])
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'standard_certificate',
+    entityId: String(updated.id),
+    summary: `Atualizou o certificado ${updated.certificateNumber}`,
+    newData: { ...updated, pdf: replacePdf ? '[pdf anexado]' : '[pdf mantido]' },
+  })
+  res.json({ certificate: updated })
 }
 
 export async function getStandardCertificatePdf(req: Request, res: Response) {

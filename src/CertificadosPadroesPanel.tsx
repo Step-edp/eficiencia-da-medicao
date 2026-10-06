@@ -14,6 +14,21 @@ function pdfBlobUrl(dataUrl: string) {
   return URL.createObjectURL(new Blob([bytes], { type: mime }))
 }
 
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20zM14.5 5l4.5 4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function EyeIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -114,6 +129,7 @@ export function CertificadosPadroesPanel({
   const [certificates, setCertificates] = useState<StandardCertificateRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -146,7 +162,27 @@ export function CertificadosPadroesPanel({
 
   const resetForm = () => {
     setForm(emptyForm)
+    setEditingId(null)
     setShowForm(false)
+  }
+
+  const startEdit = (certificate: StandardCertificateRecord) => {
+    setEditingId(certificate.id)
+    setForm({
+      assetNumber: certificate.assetNumber,
+      serial: certificate.serial,
+      model: certificate.model,
+      manufacturer: certificate.manufacturer,
+      accuracyClass: certificate.accuracyClass,
+      certificateNumber: certificate.certificateNumber,
+      calibratedOn: certificate.calibratedOn.slice(0, 10),
+      validUntil: certificate.validUntil.slice(0, 10),
+      certificateType: certificate.certificateType,
+      pdf: '',
+      pdfName: certificate.pdfName,
+    })
+    setShowForm(true)
+    setFeedback(null)
   }
 
   const updateField = (key: keyof typeof emptyForm, value: string) => {
@@ -165,7 +201,7 @@ export function CertificadosPadroesPanel({
       !form.calibratedOn ||
       !form.validUntil ||
       (form.certificateType !== 'Padrão' && form.certificateType !== 'Hipot') ||
-      !form.pdf
+      (!editingId && !form.pdf)
     ) {
       setFeedback({
         type: 'error',
@@ -174,33 +210,50 @@ export function CertificadosPadroesPanel({
       return
     }
 
+    const payload = {
+      assetNumber: form.assetNumber.trim(),
+      serial: form.serial.trim(),
+      model: form.model.trim(),
+      manufacturer: form.manufacturer.trim(),
+      accuracyClass: form.accuracyClass.trim(),
+      certificateNumber: form.certificateNumber.trim(),
+      certificateType: form.certificateType,
+      calibratedOn: form.calibratedOn,
+      validUntil: form.validUntil,
+      ...(form.pdf ? { pdf: form.pdf, pdfName: form.pdfName || 'certificado.pdf' } : {}),
+    }
+
     setSubmitting(true)
     setFeedback(null)
     try {
-      const { certificate } = await api.createStandardCertificate({
-        assetNumber: form.assetNumber.trim(),
-        serial: form.serial.trim(),
-        model: form.model.trim(),
-        manufacturer: form.manufacturer.trim(),
-        accuracyClass: form.accuracyClass.trim(),
-        certificateNumber: form.certificateNumber.trim(),
-        certificateType: form.certificateType,
-        calibratedOn: form.calibratedOn,
-        validUntil: form.validUntil,
-        pdf: form.pdf,
-        pdfName: form.pdfName || 'certificado.pdf',
-      })
-      setCertificates((current) => [certificate, ...current])
+      const { certificate } = editingId
+        ? await api.updateStandardCertificate(editingId, payload)
+        : await api.createStandardCertificate({
+            ...payload,
+            pdf: form.pdf,
+            pdfName: form.pdfName || 'certificado.pdf',
+          })
+      setCertificates((current) =>
+        editingId
+          ? current.map((item) => (item.id === certificate.id ? certificate : item))
+          : [certificate, ...current],
+      )
       setFeedback({
         type: 'success',
-        message: `Certificado ${certificate.certificateNumber} cadastrado.`,
+        message: editingId
+          ? `Certificado ${certificate.certificateNumber} atualizado.`
+          : `Certificado ${certificate.certificateNumber} cadastrado.`,
       })
       resetForm()
     } catch (error) {
       setFeedback({
         type: 'error',
-        message:
-          error instanceof ApiError ? error.message : 'Não foi possível cadastrar o certificado.',
+            message:
+          error instanceof ApiError
+            ? error.message
+            : editingId
+              ? 'Não foi possível atualizar o certificado.'
+              : 'Não foi possível cadastrar o certificado.',
       })
     } finally {
       setSubmitting(false)
@@ -281,6 +334,8 @@ export function CertificadosPadroesPanel({
                 resetForm()
                 return
               }
+              setEditingId(null)
+              setForm(emptyForm)
               setShowForm(true)
               setFeedback(null)
             }}
@@ -308,6 +363,7 @@ export function CertificadosPadroesPanel({
             <div className="file-picker">
               <input
                 id={fileInputId}
+                key={editingId ?? 'new'}
                 className="file-picker-input"
                 type="file"
                 accept="application/pdf,.pdf"
@@ -315,8 +371,10 @@ export function CertificadosPadroesPanel({
                 onChange={(event) => {
                   const file = event.target.files?.[0]
                   if (!file) {
-                    updateField('pdf', '')
-                    updateField('pdfName', '')
+                    const currentName = editingId
+                      ? certificates.find((item) => item.id === editingId)?.pdfName || ''
+                      : ''
+                    setForm((current) => ({ ...current, pdf: '', pdfName: currentName }))
                     return
                   }
                   const isPdf =
@@ -353,7 +411,13 @@ export function CertificadosPadroesPanel({
               <label htmlFor={fileInputId} className="file-picker-button">
                 Importar PDF
               </label>
-              <span className="file-picker-name">{form.pdfName || 'Nenhum PDF selecionado'}</span>
+              <span className="file-picker-name">
+                {form.pdf
+                  ? form.pdfName
+                  : editingId
+                    ? form.pdfName || 'PDF atual mantido'
+                    : 'Nenhum PDF selecionado'}
+              </span>
             </div>
           </div>
 
@@ -461,7 +525,7 @@ export function CertificadosPadroesPanel({
               Cancelar
             </button>
             <button type="submit" className="primary-button" disabled={submitting}>
-              {submitting ? 'Salvando…' : 'Cadastrar certificado'}
+              {submitting ? 'Salvando…' : editingId ? 'Salvar alterações' : 'Cadastrar certificado'}
             </button>
           </div>
         </form>
@@ -510,6 +574,17 @@ export function CertificadosPadroesPanel({
                   </td>
                   <td>
                     <div className="table-row-actions">
+                      {readOnly ? null : (
+                        <button
+                          type="button"
+                          className="csds-icon-button"
+                          onClick={() => startEdit(certificate)}
+                          aria-label={`Editar certificado ${certificate.certificateNumber}`}
+                          title="Editar"
+                        >
+                          <PencilIcon />
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="csds-icon-button"
