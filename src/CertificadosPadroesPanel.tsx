@@ -98,6 +98,27 @@ function certificateStatus(validUntil: string) {
   return day < todayInSaoPaulo() ? 'Vencido' : 'Válido'
 }
 
+function yearsBetween(start: string, end: string) {
+  const startDay = start.slice(0, 10)
+  const endDay = end.slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDay) || !/^\d{4}-\d{2}-\d{2}$/.test(endDay)) return '—'
+  const [startYear, startMonth, startDate] = startDay.split('-').map(Number)
+  const [endYear, endMonth, endDate] = endDay.split('-').map(Number)
+  let years = endYear - startYear
+  let months = endMonth - startMonth
+  if (endDate < startDate) months -= 1
+  if (months < 0) {
+    years -= 1
+    months += 12
+  }
+  if (years < 0 || months < 0) return '—'
+  const yearLabel = years === 1 ? '1 ano' : `${years} anos`
+  if (months === 0) return yearLabel
+  const monthLabel = months === 1 ? '1 mês' : `${months} meses`
+  if (years === 0) return monthLabel
+  return `${yearLabel} e ${monthLabel}`
+}
+
 function formatValidUntil(value: string) {
   const [year, month, day] = value.slice(0, 10).split('-')
   if (!year || !month || !day) return value
@@ -548,6 +569,7 @@ export function CertificadosPadroesPanel({
                 <th>Número do certificado</th>
                 <th>Tipo</th>
                 <th>Data de Calibração</th>
+                <th>Anos</th>
                 <th>Validade</th>
                 <th>Status</th>
                 <th>PDF</th>
@@ -564,6 +586,11 @@ export function CertificadosPadroesPanel({
                   <td>{certificate.certificateNumber}</td>
                   <td>{certificate.certificateType}</td>
                   <td>{certificate.calibratedOn ? formatValidUntil(certificate.calibratedOn) : '—'}</td>
+                  <td>
+                    {certificate.calibratedOn
+                      ? yearsBetween(certificate.calibratedOn, certificate.validUntil)
+                      : '—'}
+                  </td>
                   <td>{formatValidUntil(certificate.validUntil)}</td>
                   <td>
                     {certificateStatus(certificate.validUntil) === 'Vencido' ? (
