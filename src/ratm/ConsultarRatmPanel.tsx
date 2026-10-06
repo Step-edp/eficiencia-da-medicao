@@ -13,7 +13,7 @@ function toDateOnly(iso: string) {
   return iso.slice(0, 10)
 }
 
-export function ConsultarRatmPanel() {
+export function ConsultarRatmPanel({ isAdmin = false }: { isAdmin?: boolean }) {
   const [laudos, setLaudos] = useState<RatmLaudo[]>([])
   const [loading, setLoading] = useState(true)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
@@ -21,6 +21,7 @@ export function ConsultarRatmPanel() {
   )
   const [viewingLaudo, setViewingLaudo] = useState<RatmLaudo | null>(null)
   const [pdfVersion, setPdfVersion] = useState(1)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const [meterFilter, setMeterFilter] = useState('')
   const [installationFilter, setInstallationFilter] = useState('')
@@ -56,6 +57,28 @@ export function ConsultarRatmPanel() {
   useEffect(() => {
     void load()
   }, [load])
+
+  const deleteLaudo = async (laudo: RatmLaudo) => {
+    const number = formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)
+    const confirmed = window.confirm(`Excluir o laudo ${number} do medidor ${laudo.meter}?`)
+    if (!confirmed) return
+
+    setDeletingId(laudo.id)
+    setFeedback(null)
+    try {
+      await api.deleteRatmLaudo(laudo.id)
+      setLaudos((current) => current.filter((item) => item.id !== laudo.id))
+      if (viewingLaudo?.id === laudo.id) setViewingLaudo(null)
+      setFeedback({ type: 'success', message: `Laudo ${number} excluído.` })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: error instanceof ApiError ? error.message : 'Não foi possível excluir o laudo.',
+      })
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const filtered = useMemo(() => {
     return laudos.filter((laudo) => {
@@ -234,6 +257,16 @@ export function ConsultarRatmPanel() {
                 >
                   Ver PDF
                 </button>
+                {isAdmin ? (
+                  <button
+                    className="danger-button compact-button"
+                    type="button"
+                    disabled={deletingId === laudo.id}
+                    onClick={() => void deleteLaudo(laudo)}
+                  >
+                    Excluir
+                  </button>
+                ) : null}
                 <span className="status-badge">{laudo.revokedAt ? 'Revogado' : laudo.status}</span>
               </div>
             </article>

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { requireAuth } from '../auth.js'
-import { buildRatmPdfFileName, generateRatmLaudoPdf } from '../ratm-laudo-pdf.js'
+import { buildRatmPdfFileName, formatRatmLaudoNumber, generateRatmLaudoPdf } from '../ratm-laudo-pdf.js'
 import { writeAuditLog } from '../audit.js'
 import { isMeterReadyForEnsaio } from '../lab-trail-status.js'
 import { normalizeScheduleMeter } from '../numeric-field-validation.js'
@@ -550,6 +550,41 @@ export async function saveRatmAssayDraft(req: Request, res: Response) {
     [meterKey, JSON.stringify(formData), req.user?.id ?? null],
   )
   res.json({ ok: true })
+}
+
+export async function deleteRatmLaudo(req: Request, res: Response) {
+  const { id } = req.params
+
+  const existing = await query<RatmLaudoRow>(
+    `SELECT id, ratm_number, meter, client, status, created_at
+     FROM ratm_laudos
+     WHERE id = $1`,
+    [id],
+  )
+  const row = existing.rows[0]
+  if (!row) {
+    res.status(404).json({ error: 'Laudo não encontrado.' })
+    return
+  }
+
+  await query(`DELETE FROM ratm_laudos WHERE id = $1`, [id])
+
+  const number = formatRatmLaudoNumber(row.ratm_number, row.created_at.toISOString())
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'ratm_laudo',
+    entityId: row.id,
+    summary: `Excluiu o laudo ${number} do medidor ${row.meter}.`,
+    oldData: {
+      id: row.id,
+      ratmNumber: row.ratm_number,
+      meter: row.meter,
+      client: row.client,
+      status: row.status,
+    },
+  })
+
+  res.json({ ok: true, id: row.id })
 }
 
 export async function deleteRatmAssayDraft(req: Request, res: Response) {

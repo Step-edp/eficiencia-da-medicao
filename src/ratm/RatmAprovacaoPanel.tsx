@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { api, ApiError } from '../api'
 import { RatmLaudoViewer } from './RatmLaudoViewer'
 import { formatRatmLaudoNumber, type RatmLaudo } from './laudos'
 import { openRatmLaudoPdf } from './laudoPdf'
@@ -7,7 +8,9 @@ type RatmAprovacaoPanelProps = {
   laudos: RatmLaudo[]
   onLaudoUpdated: (laudo: RatmLaudo) => void
   onLaudoApproved: (laudo: RatmLaudo) => void
+  onLaudoDeleted?: (laudoId: string) => void
   readOnly?: boolean
+  isAdmin?: boolean
   approverUserId?: string
   approverIsLab?: boolean
 }
@@ -16,13 +19,17 @@ export function RatmAprovacaoPanel({
   laudos,
   onLaudoUpdated,
   onLaudoApproved,
+  onLaudoDeleted,
   readOnly = false,
+  isAdmin = false,
   approverUserId,
   approverIsLab = false,
 }: RatmAprovacaoPanelProps) {
   const [viewingLaudo, setViewingLaudo] = useState<RatmLaudo | null>(null)
   const [viewerMode, setViewerMode] = useState<'view' | 'edit'>('view')
   const [search, setSearch] = useState('')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState('')
   const pendingLaudos = laudos.filter((laudo) => laudo.status === 'Pendente' && !laudo.revokedAt)
   const visibleLaudos = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('pt-BR')
@@ -42,6 +49,26 @@ export function RatmAprovacaoPanel({
     })
   }, [pendingLaudos, search])
 
+  const deleteLaudo = async (laudo: RatmLaudo) => {
+    const number = formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)
+    const confirmed = window.confirm(`Excluir o laudo ${number} do medidor ${laudo.meter}?`)
+    if (!confirmed) return
+
+    setDeletingId(laudo.id)
+    setDeleteError('')
+    try {
+      await api.deleteRatmLaudo(laudo.id)
+      onLaudoDeleted?.(laudo.id)
+      if (viewingLaudo?.id === laudo.id) setViewingLaudo(null)
+    } catch (error) {
+      setDeleteError(
+        error instanceof ApiError ? error.message : 'Não foi possível excluir o laudo.',
+      )
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <>
       <label className="approval-search">
@@ -53,6 +80,12 @@ export function RatmAprovacaoPanel({
           placeholder="Laudo, medidor ou cliente"
         />
       </label>
+
+      {deleteError ? (
+        <div className="login-feedback error" role="status">
+          {deleteError}
+        </div>
+      ) : null}
 
       <div className="approval-list" aria-label="Laudos de RATM pendentes">
         {pendingLaudos.length === 0 ? (
@@ -112,6 +145,16 @@ export function RatmAprovacaoPanel({
                     Aprovar
                   </button>
                 )}
+                {isAdmin ? (
+                  <button
+                    className="secondary-button approval-action-button is-delete"
+                    type="button"
+                    disabled={deletingId === laudo.id}
+                    onClick={() => void deleteLaudo(laudo)}
+                  >
+                    Excluir
+                  </button>
+                ) : null}
               </div>
             </article>
           ))

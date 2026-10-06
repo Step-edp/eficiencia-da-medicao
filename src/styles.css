@@ -4518,6 +4518,17 @@ button {
   line-height: 1.2;
 }
 
+.approval-item-actions .approval-action-button.is-delete {
+  border: 1px solid rgba(255, 120, 120, 0.45);
+  color: #ffe0e0;
+  background: rgba(110, 23, 23, 0.55);
+}
+
+.approval-item-actions .approval-action-button.is-delete:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 .approval-item-actions .approval-action-button.is-approve {
   border: 0;
   color: #031424;

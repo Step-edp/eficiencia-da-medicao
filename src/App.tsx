@@ -5704,7 +5704,7 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Galeria' ? (
               <GalleryPanel />
             ) : selectedLabMeasurementSection === 'Consultar RATM' ? (
-              <ConsultarRatmPanel />
+              <ConsultarRatmPanel isAdmin={isAdmin} />
             ) : selectedLabMeasurementSection === 'Consultar Medidor' ? (
               <FieldTeamConsultarPanel
                 allTrailSteps
@@ -5788,9 +5788,13 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Aprovação de RATM' ? (
               <RatmAprovacaoPanel
                 readOnly={labMedicaoReadOnly}
+                isAdmin={isAdmin}
                 approverUserId={currentUser.id}
                 approverIsLab={isLabMedicaoOperator(currentUser)}
                 laudos={ratmLaudos}
+                onLaudoDeleted={(laudoId) => {
+                  setRatmLaudos((prev) => prev.filter((item) => item.id !== laudoId))
+                }}
                 onLaudoUpdated={(laudo) => {
                   setRatmLaudos((prev) =>
                     prev.map((item) => (item.id === laudo.id ? laudo : item)),

@@ -1653,6 +1653,10 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ clientPresent, satisfactionWhatsapp }),
     }),
+  deleteRatmLaudo: (id: string) =>
+    request<{ ok: true; id: string }>(`/api/ratm-laudos/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
   listEnsaiosManualBlocks: () =>
     request<{ blocks: EnsaiosManualBlock[] }>('/api/ensaios-calendar/manual-blocks'),
   listEnsaiosCalendarMeters: (from: string, to: string) => {
