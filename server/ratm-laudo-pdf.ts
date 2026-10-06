@@ -391,7 +391,10 @@ function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   const rowStep = 28
   const rows: Array<{ left: [string, string]; right: [string, string] | null }> = [
     {
-      left: ['Titular da Unidade Consumidora', firstText(form.client, laudo.client)],
+      left: [
+        'Titular da Unidade Consumidora',
+        firstText(form.client, laudo.client).toLocaleLowerCase('pt-BR'),
+      ],
       right: ['Instalação', firstText(form.installation, laudo.installation)],
     },
     {
