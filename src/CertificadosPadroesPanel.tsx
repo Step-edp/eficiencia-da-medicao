@@ -859,17 +859,6 @@ export function CertificadosPadroesPanel({
                           <PencilIcon />
                         </button>
                       )}
-                      {readOnly ? null : (
-                        <button
-                          type="button"
-                          className="csds-icon-button"
-                          onClick={() => startReplace(certificate)}
-                          aria-label={`Substituir certificado ${certificate.certificateNumber}`}
-                          title="Substituir certificado"
-                        >
-                          <ReplaceIcon />
-                        </button>
-                      )}
                       <button
                         type="button"
                         className="csds-icon-button"
@@ -888,6 +877,17 @@ export function CertificadosPadroesPanel({
                       >
                         <DownloadIcon />
                       </button>
+                      {readOnly ? null : (
+                        <button
+                          type="button"
+                          className="csds-icon-button"
+                          onClick={() => startReplace(certificate)}
+                          aria-label={`Substituir certificado ${certificate.certificateNumber}`}
+                          title="Substituir certificado"
+                        >
+                          <ReplaceIcon />
+                        </button>
+                      )}
                       {isAdmin ? (
                         <button
                           type="button"
