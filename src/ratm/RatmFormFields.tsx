@@ -1412,13 +1412,13 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         </RatmExpandableSection>
 
         <RatmExpandableSection
-          title="Modelo"
+          title="Modelo do Medidor"
           accordionName={accordionName}
           complete={Boolean(data.meterModelId.trim())}
         >
           <div className="ratm-model-panel">
             <label className="full-width">
-              Modelo
+              Modelo do Medidor
               <select
                 value={data.meterModelId}
                 onChange={(event) => {
