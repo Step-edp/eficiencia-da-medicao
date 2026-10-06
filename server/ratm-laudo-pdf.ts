@@ -280,23 +280,23 @@ function drawYesNoBadge(
   const fill = favorable ? COLORS.greenSoft : COLORS.redSoft
   const ink = favorable ? COLORS.green : COLORS.red
   const label = positive ? 'Sim' : 'Não'
-  const badgeWidth = positive ? 40 : 42
-  const badgeHeight = 12
-  doc.roundedRect(x, y, badgeWidth, badgeHeight, 8).fill(fill)
+  const badgeWidth = positive ? 30 : 32
+  const badgeHeight = 9
+  doc.roundedRect(x, y, badgeWidth, badgeHeight, 4.5).fill(fill)
 
-  const iconX = x + 8
+  const iconX = x + 6
   const iconY = y + badgeHeight / 2
-  doc.circle(iconX, iconY, 4.2).fill(ink)
+  doc.circle(iconX, iconY, 2.8).fill(ink)
   doc.save()
-  doc.strokeColor(COLORS.white).lineWidth(1.15).lineCap('round').lineJoin('round')
+  doc.strokeColor(COLORS.white).lineWidth(0.85).lineCap('round').lineJoin('round')
   if (favorable) {
-    doc.moveTo(iconX - 2, iconY + 0.2).lineTo(iconX - 0.5, iconY + 1.7).lineTo(iconX + 2.1, iconY - 1.7).stroke()
+    doc.moveTo(iconX - 1.3, iconY + 0.1).lineTo(iconX - 0.3, iconY + 1.1).lineTo(iconX + 1.4, iconY - 1.1).stroke()
   } else {
-    doc.moveTo(iconX - 1.7, iconY - 1.7).lineTo(iconX + 1.7, iconY + 1.7).stroke()
-    doc.moveTo(iconX + 1.7, iconY - 1.7).lineTo(iconX - 1.7, iconY + 1.7).stroke()
+    doc.moveTo(iconX - 1.1, iconY - 1.1).lineTo(iconX + 1.1, iconY + 1.1).stroke()
+    doc.moveTo(iconX + 1.1, iconY - 1.1).lineTo(iconX - 1.1, iconY + 1.1).stroke()
   }
   doc.restore()
-  doc.font('Helvetica-Bold').fontSize(7).fillColor(ink).text(label, x + 15, y + 2.5, { lineBreak: false })
+  doc.font('Helvetica-Bold').fontSize(6).fillColor(ink).text(label, x + 11, y + 1.6, { lineBreak: false })
 }
 
 function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
@@ -708,7 +708,7 @@ function drawDadosMedidor(doc: PdfDocument, laudo: RatmLaudoPdfInput, meterData:
 function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
   drawSectionTitle(doc, 5, 'INSPEÇÃO GERAL')
   const rowStart = ROW_START
-  const rowStep = 18
+  const rowStep = 22
   const rows: Array<{ left: [string, string]; right: [string, string] | null }> = [
     {
       left: ['Medidor quebrado • furado', firstText(form.brokenMeter)],
@@ -749,7 +749,7 @@ function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
         width: colW - 8,
         lineBreak: false,
       })
-      drawYesNoBadge(doc, fieldX, rowY + 7, field[1], field[0] === 'Visualmente em ordem')
+      drawYesNoBadge(doc, fieldX, rowY + 8, field[1], field[0] === 'Visualmente em ordem')
     })
   })
 
