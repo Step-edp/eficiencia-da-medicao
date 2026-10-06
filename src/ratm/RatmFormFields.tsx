@@ -886,7 +886,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         fieldCollaborator2,
         fieldCollaborator2Name: collaborator2.name,
         fieldCollaborator2Registration: collaborator2.registration,
-        client: extractedClient.trim().toLocaleLowerCase('pt-BR'),
+        client: extractedClient.trim().toLocaleUpperCase('pt-BR'),
         fieldDocumentDescription: documentObservations,
         enclosureSeal: extractedLacre || schedule.envelopeSeal || '',
         seal1: coverSeals.seal1,
@@ -915,9 +915,9 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           entryComparisons: comparisonResponse.comparisons,
           entryFieldChecks: entryFieldChecksFromComparisons(comparisonResponse.comparisons),
           ...(comparisonResponse.extractedClient?.trim()
-            ? { client: comparisonResponse.extractedClient.trim().toLocaleLowerCase('pt-BR') }
+            ? { client: comparisonResponse.extractedClient.trim().toLocaleUpperCase('pt-BR') }
             : extractedClient
-              ? { client: extractedClient.trim().toLocaleLowerCase('pt-BR') }
+              ? { client: extractedClient.trim().toLocaleUpperCase('pt-BR') }
               : {}),
           enclosureSeal: extractedLacre || comparisonLacre || schedule.envelopeSeal || '',
           ...(comparisonReading.meterReading ? comparisonReading : {}),
@@ -1016,11 +1016,11 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                 <input
                   ref={clientInputRef}
                   type="text"
-                  value={data.client}
+                  value={data.client.toLocaleUpperCase('pt-BR')}
                   aria-label="Cliente"
                   placeholder="Titular da unidade consumidora"
                   onChange={(event) =>
-                    onChange({ client: event.target.value.toLocaleLowerCase('pt-BR') })
+                    onChange({ client: event.target.value.toLocaleUpperCase('pt-BR') })
                   }
                   onBlur={() => setEditingClient(false)}
                   onKeyDown={(event) => {
@@ -1031,7 +1031,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                 />
               ) : (
                 <div className="ratm-client-line">
-                  <p>{displayOrDash(data.client.toLocaleLowerCase('pt-BR'))}</p>
+                  <p>{displayOrDash(data.client.toLocaleUpperCase('pt-BR'))}</p>
                   <button
                     className="ratm-client-edit"
                     type="button"

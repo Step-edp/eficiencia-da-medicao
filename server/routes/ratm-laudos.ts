@@ -177,7 +177,7 @@ export async function createRatmLaudos(req: Request, res: Response) {
     const id = `laudo-${batchId}-${index + 1}`
     const meter = form.meter.trim()
     const clientName =
-      typeof form.client === 'string' ? form.client.trim().toLocaleLowerCase('pt-BR') : ''
+      typeof form.client === 'string' ? form.client.trim().toLocaleUpperCase('pt-BR') : ''
     form.client = clientName
     const client = clientName || 'Não informado'
 
@@ -281,7 +281,7 @@ export async function updateRatmLaudo(req: Request, res: Response) {
   await revokeActiveLaudosForMeter(form.meter.trim(), id)
 
   if (typeof form.client === 'string') {
-    form.client = form.client.trim().toLocaleLowerCase('pt-BR')
+    form.client = form.client.trim().toLocaleUpperCase('pt-BR')
   }
 
   const result = await query<RatmLaudoRow>(
@@ -294,7 +294,7 @@ export async function updateRatmLaudo(req: Request, res: Response) {
     [
       JSON.stringify(form),
       form.meter.trim(),
-      form.client?.trim().toLocaleLowerCase('pt-BR') || 'Não informado',
+      form.client?.trim().toLocaleUpperCase('pt-BR') || 'Não informado',
       id,
     ],
   )
