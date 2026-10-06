@@ -917,7 +917,7 @@ function drawResultado(
 function drawReferencias(doc: PdfDocument) {
   drawSectionTitle(doc, 9, 'REFERÊNCIAS')
   const paragraphs = [
-    'Análise realizada conforme procedimentos estabelecidos pela Portaria nº 493 de 10/12/2021, emitida pelo órgão metrológico oficial INMETRO, admitindo erros máximos para medidores em serviço de ±4,0%.',
+    'Análise realizada conforme procedimentos estabelecidos pela Portaria nº 493 de 10/12/2021, emitida pelo órgão metrológico oficial INMETRO, admitindo erros máximos para medidores em serviço de ±4,0% para medidores eletromecânicos e ±1,3% para medidores eletrônicos.',
     'O Cliente deverá comparecer a uma agência de atendimento ou interpor recurso no prazo de 15 dias (Art. 253 da Resolução nº 1.000 da ANEEL).',
   ]
   ensureSpace(doc, 78)
