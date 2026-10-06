@@ -32,7 +32,7 @@ type FieldTeamSchedulesPanelProps = {
   allowEdit?: boolean
   /** Laboratório pode excluir o documento de inspeção anexado. */
   allowDeleteInspection?: boolean
-  /** Lista Medidores agendados: omite quem já foi para Analisados. */
+    /** Lista Medidores agendados: só quem ainda não tem documento de inspeção importado. */
   excludeAnalyzed?: boolean
 }
 
@@ -650,6 +650,9 @@ export function FieldTeamConsultarPanel({
       }
 
       void loadInspectionPendencias()
+      if (excludeAnalyzed) {
+        setSchedules((current) => current.filter((item) => item.id !== target.id))
+      }
     } catch (error) {
       setFeedback({
         type: 'error',

@@ -818,6 +818,7 @@ export type MeterInspectionDocumentadoRecord = MeterInspectionPendenciaRecord & 
   analysisBlocked?: boolean
   analysisBlockReason?: string | null
   analysisBlockedAt?: string | null
+  hasDocument?: boolean
 }
 
 export type MeterInspectionSummary = {

@@ -3389,7 +3389,6 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
       wrongDocument: summary.wrongDocument,
       hasDocuments: documentsForSchedule.length > 0,
     })
-    if (!summary.hasToi && !summary.hasComunicado) continue
 
     meters.push({
       id: row.id,
@@ -3408,6 +3407,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
       missingComunicado: !summary.hasComunicado,
       hasToi: summary.hasToi,
       hasComunicado: summary.hasComunicado,
+      hasDocument: documentsForSchedule.length > 0,
       anyBlocked: summary.anyBlocked,
       blockReasons: summary.blockReasons,
       analysisCompletedAt: row.inspection_analysis_completed_at?.toISOString() ?? null,

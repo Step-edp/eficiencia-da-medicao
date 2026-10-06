@@ -419,6 +419,10 @@ export async function listMeterSchedules(req: Request, res: Response) {
     }
     if (excludeAnalyzed) {
       filters.push(`ms.inspection_analysis_completed_at IS NULL`)
+      filters.push(`NOT EXISTS (
+        SELECT 1 FROM meter_inspection_documents d
+        WHERE d.meter_schedule_id = ms.id
+      )`)
     }
   }
 

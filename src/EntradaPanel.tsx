@@ -129,7 +129,7 @@ function formatWeekLabel(dateKey: string) {
 }
 
 function hasWpaDocument(item: MeterInspectionDocumentadoRecord) {
-  return Boolean(item.hasToi || item.hasComunicado)
+  return Boolean(item.hasToi || item.hasComunicado || item.hasDocument)
 }
 
 function wpaDocumentationLabel(item: MeterInspectionDocumentadoRecord) {
@@ -156,6 +156,7 @@ function wpaMeterMatchesQuery(item: MeterInspectionDocumentadoRecord, query: str
       item.note,
       item.csd,
       item.trailStep,
+      !item.analysisCompletedAt && !item.analysisBlocked ? 'Aguardando análise documental' : '',
       wpaDocumentationLabel(item),
       formatDateTime(item.scheduledAt),
       item.analysisCompletedByName,
@@ -2926,7 +2927,7 @@ export function EntradaPanel({
                       <th>TOI</th>
                       <th>Nota</th>
                       <th>CSD</th>
-                      {analyzedView ? null : <th>Etapa</th>}
+                      {analyzedView ? null : <th>{blockedView ? 'Etapa' : 'Status'}</th>}
                       <th>Data de ensaio</th>
                       {blockedView ? <th>Bloqueado em</th> : null}
                       <th>{blockedView ? 'Justificativa' : 'Documentação'}</th>
@@ -2943,7 +2944,11 @@ export function EntradaPanel({
                         <td>{item.toi || '—'}</td>
                         <td>{item.note || '—'}</td>
                         <td>{item.csd}</td>
-                        {analyzedView ? null : <td>{item.trailStep}</td>}
+                        {analyzedView ? null : (
+                          <td>
+                            {blockedView ? item.trailStep : 'Aguardando análise documental'}
+                          </td>
+                        )}
                         <td>{formatDateTime(item.scheduledAt)}</td>
                         {blockedView ? (
                           <td>
