@@ -544,8 +544,26 @@ function drawPadraoEnsaio(doc: PdfDocument, padrao: PadraoEnsaio) {
   doc.y = y + boxHeight + 14
 }
 
+function drawLocalEnsaio(doc: PdfDocument) {
+  drawSectionTitle(doc, 3, 'LOCAL DE ENSAIO')
+  const address =
+    'Laboratório de Metrologia EDP SP - Av. Cassiano Ricardo, 1973 - Jardim Alvorada, São José dos Campos - SP'
+  doc.font('Helvetica').fontSize(9)
+  const textHeight = doc.heightOfString(address, { width: CONTENT_WIDTH - 24 })
+  const boxHeight = textHeight + 20
+  ensureSpace(doc, boxHeight + 16)
+  const y = doc.y
+  doc
+    .roundedRect(PAGE.margin, y, CONTENT_WIDTH, boxHeight, 8)
+    .strokeColor(COLORS.grayBorder)
+    .lineWidth(1)
+    .stroke()
+  doc.fillColor(COLORS.text).text(address, PAGE.margin + 12, y + 10, { width: CONTENT_WIDTH - 24 })
+  doc.y = y + boxHeight + 14
+}
+
 function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
-  drawSectionTitle(doc, 3, 'ENSAIOS REALIZADOS')
+  drawSectionTitle(doc, 4, 'ENSAIOS REALIZADOS')
   ensureSpace(doc, 92)
   const y = doc.y
   const gap = 8
@@ -610,7 +628,7 @@ function drawResultado(
   irregularityCodes: Record<string, string>,
   irregularityDescriptions: Record<string, string> = {},
 ) {
-  drawSectionTitle(doc, 4, 'RESULTADO DA PERÍCIA')
+  drawSectionTitle(doc, 5, 'RESULTADO DA PERÍCIA')
   ensureSpace(doc, 150)
   const y = doc.y
   const leftW = CONTENT_WIDTH * 0.58
@@ -746,7 +764,7 @@ function drawResultado(
 }
 
 function drawObservacoes(doc: PdfDocument) {
-  drawSectionTitle(doc, 5, 'OBSERVAÇÕES')
+  drawSectionTitle(doc, 6, 'OBSERVAÇÕES')
   ensureSpace(doc, 54)
   doc
     .font('Helvetica')
@@ -843,7 +861,7 @@ function drawPhotos(doc: PdfDocument, photos: string[]) {
   if (!photos.length) return
   doc.addPage()
   doc.y = PAGE.margin
-  drawSectionTitle(doc, 6, 'REGISTRO FOTOGRÁFICO')
+  drawSectionTitle(doc, 7, 'REGISTRO FOTOGRÁFICO')
 
   const columns = 2
   const gap = 12
@@ -959,6 +977,7 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   drawHeader(doc, laudo, conclusion)
   drawDadosGerais(doc, laudo)
   drawPadraoEnsaio(doc, await loadPadraoEnsaio(form.testBench))
+  drawLocalEnsaio(doc)
   drawEnsaios(doc, form)
   drawResultado(doc, laudo, fraud, irregularityCodes, irregularityDescriptions)
   drawObservacoes(doc)
