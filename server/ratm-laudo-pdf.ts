@@ -433,17 +433,16 @@ function drawPadraoEnsaio(doc: PdfDocument, padrao: PadraoEnsaio) {
   drawSectionTitle(doc, 2, 'DADOS DO PADRÃO DE ENSAIO')
   ensureSpace(doc, 36)
   const introY = doc.y
-  drawInfoIcon(doc, PAGE.margin + 6, introY + 5)
-  doc
-    .font('Helvetica')
-    .fontSize(8)
-    .fillColor(COLORS.text)
-    .text(
-      'Padrão de ensaio: Equipamento de alta precisão usado como referência para verificar se um medidor de energia está medindo corretamente.',
-      PAGE.margin + 16,
-      introY,
-      { width: CONTENT_WIDTH - 16 },
-    )
+  const iconCenterY = introY + 6
+  drawInfoIcon(doc, PAGE.margin + 6, iconCenterY)
+  doc.font('Helvetica').fontSize(8).fillColor(COLORS.text)
+  const textY = iconCenterY - 8 * 0.35
+  doc.text(
+    'Padrão de ensaio: Equipamento de alta precisão usado como referência para verificar se um medidor de energia está medindo corretamente.',
+    PAGE.margin + 16,
+    textY,
+    { width: CONTENT_WIDTH - 16 },
+  )
   doc.y = Math.max(doc.y, introY + 28)
 
   const rowStart = 14
