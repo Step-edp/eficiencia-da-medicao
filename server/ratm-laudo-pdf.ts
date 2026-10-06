@@ -680,7 +680,7 @@ function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
       right: ['Bobina danificada', firstText(form.damagedCoil)],
     },
     {
-      left: ['Aparentemente em ordem', firstText(form.apparentlyInOrder)],
+      left: ['Visualmente em ordem', firstText(form.apparentlyInOrder)],
       right: ['Reprovado dielétrico', firstText(form.dielectricFailed)],
     },
     {
@@ -710,7 +710,7 @@ function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
         width: colW - 8,
         lineBreak: false,
       })
-      drawYesNoBadge(doc, fieldX, rowY + 12, field[1], field[0] === 'Aparentemente em ordem')
+      drawYesNoBadge(doc, fieldX, rowY + 12, field[1], field[0] === 'Visualmente em ordem')
     })
   })
 

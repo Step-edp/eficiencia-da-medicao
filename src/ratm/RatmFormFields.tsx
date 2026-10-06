@@ -1911,7 +1911,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             />
 
             <ClearableRadioGroup
-              legend="Aparentemente em ordem"
+              legend="Visualmente em ordem"
               name={`apparently-order-${index}`}
               value={data.apparentlyInOrder}
               options={['Sim', 'Não']}
