@@ -562,8 +562,122 @@ function drawLocalEnsaio(doc: PdfDocument) {
   doc.y = y + boxHeight + 14
 }
 
+type MeterEnergyData = {
+  tipo: string
+  fabricante: string
+  modelo: string
+  tensao: string
+  corrente: string
+  fiosElementos: string
+  classe: string
+}
+
+async function loadMeterEnergyData(meter: string): Promise<MeterEnergyData> {
+  const empty: MeterEnergyData = {
+    tipo: '—',
+    fabricante: '—',
+    modelo: '—',
+    tensao: '—',
+    corrente: '—',
+    fiosElementos: '—',
+    classe: '—',
+  }
+  const key = meter.trim()
+  if (!key) return empty
+
+  try {
+    const stored = await query<{
+      manufacturer: string
+      model: string
+      meter_type: string | null
+      voltage: string | null
+      current_rating: string | null
+      wires_elements: string | null
+      accuracy_class: string | null
+    }>(
+      `SELECT mr.manufacturer, mr.model,
+              mm.meter_type, mm.voltage, mm.current_rating, mm.wires_elements, mm.accuracy_class
+       FROM meter_registry mr
+       LEFT JOIN meter_models mm
+         ON LOWER(BTRIM(mm.name)) = LOWER(BTRIM(mr.model))
+        AND LOWER(BTRIM(mm.manufacturer)) = LOWER(BTRIM(mr.manufacturer))
+       WHERE LPAD(RIGHT(REGEXP_REPLACE(mr.meter, '[^0-9]', '', 'g'), 8), 8, '0')
+           = LPAD(RIGHT(REGEXP_REPLACE($1, '[^0-9]', '', 'g'), 8), 8, '0')
+       LIMIT 1`,
+      [key],
+    )
+    const row = stored.rows[0]
+    if (!row) return empty
+    return {
+      tipo: textValue(row.meter_type),
+      fabricante: textValue(row.manufacturer),
+      modelo: textValue(row.model),
+      tensao: textValue(row.voltage),
+      corrente: textValue(row.current_rating),
+      fiosElementos: textValue(row.wires_elements),
+      classe: textValue(row.accuracy_class),
+    }
+  } catch (error) {
+    console.error('Não foi possível carregar os dados do medidor para o laudo.', error)
+    return empty
+  }
+}
+
+function drawDadosMedidor(doc: PdfDocument, laudo: RatmLaudoPdfInput, meterData: MeterEnergyData) {
+  drawSectionTitle(doc, 4, 'DADOS DO MEDIDOR DE ENERGIA')
+  const form = laudo.formData
+  const rowStart = 14
+  const rowStep = 28
+  const rows: Array<{ left: [string, string]; right: [string, string] | null }> = [
+    {
+      left: ['Número do Medidor', firstText(form.meter, laudo.meter)],
+      right: ['Tipo', meterData.tipo],
+    },
+    {
+      left: ['Fabricante', meterData.fabricante],
+      right: ['Modelo', meterData.modelo],
+    },
+    {
+      left: ['Tensão Nominal', meterData.tensao],
+      right: ['Corrente Nominal', meterData.corrente],
+    },
+    {
+      left: ['Número de Fios • Elementos', meterData.fiosElementos],
+      right: ['Classe de Exatidão', meterData.classe],
+    },
+    {
+      left: ['1º lacre da tampa', firstText(form.seal1)],
+      right: ['Status do 1º lacre', firstText(form.seal1Status)],
+    },
+    {
+      left: ['2º lacre da tampa', firstText(form.seal2)],
+      right: ['Status do 2º lacre', firstText(form.seal2Status)],
+    },
+  ]
+  const boxHeight = rowStart + rows.length * rowStep + 10
+  ensureSpace(doc, boxHeight + 16)
+  const y = doc.y
+  doc
+    .roundedRect(PAGE.margin, y, CONTENT_WIDTH, boxHeight, 8)
+    .strokeColor(COLORS.grayBorder)
+    .lineWidth(1)
+    .stroke()
+
+  const colW = (CONTENT_WIDTH - 28) / 2
+  const leftX = PAGE.margin + 12
+  const rightX = PAGE.margin + 16 + colW
+
+  rows.forEach((row, index) => {
+    const rowY = y + rowStart + index * rowStep
+    drawFieldPair(doc, leftX, rowY, colW - 8, row.left[0], row.left[1])
+    if (row.right) drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
+  })
+
+  doc.y = y + boxHeight + 14
+}
+
 function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
-  drawSectionTitle(doc, 4, 'ENSAIOS REALIZADOS')
+  drawSectionTitle(doc, 5, 'ENSAIOS REALIZADOS')
   ensureSpace(doc, 92)
   const y = doc.y
   const gap = 8
@@ -628,7 +742,7 @@ function drawResultado(
   irregularityCodes: Record<string, string>,
   irregularityDescriptions: Record<string, string> = {},
 ) {
-  drawSectionTitle(doc, 5, 'RESULTADO DA PERÍCIA')
+  drawSectionTitle(doc, 6, 'RESULTADO DA PERÍCIA')
   ensureSpace(doc, 150)
   const y = doc.y
   const leftW = CONTENT_WIDTH * 0.58
@@ -764,7 +878,7 @@ function drawResultado(
 }
 
 function drawObservacoes(doc: PdfDocument) {
-  drawSectionTitle(doc, 6, 'OBSERVAÇÕES')
+  drawSectionTitle(doc, 7, 'OBSERVAÇÕES')
   ensureSpace(doc, 54)
   doc
     .font('Helvetica')
@@ -861,7 +975,7 @@ function drawPhotos(doc: PdfDocument, photos: string[]) {
   if (!photos.length) return
   doc.addPage()
   doc.y = PAGE.margin
-  drawSectionTitle(doc, 7, 'REGISTRO FOTOGRÁFICO')
+  drawSectionTitle(doc, 8, 'REGISTRO FOTOGRÁFICO')
 
   const columns = 2
   const gap = 12
@@ -978,6 +1092,11 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   drawDadosGerais(doc, laudo)
   drawPadraoEnsaio(doc, await loadPadraoEnsaio(form.testBench))
   drawLocalEnsaio(doc)
+  drawDadosMedidor(
+    doc,
+    laudo,
+    await loadMeterEnergyData(String(form.meter ?? laudo.meter ?? '').trim()),
+  )
   drawEnsaios(doc, form)
   drawResultado(doc, laudo, fraud, irregularityCodes, irregularityDescriptions)
   drawObservacoes(doc)
