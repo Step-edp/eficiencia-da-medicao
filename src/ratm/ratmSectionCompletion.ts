@@ -57,7 +57,6 @@ function isMeasurementFieldComplete(value: string, preset: string) {
 export function isAssayDataSectionComplete(data: RatmFormData) {
   return (
     isMeasurementFieldComplete(data.meterReading, data.meterReadingPreset) &&
-    isFilled(data.testBench) &&
     isFilled(data.march) &&
     isFilled(data.recorder) &&
     isFilled(data.interruptedPhase) &&

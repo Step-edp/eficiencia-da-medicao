@@ -1578,6 +1578,20 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         </RatmExpandableSection>
 
         <RatmExpandableSection
+          title="Mesa de ensaio"
+          accordionName={accordionName}
+          complete={Boolean(data.testBench.trim())}
+        >
+          <ClearableRadioGroup
+            legend=""
+            name={`bench-${index}`}
+            value={data.testBench}
+            options={TEST_BENCH_OPTIONS}
+            onChange={(value) => onChange({ testBench: value })}
+          />
+        </RatmExpandableSection>
+
+        <RatmExpandableSection
           title="Dados do ensaio"
           accordionName={accordionName}
           complete={assayDataComplete}
@@ -1614,14 +1628,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             }}
           />
         </div>
-
-        <ClearableRadioGroup
-          legend="Mesa de ensaio"
-          name={`bench-${index}`}
-          value={data.testBench}
-          options={TEST_BENCH_OPTIONS}
-          onChange={(value) => onChange({ testBench: value })}
-        />
 
         <ClearableRadioGroup
           legend="Marcha"
