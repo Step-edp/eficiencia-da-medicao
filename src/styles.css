@@ -1050,7 +1050,9 @@ button {
   margin: 0.35rem 0 1.5rem;
 }
 
-.certificados-padroes-panel .materials-filters-grid {
+.certificados-padroes-panel .certificate-search {
+  display: grid;
+  gap: 8px;
   margin-bottom: 1.25rem;
 }
 
