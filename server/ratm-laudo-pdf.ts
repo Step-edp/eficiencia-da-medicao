@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import PDFDocument from 'pdfkit'
 import type { Response } from 'express'
 import { query } from './db.js'
@@ -169,22 +172,52 @@ function ensureSpace(doc: PdfDocument, height: number) {
   }
 }
 
-function drawEdpMark(doc: PdfDocument, x: number, y: number) {
-  doc.save()
-  doc.translate(x + 10, y + 14)
-  doc.rotate(-18)
-  doc.lineCap('round')
-  doc.lineWidth(3.2).strokeColor('#2F6BFF').moveTo(0, -7).bezierCurveTo(9, -12, 16, -5, 12, 4).stroke()
-  doc.lineWidth(2.8).strokeColor('#39FF00').moveTo(2, -3).bezierCurveTo(7, -8, 13, -2, 10, 5).stroke()
-  doc.lineWidth(2.2).strokeColor('#18D8F0').moveTo(4, 1).bezierCurveTo(8, -3, 11, 1, 9, 6).stroke()
-  doc.restore()
+const SITE_LOGO_FILE = 'Logso edp branca.png'
+const SITE_LOGO_WIDTH = 112
+const SITE_LOGO_HEIGHT = 40
+const SITE_HEADER_NAVY = '#031424'
 
-  doc.font('Helvetica-Bold').fontSize(16).fillColor(COLORS.navyDark).text('edp', x + 26, y + 2, {
-    lineBreak: false,
+function resolveSiteLogoPath() {
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  const candidates = [
+    path.join(process.cwd(), 'public', 'logo', SITE_LOGO_FILE),
+    path.join(process.cwd(), 'dist', 'logo', SITE_LOGO_FILE),
+    path.join(here, '../public/logo', SITE_LOGO_FILE),
+    path.join(here, '../../public/logo', SITE_LOGO_FILE),
+    path.join(here, '../../dist/logo', SITE_LOGO_FILE),
+  ]
+  return candidates.find((candidate) => existsSync(candidate)) ?? null
+}
+
+function drawEdpMark(doc: PdfDocument, x: number, y: number) {
+  const logoPath = resolveSiteLogoPath()
+  if (!logoPath) {
+    doc.save()
+    doc.translate(x + 10, y + 14)
+    doc.rotate(-18)
+    doc.lineCap('round')
+    doc.lineWidth(3.2).strokeColor('#2F6BFF').moveTo(0, -7).bezierCurveTo(9, -12, 16, -5, 12, 4).stroke()
+    doc.lineWidth(2.8).strokeColor('#39FF00').moveTo(2, -3).bezierCurveTo(7, -8, 13, -2, 10, 5).stroke()
+    doc.lineWidth(2.2).strokeColor('#18D8F0').moveTo(4, 1).bezierCurveTo(8, -3, 11, 1, 9, 6).stroke()
+    doc.restore()
+    doc.font('Helvetica-Bold').fontSize(16).fillColor(COLORS.navyDark).text('edp', x + 26, y + 2, {
+      lineBreak: false,
+    })
+    doc.font('Helvetica').fontSize(8).fillColor(COLORS.textMuted).text('SP', x + 56, y + 8, {
+      lineBreak: false,
+    })
+    return 70
+  }
+
+  doc.save()
+  doc.roundedRect(x, y, SITE_LOGO_WIDTH, SITE_LOGO_HEIGHT, 8).fill(SITE_HEADER_NAVY)
+  doc.image(logoPath, x + 8, y + 6, {
+    fit: [SITE_LOGO_WIDTH - 16, SITE_LOGO_HEIGHT - 12],
+    align: 'center',
+    valign: 'center',
   })
-  doc.font('Helvetica').fontSize(8).fillColor(COLORS.textMuted).text('SP', x + 56, y + 8, {
-    lineBreak: false,
-  })
+  doc.restore()
+  return SITE_LOGO_WIDTH
 }
 
 function drawSectionTitle(doc: PdfDocument, index: number, title: string) {
@@ -224,17 +257,18 @@ function drawFieldPair(
 }
 
 function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput, conclusion: string) {
-  drawEdpMark(doc, PAGE.margin, PAGE.margin)
+  const logoWidth = drawEdpMark(doc, PAGE.margin, PAGE.margin)
+  const brandX = PAGE.margin + logoWidth + 12
   doc
     .font('Helvetica-Bold')
     .fontSize(9)
     .fillColor(COLORS.navy)
-    .text('Laboratório de Medição', PAGE.margin + 78, PAGE.margin + 2, { lineBreak: false })
+    .text('Laboratório de Medição', brandX, PAGE.margin + 8, { lineBreak: false })
   doc
     .font('Helvetica')
     .fontSize(8)
     .fillColor(COLORS.textMuted)
-    .text('EDP SP', PAGE.margin + 78, PAGE.margin + 14, { lineBreak: false })
+    .text('EDP SP', brandX, PAGE.margin + 22, { lineBreak: false })
 
   const rightX = PAGE.width - PAGE.margin - 170
   doc
