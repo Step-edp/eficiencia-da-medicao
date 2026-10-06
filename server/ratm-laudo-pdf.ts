@@ -826,20 +826,18 @@ function drawResultado(
   doc.y = y + boxHeight + 14
 }
 
-function drawObservacoes(doc: PdfDocument) {
-  drawSectionTitle(doc, 9, 'OBSERVAÇÕES')
-  ensureSpace(doc, 54)
-  doc
-    .font('Helvetica')
-    .fontSize(7.5)
-    .fillColor(COLORS.textMuted)
-    .text(
-      'Este laudo é válido somente para o medidor identificado neste documento e para as condições de ensaio registradas. O cliente poderá comparecer a uma loja de atendimento ou interpor recurso no prazo de 15 dias, nos termos da Resolução Normativa ANEEL nº 1.000/2021. A análise observou os procedimentos da Portaria INMETRO nº 493/2021, admitindo erros máximos para medidores em serviço conforme regulamentação vigente.',
-      PAGE.margin,
-      doc.y,
-      { width: CONTENT_WIDTH, align: 'justify' },
-    )
-  doc.y += 10
+function drawReferencias(doc: PdfDocument) {
+  drawSectionTitle(doc, 9, 'REFERÊNCIAS')
+  const paragraphs = [
+    'Análise realizada conforme procedimentos estabelecidos pela Portaria nº 493 de 10/12/2021, emitida pelo órgão metrológico oficial INMETRO, admitindo erros máximos para medidores em serviço de ±4,0% (diferente nos eletrônicos).',
+    'O Cliente deverá comparecer a uma loja de atendimento ou interpor recurso no prazo de 15 dias (Art. 253 da Resolução nº 1.000 da ANEEL).',
+  ]
+  ensureSpace(doc, 78)
+  doc.font('Helvetica').fontSize(8).fillColor(COLORS.text)
+  paragraphs.forEach((paragraph) => {
+    doc.text(paragraph, PAGE.margin, doc.y, { width: CONTENT_WIDTH, align: 'justify' })
+    doc.moveDown(0.55)
+  })
 }
 
 function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
@@ -1050,7 +1048,7 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   drawResultadosEnsaio(doc, form)
   drawTestesRegistrador(doc, form)
   drawResultado(doc, laudo, irregularityCodes, irregularityDescriptions)
-  drawObservacoes(doc)
+  drawReferencias(doc)
   drawAssinaturas(doc, laudo)
   drawAccreditation(doc)
 
