@@ -240,6 +240,7 @@ function drawFieldPair(
   width: number,
   label: string,
   value: string,
+  valueColor = COLORS.text,
 ) {
   doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.textMuted).text(label, x, y, {
     width,
@@ -248,7 +249,7 @@ function drawFieldPair(
   doc
     .font('Helvetica-Bold')
     .fontSize(9)
-    .fillColor(COLORS.text)
+    .fillColor(valueColor)
     .text(value, x, y + 13, { width, lineBreak: false })
 }
 
@@ -724,16 +725,22 @@ function formatAccuracy(value: unknown) {
   return formatPercent(numeric)
 }
 
+function accuracyColor(value: unknown) {
+  const numeric = parsePercent(value)
+  if (numeric == null) return COLORS.text
+  return Math.abs(numeric) > 4 ? COLORS.red : COLORS.green
+}
+
 function drawResultadosEnsaio(doc: PdfDocument, form: Record<string, unknown>) {
   drawSectionTitle(doc, 6, 'RESULTADOS DE ENSAIO')
   const rowStart = 14
   const rowStep = 28
-  const rows: Array<[string, string]> = [
-    ['Exatidão em Carga Pequena Ativa • Fator de Potência 1,0', formatAccuracy(form.cp)],
-    ['Exatidão em Carga Nominal Ativa • Fator de Potência 1,0', formatAccuracy(form.cn)],
-    ['Exatidão em Carga Nominal Ativa • Fator de Potência 0,5', formatAccuracy(form.ci)],
-    ['Exatidão em Carga Nominal Reativa • Fator de Potência 0,5', formatAccuracy(form.cnRi)],
-    ['Exatidão em Carga Nominal Reativa • Fator de Potência 0,8 Capacitiva', formatAccuracy(form.cnRc)],
+  const rows: Array<[string, unknown]> = [
+    ['Exatidão em Carga Pequena Ativa • Fator de Potência 1,0', form.cp],
+    ['Exatidão em Carga Nominal Ativa • Fator de Potência 1,0', form.cn],
+    ['Exatidão em Carga Nominal Ativa • Fator de Potência 0,5', form.ci],
+    ['Exatidão em Carga Nominal Reativa • Fator de Potência 0,5', form.cnRi],
+    ['Exatidão em Carga Nominal Reativa • Fator de Potência 0,8 Capacitiva', form.cnRc],
   ]
   const boxHeight = rowStart + rows.length * rowStep + 10
   ensureSpace(doc, boxHeight + 16)
@@ -745,7 +752,15 @@ function drawResultadosEnsaio(doc: PdfDocument, form: Record<string, unknown>) {
     .stroke()
 
   rows.forEach((row, index) => {
-    drawFieldPair(doc, PAGE.margin + 12, y + rowStart + index * rowStep, CONTENT_WIDTH - 24, row[0], row[1])
+    drawFieldPair(
+      doc,
+      PAGE.margin + 12,
+      y + rowStart + index * rowStep,
+      CONTENT_WIDTH - 24,
+      row[0],
+      formatAccuracy(row[1]),
+      accuracyColor(row[1]),
+    )
   })
 
   doc.y = y + boxHeight + 14
