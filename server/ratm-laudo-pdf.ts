@@ -923,50 +923,6 @@ function drawAccreditation(doc: PdfDocument) {
   doc.y = y + 48
 }
 
-function drawPhotos(doc: PdfDocument, photos: string[]) {
-  if (!photos.length) return
-  doc.addPage()
-  doc.y = PAGE.margin
-  drawSectionTitle(doc, 10, 'REGISTRO FOTOGRÁFICO')
-
-  const columns = 2
-  const gap = 12
-  const cellWidth = (CONTENT_WIDTH - gap) / columns
-  const imageHeight = 150
-  const cellHeight = imageHeight + 28
-  let rowY = doc.y
-
-  photos.forEach((photo, index) => {
-    const column = index % columns
-    if (column === 0) {
-      ensureSpace(doc, cellHeight + 8)
-      rowY = doc.y
-    }
-    const x = PAGE.margin + column * (cellWidth + gap)
-    const match = photo.match(/^data:image\/\w+;base64,(.+)$/)
-    doc.roundedRect(x, rowY, cellWidth, cellHeight, 8).strokeColor(COLORS.grayBorder).lineWidth(1).stroke()
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(8)
-      .fillColor(COLORS.navy)
-      .text(`Foto ${index + 1}`, x + 8, rowY + 6, { lineBreak: false })
-    if (match) {
-      const buffer = Buffer.from(match[1], 'base64')
-      doc.save()
-      doc.roundedRect(x + 8, rowY + 20, cellWidth - 16, imageHeight, 4).clip()
-      doc.image(buffer, x + 8, rowY + 20, {
-        fit: [cellWidth - 16, imageHeight],
-        align: 'center',
-        valign: 'center',
-      })
-      doc.restore()
-    }
-    if (column === columns - 1 || index === photos.length - 1) {
-      doc.y = rowY + cellHeight + 8
-    }
-  })
-}
-
 function drawFooter(doc: PdfDocument, page: number, total: number) {
   const barY = PAGE.height - 28
   doc.rect(0, barY, PAGE.width, 28).fill(COLORS.footerBar)
@@ -1056,11 +1012,6 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   drawReferencias(doc)
   drawAssinaturas(doc, laudo)
   drawAccreditation(doc)
-
-  const photos = Array.isArray(form.photos)
-    ? form.photos.filter((photo): photo is string => typeof photo === 'string' && photo.startsWith('data:image/'))
-    : []
-  drawPhotos(doc, photos)
 
   const range = doc.bufferedPageRange()
   for (let index = 0; index < range.count; index += 1) {
