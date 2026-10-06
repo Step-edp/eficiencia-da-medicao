@@ -8,12 +8,6 @@ function isFilled(value: string | null | undefined) {
   return Boolean(value?.trim())
 }
 
-function isYesNoComplete(value: string, justification: string) {
-  if (!isFilled(value)) return false
-  if (value === 'nao') return isFilled(justification)
-  return true
-}
-
 function hasScheduleDate(data: RatmFormData) {
   return isFilled(data.scheduleLabel) || isFilled(data.scheduleDate)
 }
@@ -44,10 +38,7 @@ export function isInitialTestsSectionComplete(data: RatmFormData) {
 
 export function isEnclosureSealSectionComplete(data: RatmFormData) {
   return (
-    isFilled(data.enclosureSeal) &&
-    isYesNoComplete(data.sealMatchesToi, data.sealMatchesToiJustification) &&
-    isYesNoComplete(data.sealMatchesFieldImages, data.sealMatchesFieldImagesJustification) &&
-    isFilled(data.enclosureStatus)
+    isFilled(data.enclosureSeal) && isFilled(data.enclosureStatus)
   )
 }
 
