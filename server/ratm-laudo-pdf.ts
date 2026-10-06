@@ -266,7 +266,7 @@ function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
     .font('Helvetica')
     .fontSize(7)
     .fillColor(COLORS.textMuted)
-    .text('Nº DO LAUDO', rightX, PAGE.margin + 2, { width: 170, align: 'right', lineBreak: false })
+    .text('N DO RELATÓRIO', rightX, PAGE.margin + 2, { width: 170, align: 'right', lineBreak: false })
   doc
     .font('Helvetica-Bold')
     .fontSize(10)
