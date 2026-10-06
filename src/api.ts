@@ -295,7 +295,7 @@ export type StandardCertificateRecord = {
   certificateType: 'Padrão' | 'Hipot'
   calibratedOn: string
   validUntil: string
-  preventiveBlockOn: string
+  preventiveBlockMonths: number | null
   pdfName: string
   createdAt: string
 }
@@ -1450,7 +1450,7 @@ export const api = {
     certificateType: 'Padrão' | 'Hipot'
     calibratedOn: string
     validUntil: string
-    preventiveBlockOn: string
+    preventiveBlockMonths: number | null
     pdf: string
     pdfName: string
   }) =>
@@ -1470,7 +1470,7 @@ export const api = {
       certificateType: 'Padrão' | 'Hipot'
       calibratedOn: string
       validUntil: string
-      preventiveBlockOn: string
+      preventiveBlockMonths: number | null
       pdf?: string
       pdfName?: string
     },

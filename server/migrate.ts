@@ -1243,6 +1243,24 @@ export async function migrate() {
     ALTER TABLE standard_certificates
       ADD COLUMN IF NOT EXISTS preventive_block_on DATE
   `)
+  await query(`
+    ALTER TABLE standard_certificates
+      ADD COLUMN IF NOT EXISTS preventive_block_months INTEGER
+  `)
+  await query(`
+    UPDATE standard_certificates
+    SET preventive_block_months = (
+      (EXTRACT(YEAR FROM age(valid_until, preventive_block_on))::int * 12)
+      + EXTRACT(MONTH FROM age(valid_until, preventive_block_on))::int
+    )
+    WHERE preventive_block_months IS NULL
+      AND preventive_block_on IS NOT NULL
+      AND preventive_block_on <= valid_until
+      AND (
+        (EXTRACT(YEAR FROM age(valid_until, preventive_block_on))::int * 12)
+        + EXTRACT(MONTH FROM age(valid_until, preventive_block_on))::int
+      ) BETWEEN 1 AND 36
+  `)
 
   await query(`
     CREATE TABLE IF NOT EXISTS ratm_assay_drafts (

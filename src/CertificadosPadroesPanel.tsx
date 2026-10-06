@@ -140,6 +140,22 @@ function formatValidUntil(value: string) {
   return `${day}/${month}/${year}`
 }
 
+function subtractMonths(isoDate: string, months: number) {
+  const [year, month, day] = isoDate.slice(0, 10).split('-').map(Number)
+  if (!year || !month || !day || months < 1) return ''
+  const shifted = new Date(Date.UTC(year, month - 1 - months, 1))
+  const lastDay = new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, 0)).getUTCDate()
+  const result = new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), Math.min(day, lastDay)))
+  return result.toISOString().slice(0, 10)
+}
+
+function preventiveBlockDate(validUntil: string, months: number | null) {
+  if (!months || !validUntil) return ''
+  return subtractMonths(validUntil, months)
+}
+
+const PREVENTIVE_BLOCK_MONTHS = Array.from({ length: 36 }, (_, index) => index + 1)
+
 const emptyForm = {
   assetNumber: '',
   serial: '',
@@ -149,7 +165,7 @@ const emptyForm = {
   certificateNumber: '',
   calibratedOn: '',
   validUntil: '',
-  preventiveBlockOn: '',
+  preventiveBlockMonths: '',
   certificateType: '' as '' | 'Padrão' | 'Hipot',
   pdf: '',
   pdfName: '',
@@ -227,7 +243,10 @@ export function CertificadosPadroesPanel({
         certificate.certificateType,
         formatValidUntil(certificate.calibratedOn),
         formatValidUntil(certificate.validUntil),
-        formatValidUntil(certificate.preventiveBlockOn),
+        formatValidUntil(preventiveBlockDate(certificate.validUntil, certificate.preventiveBlockMonths)),
+        certificate.preventiveBlockMonths
+          ? `${certificate.preventiveBlockMonths} meses`
+          : '',
         years,
         status,
       ]
@@ -277,7 +296,9 @@ export function CertificadosPadroesPanel({
       certificateNumber: certificate.certificateNumber,
       calibratedOn: certificate.calibratedOn.slice(0, 10),
       validUntil: certificate.validUntil.slice(0, 10),
-      preventiveBlockOn: certificate.preventiveBlockOn.slice(0, 10),
+      preventiveBlockMonths: certificate.preventiveBlockMonths
+        ? String(certificate.preventiveBlockMonths)
+        : '',
       certificateType: certificate.certificateType,
       pdf: '',
       pdfName: certificate.pdfName,
@@ -338,7 +359,7 @@ export function CertificadosPadroesPanel({
       certificateType: form.certificateType,
       calibratedOn: form.calibratedOn,
       validUntil: form.validUntil,
-      preventiveBlockOn: form.preventiveBlockOn,
+      preventiveBlockMonths: form.preventiveBlockMonths ? Number(form.preventiveBlockMonths) : null,
       ...(form.pdf ? { pdf: form.pdf, pdfName: form.pdfName || 'certificado.pdf' } : {}),
     }
 
@@ -656,12 +677,18 @@ export function CertificadosPadroesPanel({
           </label>
           <label>
             Data de bloqueio preventivo
-            <input
-              type="date"
-              value={form.preventiveBlockOn}
-              onChange={(event) => updateField('preventiveBlockOn', event.target.value)}
+            <select
+              value={form.preventiveBlockMonths}
+              onChange={(event) => updateField('preventiveBlockMonths', event.target.value)}
               disabled={submitting}
-            />
+            >
+              <option value="">Selecione os meses</option>
+              {PREVENTIVE_BLOCK_MONTHS.map((months) => (
+                <option key={months} value={String(months)}>
+                  {months === 1 ? '1 mês antes do vencimento' : `${months} meses antes do vencimento`}
+                </option>
+              ))}
+            </select>
           </label>
           <fieldset className="radio-fieldset full-width">
             <legend>Tipo</legend>
@@ -854,8 +881,10 @@ export function CertificadosPadroesPanel({
                       : '—'}
                   </td>
                   <td className="certificate-years">
-                    {certificate.preventiveBlockOn
-                      ? formatValidUntil(certificate.preventiveBlockOn)
+                    {preventiveBlockDate(certificate.validUntil, certificate.preventiveBlockMonths)
+                      ? formatValidUntil(
+                          preventiveBlockDate(certificate.validUntil, certificate.preventiveBlockMonths),
+                        )
                       : '—'}
                   </td>
                   <td>
