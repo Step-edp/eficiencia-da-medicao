@@ -547,7 +547,7 @@ function drawPadraoEnsaio(doc: PdfDocument, padrao: PadraoEnsaio) {
 function drawLocalEnsaio(doc: PdfDocument) {
   drawSectionTitle(doc, 3, 'LOCAL DE ENSAIO')
   const address =
-    'Laboratório de Metrologia EDP SP - Av. Cassiano Ricardo, 1973 - Jardim Alvorada, São José dos Campos - SP'
+    'Av. Cassiano Ricardo, 1973 - Jardim Alvorada, São José dos Campos - SP'
   doc.font('Helvetica').fontSize(9)
   const textHeight = doc.heightOfString(address, { width: CONTENT_WIDTH - 24 })
   const boxHeight = textHeight + 20
