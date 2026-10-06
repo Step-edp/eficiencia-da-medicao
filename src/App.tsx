@@ -5676,6 +5676,14 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Auditoria' ? (
               selectedAuditArea === 'Apresentação' ? (
                 <ApresentacaoPanel readOnly={labMedicaoReadOnly} />
+              ) : selectedAuditArea === 'Certificados Padrões' ? (
+                <div className="area-actions right-aligned-actions">
+                  {labMedicaoReadOnly ? null : (
+                    <button type="button" className="primary-button">
+                      Cadastrar Certificado
+                    </button>
+                  )}
+                </div>
               ) : selectedAuditArea ? (
                 <p>
                   Página dedicada da área {selectedAuditArea}. Aqui você pode concentrar
