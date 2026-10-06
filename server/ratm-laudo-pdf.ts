@@ -135,32 +135,12 @@ function isFraudConclusion(form: Record<string, unknown>) {
   )
 }
 
-function irregularityLabel(
-  form: Record<string, unknown>,
-  codes: Record<string, string> = IRREGULARITY_CODES,
-) {
-  const code = textValue(form.fieldIrregularityCode)
-  const fallback = textValue(form.irregularityCode)
-  const key = code !== '—' ? code : fallback
-  return codes[key] ?? (key !== '—' ? `Código ${key}` : 'Irregularidade não especificada')
-}
-
 function parsePercent(value: unknown): number | null {
   if (value == null) return null
   const raw = String(value).trim().replace('%', '').replace(',', '.')
   if (!raw) return null
   const num = Number(raw)
   return Number.isFinite(num) ? num : null
-}
-
-function worstAccuracy(form: Record<string, unknown>): number | null {
-  const values = [form.cp, form.cn, form.ci, form.cnRi, form.cnRc]
-    .map(parsePercent)
-    .filter((value): value is number => value != null)
-  if (!values.length) return null
-  return values.reduce((worst, value) =>
-    Math.abs(value) > Math.abs(worst) ? value : worst,
-  )
 }
 
 function formatPercent(value: number | null) {
@@ -799,143 +779,51 @@ function drawTestesRegistrador(doc: PdfDocument, form: Record<string, unknown>) 
 function drawResultado(
   doc: PdfDocument,
   laudo: RatmLaudoPdfInput,
-  fraud: boolean,
   irregularityCodes: Record<string, string>,
   irregularityDescriptions: Record<string, string> = {},
 ) {
   drawSectionTitle(doc, 8, 'RESULTADO DA PERÍCIA')
-  ensureSpace(doc, 150)
-  const y = doc.y
-  const leftW = CONTENT_WIDTH * 0.58
-  const rightW = CONTENT_WIDTH - leftW - 10
   const form = laudo.formData
-
-  const conclusion = fraud
-    ? 'Constatada fraude no medidor de energia elétrica.'
-    : 'Não constatada irregularidade metrológica no medidor.'
-
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(8)
-    .fillColor(COLORS.textMuted)
-    .text('Conclusão', PAGE.margin, y, { lineBreak: false })
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(11)
-    .fillColor(fraud ? COLORS.red : COLORS.green)
-    .text(conclusion, PAGE.margin, y + 12, { width: leftW - 8 })
-
-  const detailY = doc.y + 8
-  doc
-    .font('Helvetica')
-    .fontSize(8)
-    .fillColor(COLORS.text)
-    .text(
-      fraud
-        ? 'Com base nos ensaios realizados no Laboratório de Medição da EDP SP, foram identificadas evidências de alteração/irregularidade capazes de comprometer o registro correto do consumo de energia elétrica.'
-        : 'Com base nos ensaios realizados no Laboratório de Medição da EDP SP, o medidor apresentou comportamento metrológico compatível com os limites estabelecidos pela regulamentação vigente.',
-      PAGE.margin,
-      detailY,
-      { width: leftW - 8 },
-    )
-
-  const bulletsStart = doc.y + 8
-  doc.font('Helvetica-Bold').fontSize(8).fillColor(COLORS.navy).text('Detalhamento', PAGE.margin, bulletsStart, {
-    lineBreak: false,
-  })
-
   const code = String(form.irregularityCode ?? '').trim()
-  const notes = String(form.irregularityNotes ?? '').trim()
-  const description = notes || irregularityDescriptions[code] || ''
-
-  const details = [
-    `Irregularidade: ${irregularityLabel(form, irregularityCodes)}`,
-    `Descrição: ${textValue(description)}`,
-    `Observações do laboratório: ${textValue(form.laboratoryNotes)}`,
-    `Laudo de campo correto: ${textValue(form.fieldReportCorrect)}`,
-    `TOI: ${textValue(laudo.toi)}`,
+  const writtenName = code ? irregularityCodes[code]?.trim() || '' : ''
+  const savedNotes = String(form.irregularityNotes ?? '').trim()
+  const catalogDescription = code ? irregularityDescriptions[code]?.trim() || '' : ''
+  const fields: Array<[string, string]> = [
+    ['Irregularidade', writtenName || code || '—'],
+    ['Observações da irregularidade', savedNotes || catalogDescription || '—'],
   ]
 
-  let bulletY = bulletsStart + 14
-  details.forEach((item) => {
-    doc.circle(PAGE.margin + 3, bulletY + 3, 1.5).fill(COLORS.cyan)
-    doc
-      .font('Helvetica')
-      .fontSize(7.5)
-      .fillColor(COLORS.text)
-      .text(item, PAGE.margin + 10, bulletY, { width: leftW - 14 })
-    bulletY = Math.max(doc.y + 2, bulletY + 12)
-  })
+  const innerWidth = CONTENT_WIDTH - 24
+  const paddingTop = 14
+  const labelGap = 13
+  const blockGap = 10
+  doc.font('Helvetica-Bold').fontSize(9)
+  const valueHeights = fields.map(([, value]) => Math.max(doc.heightOfString(value, { width: innerWidth }), 11))
+  const boxHeight =
+    paddingTop + valueHeights.reduce((sum, height) => sum + labelGap + height, 0) + blockGap * (fields.length - 1) + 12
 
-  const boxX = PAGE.margin + leftW + 10
-  const boxH = Math.max(132, bulletY - y)
-  doc.roundedRect(boxX, y, rightW, boxH, 8).fillAndStroke(COLORS.grayBox, COLORS.grayBorder)
-
-  const worst = worstAccuracy(form)
+  ensureSpace(doc, boxHeight + 16)
+  const y = doc.y
   doc
-    .font('Helvetica-Bold')
-    .fontSize(7)
-    .fillColor(COLORS.textMuted)
-    .text('ERRO DE MEDIÇÃO ENCONTRADO', boxX + 10, y + 12, {
-      width: rightW - 20,
-      align: 'center',
-      lineBreak: false,
-    })
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(22)
-    .fillColor(COLORS.red)
-    .text(formatPercent(worst), boxX + 10, y + 28, {
-      width: rightW - 20,
-      align: 'center',
-      lineBreak: false,
-    })
-  doc
-    .font('Helvetica')
-    .fontSize(8)
-    .fillColor(COLORS.textMuted)
-    .text(worst != null && worst < 0 ? 'Submedição' : worst != null && worst > 0 ? 'Sobremedição' : 'Não informado', boxX + 10, y + 54, {
-      width: rightW - 20,
-      align: 'center',
-      lineBreak: false,
-    })
-
-  doc
-    .moveTo(boxX + 14, y + 72)
-    .lineTo(boxX + rightW - 14, y + 72)
+    .roundedRect(PAGE.margin, y, CONTENT_WIDTH, boxHeight, 8)
     .strokeColor(COLORS.grayBorder)
-    .lineWidth(0.8)
+    .lineWidth(1)
     .stroke()
 
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(7)
-    .fillColor(COLORS.textMuted)
-    .text('LEITURA DO MEDIDOR', boxX + 10, y + 82, {
-      width: rightW - 20,
-      align: 'center',
+  let cursor = y + paddingTop
+  fields.forEach(([label, value], index) => {
+    doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.textMuted).text(label, PAGE.margin + 12, cursor, {
+      width: innerWidth,
       lineBreak: false,
     })
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(16)
-    .fillColor(COLORS.navyDark)
-    .text(textValue(form.meterReading), boxX + 10, y + 96, {
-      width: rightW - 20,
-      align: 'center',
-      lineBreak: false,
+    cursor += labelGap
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.text).text(value, PAGE.margin + 12, cursor, {
+      width: innerWidth,
     })
-  doc
-    .font('Helvetica')
-    .fontSize(7.5)
-    .fillColor(COLORS.textMuted)
-    .text(textValue(form.meterReadingStatus), boxX + 10, y + 116, {
-      width: rightW - 20,
-      align: 'center',
-      lineBreak: false,
-    })
+    cursor += valueHeights[index] + blockGap
+  })
 
-  doc.y = y + boxH + 12
+  doc.y = y + boxHeight + 14
 }
 
 function drawObservacoes(doc: PdfDocument) {
@@ -1161,7 +1049,7 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   drawEnsaios(doc, form)
   drawResultadosEnsaio(doc, form)
   drawTestesRegistrador(doc, form)
-  drawResultado(doc, laudo, fraud, irregularityCodes, irregularityDescriptions)
+  drawResultado(doc, laudo, irregularityCodes, irregularityDescriptions)
   drawObservacoes(doc)
   drawAssinaturas(doc, laudo)
   drawAccreditation(doc)
