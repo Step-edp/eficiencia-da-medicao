@@ -41,6 +41,7 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Calendário de ensaios',
     'Reagendar',
     'Alteração de data',
+    'Auditoria',
     'Log do sistema',
     'Analisadores de Tensão',
     'Inventário',
@@ -96,12 +97,8 @@ export function isValidHomeSubareaProcess(encoded: string): boolean {
   const parsed = parseAccessProcess(encoded)
   if (!parsed) return false
   if (!(ENGINEER_HOME_SUBAREAS as readonly string[]).includes(parsed.area)) return false
-  const process =
-    parsed.area === 'Laboratório de Medição' && parsed.process === 'Auditoria'
-      ? 'Log do sistema'
-      : parsed.process
   return (PROCESSES_BY_HOME_SUBAREA[parsed.area as EngineerHomeSubarea] ?? []).includes(
-    process,
+    parsed.process,
   )
 }
 

@@ -190,16 +190,6 @@ export function parseAccessProcess(value: string): AccessProcess | null {
   return { area, process }
 }
 
-/** Nome antigo do card de log, ainda gravado em alguns acessos. */
-export function canonicalAccessProcess(encoded: string): string {
-  const parsed = parseAccessProcess(encoded)
-  if (!parsed) return encoded
-  if (parsed.area === 'Laboratório de Medição' && parsed.process === 'Auditoria') {
-    return encodeAccessProcess(parsed.area, 'Log do sistema')
-  }
-  return encoded
-}
-
 /** Grupos de processos por subcélula (UI de processos específicos). */
 export function getHomeSubareaProcessGroups(): Array<{
   area: EngineerHomeSubarea
@@ -220,7 +210,7 @@ export function getCrossAreaProcesses(_ownWorkArea = ''): Array<{
 }
 
 export function isValidHomeSubareaProcess(encoded: string): boolean {
-  const parsed = parseAccessProcess(canonicalAccessProcess(encoded))
+  const parsed = parseAccessProcess(encoded)
   if (!parsed) return false
   if (!(ENGINEER_HOME_SUBAREAS as readonly string[]).includes(parsed.area)) return false
   return (PROCESSES_BY_HOME_SUBAREA[parsed.area as EngineerHomeSubarea] ?? []).includes(

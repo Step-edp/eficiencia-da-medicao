@@ -13,7 +13,6 @@ import {
   DEFAULT_AREA_OPTIONS,
   DEFAULT_LOCALITIES,
   EDP_SCOPE_OPTIONS,
-  canonicalAccessProcess,
   encodeAccessProcess,
   ENGINEER_HOME_SUBAREAS,
   getHomeSubareaProcessGroups,
@@ -103,7 +102,7 @@ function buildUserUpdatePayload(user: AppUser, profilePhoto: string): UserUpdate
     thirdPartyCompany: user.thirdPartyCompany ?? '',
     workSubtype: user.workSubtype ?? '',
     accessAreas: user.accessAreas ?? [],
-    accessProcesses: [...new Set((user.accessProcesses ?? []).map(canonicalAccessProcess))],
+    accessProcesses: user.accessProcesses ?? [],
     personalDescription: user.personalDescription ?? '',
     hobby: user.hobby ?? '',
     profilePhoto,
@@ -183,9 +182,7 @@ export function UserDetailModal({
       : (user.workSubtype ?? ''),
   )
   const [accessAreas, setAccessAreas] = useState<string[]>(user.accessAreas ?? [])
-  const [accessProcesses, setAccessProcesses] = useState<string[]>(() =>
-    [...new Set((user.accessProcesses ?? []).map(canonicalAccessProcess))],
-  )
+  const [accessProcesses, setAccessProcesses] = useState<string[]>(user.accessProcesses ?? [])
   const [selectedProcessAreas, setSelectedProcessAreas] = useState<string[]>(() =>
     [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
   )
@@ -248,7 +245,7 @@ export function UserDetailModal({
         : (user.workSubtype ?? ''),
     )
     setAccessAreas(user.accessAreas ?? [])
-    setAccessProcesses([...new Set((user.accessProcesses ?? []).map(canonicalAccessProcess))])
+    setAccessProcesses(user.accessProcesses ?? [])
     setSelectedProcessAreas(
       [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
     )
@@ -316,7 +313,7 @@ export function UserDetailModal({
         : (user.workSubtype ?? ''),
     )
     setAccessAreas(user.accessAreas ?? [])
-    setAccessProcesses([...new Set((user.accessProcesses ?? []).map(canonicalAccessProcess))])
+    setAccessProcesses(user.accessProcesses ?? [])
     setSelectedProcessAreas(
       [...new Set((user.accessProcesses ?? []).map((item) => parseAccessProcess(item)?.area).filter(Boolean))] as string[],
     )
@@ -1102,7 +1099,7 @@ export function UserDetailModal({
                   <dd>
                     {user.accessProcesses
                       .map((item) => {
-                        const parsed = parseAccessProcess(canonicalAccessProcess(item))
+                        const parsed = parseAccessProcess(item)
                         return parsed ? `${parsed.area}: ${parsed.process}` : item
                       })
                       .join('; ')}

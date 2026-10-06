@@ -1084,6 +1084,16 @@ function TopActionBar({ onBack, onHome, onLogout }: TopActionBarProps) {
   )
 }
 
+const AUDITORIA_AREAS = [
+  'Apresentação',
+  'Gestão de Mudanças',
+  'Certificados Padrões',
+  'Controle de equipamentos',
+  'Fornecedores',
+  'Alinhamento de Padrões',
+  'Pesquisa de Satisfação',
+] as const
+
 function ItemIcon({ title }: { title: string }) {
   const iconByTitle: Record<string, 'chart' | 'flask' | 'calendar' | 'search' | 'inbox' | 'cube' | 'check' | 'image' | 'bolt' | 'ruler' | 'smile' | 'shield' | 'archive' | 'trash' | 'presentation' | 'truck' | 'book' | 'code' | 'lock' | 'key' | 'database' | 'repeat' | 'building' | 'layer' | 'monitor' | 'star' | 'users' | 'headset' | 'clock' | 'barcode'> = {
     Dashboard: 'chart',
@@ -1107,7 +1117,13 @@ function ItemIcon({ title }: { title: string }) {
     'Grandes Clientes': 'building',
     'Padrões': 'ruler',
     'Pesquisa de satisfação': 'smile',
+    'Pesquisa de Satisfação': 'smile',
     'Log do sistema': 'shield',
+    Auditoria: 'shield',
+    'Gestão de Mudanças': 'repeat',
+    'Certificados Padrões': 'check',
+    'Controle de equipamentos': 'cube',
+    'Alinhamento de Padrões': 'ruler',
     Inventário: 'archive',
     Sucata: 'trash',
     Apresentação: 'presentation',
@@ -2039,10 +2055,8 @@ function HomePanel({
   )
   const [selectedLabMeasurementSection, setSelectedLabMeasurementSection] = useState<
     string | null
-  >(() => {
-    const saved = savedNav?.selectedLabMeasurementSection ?? null
-    return saved === 'Auditoria' ? 'Log do sistema' : saved
-  })
+  >(() => savedNav?.selectedLabMeasurementSection ?? null)
+  const [selectedAuditArea, setSelectedAuditArea] = useState<string | null>(null)
   const [inventarioMonthTitle, setInventarioMonthTitle] = useState<string | null>(null)
   const [showPurchaseRequestForm, setShowPurchaseRequestForm] = useState(
     () => activeRoute === 'compras-homologacao',
@@ -2472,6 +2486,7 @@ function HomePanel({
   ]
 
   const labHighlightedSections = [
+    'Auditoria',
     'Analisadores de Tensão',
     'Inventário',
     'Aferição de Padrões BT',
@@ -2729,10 +2744,7 @@ function HomePanel({
           processes.map((item) => ({
             processKey: item.processKey,
             area: item.area,
-            process:
-              item.area === 'Laboratório de Medição' && item.process === 'Auditoria'
-                ? 'Log do sistema'
-                : item.process,
+            process: item.process,
           })),
         )
       })
@@ -2771,6 +2783,7 @@ function HomePanel({
       return
     }
     if (areaTitle === 'Laboratório de Medição') {
+      setSelectedAuditArea(null)
       setSelectedLabMeasurementSection(processName)
       return
     }
@@ -5532,10 +5545,15 @@ function HomePanel({
                   setInventarioMonthTitle(null)
                   return
                 }
+                if (selectedLabMeasurementSection === 'Auditoria' && selectedAuditArea) {
+                  setSelectedAuditArea(null)
+                  return
+                }
                 setSelectedLabMeasurementSection(null)
               }}
               onHome={() => {
                 setInventarioMonthTitle(null)
+                setSelectedAuditArea(null)
                 setSelectedLabMeasurementSection(null)
                 setSelectedArea(null)
               }}
@@ -5545,9 +5563,11 @@ function HomePanel({
             <h2>
               {inventarioMonthTitle
                 ? `Inventário · ${inventarioMonthTitle}`
-                : LAB_TRAIL_KEYS.has(selectedLabMeasurementSection)
-                  ? getLabTrailLabel(selectedLabMeasurementSection)
-                  : selectedLabMeasurementSection}
+                : selectedLabMeasurementSection === 'Auditoria' && selectedAuditArea
+                  ? selectedAuditArea
+                  : LAB_TRAIL_KEYS.has(selectedLabMeasurementSection)
+                    ? getLabTrailLabel(selectedLabMeasurementSection)
+                    : selectedLabMeasurementSection}
             </h2>
             {labMedicaoReadOnly ? (
               <div className="agenda-alert agenda-alert-ok" role="status">
@@ -5631,6 +5651,31 @@ function HomePanel({
               />
             ) : selectedLabMeasurementSection === 'Log do sistema' ? (
               <AuditPanel />
+            ) : selectedLabMeasurementSection === 'Auditoria' ? (
+              selectedAuditArea === 'Apresentação' ? (
+                <ApresentacaoPanel readOnly={labMedicaoReadOnly} />
+              ) : selectedAuditArea ? (
+                <p>
+                  Página dedicada da área {selectedAuditArea}. Aqui você pode concentrar
+                  funcionalidades e informações específicas do laboratório.
+                </p>
+              ) : (
+                <div className="measurement-sections" aria-label="Áreas de auditoria">
+                  {AUDITORIA_AREAS.map((area) => (
+                    <button
+                      key={area}
+                      className="measurement-item"
+                      type="button"
+                      onClick={() => setSelectedAuditArea(area)}
+                    >
+                      <span className="item-with-icon">
+                        <ItemIcon title={area} />
+                        <span>{area}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )
             ) : selectedLabMeasurementSection === 'Galeria' ? (
               <GalleryPanel />
             ) : selectedLabMeasurementSection === 'Consultar RATM' ? (
@@ -6208,7 +6253,10 @@ function HomePanel({
                       key={section}
                       className="measurement-item measurement-item-highlighted"
                       type="button"
-                      onClick={() => setSelectedLabMeasurementSection(section)}
+                      onClick={() => {
+                        setSelectedAuditArea(null)
+                        setSelectedLabMeasurementSection(section)
+                      }}
                     >
                       <span className="item-with-icon">
                         <ItemIcon title={section} />
@@ -6236,7 +6284,10 @@ function HomePanel({
                       key={section}
                       className="measurement-item"
                       type="button"
-                      onClick={() => setSelectedLabMeasurementSection(section)}
+                      onClick={() => {
+                        setSelectedAuditArea(null)
+                        setSelectedLabMeasurementSection(section)
+                      }}
                     >
                       <span className="item-with-icon measurement-item-row">
                         <ItemIcon title={section} />
