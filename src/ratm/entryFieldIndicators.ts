@@ -40,25 +40,22 @@ export function getVisibleSchedulingTeamFieldKeys(
 
 /** Campos obrigatórios para concluir a seção Informações de entrada. */
 export function getRequiredEntryFieldCheckKeys(
-  data: Pick<RatmFormData, 'scheduleSource' | 'entryComparisons'>,
+  _data: Pick<RatmFormData, 'scheduleSource' | 'entryComparisons'>,
 ): Array<(typeof ENTRY_FIELD_CHECK_KEYS)[number]> {
-  const hiddenTeamKeys = new Set(getVisibleSchedulingTeamFieldKeys(data))
-  const skipTeamKeys = new Set<(typeof SCHEDULING_TEAM_ENTRY_FIELD_KEYS)[number]>(
-    SCHEDULING_TEAM_ENTRY_FIELD_KEYS,
-  )
-
   return ENTRY_FIELD_CHECK_KEYS.filter((key) => {
     if (
       key === 'scheduleDate' ||
       key === 'installation' ||
       key === 'toi' ||
       key === 'note' ||
-      key === 'deliveryDeadline'
+      key === 'csd' ||
+      key === 'partner' ||
+      key === 'collaborator1' ||
+      key === 'collaborator2' ||
+      key === 'deliveryDeadline' ||
+      key === 'schedulingNotes'
     ) {
       return false
-    }
-    if (skipTeamKeys.has(key as (typeof SCHEDULING_TEAM_ENTRY_FIELD_KEYS)[number])) {
-      return hiddenTeamKeys.has(key as (typeof SCHEDULING_TEAM_ENTRY_FIELD_KEYS)[number])
     }
     return true
   })

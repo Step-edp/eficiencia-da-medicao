@@ -1091,13 +1091,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               hideVerifier
             />
             <EntryComparisonField
-              label="TOI"
-              match={data.entryComparisons?.toi}
-              check={data.entryFieldChecks.toi}
-              onCheckChange={(value) => updateEntryFieldCheck('toi', value)}
-              hideVerifier
-            />
-            <EntryComparisonField
               label="Nota"
               match={data.entryComparisons?.note}
               check={data.entryFieldChecks.note}
@@ -1106,10 +1099,20 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               hideVerifier
             />
             <EntryComparisonField
+              label="TOI"
+              match={data.entryComparisons?.toi}
+              check={data.entryFieldChecks.toi}
+              onCheckChange={(value) => updateEntryFieldCheck('toi', value)}
+              hideDocument
+              hideVerifier
+            />
+            <EntryComparisonField
               label="CSD"
               match={data.entryComparisons?.csd}
               check={data.entryFieldChecks.csd}
               onCheckChange={(value) => updateEntryFieldCheck('csd', value)}
+              hideDocument
+              hideVerifier
             />
             {skipCollaboratorChecks ? (
               <div className="ratm-readonly-field full-width">
@@ -1127,16 +1130,11 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                   match={data.entryComparisons?.[fieldKey]}
                   check={data.entryFieldChecks[fieldKey]}
                   onCheckChange={(value) => updateEntryFieldCheck(fieldKey, value)}
+                  hideDocument
+                  hideVerifier
                 />
               ))
             )}
-            <EntryComparisonField
-              label="Observações"
-              match={data.entryComparisons?.schedulingNotes}
-              check={data.entryFieldChecks.schedulingNotes}
-              onCheckChange={(value) => updateEntryFieldCheck('schedulingNotes', value)}
-              fullWidth
-            />
           </div>
           </div>
         </RatmExpandableSection>
