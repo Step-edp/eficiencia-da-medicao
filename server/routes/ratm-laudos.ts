@@ -21,6 +21,7 @@ type RatmLaudoRow = {
   installation?: string | null
   toi?: string | null
   note?: string | null
+  meter_reading?: string | null
   revoked_at?: Date | null
 }
 
@@ -39,6 +40,7 @@ function mapRatmLaudo(row: RatmLaudoRow) {
     installation: row.installation || '',
     toi: row.toi || '',
     note: row.note || '',
+    meterReading: row.meter_reading || '',
     revokedAt: row.revoked_at ? row.revoked_at.toISOString() : null,
   }
 }
@@ -87,7 +89,7 @@ export async function listRatmLaudos(req: Request, res: Response) {
      FROM ratm_laudos r
      LEFT JOIN users u ON u.id = r.created_by_user_id
      LEFT JOIN LATERAL (
-       SELECT installation, toi, note
+       SELECT installation, toi, note, meter_reading
        FROM meter_schedules
        WHERE meter = r.meter
        ORDER BY created_at DESC
@@ -346,7 +348,7 @@ export async function downloadRatmLaudoPdf(req: Request, res: Response) {
        FROM ratm_laudos r
        LEFT JOIN users u ON u.id = r.created_by_user_id
        LEFT JOIN LATERAL (
-         SELECT installation, toi, note
+         SELECT installation, toi, note, meter_reading
          FROM meter_schedules
          WHERE meter = r.meter
          ORDER BY created_at DESC

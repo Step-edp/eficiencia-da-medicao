@@ -21,6 +21,7 @@ type RatmLaudoPdfInput = {
   installation?: string
   toi?: string
   note?: string
+  meterReading?: string
   revokedAt?: string | null
 }
 
@@ -378,36 +379,31 @@ function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput, conclusion: stri
   doc.y = Math.max(boxY + 52, PAGE.margin + 100)
 }
 
+function firstText(...values: unknown[]) {
+  for (const value of values) {
+    const text = textValue(value)
+    if (text !== '—') return text
+  }
+  return '—'
+}
+
 function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
-  drawSectionTitle(doc, 1, 'DADOS GERAIS')
+  drawSectionTitle(doc, 1, 'DADOS DA INSTALAÇÃO')
   const form = laudo.formData
   const rowStart = 14
   const rowStep = 28
   const rows = [
     {
-      left: ['Unidade Consumidora', textValue(laudo.client)],
-      right: [
-        'Data da Coleta',
-        textValue(form.scheduleDate) !== '—'
-          ? textValue(form.scheduleDate)
-          : formatDate(laudo.createdAt),
-      ],
+      left: ['Titular da Unidade Consumidora', firstText(form.client, laudo.client)],
+      right: ['Instalação', firstText(form.installation, laudo.installation)],
     },
     {
-      left: ['Endereço', '—'],
-      right: ['Data de Entrada no Laboratório', formatDate(laudo.createdAt)],
+      left: ['Medidor', firstText(form.meter, laudo.meter)],
+      right: ['Leitura', firstText(form.meterReading, laudo.meterReading)],
     },
     {
-      left: ['Instalação', textValue(laudo.installation)],
-      right: ['Data(s) do(s) Ensaio(s)', formatDate(laudo.createdAt)],
-    },
-    {
-      left: ['Medidor (nº de série)', textValue(form.meter || laudo.meter)],
-      right: ['Solicitante', textValue(inspectionByLabel(form) || laudo.createdByName)],
-    },
-    {
-      left: ['Marca / Modelo', textValue(form.itemLookup)],
-      right: ['Número da OS / Nota', textValue(laudo.note || form.analysisRequest)],
+      left: ['Nota', firstText(form.note, laudo.note)],
+      right: ['TOI', firstText(form.toi, laudo.toi)],
     },
   ]
   const boxHeight = rowStart + rows.length * rowStep + 10
