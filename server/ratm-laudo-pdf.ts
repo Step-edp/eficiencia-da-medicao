@@ -105,21 +105,6 @@ function buildLaudoNumber(laudo: RatmLaudoPdfInput) {
   return formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)
 }
 
-function isFraudConclusion(form: Record<string, unknown>) {
-  if (form.apparentlyInOrder === 'Sim') return false
-  if (form.visualTest === 'Reprovado' || form.dielectric === 'Reprovado' || form.march === 'Reprovado') {
-    return true
-  }
-  return (
-    form.brokenMeter === 'Sim' ||
-    form.damagedCoil === 'Sim' ||
-    form.dielectricFailed === 'Sim' ||
-    form.foreignBodyInMeter === 'Sim' ||
-    form.meterInteriorAccess === 'Sim' ||
-    form.displayOff === 'Sim'
-  )
-}
-
 function parsePercent(value: unknown): number | null {
   if (value == null) return null
   const raw = String(value).trim().replace('%', '').replace(',', '.')
@@ -262,7 +247,7 @@ function drawFieldPair(
     .text(value, x, y + 13, { width, lineBreak: false })
 }
 
-function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput, conclusion: string) {
+function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   const logoWidth = drawEdpMark(doc, PAGE.margin, PAGE.margin)
   const brandX = PAGE.margin + logoWidth + 12
   doc
@@ -318,36 +303,15 @@ function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput, conclusion: stri
     .stroke()
 
   const title = 'RATM • RELATÓRIO DE AVALIAÇÃO TÉCNICA DE MEDIDOR'
-  const titleWidth = CONTENT_WIDTH - 190
-  const boxX = PAGE.width - PAGE.margin - 180
-  const boxY = PAGE.margin + 58
-  const titleSize = 11
-  doc.font('Helvetica-Bold').fontSize(titleSize)
+  const titleY = PAGE.margin + 64
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.titleBlue)
   const titleHeight = doc.currentLineHeight()
-  const titleY = boxY + (42 - titleHeight) / 2
-  doc.fillColor(COLORS.titleBlue).text(title, PAGE.margin, titleY, {
-    width: titleWidth,
+  doc.text(title, PAGE.margin, titleY, {
+    width: CONTENT_WIDTH,
     lineBreak: false,
   })
-  doc.roundedRect(boxX, boxY, 180, 42, 6).fillAndStroke(COLORS.graySoft, COLORS.grayBorder)
-  doc.circle(boxX + 16, boxY + 21, 8).fill(COLORS.green)
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(8)
-    .fillColor(COLORS.white)
-    .text('✓', boxX + 12, boxY + 16, { lineBreak: false })
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(7)
-    .fillColor(COLORS.navy)
-    .text('LAUDO CONCLUSIVO:', boxX + 30, boxY + 8, { width: 140, lineBreak: false })
-  doc
-    .font('Helvetica')
-    .fontSize(7)
-    .fillColor(COLORS.text)
-    .text(conclusion, boxX + 30, boxY + 18, { width: 140 })
 
-  doc.y = Math.max(boxY + 52, titleY + titleHeight + 10)
+  doc.y = titleY + titleHeight + 10
 }
 
 function firstText(...values: unknown[]) {
@@ -931,10 +895,6 @@ function drawFooter(doc: PdfDocument, page: number, total: number) {
 
 export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Response) {
   const form = laudo.formData
-  const fraud = isFraudConclusion(form)
-  const conclusion = fraud
-    ? 'Constatada fraude no medidor de energia elétrica.'
-    : 'Não constatada irregularidade no medidor de energia elétrica.'
 
   const irregularityCodes = { ...IRREGULARITY_CODES }
   const irregularityDescriptions: Record<string, string> = {}
@@ -974,7 +934,7 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
 
   doc.pipe(res)
 
-  drawHeader(doc, laudo, conclusion)
+  drawHeader(doc, laudo)
   drawDadosGerais(doc, laudo)
   drawPadraoEnsaio(doc, await loadPadraoEnsaio(form.testBench))
   drawLocalEnsaio(doc)
