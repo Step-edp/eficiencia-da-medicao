@@ -428,27 +428,120 @@ function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   doc.y = y + boxHeight + 14
 }
 
-function drawProcedimentos(doc: PdfDocument) {
-  drawSectionTitle(doc, 2, 'PROCEDIMENTOS E REFERÊNCIAS')
-  ensureSpace(doc, 70)
-  const items = [
-    'Portaria INMETRO nº 493/2021 — requisitos metrológicos para medidores em serviço.',
-    'Resolução Normativa ANEEL nº 1.000/2021 — direitos e deveres dos consumidores.',
-    'ABNT NBR ISO/IEC 17025 — requisitos gerais para competência de laboratórios.',
-    'Procedimentos internos do Laboratório de Medição EDP SP para perícia metrológica.',
+type PadraoEnsaio = {
+  patrimonio: string
+  serial: string
+  modelo: string
+  fabricante: string
+  classe: string
+  certificado: string
+  validade: string
+}
+
+async function loadPadraoEnsaio(testBench: unknown): Promise<PadraoEnsaio> {
+  const patrimonio = textValue(testBench)
+  const empty: PadraoEnsaio = {
+    patrimonio,
+    serial: '—',
+    modelo: '—',
+    fabricante: '—',
+    classe: '—',
+    certificado: '—',
+    validade: '—',
+  }
+  const key = patrimonio === '—' ? '' : patrimonio
+  if (!key) return empty
+
+  try {
+    const stored = await query<{
+      equipment_number: string
+      numero_serie: string
+      modelo: string
+      fabricante: string
+      classe: string
+      identificacao_laudo: string
+    }>(
+      `SELECT equipment_number, numero_serie, modelo, fabricante, classe, identificacao_laudo
+       FROM analisadores_tensao
+       WHERE equipment_number = $1 OR numero_serie = $1
+       LIMIT 1`,
+      [key],
+    )
+    const row = stored.rows[0]
+    if (!row) return empty
+    return {
+      patrimonio: textValue(row.equipment_number || key),
+      serial: textValue(row.numero_serie),
+      modelo: textValue(row.modelo),
+      fabricante: textValue(row.fabricante),
+      classe: textValue(row.classe),
+      certificado: textValue(row.identificacao_laudo),
+      validade: '—',
+    }
+  } catch (error) {
+    console.error('Não foi possível carregar o padrão de ensaio do laudo.', error)
+    return empty
+  }
+}
+
+function drawPadraoEnsaio(doc: PdfDocument, padrao: PadraoEnsaio) {
+  drawSectionTitle(doc, 2, 'DADOS DO PADRÃO DE ENSAIO')
+  ensureSpace(doc, 36)
+  const introY = doc.y
+  doc.circle(PAGE.margin + 4, introY + 4, 2).fill(COLORS.cyan)
+  doc
+    .font('Helvetica')
+    .fontSize(8)
+    .fillColor(COLORS.text)
+    .text(
+      'Padrão de ensaio: Equipamento de alta precisão usado como referência para verificar se um medidor de energia está medindo corretamente.',
+      PAGE.margin + 12,
+      introY,
+      { width: CONTENT_WIDTH - 12 },
+    )
+  doc.y = Math.max(doc.y, introY + 28)
+
+  const rowStart = 14
+  const rowStep = 28
+  const rows = [
+    {
+      left: ['Patrimônio', padrao.patrimonio],
+      right: ['Serial', padrao.serial],
+    },
+    {
+      left: ['Modelo', padrao.modelo],
+      right: ['Fabricante', padrao.fabricante],
+    },
+    {
+      left: ['Classe de Exatidão', padrao.classe],
+      right: ['Certificado de Calibração', padrao.certificado],
+    },
+    {
+      left: ['Validade do certificado do Padrão de Ensaio', padrao.validade],
+      right: null,
+    },
   ]
-  items.forEach((item) => {
-    ensureSpace(doc, 16)
-    const y = doc.y
-    doc.circle(PAGE.margin + 4, y + 4, 2).fill(COLORS.cyan)
-    doc
-      .font('Helvetica')
-      .fontSize(8)
-      .fillColor(COLORS.text)
-      .text(item, PAGE.margin + 12, y, { width: CONTENT_WIDTH - 12 })
-    doc.y = Math.max(doc.y, y + 14)
+  const boxHeight = rowStart + rows.length * rowStep + 10
+  ensureSpace(doc, boxHeight + 16)
+  const y = doc.y
+  doc
+    .roundedRect(PAGE.margin, y, CONTENT_WIDTH, boxHeight, 8)
+    .strokeColor(COLORS.grayBorder)
+    .lineWidth(1)
+    .stroke()
+
+  const colW = (CONTENT_WIDTH - 28) / 2
+  const leftX = PAGE.margin + 12
+  const rightX = PAGE.margin + 16 + colW
+
+  rows.forEach((row, index) => {
+    const rowY = y + rowStart + index * rowStep
+    const labelWidth = row.right ? colW - 8 : CONTENT_WIDTH - 24
+    drawFieldPair(doc, leftX, rowY, labelWidth, row.left[0], row.left[1])
+    if (row.right) drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
   })
-  doc.y += 6
+
+  doc.y = y + boxHeight + 14
 }
 
 function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
@@ -865,7 +958,7 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
 
   drawHeader(doc, laudo, conclusion)
   drawDadosGerais(doc, laudo)
-  drawProcedimentos(doc)
+  drawPadraoEnsaio(doc, await loadPadraoEnsaio(form.testBench))
   drawEnsaios(doc, form)
   drawResultado(doc, laudo, fraud, irregularityCodes, irregularityDescriptions)
   drawObservacoes(doc)
