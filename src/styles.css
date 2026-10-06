@@ -6156,6 +6156,17 @@ body.laudo-viewer-open {
   flex-shrink: 0;
 }
 
+body.laudo-viewer-open .laudo-viewer-actions {
+  padding-right: 240px;
+}
+
+@media (max-width: 720px) {
+  body.laudo-viewer-open .laudo-viewer-actions {
+    padding-right: 0;
+    padding-bottom: 72px;
+  }
+}
+
 .laudo-confirm-overlay {
   position: absolute;
   inset: 0;
