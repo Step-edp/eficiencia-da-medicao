@@ -183,8 +183,10 @@ function EntryComparisonField({
           </div>
         )}
         <div className="ratm-entry-comparison-item">
+        {hideDocument ? null : (
           <span className="ratm-entry-comparison-label">Cadastrado</span>
-          <p className="ratm-readonly-value">{displayOrDash(match?.registered)}</p>
+        )}
+        <p className="ratm-readonly-value">{displayOrDash(match?.registered)}</p>
         </div>
       </div>
     </div>
@@ -996,6 +998,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
             <p className="ratm-status-line">Status - {data.meterStatus}</p>
           ) : null}
 
+          <div className="ratm-entry-info">
+
           <EntryComparisonField
             label="Data de ensaio"
             match={data.entryComparisons?.scheduleDate}
@@ -1103,6 +1107,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               onCheckChange={(value) => updateEntryFieldCheck('schedulingNotes', value)}
               fullWidth
             />
+          </div>
           </div>
         </RatmExpandableSection>
 

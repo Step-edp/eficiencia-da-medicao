@@ -8120,6 +8120,58 @@ input[type='file'] {
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
 }
 
+.ratm-entry-info {
+  display: grid;
+  gap: 8px;
+}
+
+.ratm-entry-info .ratm-readonly-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.ratm-entry-info .ratm-readonly-field-header {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.ratm-entry-info .ratm-readonly-value,
+.ratm-entry-info .ratm-entry-comparison .ratm-readonly-value {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.ratm-entry-info .ratm-entry-comparison-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 14px;
+}
+
+.ratm-entry-info .ratm-entry-comparison-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.ratm-entry-info .ratm-schedule-details {
+  gap: 8px 16px;
+}
+
+.ratm-entry-info .ratm-client-line {
+  min-height: 0;
+}
+
+.ratm-entry-info .ratm-readonly-field > input {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
 .ratm-schedule-details {
   display: grid;
   gap: 14px;
