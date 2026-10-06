@@ -308,6 +308,7 @@ function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   const titleHeight = doc.currentLineHeight()
   doc.text(title, PAGE.margin, titleY, {
     width: CONTENT_WIDTH,
+    align: 'center',
     lineBreak: false,
   })
 
