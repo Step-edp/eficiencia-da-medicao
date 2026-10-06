@@ -8132,7 +8132,13 @@ input[type='file'] {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 4px 10px;
+  justify-content: flex-start;
+  gap: 4px 8px;
+}
+
+.ratm-entry-info .ratm-readonly-label,
+.ratm-model-details .ratm-readonly-label {
+  flex: 0 0 auto;
 }
 
 .ratm-entry-info .ratm-readonly-field-header {
