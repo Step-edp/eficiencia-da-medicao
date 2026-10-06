@@ -388,11 +388,11 @@ function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
     },
     {
       left: ['Medidor', firstText(form.meter, laudo.meter)],
-      right: null,
+      right: ['TOI', firstText(form.toi, laudo.toi)],
     },
     {
       left: ['Nota', firstText(form.note, laudo.note)],
-      right: ['TOI', firstText(form.toi, laudo.toi)],
+      right: null,
     },
   ]
   const boxHeight = rowStart + rows.length * rowStep + 10
