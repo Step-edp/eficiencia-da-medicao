@@ -1050,6 +1050,10 @@ button {
   margin: 0.35rem 0 1.5rem;
 }
 
+.certificados-padroes-panel .materials-filters-grid {
+  margin-bottom: 1.25rem;
+}
+
 .certificate-years {
   white-space: nowrap;
 }

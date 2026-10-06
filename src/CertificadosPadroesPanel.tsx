@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useId, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { api, ApiError, type StandardCertificateRecord } from './api'
 import { LoginFeedback } from './LoginFeedback'
 import { readAttachmentAsDataUrl } from './readAttachmentAsDataUrl'
@@ -154,6 +154,12 @@ export function CertificadosPadroesPanel({
   const [form, setForm] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [assetFilter, setAssetFilter] = useState('')
+  const [modelFilter, setModelFilter] = useState('')
+  const [manufacturerFilter, setManufacturerFilter] = useState('')
+  const [certificateNumberFilter, setCertificateNumberFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('Todos')
+  const [statusFilter, setStatusFilter] = useState('Todos')
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
@@ -180,6 +186,42 @@ export function CertificadosPadroesPanel({
   useEffect(() => {
     void load()
   }, [load])
+
+  const filteredCertificates = useMemo(() => {
+    const matches = (value: string, query: string) =>
+      value.toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))
+    return certificates.filter((certificate) => {
+      if (
+        assetFilter.trim() &&
+        !matches(`${certificate.assetNumber} ${certificate.serial}`, assetFilter)
+      ) {
+        return false
+      }
+      if (modelFilter.trim() && !matches(certificate.model, modelFilter)) return false
+      if (manufacturerFilter.trim() && !matches(certificate.manufacturer, manufacturerFilter)) {
+        return false
+      }
+      if (
+        certificateNumberFilter.trim() &&
+        !matches(certificate.certificateNumber, certificateNumberFilter)
+      ) {
+        return false
+      }
+      if (typeFilter !== 'Todos' && certificate.certificateType !== typeFilter) return false
+      if (statusFilter !== 'Todos' && certificateStatus(certificate.validUntil) !== statusFilter) {
+        return false
+      }
+      return true
+    })
+  }, [
+    certificates,
+    assetFilter,
+    modelFilter,
+    manufacturerFilter,
+    certificateNumberFilter,
+    typeFilter,
+    statusFilter,
+  ])
 
   const resetForm = () => {
     setForm(emptyForm)
@@ -550,6 +592,64 @@ export function CertificadosPadroesPanel({
       ) : certificates.length === 0 ? (
         <p className="entrada-panel-empty">Nenhum certificado cadastrado.</p>
       ) : (
+        <>
+        <div className="materials-filters-grid">
+          <label>
+            Patrimônio • Serial
+            <input
+              type="text"
+              value={assetFilter}
+              onChange={(event) => setAssetFilter(event.target.value)}
+              placeholder="Filtrar por patrimônio"
+            />
+          </label>
+          <label>
+            Modelo
+            <input
+              type="text"
+              value={modelFilter}
+              onChange={(event) => setModelFilter(event.target.value)}
+              placeholder="Filtrar por modelo"
+            />
+          </label>
+          <label>
+            Fabricante
+            <input
+              type="text"
+              value={manufacturerFilter}
+              onChange={(event) => setManufacturerFilter(event.target.value)}
+              placeholder="Filtrar por fabricante"
+            />
+          </label>
+          <label>
+            Número do certificado
+            <input
+              type="text"
+              value={certificateNumberFilter}
+              onChange={(event) => setCertificateNumberFilter(event.target.value)}
+              placeholder="Filtrar por número"
+            />
+          </label>
+          <label>
+            Tipo
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+              <option value="Todos">Todos</option>
+              <option value="Padrão">Padrão</option>
+              <option value="Hipot">Hipot</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="Todos">Todos</option>
+              <option value="Válido">Válido</option>
+              <option value="Vencido">Vencido</option>
+            </select>
+          </label>
+        </div>
+        {filteredCertificates.length === 0 ? (
+          <p className="entrada-panel-empty">Nenhum certificado encontrado com esses filtros.</p>
+        ) : (
         <div className="entrada-table-wrap">
           <table className="data-table">
             <thead>
@@ -568,7 +668,7 @@ export function CertificadosPadroesPanel({
               </tr>
             </thead>
             <tbody>
-              {certificates.map((certificate) => (
+              {filteredCertificates.map((certificate) => (
                 <tr key={certificate.id}>
                   <td>{certificate.assetNumber || certificate.serial}</td>
                   <td>{certificate.model}</td>
@@ -640,6 +740,8 @@ export function CertificadosPadroesPanel({
             </tbody>
           </table>
         </div>
+        )}
+        </>
       )}
     </div>
   )
