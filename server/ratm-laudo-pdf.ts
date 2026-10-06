@@ -777,13 +777,22 @@ function formatAccuracy(value: unknown) {
   return formatPercent(numeric)
 }
 
-function accuracyColor(value: unknown) {
-  const numeric = parsePercent(value)
-  if (numeric == null) return COLORS.text
-  return Math.abs(numeric) > 4 ? COLORS.red : COLORS.green
+function isElectronicMeterType(tipo: string) {
+  const normalized = tipo
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+  return normalized.includes('eletronico')
 }
 
-function drawResultadosEnsaio(doc: PdfDocument, form: Record<string, unknown>) {
+function accuracyColor(value: unknown, meterType: string) {
+  const numeric = parsePercent(value)
+  if (numeric == null) return COLORS.text
+  const limit = isElectronicMeterType(meterType) ? 1.3 : 4
+  return Math.abs(numeric) > limit ? COLORS.red : COLORS.green
+}
+
+function drawResultadosEnsaio(doc: PdfDocument, form: Record<string, unknown>, meterType: string) {
   drawSectionTitle(doc, 6, 'RESULTADOS DE ENSAIO')
   const rowStart = 14
   const rowStep = 28
@@ -811,7 +820,7 @@ function drawResultadosEnsaio(doc: PdfDocument, form: Record<string, unknown>) {
       CONTENT_WIDTH - 24,
       row[0],
       formatAccuracy(row[1]),
-      accuracyColor(row[1]),
+      accuracyColor(row[1], meterType),
     )
   })
 
@@ -1055,13 +1064,13 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   drawDadosGerais(doc, laudo)
   drawPadraoEnsaio(doc, await loadPadraoEnsaio(form.testBench))
   drawLocalEnsaio(doc)
-  drawDadosMedidor(
-    doc,
-    laudo,
-    await resolveMeterEnergyData(form, String(form.meter ?? laudo.meter ?? '').trim()),
+  const meterData = await resolveMeterEnergyData(
+    form,
+    String(form.meter ?? laudo.meter ?? '').trim(),
   )
+  drawDadosMedidor(doc, laudo, meterData)
   drawEnsaios(doc, form)
-  drawResultadosEnsaio(doc, form)
+  drawResultadosEnsaio(doc, form, meterData.tipo)
   drawTestesRegistrador(doc, form)
   drawResultado(doc, laudo, irregularityCodes, irregularityDescriptions)
   drawReferencias(doc)
