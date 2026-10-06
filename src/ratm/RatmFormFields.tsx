@@ -418,7 +418,7 @@ async function fillClientFromInspectionDocument(
   }
 }
 
-const SEM_LACRE_NUMBER = 'Sem Lacre'
+const SEM_LACRE_NUMBER = 'Sem lacre'
 
 function sealNumberForStatus(status: string, currentNumber: string) {
   if (status === 'Sem lacre') return SEM_LACRE_NUMBER
@@ -897,6 +897,31 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     if (!selectedMeterModel || !meterModelSnapshotEmpty) return
     onChange(meterModelFormPatch(selectedMeterModel))
   }, [selectedMeterModel, meterModelSnapshotEmpty])
+
+  useEffect(() => {
+    const canonical = (status: string, number: string) =>
+      status === 'Sem lacre' &&
+      number.trim().toLocaleLowerCase('pt-BR') === 'sem lacre' &&
+      number !== SEM_LACRE_NUMBER
+        ? SEM_LACRE_NUMBER
+        : null
+    const enclosureSeal = canonical(data.enclosureStatus, data.enclosureSeal)
+    const seal1 = canonical(data.seal1Status, data.seal1)
+    const seal2 = canonical(data.seal2Status, data.seal2)
+    if (!enclosureSeal && !seal1 && !seal2) return
+    onChange({
+      ...(enclosureSeal ? { enclosureSeal } : {}),
+      ...(seal1 ? { seal1 } : {}),
+      ...(seal2 ? { seal2 } : {}),
+    })
+  }, [
+    data.enclosureStatus,
+    data.enclosureSeal,
+    data.seal1Status,
+    data.seal1,
+    data.seal2Status,
+    data.seal2,
+  ])
   const initialTestsComplete = isInitialTestsSectionComplete(data)
   const enclosureSealComplete = isEnclosureSealSectionComplete(data)
   const seal1Complete = isSeal1SectionComplete(data)
