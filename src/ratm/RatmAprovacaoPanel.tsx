@@ -54,13 +54,11 @@ export function RatmAprovacaoPanel({
         {pendingLaudos.length ? (
           pendingLaudos.map((laudo) => (
             <article key={laudo.id} className="approval-item">
-              <div>
+              <div className="approval-item-info">
                 <strong>Laudo {formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)}</strong>
                 <span>Medidor: {laudo.meter}</span>
                 <span>Cliente: {laudo.client}</span>
-                <span>
-                  Gerado em {new Date(laudo.createdAt).toLocaleString('pt-BR')}
-                </span>
+                <span>Gerado em {new Date(laudo.createdAt).toLocaleString('pt-BR')}</span>
               </div>
               <div className="approval-item-actions">
                 <button

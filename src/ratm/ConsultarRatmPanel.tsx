@@ -200,7 +200,7 @@ export function ConsultarRatmPanel() {
         <div className="approval-list" aria-label="Laudos RATM encontrados">
           {filtered.map((laudo) => (
             <article key={laudo.id} className="approval-item">
-              <div>
+              <div className="approval-item-info">
                 <strong>Laudo {formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)}</strong>
                 <span>ID: {laudo.id}</span>
                 <span>Medidor: {laudo.meter}</span>

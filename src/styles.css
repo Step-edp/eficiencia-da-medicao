@@ -4466,6 +4466,27 @@ button {
   margin: 0;
 }
 
+.approval-item:has(.approval-item-info) {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.approval-item-info {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.approval-item-info strong {
+  display: block;
+}
+
+.approval-item-info span {
+  display: block;
+  color: var(--text-soft);
+  line-height: 1.4;
+}
+
 .approval-item-actions {
   display: flex;
   flex-wrap: wrap;
