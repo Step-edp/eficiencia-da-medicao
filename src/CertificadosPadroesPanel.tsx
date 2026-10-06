@@ -562,7 +562,7 @@ export function CertificadosPadroesPanel({
                 <th>Tipo</th>
                 <th>Data de Calibração</th>
                 <th>Validade</th>
-                <th>Anos</th>
+                <th aria-label="Prazo em anos" />
                 <th>Status</th>
                 <th>PDF</th>
               </tr>
