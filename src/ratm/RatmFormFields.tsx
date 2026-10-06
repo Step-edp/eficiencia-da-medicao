@@ -742,6 +742,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const [irregularityDescriptions, setIrregularityDescriptions] = useState<Record<string, string>>(
     {},
   )
+  const [editingClient, setEditingClient] = useState(false)
+  const clientInputRef = useRef<HTMLInputElement>(null)
   const accordionName = `ratm-sections-${index}`
   const registrationLookupRef = useRef({ 1: 0, 2: 0 })
 
@@ -804,6 +806,12 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
   const irregularityDescription =
     irregularityCodes[data.irregularityCode] ?? 'Selecione um código válido.'
+
+  useEffect(() => {
+    if (!editingClient) return
+    clientInputRef.current?.focus()
+    clientInputRef.current?.select()
+  }, [editingClient])
 
   useEffect(() => {
     const nextNotes = descriptionForCode(data.irregularityCode)
@@ -1076,17 +1084,44 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               <span className="ratm-readonly-label">Medidor</span>
               <p className="ratm-readonly-value">{displayOrDash(data.meter)}</p>
             </div>
-            <label className="full-width">
-              Cliente
-              <input
-                type="text"
-                value={data.client}
-                onChange={(event) =>
-                  onChange({ client: event.target.value.toLocaleLowerCase('pt-BR') })
-                }
-                placeholder="Titular da unidade consumidora"
-              />
-            </label>
+            <div className="ratm-readonly-field full-width">
+              <span className="ratm-readonly-label">Cliente</span>
+              {editingClient ? (
+                <input
+                  ref={clientInputRef}
+                  type="text"
+                  value={data.client}
+                  aria-label="Cliente"
+                  placeholder="Titular da unidade consumidora"
+                  onChange={(event) =>
+                    onChange({ client: event.target.value.toLocaleLowerCase('pt-BR') })
+                  }
+                  onBlur={() => setEditingClient(false)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === 'Escape') {
+                      event.currentTarget.blur()
+                    }
+                  }}
+                />
+              ) : (
+                <div className="ratm-client-line">
+                  <p>{displayOrDash(data.client.toLocaleLowerCase('pt-BR'))}</p>
+                  <button
+                    className="ratm-client-edit"
+                    type="button"
+                    aria-label="Editar cliente"
+                    onClick={() => setEditingClient(true)}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M4 16.5V20h3.5L18.8 8.7l-3.5-3.5L4 16.5zm15.7-9.2a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-1.2 1.2 3.5 3.5 1.7-1.7z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
             <EntryComparisonField
               label="Instalação"
               match={data.entryComparisons?.installation}

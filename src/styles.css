@@ -8051,6 +8051,44 @@ input[type='file'] {
   line-height: 1.3;
 }
 
+.ratm-client-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.ratm-client-line p {
+  margin: 0;
+  color: var(--text-main);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.ratm-client-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #9eb4c9;
+  cursor: pointer;
+}
+
+.ratm-client-edit svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ratm-client-edit:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .ratm-section-box {
   margin: 0;
   border: 1px solid rgba(150, 187, 215, 0.28);
