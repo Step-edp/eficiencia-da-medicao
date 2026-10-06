@@ -19,6 +19,7 @@ type RatmLaudoViewerProps = {
   readOnly?: boolean
   approverUserId?: string
   approverIsLab?: boolean
+  initialMode?: 'view' | 'edit'
 }
 
 function laudoToFormData(laudo: RatmLaudo): RatmFormData {
@@ -33,8 +34,9 @@ export function RatmLaudoViewer({
   readOnly = false,
   approverUserId,
   approverIsLab = false,
+  initialMode = 'view',
 }: RatmLaudoViewerProps) {
-  const [mode, setMode] = useState<'view' | 'edit'>('view')
+  const [mode, setMode] = useState<'view' | 'edit'>(initialMode)
   const [currentLaudo, setCurrentLaudo] = useState(laudo)
   const [formData, setFormData] = useState<RatmFormData>(() => laudoToFormData(laudo))
   const [pdfVersion, setPdfVersion] = useState(1)

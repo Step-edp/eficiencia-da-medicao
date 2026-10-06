@@ -21,6 +21,7 @@ export function RatmAprovacaoPanel({
   approverIsLab = false,
 }: RatmAprovacaoPanelProps) {
   const [viewingLaudo, setViewingLaudo] = useState<RatmLaudo | null>(null)
+  const [viewerMode, setViewerMode] = useState<'view' | 'edit'>('view')
   const [pdfError, setPdfError] = useState('')
   const pendingLaudos = laudos.filter((laudo) => laudo.status === 'Pendente' && !laudo.revokedAt)
 
@@ -71,14 +72,28 @@ export function RatmAprovacaoPanel({
                 </button>
                 {readOnly ? null : (
                   <button
+                    className="secondary-button compact-button"
+                    type="button"
+                    onClick={() => {
+                      setViewerMode('edit')
+                      setViewingLaudo(laudo)
+                    }}
+                  >
+                    Editar
+                  </button>
+                )}
+                {readOnly ? null : (
+                  <button
                     className="reserve-button compact-button"
                     type="button"
-                    onClick={() => setViewingLaudo(laudo)}
+                    onClick={() => {
+                      setViewerMode('view')
+                      setViewingLaudo(laudo)
+                    }}
                   >
                     Aprovar
                   </button>
                 )}
-                <span className="status-badge">{laudo.status}</span>
               </div>
             </article>
           ))
@@ -92,6 +107,7 @@ export function RatmAprovacaoPanel({
       {viewingLaudo ? (
         <RatmLaudoViewer
           laudo={viewingLaudo}
+          initialMode={viewerMode}
           readOnly={readOnly}
           approverUserId={approverUserId}
           approverIsLab={approverIsLab}
