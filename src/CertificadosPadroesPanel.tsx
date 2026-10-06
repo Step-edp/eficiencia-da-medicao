@@ -861,7 +861,7 @@ export function CertificadosPadroesPanel({
                 <th aria-label="Prazo em anos" />
                 <th>Data de bloqueio preventivo</th>
                 <th>Status</th>
-                <th>PDF</th>
+                <th aria-label="PDF" />
               </tr>
             </thead>
             <tbody>
