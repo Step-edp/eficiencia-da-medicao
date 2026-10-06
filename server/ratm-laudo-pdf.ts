@@ -313,21 +313,31 @@ function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
     .fillColor(COLORS.textMuted)
     .text('EDP SP', brandX, PAGE.margin + 11, { lineBreak: false })
 
-  const rightX = PAGE.width - PAGE.margin - 150
-  doc
-    .font('Helvetica')
-    .fontSize(6)
-    .fillColor(COLORS.textMuted)
-    .text('N DO RELATÓRIO', rightX, PAGE.margin, { width: 150, align: 'right', lineBreak: false })
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(7)
-    .fillColor(COLORS.navyDark)
-    .text(buildLaudoNumber(laudo), rightX, PAGE.margin + 8, {
-      width: 150,
-      align: 'right',
-      lineBreak: false,
-    })
+  const blockW = 78
+  const emissionX = PAGE.width - PAGE.margin - blockW
+  const reportX = emissionX - 10 - blockW
+  doc.font('Helvetica').fontSize(6).fillColor(COLORS.textMuted)
+  doc.text('N DO RELATÓRIO', reportX, PAGE.margin, {
+    width: blockW,
+    align: 'right',
+    lineBreak: false,
+  })
+  doc.text('EMISSÃO', emissionX, PAGE.margin, {
+    width: blockW,
+    align: 'right',
+    lineBreak: false,
+  })
+  doc.font('Helvetica-Bold').fontSize(7).fillColor(COLORS.navyDark)
+  doc.text(buildLaudoNumber(laudo), reportX, PAGE.margin + 8, {
+    width: blockW,
+    align: 'right',
+    lineBreak: false,
+  })
+  doc.text(formatDate(laudo.createdAt), emissionX, PAGE.margin + 8, {
+    width: blockW,
+    align: 'right',
+    lineBreak: false,
+  })
 
   const lineY = PAGE.margin + 22
   doc
@@ -346,14 +356,8 @@ function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
     align: 'center',
     lineBreak: false,
   })
-  doc.font('Helvetica').fontSize(6).fillColor(COLORS.textMuted)
-  doc.text(`Emissão ${formatDate(laudo.createdAt)}`, PAGE.margin, titleY + titleHeight, {
-    width: CONTENT_WIDTH,
-    align: 'center',
-    lineBreak: false,
-  })
 
-  doc.y = titleY + titleHeight + 12
+  doc.y = titleY + titleHeight + 6
 }
 
 function firstText(...values: unknown[]) {
