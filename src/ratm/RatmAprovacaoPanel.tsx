@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { RatmLaudoViewer } from './RatmLaudoViewer'
 import { formatRatmLaudoNumber, type RatmLaudo } from './laudos'
+import { openRatmLaudoPdf } from './laudoPdf'
 
 type RatmAprovacaoPanelProps = {
   laudos: RatmLaudo[]
@@ -20,7 +21,19 @@ export function RatmAprovacaoPanel({
   approverIsLab = false,
 }: RatmAprovacaoPanelProps) {
   const [viewingLaudo, setViewingLaudo] = useState<RatmLaudo | null>(null)
+  const [pdfError, setPdfError] = useState('')
   const pendingLaudos = laudos.filter((laudo) => laudo.status === 'Pendente' && !laudo.revokedAt)
+
+  const handleOpenPdf = (laudoId: string) => {
+    try {
+      setPdfError('')
+      openRatmLaudoPdf(laudoId)
+    } catch (error) {
+      setPdfError(
+        error instanceof Error ? error.message : 'Não foi possível abrir o PDF no navegador.',
+      )
+    }
+  }
 
   return (
     <>
@@ -29,6 +42,12 @@ export function RatmAprovacaoPanel({
           ? 'Laudos de RATM pendentes de aprovação (somente visualização).'
           : 'Laudos oficiais de perícia metrológica aguardando aprovação. Visualize o PDF, edite se necessário e aprove o laudo dentro do aplicativo.'}
       </p>
+
+      {pdfError ? (
+        <p className="generated-password-empty" role="alert">
+          {pdfError}
+        </p>
+      ) : null}
 
       <div className="approval-list" aria-label="Laudos de RATM pendentes">
         {pendingLaudos.length ? (
@@ -46,10 +65,19 @@ export function RatmAprovacaoPanel({
                 <button
                   className="secondary-button compact-button"
                   type="button"
-                  onClick={() => setViewingLaudo(laudo)}
+                  onClick={() => handleOpenPdf(laudo.id)}
                 >
                   Visualizar PDF
                 </button>
+                {readOnly ? null : (
+                  <button
+                    className="reserve-button compact-button"
+                    type="button"
+                    onClick={() => setViewingLaudo(laudo)}
+                  >
+                    Aprovar
+                  </button>
+                )}
                 <span className="status-badge">{laudo.status}</span>
               </div>
             </article>

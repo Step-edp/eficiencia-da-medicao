@@ -29,11 +29,15 @@ function namedPdfFile(blob: Blob, filename: string) {
   return new File([blob], filename, { type: 'application/pdf' })
 }
 
-export async function openRatmLaudoPdf(laudoId: string) {
-  const { blob, filename } = await fetchRatmLaudoPdf(laudoId)
-  const url = URL.createObjectURL(namedPdfFile(blob, filename))
-  window.open(url, '_blank', 'noopener,noreferrer')
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+export function openRatmLaudoPdf(laudoId: string) {
+  const opened = window.open(
+    `/api/ratm-laudos/${encodeURIComponent(laudoId)}/pdf`,
+    '_blank',
+    'noopener,noreferrer',
+  )
+  if (!opened) {
+    throw new Error('Não foi possível abrir o PDF. Permita pop-ups para este site.')
+  }
 }
 
 export async function downloadRatmLaudoPdf(laudoId: string, filename?: string) {

@@ -4,6 +4,7 @@ import { api } from '../api'
 import { RatmFormFields } from './RatmFormFields'
 import { PdfInlineViewer } from './PdfInlineViewer'
 import { formatRatmLaudoNumber, mapRatmLaudoFromApi, type RatmLaudo } from './laudos'
+import { openRatmLaudoPdf } from './laudoPdf'
 import {
   buildWhatsAppSurveyUrl,
   isValidWhatsappNumber,
@@ -313,8 +314,17 @@ export function RatmLaudoViewer({
                 type="button"
                 disabled={actionLoading}
                 onClick={() => {
-                  setMode('view')
-                  refreshPdf()
+                  try {
+                    openRatmLaudoPdf(currentLaudo.id)
+                  } catch (error) {
+                    setFeedback({
+                      type: 'error',
+                      message:
+                        error instanceof Error
+                          ? error.message
+                          : 'Não foi possível abrir o PDF no navegador.',
+                    })
+                  }
                 }}
               >
                 Visualizar PDF
