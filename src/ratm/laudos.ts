@@ -16,6 +16,7 @@ export type RatmLaudo = {
   installation?: string
   toi?: string
   note?: string
+  revokedAt?: string | null
 }
 
 export function mapRatmLaudoFromApi(record: {
@@ -32,6 +33,7 @@ export function mapRatmLaudoFromApi(record: {
   installation?: string
   toi?: string
   note?: string
+  revokedAt?: string | null
 }): RatmLaudo {
   return {
     id: record.id,
@@ -47,7 +49,15 @@ export function mapRatmLaudoFromApi(record: {
     installation: record.installation || '',
     toi: record.toi || '',
     note: record.note || '',
+    revokedAt: record.revokedAt ?? null,
   }
+}
+
+export function formatRatmLaudoNumber(ratmNumber: number, createdAt: string) {
+  const date = new Date(createdAt)
+  const year = Number.isNaN(date.getTime()) ? '' : String(date.getFullYear())
+  const seq = String(ratmNumber).padStart(4, '0')
+  return year ? `${seq}_${year}` : seq
 }
 
 export function createRatmLaudos(forms: RatmFormData[]): RatmLaudo[] {

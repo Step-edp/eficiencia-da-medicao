@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, ApiError } from '../api'
 import { PdfInlineViewer } from './PdfInlineViewer'
-import { mapRatmLaudoFromApi, type RatmLaudo } from './laudos'
+import { formatRatmLaudoNumber, mapRatmLaudoFromApi, type RatmLaudo } from './laudos'
 
 function includesText(value: string, query: string) {
   if (!query.trim()) return true
@@ -201,7 +201,7 @@ export function ConsultarRatmPanel() {
           {filtered.map((laudo) => (
             <article key={laudo.id} className="approval-item">
               <div>
-                <strong>Laudo RATM {laudo.ratmNumber}</strong>
+                <strong>Laudo {formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)}</strong>
                 <span>ID: {laudo.id}</span>
                 <span>Medidor: {laudo.meter}</span>
                 <span>Cliente: {laudo.client}</span>
@@ -234,7 +234,7 @@ export function ConsultarRatmPanel() {
                 >
                   Ver PDF
                 </button>
-                <span className="status-badge">{laudo.status}</span>
+                <span className="status-badge">{laudo.revokedAt ? 'Revogado' : laudo.status}</span>
               </div>
             </article>
           ))}
@@ -258,7 +258,7 @@ export function ConsultarRatmPanel() {
                 <header className="consultar-ratm-pdf-header">
                   <div>
                     <h3 id="consultar-ratm-pdf-title">
-                      PDF · Laudo RATM {viewingLaudo.ratmNumber}
+                      PDF · Laudo {formatRatmLaudoNumber(viewingLaudo.ratmNumber, viewingLaudo.createdAt)}
                     </h3>
                     <p>
                       Medidor {viewingLaudo.meter}

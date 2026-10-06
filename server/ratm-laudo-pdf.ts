@@ -1,8 +1,9 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import PDFDocument from 'pdfkit'
 import type { Response } from 'express'
+import { Resvg } from '@resvg/resvg-js'
 import { query } from './db.js'
 
 type PdfDocument = InstanceType<typeof PDFDocument>
@@ -20,6 +21,7 @@ type RatmLaudoPdfInput = {
   installation?: string
   toi?: string
   note?: string
+  revokedAt?: string | null
 }
 
 const IRREGULARITY_CODES: Record<string, string> = {
@@ -82,16 +84,15 @@ function formatDate(isoDate: string) {
   return date.toLocaleDateString('pt-BR')
 }
 
-function pad(value: number) {
-  return String(value).padStart(2, '0')
+export function formatRatmLaudoNumber(ratmNumber: number, createdAt: string) {
+  const date = new Date(createdAt)
+  const year = Number.isNaN(date.getTime()) ? '' : String(date.getFullYear())
+  const seq = String(ratmNumber).padStart(4, '0')
+  return year ? `${seq}_${year}` : seq
 }
 
 function buildLaudoNumber(laudo: RatmLaudoPdfInput) {
-  const date = new Date(laudo.createdAt)
-  const year = date.getFullYear()
-  const month = pad(date.getMonth() + 1)
-  const seq = String(laudo.ratmNumber).padStart(6, '0')
-  return `LMED-${year}/${month}-${seq}`
+  return formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)
 }
 
 function isFraudConclusion(form: Record<string, unknown>) {
@@ -172,10 +173,8 @@ function ensureSpace(doc: PdfDocument, height: number) {
   }
 }
 
-const SITE_LOGO_FILE = 'Logso edp branca.png'
-const SITE_LOGO_WIDTH = 112
-const SITE_LOGO_HEIGHT = 40
-const SITE_HEADER_NAVY = '#031424'
+const SITE_LOGO_FILE = 'EDP_2022.svg'
+const SITE_LOGO_HEIGHT = 36
 
 function resolveSiteLogoPath() {
   const here = path.dirname(fileURLToPath(import.meta.url))
@@ -189,35 +188,71 @@ function resolveSiteLogoPath() {
   return candidates.find((candidate) => existsSync(candidate)) ?? null
 }
 
-function drawEdpMark(doc: PdfDocument, x: number, y: number) {
+let cachedLogoPng: Buffer | null | undefined
+
+function loadSiteLogoPng() {
+  if (cachedLogoPng !== undefined) return cachedLogoPng
   const logoPath = resolveSiteLogoPath()
   if (!logoPath) {
-    doc.save()
-    doc.translate(x + 10, y + 14)
-    doc.rotate(-18)
-    doc.lineCap('round')
-    doc.lineWidth(3.2).strokeColor('#2F6BFF').moveTo(0, -7).bezierCurveTo(9, -12, 16, -5, 12, 4).stroke()
-    doc.lineWidth(2.8).strokeColor('#39FF00').moveTo(2, -3).bezierCurveTo(7, -8, 13, -2, 10, 5).stroke()
-    doc.lineWidth(2.2).strokeColor('#18D8F0').moveTo(4, 1).bezierCurveTo(8, -3, 11, 1, 9, 6).stroke()
-    doc.restore()
-    doc.font('Helvetica-Bold').fontSize(16).fillColor(COLORS.navyDark).text('edp', x + 26, y + 2, {
-      lineBreak: false,
-    })
-    doc.font('Helvetica').fontSize(8).fillColor(COLORS.textMuted).text('SP', x + 56, y + 8, {
-      lineBreak: false,
-    })
-    return 70
+    cachedLogoPng = null
+    return null
   }
+  try {
+    const svg = readFileSync(logoPath)
+    const png = new Resvg(svg, {
+      fitTo: { mode: 'width', value: 640 },
+      background: 'rgba(0,0,0,0)',
+    })
+      .render()
+      .asPng()
+    cachedLogoPng = Buffer.from(png)
+  } catch (error) {
+    console.error('Não foi possível renderizar a logo do laudo.', error)
+    cachedLogoPng = null
+  }
+  return cachedLogoPng
+}
 
+function drawFallbackEdpMark(doc: PdfDocument, x: number, y: number) {
   doc.save()
-  doc.roundedRect(x, y, SITE_LOGO_WIDTH, SITE_LOGO_HEIGHT, 8).fill(SITE_HEADER_NAVY)
-  doc.image(logoPath, x + 8, y + 6, {
-    fit: [SITE_LOGO_WIDTH - 16, SITE_LOGO_HEIGHT - 12],
+  doc.translate(x + 10, y + 14)
+  doc.rotate(-18)
+  doc.lineCap('round')
+  doc.lineWidth(3.2).strokeColor('#2F6BFF').moveTo(0, -7).bezierCurveTo(9, -12, 16, -5, 12, 4).stroke()
+  doc.lineWidth(2.8).strokeColor('#39FF00').moveTo(2, -3).bezierCurveTo(7, -8, 13, -2, 10, 5).stroke()
+  doc.lineWidth(2.2).strokeColor('#18D8F0').moveTo(4, 1).bezierCurveTo(8, -3, 11, 1, 9, 6).stroke()
+  doc.restore()
+  doc.font('Helvetica-Bold').fontSize(16).fillColor(COLORS.navyDark).text('edp', x + 26, y + 2, {
+    lineBreak: false,
+  })
+  doc.font('Helvetica').fontSize(8).fillColor(COLORS.textMuted).text('SP', x + 56, y + 8, {
+    lineBreak: false,
+  })
+  return 70
+}
+
+function drawEdpMark(doc: PdfDocument, x: number, y: number) {
+  const logo = loadSiteLogoPng()
+  if (!logo) return drawFallbackEdpMark(doc, x, y)
+
+  const pngWidth = logo.readUInt32BE(16)
+  const pngHeight = logo.readUInt32BE(20)
+  const width = pngHeight > 0 ? Math.round(SITE_LOGO_HEIGHT * (pngWidth / pngHeight)) : 80
+  doc.image(logo, x, y, { width, height: SITE_LOGO_HEIGHT })
+  return width
+}
+
+function drawRevokedWatermark(doc: PdfDocument) {
+  doc.save()
+  doc.fillColor(COLORS.red)
+  doc.opacity(0.18)
+  doc.rotate(-32, { origin: [PAGE.width / 2, PAGE.height / 2] })
+  doc.font('Helvetica-Bold').fontSize(64).text('REVOGADO', 0, PAGE.height / 2 - 24, {
+    width: PAGE.width,
     align: 'center',
-    valign: 'center',
+    lineBreak: false,
   })
   doc.restore()
-  return SITE_LOGO_WIDTH
 }
 
 function drawSectionTitle(doc: PdfDocument, index: number, title: string) {
@@ -849,6 +884,7 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   const range = doc.bufferedPageRange()
   for (let index = 0; index < range.count; index += 1) {
     doc.switchToPage(range.start + index)
+    if (laudo.revokedAt) drawRevokedWatermark(doc)
     drawFooter(doc, index + 1, range.count)
   }
 

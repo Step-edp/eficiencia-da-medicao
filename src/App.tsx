@@ -41,7 +41,7 @@ import { CONSUMO_IRREGULAR_LAB_PROCESSES } from './registrationOptions'
 import { ConsultarRatmPanel } from './ratm/ConsultarRatmPanel'
 import { RatmAprovacaoPanel } from './ratm/RatmAprovacaoPanel'
 import { SatisfactionSurveyPage } from './ratm/SatisfactionSurveyPage'
-import { mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
+import { formatRatmLaudoNumber, mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
 import type { RatmFormData } from './ratm/types'
 import { LabMeasurementTrail, LabTrailNav } from './LabMeasurementTrail'
 import { EnsaiosCalendar } from './EnsaiosCalendar'
@@ -5724,7 +5724,7 @@ function HomePanel({
                   )
                   setPasswordFeedback({
                     type: 'success',
-                    message: `Laudo RATM ${laudo.ratmNumber} aprovado com sucesso.`,
+                    message: `Laudo ${formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)} aprovado com sucesso.`,
                   })
                 }}
               />

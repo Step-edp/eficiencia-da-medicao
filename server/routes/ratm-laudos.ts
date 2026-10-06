@@ -4,6 +4,8 @@ import { requireAuth } from '../auth.js'
 import { generateRatmLaudoPdf } from '../ratm-laudo-pdf.js'
 import { writeAuditLog } from '../audit.js'
 import { isMeterReadyForEnsaio } from '../lab-trail-status.js'
+import { formatRatmLaudoNumber } from '../ratm-laudo-pdf.js'
+import { normalizeScheduleMeter } from '../numeric-field-validation.js'
 
 type RatmLaudoRow = {
   id: string
@@ -19,6 +21,7 @@ type RatmLaudoRow = {
   installation?: string | null
   toi?: string | null
   note?: string | null
+  revoked_at?: Date | null
 }
 
 function mapRatmLaudo(row: RatmLaudoRow) {
@@ -36,10 +39,44 @@ function mapRatmLaudo(row: RatmLaudoRow) {
     installation: row.installation || '',
     toi: row.toi || '',
     note: row.note || '',
+    revokedAt: row.revoked_at ? row.revoked_at.toISOString() : null,
   }
 }
 
-export async function listRatmLaudos(_req: Request, res: Response) {
+function normalizedMeterSql(column: string) {
+  return `LPAD(RIGHT(REGEXP_REPLACE(${column}, '[^0-9]', '', 'g'), 8), 8, '0')`
+}
+
+async function revokeActiveLaudosForMeter(meter: string, exceptId?: string) {
+  const normalized = normalizeScheduleMeter(meter)
+  if (!normalized) return
+  await query(
+    `UPDATE ratm_laudos
+     SET revoked_at = NOW()
+     WHERE revoked_at IS NULL
+       AND ${normalizedMeterSql('meter')} = $1
+       AND ($2::text IS NULL OR id <> $2)`,
+    [normalized, exceptId ?? null],
+  )
+}
+
+async function nextRatmNumber() {
+  const result = await query<{ n: string }>(`SELECT nextval('ratm_laudo_number_seq') AS n`)
+  return Number(result.rows[0]?.n ?? 1)
+}
+
+export async function listRatmLaudos(req: Request, res: Response) {
+  const meter =
+    typeof req.query.meter === 'string' && req.query.meter.trim()
+      ? req.query.meter.trim()
+      : ''
+  const params: unknown[] = []
+  let meterFilter = ''
+  if (meter) {
+    params.push(normalizeScheduleMeter(meter))
+    meterFilter = `WHERE ${normalizedMeterSql('r.meter')} = $1`
+  }
+
   const result = await query<RatmLaudoRow>(
     `SELECT r.*,
             u.name AS created_by_name,
@@ -56,7 +93,9 @@ export async function listRatmLaudos(_req: Request, res: Response) {
        ORDER BY created_at DESC
        LIMIT 1
      ) ms ON true
+     ${meterFilter}
      ORDER BY r.created_at DESC`,
+    params,
   )
 
   res.json({ laudos: result.rows.map(mapRatmLaudo) })
@@ -122,12 +161,15 @@ export async function createRatmLaudos(req: Request, res: Response) {
       return
     }
 
+    await revokeActiveLaudosForMeter(meter)
+
+    const ratmNumber = await nextRatmNumber()
     const result = await query<RatmLaudoRow>(
       `INSERT INTO ratm_laudos (
         id, ratm_number, meter, client, status, form_data, created_by_user_id
       ) VALUES ($1, $2, $3, $4, 'Pendente', $5::jsonb, $6)
       RETURNING *`,
-      [id, index + 1, meter, client, JSON.stringify(forms[index]), req.user?.id ?? null],
+      [id, ratmNumber, meter, client, JSON.stringify(forms[index]), req.user?.id ?? null],
     )
 
     createdLaudos.push(mapRatmLaudo(result.rows[0]))
@@ -151,7 +193,7 @@ export async function createRatmLaudos(req: Request, res: Response) {
 }
 
 export async function updateRatmLaudo(req: Request, res: Response) {
-  const { id } = req.params
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
   const form = req.body?.formData as { meter?: string; client?: string } | undefined
 
   if (!form || typeof form !== 'object') {
@@ -173,6 +215,13 @@ export async function updateRatmLaudo(req: Request, res: Response) {
     res.status(404).json({ error: 'Laudo pendente não encontrado para edição.' })
     return
   }
+
+  if (previous.rows[0].revoked_at) {
+    res.status(400).json({ error: 'Laudo revogado não pode ser alterado.' })
+    return
+  }
+
+  await revokeActiveLaudosForMeter(form.meter.trim(), id)
 
   const result = await query<RatmLaudoRow>(
     `UPDATE ratm_laudos
@@ -243,6 +292,11 @@ export async function approveRatmLaudo(req: Request, res: Response) {
     return
   }
 
+  if (existing.rows[0].revoked_at) {
+    res.status(400).json({ error: 'Laudo revogado não pode ser aprovado.' })
+    return
+  }
+
   const formData = {
     ...existing.rows[0].form_data,
     clientAccompanied: clientPresent,
@@ -308,7 +362,7 @@ export async function downloadRatmLaudoPdf(req: Request, res: Response) {
     }
 
     const laudo = mapRatmLaudo(result.rows[0])
-    const filename = `laudo-pericia-${laudo.ratmNumber}-${laudo.meter}.pdf`
+    const filename = `laudo-pericia-${formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)}-${laudo.meter}.pdf`
 
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`)

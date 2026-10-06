@@ -5,10 +5,13 @@ import {
   type MeterRegistryRecord,
   type MeterScheduleHistoryRecord,
   type MeterScheduleRecord,
+  type RatmLaudoRecord,
 } from './api'
 import { formatAuditAction, formatAuditDate } from './auditLabels'
 import { FillingCorrectionNote } from './fillingCorrection'
 import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
+import { formatRatmLaudoNumber } from './ratm/laudos'
+import { openRatmLaudoPdf } from './ratm/laudoPdf'
 import {
   formatScheduleCollaborator1Label,
   formatScheduleCollaborator2Label,
@@ -62,6 +65,7 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
   const [registry, setRegistry] = useState<MeterRegistryRecord | null>(null)
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [history, setHistory] = useState<MeterScheduleHistoryRecord[]>([])
+  const [laudos, setLaudos] = useState<RatmLaudoRecord[]>([])
   const [analysisOpen, setAnalysisOpen] = useState(false)
 
   useEffect(() => {
@@ -70,20 +74,23 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
     const load = async () => {
       setLoading(true)
       try {
-        const [registryResponse, schedulesResponse, historyResponse] = await Promise.all([
+        const [registryResponse, schedulesResponse, historyResponse, laudosResponse] = await Promise.all([
           api.getMeterRegistry(meter),
           api.listMeterSchedules(undefined, { meter }),
           api.listMeterScheduleHistory(meter),
+          api.listRatmLaudos(meter),
         ])
         if (cancelled) return
         setRegistry(registryResponse.registry)
         setSchedules(schedulesResponse.schedules)
         setHistory(historyResponse.history)
+        setLaudos(laudosResponse.laudos)
       } catch {
         if (!cancelled) {
           setRegistry(null)
           setSchedules([])
           setHistory([])
+          setLaudos([])
         }
       } finally {
         if (!cancelled) {
@@ -287,6 +294,46 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
                 </dl>
               </section>
             ) : null}
+
+            <section className="meter-detail-section" aria-label="Laudos do medidor">
+              <h4 className="meter-detail-section-title">Laudos</h4>
+              {laudos.length === 0 ? (
+                <p className="entrada-panel-empty">Nenhum laudo registrado para este medidor.</p>
+              ) : (
+                <div className="entrada-table-wrap meter-detail-history-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Número</th>
+                        <th>Data</th>
+                        <th>Status</th>
+                        <th>PDF</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {laudos.map((laudo) => (
+                        <tr key={laudo.id}>
+                          <td>{formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)}</td>
+                          <td>{formatDateTime(laudo.createdAt)}</td>
+                          <td>{laudo.revokedAt ? 'Revogado' : laudo.status}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="secondary-button compact-button"
+                              onClick={() => {
+                                void openRatmLaudoPdf(laudo.id)
+                              }}
+                            >
+                              Abrir
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
 
             <section className="meter-detail-section" aria-label="Histórico do medidor">
               <h4 className="meter-detail-section-title">Histórico</h4>

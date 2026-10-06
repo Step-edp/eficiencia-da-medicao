@@ -348,6 +348,7 @@ export type RatmLaudoRecord = {
   installation?: string
   toi?: string
   note?: string
+  revokedAt?: string | null
 }
 
 export type CsdRecord = {
@@ -1535,7 +1536,14 @@ export const api = {
       sourceFile: string
       updatedAt: string | null
     }>(`/api/inventario/iq09/${encodeURIComponent(monthKey)}`),
-  listRatmLaudos: () => request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos'),
+  listRatmLaudos: (meter?: string) => {
+    const search = new URLSearchParams()
+    if (meter?.trim()) search.set('meter', meter.trim())
+    const queryString = search.toString()
+    return request<{ laudos: RatmLaudoRecord[] }>(
+      `/api/ratm-laudos${queryString ? `?${queryString}` : ''}`,
+    )
+  },
   createRatmLaudos: (forms: Record<string, unknown>[]) =>
     request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos', {
       method: 'POST',

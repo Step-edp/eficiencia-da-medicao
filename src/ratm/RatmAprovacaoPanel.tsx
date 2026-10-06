@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { RatmLaudoViewer } from './RatmLaudoViewer'
-import type { RatmLaudo } from './laudos'
+import { formatRatmLaudoNumber, type RatmLaudo } from './laudos'
 
 type RatmAprovacaoPanelProps = {
   laudos: RatmLaudo[]
@@ -16,7 +16,7 @@ export function RatmAprovacaoPanel({
   readOnly = false,
 }: RatmAprovacaoPanelProps) {
   const [viewingLaudo, setViewingLaudo] = useState<RatmLaudo | null>(null)
-  const pendingLaudos = laudos.filter((laudo) => laudo.status === 'Pendente')
+  const pendingLaudos = laudos.filter((laudo) => laudo.status === 'Pendente' && !laudo.revokedAt)
 
   return (
     <>
@@ -31,7 +31,7 @@ export function RatmAprovacaoPanel({
           pendingLaudos.map((laudo) => (
             <article key={laudo.id} className="approval-item">
               <div>
-                <strong>Laudo RATM {laudo.ratmNumber}</strong>
+                <strong>Laudo {formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)}</strong>
                 <span>Medidor: {laudo.meter}</span>
                 <span>Cliente: {laudo.client}</span>
                 <span>

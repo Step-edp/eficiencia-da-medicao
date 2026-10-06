@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { api } from '../api'
 import { RatmFormFields } from './RatmFormFields'
 import { PdfInlineViewer } from './PdfInlineViewer'
-import { mapRatmLaudoFromApi, type RatmLaudo } from './laudos'
+import { formatRatmLaudoNumber, mapRatmLaudoFromApi, type RatmLaudo } from './laudos'
 import {
   buildWhatsAppSurveyUrl,
   isValidWhatsappNumber,
@@ -188,7 +188,7 @@ export function RatmLaudoViewer({
           <div>
             <p className="section-tag">Laudo RATM</p>
             <h3 id="laudo-viewer-title">
-              Medidor {currentLaudo.meter} — RATM {currentLaudo.ratmNumber}
+              Medidor {currentLaudo.meter} — {formatRatmLaudoNumber(currentLaudo.ratmNumber, currentLaudo.createdAt)}
             </h3>
           </div>
           <button className="secondary-button compact-button" type="button" onClick={onClose}>
@@ -224,7 +224,7 @@ export function RatmLaudoViewer({
           )}
         </div>
 
-        {mode === 'view' && currentLaudo.status === 'Pendente' ? (
+        {mode === 'view' && currentLaudo.status === 'Pendente' && !currentLaudo.revokedAt ? (
           <fieldset className="laudo-client-present radio-fieldset">
             <legend>Cliente presente</legend>
             <div className="radio-group">

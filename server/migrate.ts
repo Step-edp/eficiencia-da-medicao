@@ -1142,6 +1142,48 @@ export async function migrate() {
 
   await query(`UPDATE users SET vacation_required_since = NULL WHERE vacation_required_since IS NOT NULL`)
 
+  await query(`ALTER TABLE ratm_laudos ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ`)
+  await query(`CREATE SEQUENCE IF NOT EXISTS ratm_laudo_number_seq`)
+
+  const ratmNumberFlag = await query<{ key: string }>(
+    `SELECT key FROM app_runtime_flags WHERE key = 'ratm_laudo_number_v1'`,
+  )
+  if (!ratmNumberFlag.rows.length) {
+    await query(`
+      WITH ordered AS (
+        SELECT id, ROW_NUMBER() OVER (ORDER BY created_at, id) AS n
+        FROM ratm_laudos
+      )
+      UPDATE ratm_laudos AS laudo
+      SET ratm_number = ordered.n
+      FROM ordered
+      WHERE laudo.id = ordered.id
+    `)
+    await query(`
+      SELECT setval(
+        'ratm_laudo_number_seq',
+        GREATEST(COALESCE((SELECT MAX(ratm_number) FROM ratm_laudos), 1), 1),
+        (SELECT COUNT(*) > 0 FROM ratm_laudos)
+      )
+    `)
+    await query(`
+      UPDATE ratm_laudos AS older
+      SET revoked_at = NOW()
+      FROM (
+        SELECT id,
+               ROW_NUMBER() OVER (
+                 PARTITION BY LPAD(RIGHT(REGEXP_REPLACE(meter, '[^0-9]', '', 'g'), 8), 8, '0')
+                 ORDER BY created_at DESC, id DESC
+               ) AS rn
+        FROM ratm_laudos
+      ) ranked
+      WHERE older.id = ranked.id
+        AND ranked.rn > 1
+        AND older.revoked_at IS NULL
+    `)
+    await query(`INSERT INTO app_runtime_flags (key) VALUES ('ratm_laudo_number_v1')`)
+  }
+
   const demmCsdAlignFlag = await query<{ key: string }>(
     `SELECT key FROM app_runtime_flags WHERE key = 'demm_csd_align_v1'`,
   )
