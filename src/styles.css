@@ -1050,6 +1050,10 @@ button {
   margin: 0.35rem 0 1.5rem;
 }
 
+.certificate-years {
+  white-space: nowrap;
+}
+
 .certificate-status-badge {
   display: inline-flex;
   align-items: center;

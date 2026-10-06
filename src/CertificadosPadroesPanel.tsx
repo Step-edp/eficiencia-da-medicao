@@ -561,8 +561,8 @@ export function CertificadosPadroesPanel({
                 <th>Número do certificado</th>
                 <th>Tipo</th>
                 <th>Data de Calibração</th>
-                <th>Anos</th>
                 <th>Validade</th>
+                <th>Anos</th>
                 <th>Status</th>
                 <th>PDF</th>
               </tr>
@@ -577,12 +577,12 @@ export function CertificadosPadroesPanel({
                   <td>{certificate.certificateNumber}</td>
                   <td>{certificate.certificateType}</td>
                   <td>{certificate.calibratedOn ? formatValidUntil(certificate.calibratedOn) : '—'}</td>
-                  <td>
+                  <td>{formatValidUntil(certificate.validUntil)}</td>
+                  <td className="certificate-years">
                     {certificate.calibratedOn
                       ? yearsBetween(certificate.calibratedOn, certificate.validUntil)
                       : '—'}
                   </td>
-                  <td>{formatValidUntil(certificate.validUntil)}</td>
                   <td>
                     {certificateStatus(certificate.validUntil) === 'Vencido' ? (
                       <span className="certificate-status-badge is-expired">Vencido</span>
