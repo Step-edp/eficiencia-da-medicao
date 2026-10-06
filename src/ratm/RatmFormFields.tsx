@@ -325,6 +325,14 @@ async function fillClientFromInspectionDocument(
   }
 }
 
+const SEM_LACRE_NUMBER = 'Sem Lacre'
+
+function sealNumberForStatus(status: string, currentNumber: string) {
+  if (status === 'Sem lacre') return SEM_LACRE_NUMBER
+  if (currentNumber.trim().toLocaleLowerCase('pt-BR') === 'sem lacre') return ''
+  return currentNumber
+}
+
 function coverSealStatusFromText(value: string, allowNotApplicable = false): string {
   const normalized = value.toLowerCase()
   if (/n[aã]o aplic/.test(normalized)) return allowNotApplicable ? 'Não aplicável' : ''
@@ -1161,7 +1169,12 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               name={`enclosure-status-${index}`}
               value={data.enclosureStatus}
               options={['Em ordem', 'Violado', 'Sem lacre']}
-              onChange={(value) => onChange({ enclosureStatus: value })}
+              onChange={(value) =>
+                onChange({
+                  enclosureStatus: value,
+                  enclosureSeal: sealNumberForStatus(value, data.enclosureSeal),
+                })
+              }
             />
           </div>
         </RatmExpandableSection>
@@ -1189,7 +1202,12 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               name={`seal1-status-${index}`}
               value={data.seal1Status}
               options={['Violado', 'Sem lacre', 'Em ordem']}
-              onChange={(value) => onChange({ seal1Status: value })}
+              onChange={(value) =>
+                onChange({
+                  seal1Status: value,
+                  seal1: sealNumberForStatus(value, data.seal1),
+                })
+              }
             />
           </div>
         </RatmExpandableSection>
@@ -1217,7 +1235,12 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               name={`seal2-status-${index}`}
               value={data.seal2Status}
               options={['Violado', 'Sem lacre', 'Em ordem', 'Não aplicável']}
-              onChange={(value) => onChange({ seal2Status: value })}
+              onChange={(value) =>
+                onChange({
+                  seal2Status: value,
+                  seal2: sealNumberForStatus(value, data.seal2),
+                })
+              }
             />
           </div>
         </RatmExpandableSection>
