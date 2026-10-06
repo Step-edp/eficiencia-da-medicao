@@ -798,7 +798,7 @@ function drawResultadosEnsaio(doc: PdfDocument, form: Record<string, unknown>, m
   const rowStep = 28
   const rows: Array<[string, unknown]> = [
     ['Exatidão em Carga Nominal Ativa • Fator de Potência 1,0', form.cn],
-    ['Exatidão em Carga Nominal Ativa • Fator de Potência 0,5', form.ci],
+    ['Exatidão em Carga Indutiva Ativa • Fator de Potência 0,5', form.ci],
     ['Exatidão em Carga Pequena Ativa • Fator de Potência 1,0', form.cp],
     ['Exatidão em Carga Nominal Reativa • Fator de Potência 0,5', form.cnRi],
     ['Exatidão em Carga Nominal Reativa • Fator de Potência 0,8 Capacitiva', form.cnRc],
