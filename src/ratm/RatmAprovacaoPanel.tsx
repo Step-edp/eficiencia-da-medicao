@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { RatmLaudoViewer } from './RatmLaudoViewer'
 import { formatRatmLaudoNumber, type RatmLaudo } from './laudos'
 import { openRatmLaudoPdf } from './laudoPdf'
@@ -23,7 +23,23 @@ export function RatmAprovacaoPanel({
   const [viewingLaudo, setViewingLaudo] = useState<RatmLaudo | null>(null)
   const [viewerMode, setViewerMode] = useState<'view' | 'edit'>('view')
   const [pdfError, setPdfError] = useState('')
+  const [search, setSearch] = useState('')
   const pendingLaudos = laudos.filter((laudo) => laudo.status === 'Pendente' && !laudo.revokedAt)
+  const visibleLaudos = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase('pt-BR')
+    if (!query) return pendingLaudos
+    return pendingLaudos.filter((laudo) => {
+      const haystack = [
+        formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt),
+        laudo.meter,
+        laudo.client,
+        new Date(laudo.createdAt).toLocaleString('pt-BR'),
+      ]
+        .join(' ')
+        .toLocaleLowerCase('pt-BR')
+      return haystack.includes(query)
+    })
+  }, [pendingLaudos, search])
 
   const handleOpenPdf = (laudoId: string) => {
     try {
@@ -50,9 +66,27 @@ export function RatmAprovacaoPanel({
         </p>
       ) : null}
 
+      <label className="approval-search">
+        Pesquisar
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Laudo, medidor ou cliente"
+        />
+      </label>
+
       <div className="approval-list" aria-label="Laudos de RATM pendentes">
-        {pendingLaudos.length ? (
-          pendingLaudos.map((laudo) => (
+        {pendingLaudos.length === 0 ? (
+          <p className="generated-password-empty">
+            Nenhum laudo de RATM aguardando aprovação.
+          </p>
+        ) : visibleLaudos.length === 0 ? (
+          <p className="generated-password-empty">
+            Nenhum laudo encontrado com essa pesquisa.
+          </p>
+        ) : (
+          visibleLaudos.map((laudo) => (
             <article key={laudo.id} className="approval-item">
               <div className="approval-item-info">
                 <strong>Laudo {formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)}</strong>
@@ -95,10 +129,6 @@ export function RatmAprovacaoPanel({
               </div>
             </article>
           ))
-        ) : (
-          <p className="generated-password-empty">
-            Nenhum laudo de RATM aguardando aprovação.
-          </p>
         )}
       </div>
 
