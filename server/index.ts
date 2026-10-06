@@ -364,6 +364,7 @@ async function start() {
     approveRatmLaudo,
   )
   app.get('/api/ratm-laudos/:id/pdf', ...wrap(ratmLaudoRoutes.pdf))
+  app.get('/api/ratm-laudos/:id/pdf/:filename', ...wrap(ratmLaudoRoutes.pdf))
   app.get('/api/ratm-assay-drafts', requireAuth, getRatmAssayDraft)
   app.put(
     '/api/ratm-assay-drafts',

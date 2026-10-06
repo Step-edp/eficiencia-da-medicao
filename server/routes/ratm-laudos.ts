@@ -483,9 +483,17 @@ export async function downloadRatmLaudoPdf(req: Request, res: Response) {
 
     const laudo = mapRatmLaudo(result.rows[0])
     const filename = buildRatmPdfFileName(laudo)
+    const requestedName = typeof req.params.filename === 'string' ? req.params.filename : ''
+    if (requestedName !== filename) {
+      res.redirect(302, `/api/ratm-laudos/${encodeURIComponent(id)}/pdf/${encodeURIComponent(filename)}`)
+      return
+    }
 
     res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    )
     await generateRatmLaudoPdf(laudo, res)
   } catch (error) {
     console.error('Erro ao gerar PDF do laudo:', error)

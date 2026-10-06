@@ -95,6 +95,7 @@ export function buildRatmPdfFileName(laudo: {
   ratmNumber: number
   meter: string
   createdAt: string
+  status?: string
   note?: string
   formData?: Record<string, unknown>
 }) {
@@ -104,7 +105,8 @@ export function buildRatmPdfFileName(laudo: {
   const formNote = typeof laudo.formData?.note === 'string' ? laudo.formData.note.trim() : ''
   const noteSource = formNote || String(laudo.note ?? '').trim()
   const note = (noteSource.replace(/\D/g, '') || '0').padStart(12, '0')
-  return `RATM_${id}_${meter}_${year}_${note}.pdf`
+  const draft = laudo.status === 'Pendente' ? '_rascunho' : ''
+  return `RATM_${id}_${meter}_${year}_${note}${draft}.pdf`
 }
 
 function buildLaudoNumber(laudo: RatmLaudoPdfInput) {
