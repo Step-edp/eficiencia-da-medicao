@@ -15,7 +15,7 @@ import {
   isMeterReadyForEnsaio,
   METER_NOT_RECEIVED_MESSAGE,
 } from './meterEnsaioEligibility'
-import type { EntryFieldCheck, EntryFieldChecks, RatmFormData } from './types'
+import type { EntryFieldCheck, RatmFormData } from './types'
 import {
   createEmptyEntryFieldChecks,
   entryFieldChecksFromComparisons,
@@ -860,11 +860,9 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const [irregularityDescriptions, setIrregularityDescriptions] = useState<Record<string, string>>(
     {},
   )
-  const [editingClient, setEditingClient] = useState(false)
   const [meterModels, setMeterModels] = useState<MeterModelRecord[]>([])
   const [meterModelsError, setMeterModelsError] = useState('')
   const [portalUsers, setPortalUsers] = useState<PortalCollaborator[]>([])
-  const clientInputRef = useRef<HTMLInputElement>(null)
   const accordionName = `ratm-sections-${index}`
   const registrationLookupRef = useRef({ 1: 0, 2: 0 })
 
@@ -974,12 +972,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     irregularityCodes[data.irregularityCode] ?? 'Selecione um código válido.'
 
   useEffect(() => {
-    if (!editingClient) return
-    clientInputRef.current?.focus()
-    clientInputRef.current?.select()
-  }, [editingClient])
-
-  useEffect(() => {
     const nextNotes = descriptionForCode(data.irregularityCode)
     if (data.irregularityNotes === nextNotes) return
     if (!data.irregularityCode.trim() && !data.irregularityNotes.trim()) return
@@ -1024,17 +1016,33 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     collaborator2: 'Colaborador 2',
   }
 
-  const updateEntryFieldCheck = (
-    key: keyof EntryFieldChecks,
-    value: EntryFieldCheck,
+  const commitRegistered = (
+    key: 'scheduleDate' | 'installation' | 'note' | 'toi' | 'csd' | 'partner',
+    value: string,
+    extra: Partial<RatmFormData> = {},
   ) => {
+    const comparisons = data.entryComparisons
+    const side = key === 'scheduleDate' ? 'document' : 'registered'
     onChange({
-      entryFieldChecks: {
-        ...data.entryFieldChecks,
-        [key]: value,
-      },
+      ...extra,
+      ...(comparisons
+        ? {
+            entryComparisons: {
+              ...comparisons,
+              [key]: {
+                ...comparisons[key],
+                [side]: value,
+              },
+            },
+          }
+        : {}),
     })
   }
+
+  const shownRegistered = (
+    key: 'installation' | 'note' | 'toi' | 'csd' | 'partner',
+    fallback: string,
+  ) => data.entryComparisons?.[key]?.registered?.trim() || fallback
 
   const shownCollaborator = (slot: 1 | 2) => {
     const key = slot === 1 ? 'collaborator1' : 'collaborator2'
@@ -1290,89 +1298,48 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         >
           <div className="ratm-entry-info">
 
-          <EntryComparisonField
+          <EditableTextLine
             label="Data de ensaio"
-            match={data.entryComparisons?.scheduleDate}
-            check={data.entryFieldChecks.scheduleDate}
-            onCheckChange={(value) => updateEntryFieldCheck('scheduleDate', value)}
-            fullWidth
-            documentOnly
+            value={
+              data.scheduleLabel.trim() ||
+              data.entryComparisons?.scheduleDate?.document?.trim() ||
+              ''
+            }
+            onCommit={(value) =>
+              commitRegistered('scheduleDate', value, { scheduleLabel: value })
+            }
           />
 
           <div className="ratm-schedule-details" aria-label="Informações do agendamento">
-            <div className="ratm-readonly-field full-width">
-              <span className="ratm-readonly-label">Medidor</span>
-              <p className="ratm-readonly-value">{displayOrDash(data.meter)}</p>
-            </div>
-            <div className="ratm-readonly-field full-width">
-              <span className="ratm-readonly-label">Cliente</span>
-              {editingClient ? (
-                <input
-                  ref={clientInputRef}
-                  type="text"
-                  value={data.client.toLocaleUpperCase('pt-BR')}
-                  aria-label="Cliente"
-                  placeholder="Titular da unidade consumidora"
-                  onChange={(event) =>
-                    onChange({ client: event.target.value.toLocaleUpperCase('pt-BR') })
-                  }
-                  onBlur={() => setEditingClient(false)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === 'Escape') {
-                      event.currentTarget.blur()
-                    }
-                  }}
-                />
-              ) : (
-                <div className="ratm-client-line">
-                  <p>{displayOrDash(data.client.toLocaleUpperCase('pt-BR'))}</p>
-                  <button
-                    className="ratm-client-edit"
-                    type="button"
-                    aria-label="Editar cliente"
-                    onClick={() => setEditingClient(true)}
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M4 16.5V20h3.5L18.8 8.7l-3.5-3.5L4 16.5zm15.7-9.2a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-1.2 1.2 3.5 3.5 1.7-1.7z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              )}
-            </div>
-            <EntryComparisonField
+            <EditableTextLine
+              label="Medidor"
+              value={data.meter}
+              onCommit={(value) => onChange({ meter: value, meterSearch: value })}
+            />
+            <EditableTextLine
+              label="Cliente"
+              value={data.client.toLocaleUpperCase('pt-BR')}
+              onCommit={(value) => onChange({ client: value.toLocaleUpperCase('pt-BR') })}
+            />
+            <EditableTextLine
               label="Instalação"
-              match={data.entryComparisons?.installation}
-              check={data.entryFieldChecks.installation}
-              onCheckChange={(value) => updateEntryFieldCheck('installation', value)}
-              hideDocument
-              hideVerifier
+              value={shownRegistered('installation', data.installation)}
+              onCommit={(value) => commitRegistered('installation', value, { installation: value })}
             />
-            <EntryComparisonField
+            <EditableTextLine
               label="Nota"
-              match={data.entryComparisons?.note}
-              check={data.entryFieldChecks.note}
-              onCheckChange={(value) => updateEntryFieldCheck('note', value)}
-              hideDocument
-              hideVerifier
+              value={shownRegistered('note', data.note)}
+              onCommit={(value) => commitRegistered('note', value, { note: value })}
             />
-            <EntryComparisonField
+            <EditableTextLine
               label="TOI"
-              match={data.entryComparisons?.toi}
-              check={data.entryFieldChecks.toi}
-              onCheckChange={(value) => updateEntryFieldCheck('toi', value)}
-              hideDocument
-              hideVerifier
+              value={shownRegistered('toi', data.toi)}
+              onCommit={(value) => commitRegistered('toi', value, { toi: value })}
             />
-            <EntryComparisonField
+            <EditableTextLine
               label="CSD"
-              match={data.entryComparisons?.csd}
-              check={data.entryFieldChecks.csd}
-              onCheckChange={(value) => updateEntryFieldCheck('csd', value)}
-              hideDocument
-              hideVerifier
+              value={shownRegistered('csd', data.csd)}
+              onCommit={(value) => commitRegistered('csd', value, { csd: value })}
             />
             {skipCollaboratorChecks ? (
               <div className="ratm-readonly-field full-width">
@@ -1395,14 +1362,13 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                     }
                   />
                 ) : (
-                  <EntryComparisonField
+                  <EditableTextLine
                     key={fieldKey}
                     label={schedulingTeamFieldLabels[fieldKey]}
-                    match={data.entryComparisons?.[fieldKey]}
-                    check={data.entryFieldChecks[fieldKey]}
-                    onCheckChange={(value) => updateEntryFieldCheck(fieldKey, value)}
-                    hideDocument
-                    hideVerifier
+                    value={shownRegistered('partner', data.partnerLabel)}
+                    onCommit={(value) =>
+                      commitRegistered('partner', value, { partnerLabel: value })
+                    }
                   />
                 ),
               )
