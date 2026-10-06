@@ -1,10 +1,9 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { requireAuth } from '../auth.js'
-import { generateRatmLaudoPdf } from '../ratm-laudo-pdf.js'
+import { buildRatmPdfFileName, generateRatmLaudoPdf } from '../ratm-laudo-pdf.js'
 import { writeAuditLog } from '../audit.js'
 import { isMeterReadyForEnsaio } from '../lab-trail-status.js'
-import { formatRatmLaudoNumber } from '../ratm-laudo-pdf.js'
 import { normalizeScheduleMeter } from '../numeric-field-validation.js'
 
 type RatmLaudoRow = {
@@ -364,7 +363,7 @@ export async function downloadRatmLaudoPdf(req: Request, res: Response) {
     }
 
     const laudo = mapRatmLaudo(result.rows[0])
-    const filename = `laudo-pericia-${formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)}-${laudo.meter}.pdf`
+    const filename = buildRatmPdfFileName(laudo)
 
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`)

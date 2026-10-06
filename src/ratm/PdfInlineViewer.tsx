@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import * as pdfjs from 'pdfjs-dist'
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-import { fetchRatmLaudoPdfBlob } from './laudoPdf'
+import { fetchRatmLaudoPdf } from './laudoPdf'
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker
 
@@ -71,7 +71,7 @@ export function PdfInlineViewer({ laudoId, version, onLoadError }: PdfInlineView
       }
 
       try {
-        const blob = await fetchRatmLaudoPdfBlob(laudoId)
+        const { blob, filename } = await fetchRatmLaudoPdf(laudoId)
         const buffer = await blob.arrayBuffer()
 
         try {
@@ -88,11 +88,8 @@ export function PdfInlineViewer({ laudoId, version, onLoadError }: PdfInlineView
           setViewerState({ status: 'ready', mode: 'pages', pages })
           return
         } catch {
-          const pdfBlob =
-            blob.type === 'application/pdf'
-              ? blob
-              : new Blob([buffer], { type: 'application/pdf' })
-          const url = URL.createObjectURL(pdfBlob)
+          const pdfFile = new File([buffer], filename, { type: 'application/pdf' })
+          const url = URL.createObjectURL(pdfFile)
           embedUrlRef.current = url
 
           if (cancelled) {

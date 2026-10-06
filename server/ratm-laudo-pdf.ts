@@ -92,6 +92,23 @@ export function formatRatmLaudoNumber(ratmNumber: number, createdAt: string) {
   return year ? `${seq}_${year}` : seq
 }
 
+export function buildRatmPdfFileName(laudo: {
+  ratmNumber: number
+  meter: string
+  createdAt: string
+  note?: string
+  formData?: Record<string, unknown>
+}) {
+  const date = new Date(laudo.createdAt)
+  const year = Number.isNaN(date.getTime()) ? '0000' : String(date.getFullYear())
+  const id = String(laudo.ratmNumber)
+  const meter = String(laudo.meter ?? '').replace(/\D/g, '') || '0'
+  const formNote = typeof laudo.formData?.note === 'string' ? laudo.formData.note.trim() : ''
+  const noteSource = formNote || String(laudo.note ?? '').trim()
+  const note = (noteSource.replace(/\D/g, '') || '0').padStart(12, '0')
+  return `RATM_${id}_${meter}_${year}_${note}.pdf`
+}
+
 function buildLaudoNumber(laudo: RatmLaudoPdfInput) {
   return formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)
 }
@@ -1080,7 +1097,7 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
     },
     bufferPages: true,
     info: {
-      Title: `Laudo de Perícia ${buildLaudoNumber(laudo)} - Medidor ${laudo.meter}`,
+      Title: buildRatmPdfFileName(laudo).replace(/\.pdf$/, ''),
       Author: 'EDP SP - Laboratório de Medição',
       Subject: 'Laudo de Perícia / Fraude em Medidor',
     },
