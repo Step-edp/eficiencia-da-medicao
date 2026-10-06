@@ -9,7 +9,7 @@ const maxRatmCount = 10
 const ratmOptions = Array.from({ length: maxRatmCount }, (_, index) => index + 1)
 
 type EnsaiarFormProps = {
-  onFinish: (forms: RatmFormData[]) => void | Promise<void>
+  onFinish: (forms: RatmFormData[], options?: { replacePending?: boolean }) => void | Promise<void>
   initialMeter?: string
 }
 

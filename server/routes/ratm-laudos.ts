@@ -84,9 +84,22 @@ async function revokeActiveLaudosForMeter(meter: string, exceptId?: string) {
     `UPDATE ratm_laudos
      SET revoked_at = NOW()
      WHERE revoked_at IS NULL
+       AND status = 'Pendente'
        AND ${normalizedMeterSql('meter')} = $1
        AND ($2::text IS NULL OR id <> $2)`,
     [normalized, exceptId ?? null],
+  )
+}
+
+async function findActiveLaudosForMeter(meter: string) {
+  const normalized = normalizeScheduleMeter(meter)
+  if (!normalized) return []
+  return query<{ id: string; status: string }>(
+    `SELECT id, status
+     FROM ratm_laudos
+     WHERE revoked_at IS NULL
+       AND ${normalizedMeterSql('meter')} = $1`,
+    [normalized],
   )
 }
 
@@ -214,6 +227,23 @@ export async function createRatmLaudos(req: Request, res: Response) {
     if (!readyForEnsaio) {
       res.status(409).json({
         error: `O medidor ${meter} ainda não foi recebido na Entrada. Registre a DEMM antes de iniciar o ensaio.`,
+      })
+      return
+    }
+
+    const activeLaudos = await findActiveLaudosForMeter(meter)
+    if (activeLaudos.rows.some((row) => row.status === 'Aprovado')) {
+      res.status(409).json({
+        error: `O medidor ${meter} já possui laudo aprovado e não pode ser substituído.`,
+      })
+      return
+    }
+
+    const hasPendingLaudo = activeLaudos.rows.some((row) => row.status === 'Pendente')
+    if (hasPendingLaudo && req.body?.replacePending !== true) {
+      res.status(409).json({
+        error: 'Esse medidor já foi ensaiado, deseja substituir o relatório?',
+        code: 'replace_pending_laudo',
       })
       return
     }

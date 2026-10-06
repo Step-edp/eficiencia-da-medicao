@@ -1545,10 +1545,10 @@ export const api = {
       `/api/ratm-laudos${queryString ? `?${queryString}` : ''}`,
     )
   },
-  createRatmLaudos: (forms: Record<string, unknown>[]) =>
+  createRatmLaudos: (forms: Record<string, unknown>[], replacePending = false) =>
     request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos', {
       method: 'POST',
-      body: JSON.stringify({ forms }),
+      body: JSON.stringify({ forms, replacePending }),
     }),
   updateRatmLaudo: (id: string, formData: Record<string, unknown>) =>
     request<{ laudo: RatmLaudoRecord }>(`/api/ratm-laudos/${id}`, {

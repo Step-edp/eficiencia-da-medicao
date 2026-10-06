@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { api, ApiError } from '../api'
 import { LoginFeedback } from '../LoginFeedback'
 import { RatmFormFields } from './RatmFormFields'
 import {
@@ -12,7 +13,7 @@ type RatmWorkflowProps = {
   count: number
   initialMeter?: string
   onBack: () => void
-  onFinish: (forms: RatmFormData[]) => void | Promise<void>
+  onFinish: (forms: RatmFormData[], options?: { replacePending?: boolean }) => void | Promise<void>
 }
 
 export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWorkflowProps) {
@@ -48,6 +49,8 @@ export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWork
   } | null>(null)
   const [scanMessage, setScanMessage] = useState<string | null>(null)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
+  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     saveRatmDraft({
@@ -110,6 +113,26 @@ export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWork
     onBack()
   }
 
+  const saveAssay = async (replacePending: boolean) => {
+    setSaving(true)
+    setFeedback(null)
+    try {
+      await onFinish(forms, replacePending ? { replacePending: true } : undefined)
+      clearRatmDraft()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível salvar os laudos. Tente novamente.',
+      })
+    } finally {
+      setSaving(false)
+      setReplaceConfirmOpen(false)
+    }
+  }
+
   const handleFinish = async () => {
     const invalidIndex = forms.findIndex((form) => !form.meter.trim())
 
@@ -134,15 +157,46 @@ export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWork
     }
 
     setFeedback(null)
+    setSaving(true)
 
     try {
-      await onFinish(forms)
-      clearRatmDraft()
-    } catch {
+      const approvedMeters: string[] = []
+      const pendingMeters: string[] = []
+
+      for (const form of forms) {
+        const response = await api.listRatmLaudos(form.meter.trim())
+        const active = response.laudos.filter((laudo) => !laudo.revokedAt)
+        if (active.some((laudo) => laudo.status === 'Aprovado')) {
+          approvedMeters.push(form.meter.trim())
+        } else if (active.some((laudo) => laudo.status === 'Pendente')) {
+          pendingMeters.push(form.meter.trim())
+        }
+      }
+
+      if (approvedMeters.length) {
+        setFeedback({
+          type: 'error',
+          message: `O medidor ${approvedMeters.join(', ')} já possui laudo aprovado e não pode ser substituído.`,
+        })
+        return
+      }
+
+      if (pendingMeters.length) {
+        setReplaceConfirmOpen(true)
+        return
+      }
+
+      await saveAssay(false)
+    } catch (error) {
       setFeedback({
         type: 'error',
-        message: 'Não foi possível salvar os laudos. Tente novamente.',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível verificar os laudos deste medidor.',
       })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -219,11 +273,45 @@ export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWork
             Próximo RATM
           </button>
         ) : (
-          <button className="reserve-button" type="button" onClick={handleFinish}>
-            Finalizar
+          <button className="reserve-button" type="button" onClick={handleFinish} disabled={saving}>
+            {saving ? 'Salvando...' : 'Finalizar'}
           </button>
         )}
       </div>
+
+      {replaceConfirmOpen ? (
+        <div className="ensaios-block-modal-overlay" role="presentation">
+          <div
+            className="ensaios-block-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ratm-replace-title"
+          >
+            <h3 id="ratm-replace-title">Substituir relatório</h3>
+            <p className="ensaios-unblock-message">
+              Esse medidor já foi ensaiado, deseja substituir o relatório?
+            </p>
+            <div className="ensaios-block-modal-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={saving}
+                onClick={() => setReplaceConfirmOpen(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="reserve-button"
+                disabled={saving}
+                onClick={() => void saveAssay(true)}
+              >
+                Substituir
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {confirmCloseOpen ? (
         <div

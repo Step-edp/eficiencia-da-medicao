@@ -3266,10 +3266,32 @@ function HomePanel({
     }
   }, [previewProfile, selectedArea])
 
-  const handleRatmFinish = async (forms: RatmFormData[]) => {
-    const response = await api.createRatmLaudos(forms)
+  const handleRatmFinish = async (
+    forms: RatmFormData[],
+    options?: { replacePending?: boolean },
+  ) => {
+    const response = await api.createRatmLaudos(forms, Boolean(options?.replacePending))
     const laudos = response.laudos.map(mapRatmLaudoFromApi)
-    setRatmLaudos((prev) => [...laudos, ...prev.filter((item) => !laudos.some((created) => created.id === item.id))])
+    const replacedMeters = new Set(
+      laudos.map((laudo) => laudo.meter.replace(/\D/g, '').slice(-8).padStart(8, '0')),
+    )
+    setRatmLaudos((prev) => [
+      ...laudos,
+      ...prev
+        .filter((item) => !laudos.some((created) => created.id === item.id))
+        .map((item) => {
+          const meterKey = item.meter.replace(/\D/g, '').slice(-8).padStart(8, '0')
+          if (
+            options?.replacePending &&
+            item.status === 'Pendente' &&
+            !item.revokedAt &&
+            replacedMeters.has(meterKey)
+          ) {
+            return { ...item, revokedAt: new Date().toISOString() }
+          }
+          return item
+        }),
+    ])
     setSelectedLabMeasurementSection('Aprovação de RATM')
   }
 
