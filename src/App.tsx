@@ -1088,7 +1088,7 @@ function TopActionBar({ onBack, onHome, onLogout }: TopActionBarProps) {
 const AUDITORIA_AREAS = [
   'Apresentação',
   'Gestão de Mudanças',
-  'Certificados Padrões',
+  'Certificados',
   'Controle de equipamentos',
   'Fornecedores',
   'Alinhamento de Padrões',
@@ -1122,7 +1122,7 @@ function ItemIcon({ title }: { title: string }) {
     'Log do sistema': 'shield',
     Auditoria: 'shield',
     'Gestão de Mudanças': 'repeat',
-    'Certificados Padrões': 'check',
+    'Certificados': 'check',
     'Controle de equipamentos': 'cube',
     'Alinhamento de Padrões': 'ruler',
     Inventário: 'archive',
@@ -5677,7 +5677,7 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Auditoria' ? (
               selectedAuditArea === 'Apresentação' ? (
                 <ApresentacaoPanel readOnly={labMedicaoReadOnly} />
-              ) : selectedAuditArea === 'Certificados Padrões' ? (
+              ) : selectedAuditArea === 'Certificados' ? (
                 <CertificadosPadroesPanel readOnly={labMedicaoReadOnly} isAdmin={isAdmin} />
               ) : selectedAuditArea ? (
                 <p>
