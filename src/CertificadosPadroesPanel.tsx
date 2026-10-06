@@ -14,11 +14,11 @@ function pdfBlobUrl(dataUrl: string) {
   return URL.createObjectURL(new Blob([bytes], { type: mime }))
 }
 
-function PencilIcon() {
+function ReplaceIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path
-        d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20zM14.5 5l4.5 4.5"
+        d="M20 7H8M16 3l4 4-4 4M4 17h12M8 21l-4-4 4-4"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.8"
@@ -29,19 +29,11 @@ function PencilIcon() {
   )
 }
 
-function ReplaceIcon() {
+function PencilIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path
-        d="M4 8h11M15 4l4 4-4 4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M20 16H9M9 12l-4 4 4 4"
+        d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20zM14.5 5l4.5 4.5"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.8"
@@ -162,6 +154,14 @@ const emptyForm = {
   pdfName: '',
 }
 
+const emptyReplaceForm = {
+  certificateNumber: '',
+  calibratedOn: '',
+  validUntil: '',
+  pdf: '',
+  pdfName: '',
+}
+
 export function CertificadosPadroesPanel({
   readOnly = false,
   isAdmin = false,
@@ -176,13 +176,7 @@ export function CertificadosPadroesPanel({
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [replacingId, setReplacingId] = useState<number | null>(null)
-  const [replaceForm, setReplaceForm] = useState({
-    certificateNumber: '',
-    calibratedOn: '',
-    validUntil: '',
-    pdf: '',
-    pdfName: '',
-  })
+  const [replaceForm, setReplaceForm] = useState(emptyReplaceForm)
   const [form, setForm] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -300,6 +294,7 @@ export function CertificadosPadroesPanel({
       pdfName: certificate.pdfName,
     })
     setReplacingId(null)
+    setReplaceForm(emptyReplaceForm)
     setShowForm(true)
     setFeedback(null)
   }
