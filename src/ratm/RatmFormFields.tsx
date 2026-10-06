@@ -141,6 +141,7 @@ type EntryComparisonFieldProps = {
   onCheckChange: (value: EntryFieldCheck) => void
   fullWidth?: boolean
   hideDocument?: boolean
+  hideVerifier?: boolean
   /** Mostra só o valor lido no documento, sem conferência com o cadastro. */
   documentOnly?: boolean
 }
@@ -152,6 +153,7 @@ function EntryComparisonField({
   onCheckChange,
   fullWidth = false,
   hideDocument = false,
+  hideVerifier = false,
   documentOnly = false,
 }: EntryComparisonFieldProps) {
   const suggested = suggestedCheckFromMatch(hideDocument || documentOnly ? null : match?.matches)
@@ -169,7 +171,9 @@ function EntryComparisonField({
     <div className={`ratm-readonly-field ratm-entry-comparison${fullWidth ? ' full-width' : ''}`}>
       <div className="ratm-readonly-field-header">
         <span className="ratm-readonly-label">{label}</span>
-        <EntryFieldVerifier value={check} suggested={suggested} onChange={onCheckChange} />
+        {hideVerifier ? null : (
+          <EntryFieldVerifier value={check} suggested={suggested} onChange={onCheckChange} />
+        )}
       </div>
       <div className="ratm-entry-comparison-grid">
         {hideDocument ? null : (
@@ -1089,18 +1093,21 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               check={data.entryFieldChecks.installation}
               onCheckChange={(value) => updateEntryFieldCheck('installation', value)}
               hideDocument
+              hideVerifier
             />
             <EntryComparisonField
               label="TOI"
               match={data.entryComparisons?.toi}
               check={data.entryFieldChecks.toi}
               onCheckChange={(value) => updateEntryFieldCheck('toi', value)}
+              hideVerifier
             />
             <EntryComparisonField
               label="Nota"
               match={data.entryComparisons?.note}
               check={data.entryFieldChecks.note}
               onCheckChange={(value) => updateEntryFieldCheck('note', value)}
+              hideVerifier
             />
             <EntryComparisonField
               label="CSD"

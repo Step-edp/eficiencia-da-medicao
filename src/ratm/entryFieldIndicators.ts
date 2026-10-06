@@ -48,7 +48,7 @@ export function getRequiredEntryFieldCheckKeys(
   )
 
   return ENTRY_FIELD_CHECK_KEYS.filter((key) => {
-    if (key === 'scheduleDate') return false
+    if (key === 'scheduleDate' || key === 'installation' || key === 'toi' || key === 'note') return false
     if (skipTeamKeys.has(key as (typeof SCHEDULING_TEAM_ENTRY_FIELD_KEYS)[number])) {
       return hiddenTeamKeys.has(key as (typeof SCHEDULING_TEAM_ENTRY_FIELD_KEYS)[number])
     }
