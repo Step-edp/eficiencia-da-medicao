@@ -3,6 +3,61 @@ import { api, ApiError, type StandardCertificateRecord } from './api'
 import { LoginFeedback } from './LoginFeedback'
 import { readAttachmentAsDataUrl } from './readAttachmentAsDataUrl'
 
+function pdfBlobUrl(dataUrl: string) {
+  const [header, base64 = ''] = dataUrl.split(',')
+  const mime = header.match(/data:([^;]+)/)?.[1] || 'application/pdf'
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+  return URL.createObjectURL(new Blob([bytes], { type: mime }))
+}
+
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M2.5 12S6.5 6.5 12 6.5 21.5 12 21.5 12 17.5 17.5 12 17.5 2.5 12 2.5 12Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 4v10"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M8 11.5 12 15.5 16 11.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5 19h14"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 function formatValidUntil(value: string) {
   const [year, month, day] = value.slice(0, 10).split('-')
   if (!year || !month || !day) return value
@@ -120,19 +175,38 @@ export function CertificadosPadroesPanel({ readOnly = false }: { readOnly?: bool
     }
   }
 
-  const openPdf = async (certificate: StandardCertificateRecord) => {
+  const loadPdf = async (certificate: StandardCertificateRecord) => {
+    const { pdf, pdfName } = await api.getStandardCertificatePdf(certificate.id)
+    return { pdf, pdfName: pdfName || 'certificado.pdf' }
+  }
+
+  const viewPdf = async (certificate: StandardCertificateRecord) => {
     try {
-      const { pdf, pdfName } = await api.getStandardCertificatePdf(certificate.id)
-      const anchor = document.createElement('a')
-      anchor.href = pdf
-      anchor.target = '_blank'
-      anchor.rel = 'noreferrer'
-      anchor.download = pdfName || 'certificado.pdf'
-      anchor.click()
+      const { pdf } = await loadPdf(certificate)
+      const url = pdfBlobUrl(pdf)
+      window.open(url, '_blank', 'noopener')
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch (error) {
       setFeedback({
         type: 'error',
-        message: error instanceof ApiError ? error.message : 'Não foi possível abrir o PDF.',
+        message: error instanceof ApiError ? error.message : 'Não foi possível visualizar o PDF.',
+      })
+    }
+  }
+
+  const downloadPdf = async (certificate: StandardCertificateRecord) => {
+    try {
+      const { pdf, pdfName } = await loadPdf(certificate)
+      const url = pdfBlobUrl(pdf)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = pdfName
+      anchor.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: error instanceof ApiError ? error.message : 'Não foi possível baixar o PDF.',
       })
     }
   }
@@ -369,13 +443,26 @@ export function CertificadosPadroesPanel({ readOnly = false }: { readOnly?: bool
                   <td>{certificate.calibratedOn ? formatValidUntil(certificate.calibratedOn) : '—'}</td>
                   <td>{formatValidUntil(certificate.validUntil)}</td>
                   <td>
-                    <button
-                      type="button"
-                      className="secondary-button compact-button"
-                      onClick={() => void openPdf(certificate)}
-                    >
-                      {certificate.pdfName || 'Abrir PDF'}
-                    </button>
+                    <div className="table-row-actions">
+                      <button
+                        type="button"
+                        className="csds-icon-button"
+                        onClick={() => void viewPdf(certificate)}
+                        aria-label={`Visualizar ${certificate.pdfName || 'PDF'}`}
+                        title="Visualizar"
+                      >
+                        <EyeIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className="csds-icon-button"
+                        onClick={() => void downloadPdf(certificate)}
+                        aria-label={`Baixar ${certificate.pdfName || 'PDF'}`}
+                        title="Baixar"
+                      >
+                        <DownloadIcon />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
