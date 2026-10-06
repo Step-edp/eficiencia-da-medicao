@@ -841,59 +841,66 @@ function drawReferencias(doc: PdfDocument) {
 }
 
 function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
-  ensureSpace(doc, 110)
-  const y = doc.y
-  const gap = 12
-  const boxW = (CONTENT_WIDTH - gap * 2) / 3
-  const elaborador = textValue(inspectionByLabel(laudo.formData) || laudo.createdByName)
-  const boxes = [
-    { title: 'ELABORADO POR', name: elaborador, role: 'Técnico do Laboratório' },
-    { title: 'REVISADO POR', name: '—', role: 'Responsável Técnico' },
+  const form = laudo.formData
+  const ensaioPor = textValue(inspectionByLabel(form) || laudo.createdByName)
+  const aprovadoPor = laudo.status === 'Aprovado' ? textValue(form.ratmApprovedBy) : '—'
+  const rowStart = 14
+  const rowStep = 36
+  const rows: Array<{ left: [string, string]; right: [string, string] }> = [
     {
-      title: 'APROVADO POR',
-      name: laudo.status === 'Aprovado' ? textValue(laudo.createdByName) : '—',
-      role: 'Aprovador do Laudo',
+      left: ['Análise a pedido', firstText(form.analysisRequest)],
+      right: ['Cliente compareceu', firstText(form.clientAccompanied)],
+    },
+    {
+      left: ['Assinatura do Cliente', ''],
+      right: ['CPF do Cliente', ''],
+    },
+    {
+      left: ['Ensaio realizado por', ensaioPor],
+      right: ['RATM aprovado por', aprovadoPor],
     },
   ]
+  const boxHeight = rowStart + rows.length * rowStep + 8
+  ensureSpace(doc, boxHeight + 16)
+  const y = doc.y
+  doc
+    .roundedRect(PAGE.margin, y, CONTENT_WIDTH, boxHeight, 8)
+    .strokeColor(COLORS.grayBorder)
+    .lineWidth(1)
+    .stroke()
 
-  boxes.forEach((box, index) => {
-    const x = PAGE.margin + index * (boxW + gap)
-    doc.roundedRect(x, y, boxW, 88, 8).strokeColor(COLORS.grayBorder).lineWidth(1).stroke()
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(7)
-      .fillColor(COLORS.textMuted)
-      .text(box.title, x + 8, y + 8, { width: boxW - 16, align: 'center', lineBreak: false })
-    doc
-      .moveTo(x + 18, y + 42)
-      .lineTo(x + boxW - 18, y + 42)
-      .strokeColor(COLORS.grayBorder)
-      .lineWidth(0.8)
-      .stroke()
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(8)
-      .fillColor(COLORS.text)
-      .text(box.name, x + 8, y + 48, { width: boxW - 16, align: 'center', lineBreak: false })
-    doc
-      .font('Helvetica')
-      .fontSize(7)
-      .fillColor(COLORS.textMuted)
-      .text(box.role, x + 8, y + 62, { width: boxW - 16, align: 'center', lineBreak: false })
-    if (laudo.createdByRegistration && index === 0) {
-      doc
-        .font('Helvetica')
-        .fontSize(6.5)
-        .fillColor(COLORS.textLight)
-        .text(`Matrícula ${laudo.createdByRegistration}`, x + 8, y + 74, {
-          width: boxW - 16,
-          align: 'center',
+  const colW = (CONTENT_WIDTH - 28) / 2
+  const leftX = PAGE.margin + 12
+  const rightX = PAGE.margin + 16 + colW
+
+  rows.forEach((row, index) => {
+    const rowY = y + rowStart + index * rowStep
+    const pair = [
+      { x: leftX, label: row.left[0], value: row.left[1] },
+      { x: rightX, label: row.right[0], value: row.right[1] },
+    ]
+    pair.forEach((field) => {
+      doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.textMuted).text(field.label, field.x, rowY, {
+        width: colW - 8,
+        lineBreak: false,
+      })
+      if (field.value) {
+        doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.text).text(field.value, field.x, rowY + 13, {
+          width: colW - 8,
           lineBreak: false,
         })
-    }
+      } else {
+        doc
+          .moveTo(field.x, rowY + 26)
+          .lineTo(field.x + colW - 16, rowY + 26)
+          .strokeColor(COLORS.grayBorder)
+          .lineWidth(0.8)
+          .stroke()
+      }
+    })
   })
 
-  doc.y = y + 100
+  doc.y = y + boxHeight + 14
 }
 
 function drawAccreditation(doc: PdfDocument) {

@@ -314,9 +314,15 @@ export async function approveRatmLaudo(req: Request, res: Response) {
     return
   }
 
+  const approver = req.user?.id
+    ? await query<{ name: string }>('SELECT name FROM users WHERE id = $1', [req.user.id])
+    : null
+  const approvedByName = approver?.rows[0]?.name?.trim() || req.user?.registration || ''
+
   const formData = {
     ...existing.rows[0].form_data,
     clientAccompanied: clientPresent,
+    ratmApprovedBy: approvedByName,
     satisfactionWhatsapp:
       clientPresent === 'Sim'
         ? satisfactionWhatsapp.length === 10 || satisfactionWhatsapp.length === 11
