@@ -1182,13 +1182,9 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                     ['Fios • Elementos', selectedMeterModel.wiresElements],
                     ['Classe', selectedMeterModel.accuracyClass],
                     ['Constante', selectedMeterModel.constant],
-                    ['Descrição', selectedMeterModel.description],
                   ] as const
                 ).map(([label, value]) => (
-                  <div
-                    className={`ratm-readonly-field${label === 'Descrição' ? ' full-width' : ''}`}
-                    key={label}
-                  >
+                  <div className="ratm-readonly-field" key={label}>
                     <span className="ratm-readonly-label">{label}</span>
                     <p>{displayOrDash(value)}</p>
                   </div>
