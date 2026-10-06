@@ -4,6 +4,7 @@ import {
   ApiError,
   type EntryFieldMatch,
   type InspectionDocumentRecord,
+  type MeterModelRecord,
 } from '../api'
 import { formatSchedulePartnerAndTeamLabel, scheduleInspectionCollaboratorFields } from '../schedulePartnerLabel'
 import {
@@ -86,6 +87,14 @@ function ScanButton({ field, onScan }: { field: string; onScan: (field: string) 
       </svg>
     </button>
   )
+}
+
+function meterModelOptionLabel(model: MeterModelRecord, duplicateName: boolean) {
+  if (!duplicateName) return model.name
+  return [model.name, model.manufacturer, model.meterType, model.voltage]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(' · ')
 }
 
 function displayOrDash(value?: string | null) {
@@ -671,6 +680,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     {},
   )
   const [editingClient, setEditingClient] = useState(false)
+  const [meterModels, setMeterModels] = useState<MeterModelRecord[]>([])
+  const [meterModelsError, setMeterModelsError] = useState('')
   const clientInputRef = useRef<HTMLInputElement>(null)
   const accordionName = `ratm-sections-${index}`
   const registrationLookupRef = useRef({ 1: 0, 2: 0 })
@@ -727,6 +738,27 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     }
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .listMeterModels()
+      .then((response) => {
+        if (cancelled) return
+        const next = [...response.models].sort((left, right) =>
+          left.name.localeCompare(right.name, 'pt-BR', { sensitivity: 'base' }),
+        )
+        setMeterModels(next)
+        setMeterModelsError('')
+      })
+      .catch(() => {
+        if (cancelled) return
+        setMeterModelsError('Não foi possível carregar os modelos de medidores.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const descriptionForCode = (code: string) => {
     if (!code.trim()) return ''
     return irregularityDescriptions[code] || irregularityCodes[code] || ''
@@ -750,6 +782,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   }, [data.irregularityCode, irregularityDescriptions, irregularityCodes])
 
   const entryInfoComplete = isEntryInfoSectionComplete(data)
+  const selectedMeterModel =
+    meterModels.find((model) => String(model.id) === data.meterModelId) ?? null
   const initialTestsComplete = isInitialTestsSectionComplete(data)
   const enclosureSealComplete = isEnclosureSealSectionComplete(data)
   const seal1Complete = isSeal1SectionComplete(data)
@@ -1108,6 +1142,65 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               fullWidth
             />
           </div>
+          </div>
+        </RatmExpandableSection>
+
+        <RatmExpandableSection
+          title="Modelo"
+          accordionName={accordionName}
+          complete={Boolean(data.meterModelId.trim())}
+        >
+          <div className="ratm-model-panel">
+            <label className="full-width">
+              Modelo
+              <select
+                value={data.meterModelId}
+                onChange={(event) => onChange({ meterModelId: event.target.value })}
+              >
+                <option value="">Selecione o modelo</option>
+                {meterModels.map((model) => {
+                  const key = model.name.trim().toLocaleLowerCase('pt-BR')
+                  const duplicateName =
+                    meterModels.filter(
+                      (entry) => entry.name.trim().toLocaleLowerCase('pt-BR') === key,
+                    ).length > 1
+                  return (
+                    <option key={model.id} value={String(model.id)}>
+                      {meterModelOptionLabel(model, duplicateName)}
+                    </option>
+                  )
+                })}
+              </select>
+            </label>
+            {meterModelsError ? (
+              <p className="field-error" role="alert">
+                {meterModelsError}
+              </p>
+            ) : null}
+            {selectedMeterModel ? (
+              <div className="ratm-model-details">
+                {(
+                  [
+                    ['Fabricante', selectedMeterModel.manufacturer],
+                    ['Tipo', selectedMeterModel.meterType],
+                    ['Tensão', selectedMeterModel.voltage],
+                    ['Corrente', selectedMeterModel.current],
+                    ['Fios • Elementos', selectedMeterModel.wiresElements],
+                    ['Classe', selectedMeterModel.accuracyClass],
+                    ['Constante', selectedMeterModel.constant],
+                    ['Descrição', selectedMeterModel.description],
+                  ] as const
+                ).map(([label, value]) => (
+                  <div
+                    className={`ratm-readonly-field${label === 'Descrição' ? ' full-width' : ''}`}
+                    key={label}
+                  >
+                    <span className="ratm-readonly-label">{label}</span>
+                    <p>{displayOrDash(value)}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </RatmExpandableSection>
 

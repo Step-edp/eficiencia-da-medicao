@@ -8175,6 +8175,35 @@ input[type='file'] {
   min-width: 0;
 }
 
+.ratm-model-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.ratm-model-details {
+  display: grid;
+  gap: 8px 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ratm-model-details > .full-width {
+  grid-column: 1 / -1;
+}
+
+.ratm-model-details .ratm-readonly-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.ratm-model-details p {
+  margin: 0;
+  color: var(--text-main);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
 .ratm-schedule-details {
   display: grid;
   gap: 14px;
@@ -8278,7 +8307,8 @@ input[type='file'] {
 
 @media (max-width: 720px) {
   .ratm-collaborator-fields,
-  .ratm-schedule-details {
+  .ratm-schedule-details,
+  .ratm-model-details {
     grid-template-columns: 1fr;
   }
 }

@@ -95,6 +95,7 @@ export type RatmFormData = {
   schedulingNotes: string
   deliveryDeadlineLabel: string
   client: string
+  meterModelId: string
   analysisRequest: string
   clientAccompanied: string
   satisfactionWhatsapp: string
@@ -194,6 +195,7 @@ export function createEmptyRatmForm(): RatmFormData {
     schedulingNotes: '',
     deliveryDeadlineLabel: '',
     client: '',
+    meterModelId: '',
     analysisRequest: '',
     clientAccompanied: '',
     satisfactionWhatsapp: '',
