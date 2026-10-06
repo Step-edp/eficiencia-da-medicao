@@ -172,25 +172,6 @@ function formatPercent(value: number | null) {
   return `${value > 0 ? '+' : ''}${formatted}%`
 }
 
-function ensaioResult(value: unknown, inverted = false): { label: string; irregular: boolean } {
-  const normalized = textValue(value).toLowerCase()
-  if (normalized === '—') return { label: 'Não informado', irregular: false }
-
-  if (['aprovado', 'ok', 'em ordem'].includes(normalized)) {
-    return { label: inverted ? 'Irregular' : 'Regular', irregular: inverted }
-  }
-  if (['reprovado', 'não conforme', 'nao conforme'].includes(normalized)) {
-    return { label: 'Irregular', irregular: true }
-  }
-  if (normalized === 'sim') {
-    return { label: inverted ? 'Irregular' : 'Regular', irregular: inverted }
-  }
-  if (normalized === 'não' || normalized === 'nao') {
-    return { label: inverted ? 'Regular' : 'Irregular', irregular: !inverted }
-  }
-  return { label: textValue(value), irregular: false }
-}
-
 function ensureSpace(doc: PdfDocument, height: number) {
   if (doc.y + height > CONTENT_BOTTOM) {
     doc.addPage()
@@ -705,62 +686,47 @@ function drawDadosMedidor(doc: PdfDocument, laudo: RatmLaudoPdfInput, meterData:
 }
 
 function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
-  drawSectionTitle(doc, 5, 'ENSAIOS REALIZADOS')
-  ensureSpace(doc, 92)
-  const y = doc.y
-  const gap = 8
-  const boxW = (CONTENT_WIDTH - gap * 4) / 5
-  const boxH = 78
-
-  const ensaios = [
-    { title: 'Inspeção visual', result: ensaioResult(form.visualTest) },
+  drawSectionTitle(doc, 5, 'INSPEÇÃO GERAL')
+  const rowStart = 14
+  const rowStep = 28
+  const rows: Array<{ left: [string, string]; right: [string, string] | null }> = [
     {
-      title: 'Integridade',
-      result: ensaioResult(
-        form.brokenMeter === 'Sim' || form.damagedCoil === 'Sim' || form.foreignBodyInMeter === 'Sim'
-          ? 'Reprovado'
-          : form.apparentlyInOrder === 'Sim'
-            ? 'Aprovado'
-            : form.brokenMeter || form.apparentlyInOrder,
-        false,
-      ),
+      left: ['Medidor quebrado • furado', firstText(form.brokenMeter)],
+      right: ['Display apagado • não liga', firstText(form.displayOff)],
     },
     {
-      title: 'Exatidão',
-      result: (() => {
-        const worst = worstAccuracy(form)
-        if (worst == null) return ensaioResult(form.cn || form.cp)
-        return Math.abs(worst) > 4
-          ? { label: 'Irregular', irregular: true }
-          : { label: 'Regular', irregular: false }
-      })(),
+      left: ['Facilidade de acesso ao interior do medidor', firstText(form.meterInteriorAccess)],
+      right: ['Bobina danificada', firstText(form.damagedCoil)],
     },
-    { title: 'Marcha em vazio', result: ensaioResult(form.march) },
-    { title: 'Dielétrico', result: ensaioResult(form.dielectric || form.dielectricFailed, form.dielectricFailed === 'Sim') },
+    {
+      left: ['Aparentemente em ordem', firstText(form.apparentlyInOrder)],
+      right: ['Reprovado dielétrico', firstText(form.dielectricFailed)],
+    },
+    {
+      left: ['Corpo estranho no interior do medidor', firstText(form.foreignBodyInMeter)],
+      right: null,
+    },
   ]
+  const boxHeight = rowStart + rows.length * rowStep + 10
+  ensureSpace(doc, boxHeight + 16)
+  const y = doc.y
+  doc
+    .roundedRect(PAGE.margin, y, CONTENT_WIDTH, boxHeight, 8)
+    .strokeColor(COLORS.grayBorder)
+    .lineWidth(1)
+    .stroke()
 
-  ensaios.forEach((ensaio, index) => {
-    const x = PAGE.margin + index * (boxW + gap)
-    doc.roundedRect(x, y, boxW, boxH, 8).fillAndStroke(COLORS.white, COLORS.grayBorder)
-    doc.circle(x + boxW / 2, y + 16, 8).fill(COLORS.grayBox)
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(7.5)
-      .fillColor(COLORS.navy)
-      .text(ensaio.title, x + 4, y + 30, { width: boxW - 8, align: 'center' })
-    doc
-      .font('Helvetica')
-      .fontSize(6.5)
-      .fillColor(COLORS.green)
-      .text('RESULTADO', x + 4, y + 46, { width: boxW - 8, align: 'center', lineBreak: false })
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(9)
-      .fillColor(ensaio.result.irregular ? COLORS.red : COLORS.green)
-      .text(ensaio.result.label, x + 4, y + 56, { width: boxW - 8, align: 'center', lineBreak: false })
+  const colW = (CONTENT_WIDTH - 28) / 2
+  const leftX = PAGE.margin + 12
+  const rightX = PAGE.margin + 16 + colW
+
+  rows.forEach((row, index) => {
+    const rowY = y + rowStart + index * rowStep
+    drawFieldPair(doc, leftX, rowY, colW - 8, row.left[0], row.left[1])
+    if (row.right) drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
   })
 
-  doc.y = y + boxH + 14
+  doc.y = y + boxHeight + 14
 }
 
 function drawResultado(
