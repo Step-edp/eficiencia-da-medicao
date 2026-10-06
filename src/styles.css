@@ -7785,9 +7785,12 @@ input[type='file'] {
 .ratm-nav-bar {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   width: fit-content;
   max-width: 100%;
+  margin-inline: auto;
+  justify-self: center;
   padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid rgba(91, 240, 0, 0.24);
@@ -7801,13 +7804,10 @@ input[type='file'] {
   white-space: nowrap;
 }
 
-.ratm-nav-trailing {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .ratm-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 42px;
   height: 42px;
   border: 0;
@@ -7825,6 +7825,9 @@ input[type='file'] {
 }
 
 .ratm-nav-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 42px;
   height: 42px;
   border: 1px solid rgba(255, 124, 124, 0.35);

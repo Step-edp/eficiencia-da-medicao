@@ -185,26 +185,24 @@ export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWork
           ‹
         </button>
         <strong className="ratm-nav-title">RATM {activeIndex + 1}</strong>
-        <div className="ratm-nav-trailing">
-          <button
-            className="ratm-nav-button"
-            type="button"
-            onClick={handleNext}
-            disabled={activeIndex >= count - 1}
-            aria-label="Próximo RATM"
-          >
-            ›
-          </button>
-          <button
-            className="ratm-nav-close"
-            type="button"
-            onClick={() => setConfirmCloseOpen(true)}
-            aria-label="Fechar RATM e descartar preenchimento"
-            title="Fechar RATM (descarta tudo)"
-          >
-            ×
-          </button>
-        </div>
+        <button
+          className="ratm-nav-button"
+          type="button"
+          onClick={handleNext}
+          disabled={activeIndex >= count - 1}
+          aria-label="Próximo RATM"
+        >
+          ›
+        </button>
+        <button
+          className="ratm-nav-close"
+          type="button"
+          onClick={() => setConfirmCloseOpen(true)}
+          aria-label="Fechar RATM e descartar preenchimento"
+          title="Fechar RATM (descarta tudo)"
+        >
+          ×
+        </button>
       </div>
 
       <RatmFormFields
