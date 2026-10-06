@@ -293,6 +293,7 @@ export type StandardCertificateRecord = {
   accuracyClass: string
   certificateNumber: string
   certificateType: 'Padrão' | 'Hipot'
+  calibratedOn: string
   validUntil: string
   pdfName: string
   createdAt: string
@@ -1446,6 +1447,7 @@ export const api = {
     accuracyClass: string
     certificateNumber: string
     certificateType: 'Padrão' | 'Hipot'
+    calibratedOn: string
     validUntil: string
     pdf: string
     pdfName: string

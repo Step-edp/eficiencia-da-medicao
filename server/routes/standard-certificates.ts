@@ -16,16 +16,19 @@ type CertificateRow = {
   accuracy_class: string
   certificate_number: string
   certificate_type: string
+  calibrated_on: string | null
   valid_until: string
   pdf_name: string
   created_at: Date
 }
 
+function dateOnly(value: string | Date | null | undefined) {
+  if (!value) return ''
+  if (typeof value === 'string') return value.slice(0, 10)
+  return value.toISOString().slice(0, 10)
+}
+
 function mapCertificate(row: CertificateRow) {
-  const validUntil =
-    typeof row.valid_until === 'string'
-      ? row.valid_until.slice(0, 10)
-      : new Date(row.valid_until).toISOString().slice(0, 10)
   return {
     id: row.id,
     assetNumber: row.asset_number,
@@ -35,7 +38,8 @@ function mapCertificate(row: CertificateRow) {
     accuracyClass: row.accuracy_class,
     certificateNumber: row.certificate_number,
     certificateType: row.certificate_type,
-    validUntil,
+    calibratedOn: dateOnly(row.calibrated_on),
+    validUntil: dateOnly(row.valid_until),
     pdfName: row.pdf_name || '',
     createdAt: row.created_at.toISOString(),
   }
@@ -48,7 +52,8 @@ function textField(value: unknown) {
 export async function listStandardCertificates(_req: Request, res: Response) {
   const result = await query<CertificateRow>(
     `SELECT id, asset_number, serial, model, manufacturer, accuracy_class,
-            certificate_number, certificate_type, valid_until::text AS valid_until, pdf_name, created_at
+            certificate_number, certificate_type, calibrated_on::text AS calibrated_on,
+            valid_until::text AS valid_until, pdf_name, created_at
      FROM standard_certificates
      ORDER BY created_at DESC, id DESC`,
   )
@@ -63,6 +68,7 @@ export async function createStandardCertificate(req: Request, res: Response) {
   const accuracyClass = textField(req.body?.accuracyClass)
   const certificateNumber = textField(req.body?.certificateNumber)
   const certificateType = textField(req.body?.certificateType)
+  const calibratedOn = textField(req.body?.calibratedOn)
   const validUntil = textField(req.body?.validUntil)
   const pdf = textField(req.body?.pdf)
   const pdfName = textField(req.body?.pdfName) || 'certificado.pdf'
@@ -74,6 +80,11 @@ export async function createStandardCertificate(req: Request, res: Response) {
 
   if (!CERTIFICATE_TYPES.includes(certificateType as (typeof CERTIFICATE_TYPES)[number])) {
     res.status(400).json({ error: 'Selecione o tipo Padrão ou Hipot.' })
+    return
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(calibratedOn)) {
+    res.status(400).json({ error: 'Informe a data de calibração.' })
     return
   }
 
@@ -90,10 +101,11 @@ export async function createStandardCertificate(req: Request, res: Response) {
   const result = await query<CertificateRow>(
     `INSERT INTO standard_certificates (
        asset_number, serial, model, manufacturer, accuracy_class,
-       certificate_number, certificate_type, valid_until, pdf, pdf_name, created_by_user_id
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::date, $9, $10, $11)
+       certificate_number, certificate_type, calibrated_on, valid_until, pdf, pdf_name, created_by_user_id
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::date, $9::date, $10, $11, $12)
      RETURNING id, asset_number, serial, model, manufacturer, accuracy_class,
-               certificate_number, certificate_type, valid_until::text AS valid_until, pdf_name, created_at`,
+               certificate_number, certificate_type, calibrated_on::text AS calibrated_on,
+               valid_until::text AS valid_until, pdf_name, created_at`,
     [
       assetNumber,
       serial,
@@ -102,6 +114,7 @@ export async function createStandardCertificate(req: Request, res: Response) {
       accuracyClass,
       certificateNumber,
       certificateType,
+      calibratedOn,
       validUntil,
       pdf,
       pdfName,

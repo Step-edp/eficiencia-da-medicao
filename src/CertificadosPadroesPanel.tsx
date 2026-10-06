@@ -16,6 +16,7 @@ const emptyForm = {
   manufacturer: '',
   accuracyClass: '',
   certificateNumber: '',
+  calibratedOn: '',
   validUntil: '',
   certificateType: '' as '' | 'Padrão' | 'Hipot',
   pdf: '',
@@ -74,6 +75,7 @@ export function CertificadosPadroesPanel({ readOnly = false }: { readOnly?: bool
       !form.manufacturer.trim() ||
       !form.accuracyClass.trim() ||
       !form.certificateNumber.trim() ||
+      !form.calibratedOn ||
       !form.validUntil ||
       (form.certificateType !== 'Padrão' && form.certificateType !== 'Hipot') ||
       !form.pdf
@@ -96,6 +98,7 @@ export function CertificadosPadroesPanel({ readOnly = false }: { readOnly?: bool
         accuracyClass: form.accuracyClass.trim(),
         certificateNumber: form.certificateNumber.trim(),
         certificateType: form.certificateType,
+        calibratedOn: form.calibratedOn,
         validUntil: form.validUntil,
         pdf: form.pdf,
         pdfName: form.pdfName || 'certificado.pdf',
@@ -283,6 +286,16 @@ export function CertificadosPadroesPanel({ readOnly = false }: { readOnly?: bool
             />
           </label>
           <label>
+            Data de Calibração
+            <input
+              type="date"
+              value={form.calibratedOn}
+              onChange={(event) => updateField('calibratedOn', event.target.value)}
+              required
+              disabled={submitting}
+            />
+          </label>
+          <label>
             Validade do Certificado
             <input
               type="date"
@@ -338,6 +351,7 @@ export function CertificadosPadroesPanel({ readOnly = false }: { readOnly?: bool
                 <th>Classe de exatidão</th>
                 <th>Número do certificado</th>
                 <th>Tipo</th>
+                <th>Data de Calibração</th>
                 <th>Validade</th>
                 <th>PDF</th>
               </tr>
@@ -352,6 +366,7 @@ export function CertificadosPadroesPanel({ readOnly = false }: { readOnly?: bool
                   <td>{certificate.accuracyClass}</td>
                   <td>{certificate.certificateNumber}</td>
                   <td>{certificate.certificateType}</td>
+                  <td>{certificate.calibratedOn ? formatValidUntil(certificate.calibratedOn) : '—'}</td>
                   <td>{formatValidUntil(certificate.validUntil)}</td>
                   <td>
                     <button

@@ -1222,6 +1222,7 @@ export async function migrate() {
       accuracy_class TEXT NOT NULL,
       certificate_number TEXT NOT NULL,
       certificate_type TEXT NOT NULL,
+      calibrated_on DATE,
       valid_until DATE NOT NULL,
       pdf TEXT NOT NULL,
       pdf_name TEXT NOT NULL DEFAULT '',
@@ -1232,6 +1233,10 @@ export async function migrate() {
   await query(`
     ALTER TABLE standard_certificates
       ADD COLUMN IF NOT EXISTS certificate_type TEXT NOT NULL DEFAULT 'Padrão'
+  `)
+  await query(`
+    ALTER TABLE standard_certificates
+      ADD COLUMN IF NOT EXISTS calibrated_on DATE
   `)
 
   await query(`
