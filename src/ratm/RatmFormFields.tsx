@@ -1676,11 +1676,11 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           <div className="ratm-section-box-grid">
             {(
               [
-                ['sealViolatedOnToiOkPhysically', 'Lacre violado no TOI porém em ordem fisicamente?'],
-                ['toiNotSentPhysically', 'TOI enviado fisicamente?'],
-                ['csmNotSentPhysically', 'CSM enviado fisicamente?'],
-                ['csmCutWithoutTeam', 'CSM cortado (sem nome de equipe)?'],
-                ['deviceMissingOnToi', 'Sem dispositivo no TOI, porém com dispositivo e sem lacre?'],
+                ['sealViolatedOnToiOkPhysically', 'O lacre está como violado no TOI porém em ordem fisicamente?'],
+                ['toiNotSentPhysically', 'O TOI foi enviado fisicamente?'],
+                ['csmNotSentPhysically', 'O CSM foi enviado fisicamente?'],
+                ['csmCutWithoutTeam', 'O CSM foi cortado ocultando o nome de equipe?'],
+                ['deviceMissingOnToi', 'Está sem dispositivo no TOI, porém com dispositivo e sem lacre fisicamente?'],
               ] as const
             ).map(([fieldKey, label]) => (
               <ClearableRadioGroup
