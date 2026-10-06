@@ -220,12 +220,12 @@ function drawSectionTitle(doc: PdfDocument, index: number, title: string) {
   doc.circle(PAGE.margin + 6, y + 5, 6).fill(COLORS.navy)
   doc
     .font('Helvetica-Bold')
-    .fontSize(7)
+    .fontSize(6)
     .fillColor(COLORS.white)
     .text(String(index), PAGE.margin, y + 2, { width: 12, align: 'center', lineBreak: false })
   doc
     .font('Helvetica-Bold')
-    .fontSize(8)
+    .fontSize(7)
     .fillColor(COLORS.titleBlue)
     .text(title, PAGE.margin + 16, y + 1, { lineBreak: false })
   doc.y = y + 12
@@ -240,15 +240,15 @@ function drawFieldPair(
   value: string,
   valueColor = COLORS.text,
 ) {
-  doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.textMuted).text(label, x, y, {
+  doc.font('Helvetica').fontSize(6).fillColor(COLORS.textMuted).text(label, x, y, {
     width,
     lineBreak: false,
   })
   doc
     .font('Helvetica-Bold')
-    .fontSize(7.5)
+    .fontSize(6.5)
     .fillColor(valueColor)
-    .text(value, x, y + 7, { width, lineBreak: false })
+    .text(value, x, y + 8, { width, lineBreak: false })
 }
 
 function drawYesNoBadge(
@@ -262,7 +262,7 @@ function drawYesNoBadge(
   const positive = normalized === 'sim'
   const negative = normalized === 'não' || normalized === 'nao'
   if (!positive && !negative) {
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.text).text(value, x, y + 1, {
+    doc.font('Helvetica-Bold').fontSize(7).fillColor(COLORS.text).text(value, x, y + 1, {
       lineBreak: false,
     })
     return
@@ -288,7 +288,7 @@ function drawYesNoBadge(
     doc.moveTo(iconX + 1.7, iconY - 1.7).lineTo(iconX - 1.7, iconY + 1.7).stroke()
   }
   doc.restore()
-  doc.font('Helvetica-Bold').fontSize(8).fillColor(ink).text(label, x + 15, y + 3.5, { lineBreak: false })
+  doc.font('Helvetica-Bold').fontSize(7).fillColor(ink).text(label, x + 15, y + 2.5, { lineBreak: false })
 }
 
 function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
@@ -296,24 +296,24 @@ function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   const brandX = PAGE.margin + logoWidth + 8
   doc
     .font('Helvetica-Bold')
-    .fontSize(8)
+    .fontSize(7)
     .fillColor(COLORS.navy)
     .text('Laboratório de Medição', brandX, PAGE.margin + 1, { lineBreak: false })
   doc
     .font('Helvetica')
-    .fontSize(7)
+    .fontSize(6)
     .fillColor(COLORS.textMuted)
     .text('EDP SP', brandX, PAGE.margin + 11, { lineBreak: false })
 
   const rightX = PAGE.width - PAGE.margin - 150
   doc
     .font('Helvetica')
-    .fontSize(6.5)
+    .fontSize(6)
     .fillColor(COLORS.textMuted)
     .text('N DO RELATÓRIO', rightX, PAGE.margin, { width: 150, align: 'right', lineBreak: false })
   doc
     .font('Helvetica-Bold')
-    .fontSize(8)
+    .fontSize(7)
     .fillColor(COLORS.navyDark)
     .text(buildLaudoNumber(laudo), rightX, PAGE.margin + 8, {
       width: 150,
@@ -331,14 +331,14 @@ function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
 
   const title = 'RATM • RELATÓRIO DE AVALIAÇÃO TÉCNICA DE MEDIDOR'
   const titleY = lineY + 5
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.titleBlue)
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(COLORS.titleBlue)
   const titleHeight = doc.currentLineHeight()
   doc.text(title, PAGE.margin, titleY, {
     width: CONTENT_WIDTH,
     align: 'center',
     lineBreak: false,
   })
-  doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.textMuted)
+  doc.font('Helvetica').fontSize(6).fillColor(COLORS.textMuted)
   doc.text(`Emissão ${formatDate(laudo.createdAt)}`, PAGE.margin, titleY + titleHeight, {
     width: CONTENT_WIDTH,
     align: 'center',
@@ -463,7 +463,7 @@ async function loadPadraoEnsaio(testBench: unknown): Promise<PadraoEnsaio> {
 function drawPadraoEnsaio(doc: PdfDocument, padrao: PadraoEnsaio) {
   drawSectionTitle(doc, 2, 'DADOS DO PADRÃO DE ENSAIO')
   const introY = doc.y
-  doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.text)
+  doc.font('Helvetica').fontSize(6).fillColor(COLORS.text)
   const intro =
     'Padrão de ensaio: equipamento de alta precisão usado como referência para verificar se um medidor de energia está medindo corretamente.'
   const introHeight = doc.heightOfString(intro, { width: CONTENT_WIDTH })
@@ -517,7 +517,7 @@ function drawLocalEnsaio(doc: PdfDocument) {
   drawSectionTitle(doc, 3, 'LOCAL DE ENSAIO')
   const address =
     'Av. Cassiano Ricardo, 1973 - Jardim Alvorada, São José dos Campos - SP'
-  doc.font('Helvetica').fontSize(7)
+  doc.font('Helvetica').fontSize(6.5)
   const textHeight = doc.heightOfString(address, { width: CONTENT_WIDTH - 16 })
   const boxHeight = textHeight + 10
   ensureSpace(doc, boxHeight + 16)
@@ -737,7 +737,7 @@ function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
     const fields = [row.left, row.right].filter((field): field is [string, string] => field != null)
     fields.forEach((field, fieldIndex) => {
       const fieldX = fieldIndex === 0 ? leftX : rightX
-      doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.textMuted).text(field[0], fieldX, rowY, {
+      doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.textMuted).text(field[0], fieldX, rowY, {
         width: colW - 8,
         lineBreak: false,
       })
@@ -864,8 +864,8 @@ function drawResultado(
   const paddingTop = 6
   const labelGap = 8
   const blockGap = 3
-  doc.font('Helvetica-Bold').fontSize(7.5)
-  const valueHeights = fields.map(([, value]) => Math.max(doc.heightOfString(value, { width: innerWidth }), 9))
+  doc.font('Helvetica-Bold').fontSize(6.5)
+  const valueHeights = fields.map(([, value]) => Math.max(doc.heightOfString(value, { width: innerWidth }), 8))
   const boxHeight =
     paddingTop + valueHeights.reduce((sum, height) => sum + labelGap + height, 0) + blockGap * (fields.length - 1) + 4
 
@@ -879,12 +879,12 @@ function drawResultado(
 
   let cursor = y + paddingTop
   fields.forEach(([label, value], index) => {
-    doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.textMuted).text(label, PAGE.margin + 8, cursor, {
+    doc.font('Helvetica').fontSize(6).fillColor(COLORS.textMuted).text(label, PAGE.margin + 8, cursor, {
       width: innerWidth,
       lineBreak: false,
     })
     cursor += labelGap
-    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(COLORS.text).text(value, PAGE.margin + 8, cursor, {
+    doc.font('Helvetica-Bold').fontSize(6.5).fillColor(COLORS.text).text(value, PAGE.margin + 8, cursor, {
       width: innerWidth,
     })
     cursor += valueHeights[index] + blockGap
@@ -899,7 +899,7 @@ function drawReferencias(doc: PdfDocument) {
     'Análise realizada conforme procedimentos estabelecidos pela Portaria nº 493 de 10/12/2021, emitida pelo órgão metrológico oficial INMETRO, admitindo erros máximos para medidores em serviço de ±4,0% para medidores eletromecânicos e ±1,3% para medidores eletrônicos.',
     'O Cliente deverá comparecer a uma agência de atendimento ou interpor recurso no prazo de 15 dias (Art. 253 da Resolução nº 1.000 da ANEEL).',
   ]
-  doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.text)
+  doc.font('Helvetica').fontSize(6).fillColor(COLORS.text)
   paragraphs.forEach((paragraph) => {
     const height = doc.heightOfString(paragraph, { width: CONTENT_WIDTH, align: 'justify' })
     doc.text(paragraph, PAGE.margin, doc.y, { width: CONTENT_WIDTH, align: 'justify' })
@@ -958,12 +958,12 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
       { x: rightX, label: row.right[0], value: row.right[1] },
     ]
     pair.forEach((field) => {
-      doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.textMuted).text(field.label, field.x, rowY, {
+      doc.font('Helvetica').fontSize(6).fillColor(COLORS.textMuted).text(field.label, field.x, rowY, {
         width: colW - 8,
         lineBreak: false,
       })
       if (field.value) {
-        doc.font('Helvetica-Bold').fontSize(7.5).fillColor(COLORS.text).text(field.value, field.x, rowY + 7, {
+        doc.font('Helvetica-Bold').fontSize(6.5).fillColor(COLORS.text).text(field.value, field.x, rowY + 8, {
           width: colW - 8,
           lineBreak: false,
         })
