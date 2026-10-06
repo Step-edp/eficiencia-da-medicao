@@ -499,8 +499,8 @@ function drawPadraoEnsaio(doc: PdfDocument, padrao: PadraoEnsaio) {
   const rowStep = 28
   const rows = [
     {
-      left: ['Patrimônio', padrao.patrimonio],
-      right: ['Serial', padrao.serial],
+      left: ['Patrimônio • Serial', padrao.patrimonio !== '—' ? padrao.patrimonio : padrao.serial],
+      right: null,
     },
     {
       left: ['Modelo', padrao.modelo],
