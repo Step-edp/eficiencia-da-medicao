@@ -64,6 +64,11 @@ function textValue(value: unknown) {
   return normalized || '—'
 }
 
+function lowerCaseWriting(value: string) {
+  if (value === '—') return value
+  return value.normalize('NFKC').toLocaleLowerCase('pt-BR')
+}
+
 function formatDate(isoDate: string) {
   const date = new Date(isoDate)
   if (Number.isNaN(date.getTime())) return '—'
@@ -365,7 +370,7 @@ function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
     {
       left: [
         'Titular da Unidade Consumidora',
-        firstText(form.client, laudo.client).toLocaleLowerCase('pt-BR'),
+        lowerCaseWriting(firstText(form.client, laudo.client)),
       ],
       right: ['Instalação', firstText(form.installation, laudo.installation)],
     },

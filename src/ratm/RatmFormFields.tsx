@@ -948,7 +948,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         fieldCollaborator2,
         fieldCollaborator2Name: collaborator2.name,
         fieldCollaborator2Registration: collaborator2.registration,
-        client: extractedClient,
+        client: extractedClient.trim().toLocaleLowerCase('pt-BR'),
         fieldDocumentDescription: documentObservations,
         enclosureSeal: extractedLacre || schedule.envelopeSeal || '',
         seal1: coverSeals.seal1,
@@ -977,9 +977,9 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           entryComparisons: comparisonResponse.comparisons,
           entryFieldChecks: entryFieldChecksFromComparisons(comparisonResponse.comparisons),
           ...(comparisonResponse.extractedClient?.trim()
-            ? { client: comparisonResponse.extractedClient.trim() }
+            ? { client: comparisonResponse.extractedClient.trim().toLocaleLowerCase('pt-BR') }
             : extractedClient
-              ? { client: extractedClient }
+              ? { client: extractedClient.trim().toLocaleLowerCase('pt-BR') }
               : {}),
           enclosureSeal: extractedLacre || comparisonLacre || schedule.envelopeSeal || '',
           ...(comparisonReading.meterReading ? comparisonReading : {}),
@@ -1077,7 +1077,9 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               <input
                 type="text"
                 value={data.client}
-                onChange={(event) => onChange({ client: event.target.value })}
+                onChange={(event) =>
+                  onChange({ client: event.target.value.toLocaleLowerCase('pt-BR') })
+                }
                 placeholder="Titular da unidade consumidora"
               />
             </label>
