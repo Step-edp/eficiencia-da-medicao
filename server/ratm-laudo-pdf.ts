@@ -247,6 +247,39 @@ function drawFieldPair(
     .text(value, x, y + 13, { width, lineBreak: false })
 }
 
+function drawYesNoBadge(doc: PdfDocument, x: number, y: number, value: string) {
+  const normalized = value.trim().toLocaleLowerCase('pt-BR')
+  const positive = normalized === 'sim'
+  const negative = normalized === 'não' || normalized === 'nao'
+  if (!positive && !negative) {
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.text).text(value, x, y + 1, {
+      lineBreak: false,
+    })
+    return
+  }
+
+  const fill = positive ? COLORS.greenSoft : COLORS.redSoft
+  const ink = positive ? COLORS.green : COLORS.red
+  const label = positive ? 'Sim' : 'Não'
+  const badgeWidth = positive ? 46 : 48
+  const badgeHeight = 15
+  doc.roundedRect(x, y, badgeWidth, badgeHeight, 8).fill(fill)
+
+  const iconX = x + 8
+  const iconY = y + badgeHeight / 2
+  doc.circle(iconX, iconY, 4.2).fill(ink)
+  doc.save()
+  doc.strokeColor(COLORS.white).lineWidth(1.15).lineCap('round').lineJoin('round')
+  if (positive) {
+    doc.moveTo(iconX - 2, iconY + 0.2).lineTo(iconX - 0.5, iconY + 1.7).lineTo(iconX + 2.1, iconY - 1.7).stroke()
+  } else {
+    doc.moveTo(iconX - 1.7, iconY - 1.7).lineTo(iconX + 1.7, iconY + 1.7).stroke()
+    doc.moveTo(iconX + 1.7, iconY - 1.7).lineTo(iconX - 1.7, iconY + 1.7).stroke()
+  }
+  doc.restore()
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(ink).text(label, x + 15, y + 3.5, { lineBreak: false })
+}
+
 function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   const logoWidth = drawEdpMark(doc, PAGE.margin, PAGE.margin)
   const brandX = PAGE.margin + logoWidth + 12
@@ -623,7 +656,7 @@ function drawDadosMedidor(doc: PdfDocument, laudo: RatmLaudoPdfInput, meterData:
 function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
   drawSectionTitle(doc, 5, 'INSPEÇÃO GERAL')
   const rowStart = 14
-  const rowStep = 28
+  const rowStep = 32
   const rows: Array<{ left: [string, string]; right: [string, string] | null }> = [
     {
       left: ['Medidor quebrado • furado', firstText(form.brokenMeter)],
@@ -657,8 +690,15 @@ function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
 
   rows.forEach((row, index) => {
     const rowY = y + rowStart + index * rowStep
-    drawFieldPair(doc, leftX, rowY, colW - 8, row.left[0], row.left[1])
-    if (row.right) drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
+    const fields = [row.left, row.right].filter((field): field is [string, string] => field != null)
+    fields.forEach((field, fieldIndex) => {
+      const fieldX = fieldIndex === 0 ? leftX : rightX
+      doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.textMuted).text(field[0], fieldX, rowY, {
+        width: colW - 8,
+        lineBreak: false,
+      })
+      drawYesNoBadge(doc, fieldX, rowY + 12, field[1])
+    })
   })
 
   doc.y = y + boxHeight + 14
