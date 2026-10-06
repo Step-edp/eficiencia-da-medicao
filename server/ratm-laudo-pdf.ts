@@ -843,13 +843,11 @@ function drawReferencias(doc: PdfDocument) {
 function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   const form = laudo.formData
   const assayName = laudo.createdByName?.trim() ?? ''
-  const assayRegistration = laudo.createdByRegistration?.trim() ?? ''
-  const ensaioPor = assayName
-    ? assayRegistration
-      ? `${assayName} (${assayRegistration})`
-      : assayName
-    : '—'
-  const aprovadoPor = laudo.status === 'Aprovado' ? textValue(form.ratmApprovedBy) : '—'
+  const ensaioPor = assayName || '—'
+  const approvedName = String(form.ratmApprovedBy ?? '')
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .trim()
+  const aprovadoPor = laudo.status === 'Aprovado' ? textValue(approvedName) : '—'
   const rowStart = 14
   const rowStep = 36
   const rows: Array<{ left: [string, string]; right: [string, string] }> = [

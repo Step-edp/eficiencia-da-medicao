@@ -70,10 +70,7 @@ async function loadLaboratorioMedicaoUser(userId: string | null | undefined) {
 }
 
 function formatPortalUser(user: { name: string; registration: string }) {
-  const name = user.name.trim()
-  const registration = user.registration.trim()
-  if (name && registration) return `${name} (${registration})`
-  return name || registration
+  return user.name.trim()
 }
 
 function normalizedMeterSql(column: string) {
