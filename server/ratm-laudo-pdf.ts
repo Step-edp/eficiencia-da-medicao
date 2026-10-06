@@ -389,14 +389,14 @@ function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   const form = laudo.formData
   const rowStart = 14
   const rowStep = 28
-  const rows = [
+  const rows: Array<{ left: [string, string]; right: [string, string] | null }> = [
     {
       left: ['Titular da Unidade Consumidora', firstText(form.client, laudo.client)],
       right: ['Instalação', firstText(form.installation, laudo.installation)],
     },
     {
       left: ['Medidor', firstText(form.meter, laudo.meter)],
-      right: ['Leitura', firstText(form.meterReading, laudo.meterReading)],
+      right: null,
     },
     {
       left: ['Nota', firstText(form.note, laudo.note)],
@@ -419,7 +419,7 @@ function drawDadosGerais(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   rows.forEach((row, index) => {
     const rowY = y + rowStart + index * rowStep
     drawFieldPair(doc, leftX, rowY, colW - 8, row.left[0], row.left[1])
-    drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
+    if (row.right) drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
   })
 
   doc.y = y + boxHeight + 14
