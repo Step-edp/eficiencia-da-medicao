@@ -764,6 +764,38 @@ function drawResultadosEnsaio(doc: PdfDocument, form: Record<string, unknown>) {
   doc.y = y + boxHeight + 14
 }
 
+function drawTestesRegistrador(doc: PdfDocument, form: Record<string, unknown>) {
+  drawSectionTitle(doc, 7, 'TESTES DE REGISTRADOR')
+  const rowStart = 14
+  const rowStep = 28
+  const rows: Array<{ left: [string, string]; right: [string, string] | null }> = [
+    {
+      left: ['Registrador • Mostrador', firstText(form.recorder)],
+      right: ['Registro de Energia Sem Carga', firstText(form.march)],
+    },
+  ]
+  const boxHeight = rowStart + rows.length * rowStep + 10
+  ensureSpace(doc, boxHeight + 16)
+  const y = doc.y
+  doc
+    .roundedRect(PAGE.margin, y, CONTENT_WIDTH, boxHeight, 8)
+    .strokeColor(COLORS.grayBorder)
+    .lineWidth(1)
+    .stroke()
+
+  const colW = (CONTENT_WIDTH - 28) / 2
+  const leftX = PAGE.margin + 12
+  const rightX = PAGE.margin + 16 + colW
+
+  rows.forEach((row, index) => {
+    const rowY = y + rowStart + index * rowStep
+    drawFieldPair(doc, leftX, rowY, colW - 8, row.left[0], row.left[1])
+    if (row.right) drawFieldPair(doc, rightX, rowY, colW - 8, row.right[0], row.right[1])
+  })
+
+  doc.y = y + boxHeight + 14
+}
+
 function drawResultado(
   doc: PdfDocument,
   laudo: RatmLaudoPdfInput,
@@ -771,7 +803,7 @@ function drawResultado(
   irregularityCodes: Record<string, string>,
   irregularityDescriptions: Record<string, string> = {},
 ) {
-  drawSectionTitle(doc, 7, 'RESULTADO DA PERÍCIA')
+  drawSectionTitle(doc, 8, 'RESULTADO DA PERÍCIA')
   ensureSpace(doc, 150)
   const y = doc.y
   const leftW = CONTENT_WIDTH * 0.58
@@ -907,7 +939,7 @@ function drawResultado(
 }
 
 function drawObservacoes(doc: PdfDocument) {
-  drawSectionTitle(doc, 8, 'OBSERVAÇÕES')
+  drawSectionTitle(doc, 9, 'OBSERVAÇÕES')
   ensureSpace(doc, 54)
   doc
     .font('Helvetica')
@@ -1004,7 +1036,7 @@ function drawPhotos(doc: PdfDocument, photos: string[]) {
   if (!photos.length) return
   doc.addPage()
   doc.y = PAGE.margin
-  drawSectionTitle(doc, 9, 'REGISTRO FOTOGRÁFICO')
+  drawSectionTitle(doc, 10, 'REGISTRO FOTOGRÁFICO')
 
   const columns = 2
   const gap = 12
@@ -1128,6 +1160,7 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   )
   drawEnsaios(doc, form)
   drawResultadosEnsaio(doc, form)
+  drawTestesRegistrador(doc, form)
   drawResultado(doc, laudo, fraud, irregularityCodes, irregularityDescriptions)
   drawObservacoes(doc)
   drawAssinaturas(doc, laudo)
