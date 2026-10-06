@@ -252,7 +252,13 @@ function drawFieldPair(
     .text(value, x, y + 13, { width, lineBreak: false })
 }
 
-function drawYesNoBadge(doc: PdfDocument, x: number, y: number, value: string) {
+function drawYesNoBadge(
+  doc: PdfDocument,
+  x: number,
+  y: number,
+  value: string,
+  simIsGood = false,
+) {
   const normalized = value.trim().toLocaleLowerCase('pt-BR')
   const positive = normalized === 'sim'
   const negative = normalized === 'não' || normalized === 'nao'
@@ -263,8 +269,9 @@ function drawYesNoBadge(doc: PdfDocument, x: number, y: number, value: string) {
     return
   }
 
-  const fill = positive ? COLORS.greenSoft : COLORS.redSoft
-  const ink = positive ? COLORS.green : COLORS.red
+  const favorable = simIsGood ? positive : negative
+  const fill = favorable ? COLORS.greenSoft : COLORS.redSoft
+  const ink = favorable ? COLORS.green : COLORS.red
   const label = positive ? 'Sim' : 'Não'
   const badgeWidth = positive ? 46 : 48
   const badgeHeight = 15
@@ -275,7 +282,7 @@ function drawYesNoBadge(doc: PdfDocument, x: number, y: number, value: string) {
   doc.circle(iconX, iconY, 4.2).fill(ink)
   doc.save()
   doc.strokeColor(COLORS.white).lineWidth(1.15).lineCap('round').lineJoin('round')
-  if (positive) {
+  if (favorable) {
     doc.moveTo(iconX - 2, iconY + 0.2).lineTo(iconX - 0.5, iconY + 1.7).lineTo(iconX + 2.1, iconY - 1.7).stroke()
   } else {
     doc.moveTo(iconX - 1.7, iconY - 1.7).lineTo(iconX + 1.7, iconY + 1.7).stroke()
@@ -702,7 +709,7 @@ function drawEnsaios(doc: PdfDocument, form: Record<string, unknown>) {
         width: colW - 8,
         lineBreak: false,
       })
-      drawYesNoBadge(doc, fieldX, rowY + 12, field[1])
+      drawYesNoBadge(doc, fieldX, rowY + 12, field[1], field[0] === 'Aparentemente em ordem')
     })
   })
 
