@@ -311,6 +311,17 @@ export function RatmLaudoViewer({
               <button
                 className="secondary-button"
                 type="button"
+                disabled={actionLoading}
+                onClick={() => {
+                  setMode('view')
+                  refreshPdf()
+                }}
+              >
+                Visualizar PDF
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
                 disabled={actionLoading || currentLaudo.status !== 'Pendente'}
                 onClick={() => {
                   setFormData(laudoToFormData(currentLaudo))

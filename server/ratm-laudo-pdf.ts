@@ -201,17 +201,25 @@ function drawEdpMark(doc: PdfDocument, x: number, y: number) {
   return width
 }
 
-function drawRevokedWatermark(doc: PdfDocument) {
+function drawDiagonalWatermark(doc: PdfDocument, label: string, color: string) {
   doc.save()
-  doc.fillColor(COLORS.red)
-  doc.opacity(0.18)
+  doc.fillColor(color)
+  doc.opacity(0.16)
   doc.rotate(-32, { origin: [PAGE.width / 2, PAGE.height / 2] })
-  doc.font('Helvetica-Bold').fontSize(64).text('REVOGADO', 0, PAGE.height / 2 - 24, {
+  doc.font('Helvetica-Bold').fontSize(64).text(label, 0, PAGE.height / 2 - 24, {
     width: PAGE.width,
     align: 'center',
     lineBreak: false,
   })
   doc.restore()
+}
+
+function drawRevokedWatermark(doc: PdfDocument) {
+  drawDiagonalWatermark(doc, 'REVOGADO', COLORS.red)
+}
+
+function drawDraftWatermark(doc: PdfDocument) {
+  drawDiagonalWatermark(doc, 'RASCUNHO', COLORS.navy)
 }
 
 function drawSectionTitle(doc: PdfDocument, index: number, title: string) {
@@ -1038,11 +1046,13 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   drawReferencias(doc)
   drawAssinaturas(doc, laudo)
 
-  if (laudo.revokedAt) {
+  const draft = laudo.status === 'Pendente' && !laudo.revokedAt
+  if (laudo.revokedAt || draft) {
     const range = doc.bufferedPageRange()
     for (let index = 0; index < range.count; index += 1) {
       doc.switchToPage(range.start + index)
-      drawRevokedWatermark(doc)
+      if (laudo.revokedAt) drawRevokedWatermark(doc)
+      else drawDraftWatermark(doc)
     }
   }
 

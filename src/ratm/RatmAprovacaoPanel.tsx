@@ -48,7 +48,7 @@ export function RatmAprovacaoPanel({
                   type="button"
                   onClick={() => setViewingLaudo(laudo)}
                 >
-                  Visualizar laudo
+                  Visualizar PDF
                 </button>
                 <span className="status-badge">{laudo.status}</span>
               </div>
