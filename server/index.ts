@@ -17,6 +17,7 @@ import {
   standardCertificateRoutes,
   createStandardCertificate,
   updateStandardCertificate,
+  replaceStandardCertificate,
   deleteStandardCertificate,
 } from './routes/standard-certificates.js'
 import {
@@ -278,6 +279,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     updateStandardCertificate,
+  )
+  app.patch(
+    '/api/standard-certificates/:id/replace',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    replaceStandardCertificate,
   )
   app.delete(
     '/api/standard-certificates/:id',

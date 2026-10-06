@@ -1476,6 +1476,23 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+  replaceStandardCertificate: (
+    id: number,
+    payload: {
+      certificateNumber: string
+      calibratedOn: string
+      validUntil: string
+      pdf: string
+      pdfName: string
+    },
+  ) =>
+    request<{ certificate: StandardCertificateRecord }>(
+      `/api/standard-certificates/${id}/replace`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    ),
   getStandardCertificatePdf: (id: number) =>
     request<{ pdf: string; pdfName: string }>(`/api/standard-certificates/${id}/pdf`),
   deleteStandardCertificate: (id: number) =>

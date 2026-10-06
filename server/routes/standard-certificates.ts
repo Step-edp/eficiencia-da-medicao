@@ -49,6 +49,23 @@ function textField(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+const DUPLICATE_SERIAL_ERROR =
+  'Este patrimônio/serial já possui cadastro. Substitua o certificado existente.'
+
+async function findSerialOwner(serial: string, exceptId?: number) {
+  const normalized = serial.trim().toLowerCase()
+  if (!normalized) return null
+  const result = await query<{ id: number }>(
+    `SELECT id
+     FROM standard_certificates
+     WHERE (LOWER(TRIM(serial)) = $1 OR LOWER(TRIM(asset_number)) = $1)
+       AND ($2::int IS NULL OR id <> $2)
+     LIMIT 1`,
+    [normalized, exceptId ?? null],
+  )
+  return result.rows[0]?.id ?? null
+}
+
 function readCertificateBody(body: Record<string, unknown> | undefined) {
   return {
     assetNumber: textField(body?.assetNumber),
@@ -126,6 +143,11 @@ export async function createStandardCertificate(req: Request, res: Response) {
     pdfName,
   } = fields
 
+  if (await findSerialOwner(serial)) {
+    res.status(409).json({ error: DUPLICATE_SERIAL_ERROR })
+    return
+  }
+
   const result = await query<CertificateRow>(
     `INSERT INTO standard_certificates (
        asset_number, serial, model, manufacturer, accuracy_class,
@@ -182,6 +204,11 @@ export async function updateStandardCertificate(req: Request, res: Response) {
   )
   if (!existing.rows[0]) {
     res.status(404).json({ error: 'Certificado não encontrado.' })
+    return
+  }
+
+  if (await findSerialOwner(fields.serial, id)) {
+    res.status(409).json({ error: DUPLICATE_SERIAL_ERROR })
     return
   }
 
@@ -256,6 +283,70 @@ export async function updateStandardCertificate(req: Request, res: Response) {
     newData: { ...updated, pdf: replacePdf ? '[pdf anexado]' : '[pdf mantido]' },
   })
   res.json({ certificate: updated })
+}
+
+export async function replaceStandardCertificate(req: Request, res: Response) {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: 'Identificador inválido.' })
+    return
+  }
+
+  const certificateNumber = textField(req.body?.certificateNumber)
+  const calibratedOn = textField(req.body?.calibratedOn)
+  const validUntil = textField(req.body?.validUntil)
+  const pdf = textField(req.body?.pdf)
+  const pdfName = textField(req.body?.pdfName) || 'certificado.pdf'
+
+  if (!certificateNumber) {
+    res.status(400).json({ error: 'Informe o número do certificado.' })
+    return
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(calibratedOn)) {
+    res.status(400).json({ error: 'Informe a data de calibração.' })
+    return
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(validUntil)) {
+    res.status(400).json({ error: 'Informe a validade do certificado.' })
+    return
+  }
+  if (!pdf.startsWith('data:application/pdf') || pdf.length > MAX_PDF_CHARS) {
+    res.status(400).json({ error: 'Importe um PDF de até 15 MB.' })
+    return
+  }
+
+  const existing = await query<{ id: number }>(
+    `SELECT id FROM standard_certificates WHERE id = $1`,
+    [id],
+  )
+  if (!existing.rows[0]) {
+    res.status(404).json({ error: 'Certificado não encontrado.' })
+    return
+  }
+
+  const result = await query<CertificateRow>(
+    `UPDATE standard_certificates
+     SET certificate_number = $2,
+         calibrated_on = $3::date,
+         valid_until = $4::date,
+         pdf = $5,
+         pdf_name = $6
+     WHERE id = $1
+     RETURNING id, asset_number, serial, model, manufacturer, accuracy_class,
+               certificate_number, certificate_type, calibrated_on::text AS calibrated_on,
+               valid_until::text AS valid_until, pdf_name, created_at`,
+    [id, certificateNumber, calibratedOn, validUntil, pdf, pdfName],
+  )
+
+  const replaced = mapCertificate(result.rows[0])
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'standard_certificate',
+    entityId: String(replaced.id),
+    summary: `Substituiu o certificado ${replaced.certificateNumber}`,
+    newData: { ...replaced, pdf: '[pdf anexado]' },
+  })
+  res.json({ certificate: replaced })
 }
 
 export async function getStandardCertificatePdf(req: Request, res: Response) {

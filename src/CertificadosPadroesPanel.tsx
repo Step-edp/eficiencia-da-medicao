@@ -29,6 +29,29 @@ function PencilIcon() {
   )
 }
 
+function ReplaceIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 8h11M15 4l4 4-4 4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M20 16H9M9 12l-4 4 4 4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function EyeIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -147,10 +170,19 @@ export function CertificadosPadroesPanel({
   isAdmin?: boolean
 }) {
   const fileInputId = useId()
+  const replaceFileInputId = useId()
   const [certificates, setCertificates] = useState<StandardCertificateRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [replacingId, setReplacingId] = useState<number | null>(null)
+  const [replaceForm, setReplaceForm] = useState({
+    certificateNumber: '',
+    calibratedOn: '',
+    validUntil: '',
+    pdf: '',
+    pdfName: '',
+  })
   const [form, setForm] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -227,6 +259,29 @@ export function CertificadosPadroesPanel({
     setForm(emptyForm)
     setEditingId(null)
     setShowForm(false)
+    setReplacingId(null)
+    setReplaceForm({
+      certificateNumber: '',
+      calibratedOn: '',
+      validUntil: '',
+      pdf: '',
+      pdfName: '',
+    })
+  }
+
+  const startReplace = (certificate: StandardCertificateRecord) => {
+    setShowForm(false)
+    setEditingId(null)
+    setForm(emptyForm)
+    setReplacingId(certificate.id)
+    setReplaceForm({
+      certificateNumber: '',
+      calibratedOn: '',
+      validUntil: '',
+      pdf: '',
+      pdfName: '',
+    })
+    setFeedback(null)
   }
 
   const startEdit = (certificate: StandardCertificateRecord) => {
@@ -244,6 +299,7 @@ export function CertificadosPadroesPanel({
       pdf: '',
       pdfName: certificate.pdfName,
     })
+    setReplacingId(null)
     setShowForm(true)
     setFeedback(null)
   }
@@ -273,9 +329,24 @@ export function CertificadosPadroesPanel({
       return
     }
 
+    const serial = form.assetNumber.trim()
+    const serialTaken = certificates.some(
+      (item) =>
+        item.id !== editingId &&
+        (item.serial.trim().toLowerCase() === serial.toLowerCase() ||
+          item.assetNumber.trim().toLowerCase() === serial.toLowerCase()),
+    )
+    if (serialTaken) {
+      setFeedback({
+        type: 'error',
+        message: 'Este patrimônio/serial já possui cadastro. Substitua o certificado existente.',
+      })
+      return
+    }
+
     const payload = {
-      assetNumber: form.assetNumber.trim(),
-      serial: form.assetNumber.trim(),
+      assetNumber: serial,
+      serial,
       model: form.model.trim(),
       manufacturer: form.manufacturer.trim(),
       accuracyClass: form.accuracyClass.trim(),
@@ -317,6 +388,46 @@ export function CertificadosPadroesPanel({
             : editingId
               ? 'Não foi possível atualizar o certificado.'
               : 'Não foi possível cadastrar o certificado.',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleReplace = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!replacingId) return
+    if (!replaceForm.pdf || !replaceForm.calibratedOn || !replaceForm.validUntil || !replaceForm.certificateNumber.trim()) {
+      setFeedback({
+        type: 'error',
+        message: 'Importe o PDF e preencha número, data de calibração e validade.',
+      })
+      return
+    }
+
+    setSubmitting(true)
+    setFeedback(null)
+    try {
+      const { certificate } = await api.replaceStandardCertificate(replacingId, {
+        certificateNumber: replaceForm.certificateNumber.trim(),
+        calibratedOn: replaceForm.calibratedOn,
+        validUntil: replaceForm.validUntil,
+        pdf: replaceForm.pdf,
+        pdfName: replaceForm.pdfName || 'certificado.pdf',
+      })
+      setCertificates((current) =>
+        current.map((item) => (item.id === certificate.id ? certificate : item)),
+      )
+      setFeedback({
+        type: 'success',
+        message: `Certificado ${certificate.certificateNumber} substituído.`,
+      })
+      resetForm()
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError ? error.message : 'Não foi possível substituir o certificado.',
       })
     } finally {
       setSubmitting(false)
@@ -393,17 +504,18 @@ export function CertificadosPadroesPanel({
             type="button"
             className="primary-button"
             onClick={() => {
-              if (showForm) {
+              if (showForm || replacingId) {
                 resetForm()
                 return
               }
               setEditingId(null)
+              setReplacingId(null)
               setForm(emptyForm)
               setShowForm(true)
               setFeedback(null)
             }}
           >
-            {showForm ? 'Fechar formulário' : 'Cadastrar Certificado'}
+            {showForm || replacingId ? 'Fechar formulário' : 'Cadastrar Certificado'}
           </button>
         </div>
       )}
@@ -587,6 +699,114 @@ export function CertificadosPadroesPanel({
         </form>
       ) : null}
 
+      {!readOnly && replacingId ? (
+        <form className="material-form-grid apresentacao-form" onSubmit={(event) => void handleReplace(event)}>
+          <p className="full-width">
+            Substituir certificado do patrimônio{' '}
+            <strong>
+              {certificates.find((item) => item.id === replacingId)?.assetNumber ||
+                certificates.find((item) => item.id === replacingId)?.serial}
+            </strong>
+            . Os demais dados do equipamento permanecem.
+          </p>
+          <div className="full-width">
+            <span className="agenda-attachment-label">PDF do certificado</span>
+            <div className="file-picker">
+              <input
+                id={replaceFileInputId}
+                key={replacingId}
+                className="file-picker-input"
+                type="file"
+                accept="application/pdf,.pdf"
+                disabled={submitting}
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (!file) {
+                    setReplaceForm((current) => ({ ...current, pdf: '', pdfName: '' }))
+                    return
+                  }
+                  const isPdf =
+                    file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+                  if (!isPdf) {
+                    event.target.value = ''
+                    setFeedback({ type: 'error', message: 'Importe um arquivo PDF.' })
+                    return
+                  }
+                  void readAttachmentAsDataUrl(file, {
+                    maxBytes: 15_000_000,
+                    allowOfficeDocuments: true,
+                  })
+                    .then((dataUrl) => {
+                      const pdf = dataUrl.startsWith('data:application/pdf')
+                        ? dataUrl
+                        : dataUrl.replace(/^data:[^,]*/, 'data:application/pdf')
+                      setReplaceForm((current) => ({ ...current, pdf, pdfName: file.name }))
+                      setFeedback(null)
+                    })
+                    .catch((error: unknown) => {
+                      setReplaceForm((current) => ({ ...current, pdf: '', pdfName: '' }))
+                      event.target.value = ''
+                      setFeedback({
+                        type: 'error',
+                        message:
+                          error instanceof Error ? error.message : 'Não foi possível carregar o PDF.',
+                      })
+                    })
+                }}
+              />
+              <label htmlFor={replaceFileInputId} className="file-picker-button">
+                Importar PDF
+              </label>
+              <span className="file-picker-name">{replaceForm.pdfName || 'Nenhum PDF selecionado'}</span>
+            </div>
+          </div>
+          <label>
+            Número do certificado
+            <input
+              type="text"
+              value={replaceForm.certificateNumber}
+              onChange={(event) =>
+                setReplaceForm((current) => ({ ...current, certificateNumber: event.target.value }))
+              }
+              required
+              disabled={submitting}
+            />
+          </label>
+          <label>
+            Data de Calibração
+            <input
+              type="date"
+              value={replaceForm.calibratedOn}
+              onChange={(event) =>
+                setReplaceForm((current) => ({ ...current, calibratedOn: event.target.value }))
+              }
+              required
+              disabled={submitting}
+            />
+          </label>
+          <label>
+            Validade do Certificado
+            <input
+              type="date"
+              value={replaceForm.validUntil}
+              onChange={(event) =>
+                setReplaceForm((current) => ({ ...current, validUntil: event.target.value }))
+              }
+              required
+              disabled={submitting}
+            />
+          </label>
+          <div className="agenda-form-actions full-width">
+            <button type="button" className="secondary-button" disabled={submitting} onClick={resetForm}>
+              Cancelar
+            </button>
+            <button type="submit" className="primary-button" disabled={submitting}>
+              {submitting ? 'Salvando…' : 'Substituir certificado'}
+            </button>
+          </div>
+        </form>
+      ) : null}
+
       {showForm ? null : loading ? (
         <p className="entrada-panel-empty">Carregando certificados...</p>
       ) : certificates.length === 0 ? (
@@ -701,6 +921,17 @@ export function CertificadosPadroesPanel({
                           title="Editar"
                         >
                           <PencilIcon />
+                        </button>
+                      )}
+                      {readOnly ? null : (
+                        <button
+                          type="button"
+                          className="csds-icon-button"
+                          onClick={() => startReplace(certificate)}
+                          aria-label={`Substituir certificado ${certificate.certificateNumber}`}
+                          title="Substituir certificado"
+                        >
+                          <ReplaceIcon />
                         </button>
                       )}
                       <button
