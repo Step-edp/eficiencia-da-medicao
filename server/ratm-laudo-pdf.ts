@@ -935,31 +935,27 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
 }
 
 function drawFooter(doc: PdfDocument, page: number, total: number) {
+  const bottomMargin = doc.page.margins.bottom
+  doc.page.margins.bottom = 0
+
   const barY = PAGE.height - 28
+  const labelY = barY + 9
   doc.rect(0, barY, PAGE.width, 28).fill(COLORS.footerBar)
-  doc
-    .font('Helvetica')
-    .fontSize(7)
-    .fillColor('#B8C9DA')
-    .text('EDP SP — Laboratório de Medição', PAGE.margin, barY + 9, { lineBreak: false })
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(7)
-    .fillColor(COLORS.white)
-    .text('ENERGIA QUE TRANSFORMA O AMANHÃ', 0, barY + 9, {
-      width: PAGE.width,
-      align: 'center',
-      lineBreak: false,
-    })
-  doc
-    .font('Helvetica')
-    .fontSize(7)
-    .fillColor('#B8C9DA')
-    .text(`Página ${page} de ${total}`, PAGE.width - PAGE.margin - 70, barY + 9, {
-      width: 70,
-      align: 'right',
-      lineBreak: false,
-    })
+
+  doc.font('Helvetica').fontSize(7).fillColor('#B8C9DA')
+  doc.text('EDP SP — Laboratório de Medição', PAGE.margin, labelY, { lineBreak: false })
+
+  const slogan = 'ENERGIA QUE TRANSFORMA O AMANHÃ'
+  doc.font('Helvetica-Bold').fontSize(7).fillColor(COLORS.white)
+  const sloganWidth = doc.widthOfString(slogan)
+  doc.text(slogan, (PAGE.width - sloganWidth) / 2, labelY, { lineBreak: false })
+
+  const pageLabel = `Página ${page} de ${total}`
+  doc.font('Helvetica').fontSize(7).fillColor('#B8C9DA')
+  const pageLabelWidth = doc.widthOfString(pageLabel)
+  doc.text(pageLabel, PAGE.width - PAGE.margin - pageLabelWidth, labelY, { lineBreak: false })
+
+  doc.page.margins.bottom = bottomMargin
 }
 
 export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Response) {
