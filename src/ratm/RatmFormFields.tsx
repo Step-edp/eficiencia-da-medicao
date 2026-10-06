@@ -4,6 +4,7 @@ import {
   ApiError,
   type InspectionDocumentRecord,
   type MeterModelRecord,
+  type StandardCertificateRecord,
 } from '../api'
 import { formatSchedulePartnerAndTeamLabel, scheduleInspectionCollaboratorFields } from '../schedulePartnerLabel'
 import {
@@ -752,6 +753,48 @@ function PhotoUpload({ label, value, onChange }: PhotoUploadProps) {
   )
 }
 
+function certificateBenchLabel(certificate: StandardCertificateRecord) {
+  return (certificate.assetNumber || certificate.serial).trim()
+}
+
+function formatCertificateDate(value: string) {
+  const [year, month, day] = value.slice(0, 10).split('-')
+  if (!year || !month || !day) return '—'
+  return `${day}/${month}/${year}`
+}
+
+function certificateYears(start: string, end: string) {
+  const startDay = start.slice(0, 10)
+  const endDay = end.slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDay) || !/^\d{4}-\d{2}-\d{2}$/.test(endDay)) return '—'
+  const [startYear, startMonth, startDate] = startDay.split('-').map(Number)
+  const [endYear, endMonth, endDate] = endDay.split('-').map(Number)
+  let years = endYear - startYear
+  let months = endMonth - startMonth
+  if (endDate < startDate) months -= 1
+  if (months < 0) {
+    years -= 1
+    months += 12
+  }
+  if (years < 0 || months < 0) return '—'
+  const yearLabel = years === 1 ? '1 ano' : `${years} anos`
+  if (months === 0) return yearLabel
+  const monthLabel = months === 1 ? '1 mês' : `${months} meses`
+  if (years === 0) return monthLabel
+  return `${yearLabel} e ${monthLabel}`
+}
+
+function preventiveBlockDate(validUntil: string, months: number | null) {
+  if (!months || months < 1 || !/^\d{4}-\d{2}-\d{2}$/.test(validUntil.slice(0, 10))) return ''
+  const [year, month, day] = validUntil.slice(0, 10).split('-').map(Number)
+  const shifted = new Date(Date.UTC(year, month - 1 - months, 1))
+  const lastDay = new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, 0)).getUTCDate()
+  const result = new Date(
+    Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), Math.min(day, lastDay)),
+  )
+  return result.toISOString().slice(0, 10)
+}
+
 export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFormFieldsProps) {
   const [searchingMeter, setSearchingMeter] = useState(false)
   const [meterLookupError, setMeterLookupError] = useState('')
@@ -762,7 +805,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   )
   const [meterModels, setMeterModels] = useState<MeterModelRecord[]>([])
   const [meterModelsError, setMeterModelsError] = useState('')
-  const [standardBenches, setStandardBenches] = useState<string[]>([])
+  const [standardCertificates, setStandardCertificates] = useState<StandardCertificateRecord[]>([])
   const [standardBenchesLoaded, setStandardBenchesLoaded] = useState(false)
   const [portalUsers, setPortalUsers] = useState<PortalCollaborator[]>([])
   const accordionName = `ratm-sections-${index}`
@@ -847,18 +890,22 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       .listStandardCertificates()
       .then(({ certificates }) => {
         if (cancelled) return
-        const next = [
-          ...new Set(
-            certificates
-              .filter((certificate) => certificate.certificateType === 'Padrão')
-              .map((certificate) => (certificate.assetNumber || certificate.serial).trim())
-              .filter(Boolean),
-          ),
-        ].sort((left, right) => left.localeCompare(right, 'pt-BR', { numeric: true }))
-        setStandardBenches(next)
+        const byLabel = new Map<string, StandardCertificateRecord>()
+        for (const certificate of certificates) {
+          if (certificate.certificateType !== 'Padrão') continue
+          const label = certificateBenchLabel(certificate)
+          if (!label || byLabel.has(label)) continue
+          byLabel.set(label, certificate)
+        }
+        const next = [...byLabel.values()].sort((left, right) =>
+          certificateBenchLabel(left).localeCompare(certificateBenchLabel(right), 'pt-BR', {
+            numeric: true,
+          }),
+        )
+        setStandardCertificates(next)
       })
       .catch(() => {
-        if (!cancelled) setStandardBenches([])
+        if (!cancelled) setStandardCertificates([])
       })
       .finally(() => {
         if (!cancelled) setStandardBenchesLoaded(true)
@@ -1200,6 +1247,38 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const selectedStandardCertificate =
+    standardCertificates.find(
+      (certificate) => certificateBenchLabel(certificate) === data.testBench.trim(),
+    ) ?? null
+  const selectedBenchBlockOn = selectedStandardCertificate
+    ? preventiveBlockDate(
+        selectedStandardCertificate.validUntil,
+        selectedStandardCertificate.preventiveBlockMonths,
+      )
+    : ''
+  const selectedBenchDetails: Array<[string, string]> = selectedStandardCertificate
+    ? [
+        ['Patrimônio • Serial', certificateBenchLabel(selectedStandardCertificate)],
+        ['Modelo', selectedStandardCertificate.model],
+        ['Fabricante', selectedStandardCertificate.manufacturer],
+        ['Classe de exatidão', selectedStandardCertificate.accuracyClass],
+        ['Número do certificado', selectedStandardCertificate.certificateNumber],
+        ['Data de calibração', formatCertificateDate(selectedStandardCertificate.calibratedOn)],
+        ['Válido até', formatCertificateDate(selectedStandardCertificate.validUntil)],
+        [
+          'Prazo de validade',
+          selectedStandardCertificate.calibratedOn
+            ? certificateYears(
+                selectedStandardCertificate.calibratedOn,
+                selectedStandardCertificate.validUntil,
+              )
+            : '—',
+        ],
+        ['Data de bloqueio preventivo', selectedBenchBlockOn ? formatCertificateDate(selectedBenchBlockOn) : '—'],
+      ]
+    : []
+
   return (
     <>
     <div className="ratm-form-panel">
@@ -1537,7 +1616,8 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           accordionName={accordionName}
           complete={Boolean(data.testBench.trim())}
         >
-          {standardBenchesLoaded && standardBenches.length === 0 && !data.testBench.trim() ? (
+          <div className="ratm-model-panel">
+          {standardBenchesLoaded && standardCertificates.length === 0 && !data.testBench.trim() ? (
             <p className="field-hint">Nenhum certificado do tipo Padrão cadastrado.</p>
           ) : (
             <ClearableRadioGroup
@@ -1545,13 +1625,30 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
               name={`bench-${index}`}
               value={data.testBench}
               options={
-                data.testBench.trim() && !standardBenches.includes(data.testBench.trim())
-                  ? [data.testBench.trim(), ...standardBenches]
-                  : standardBenches
+                data.testBench.trim() &&
+                !standardCertificates.some(
+                  (certificate) => certificateBenchLabel(certificate) === data.testBench.trim(),
+                )
+                  ? [
+                      data.testBench.trim(),
+                      ...standardCertificates.map((certificate) => certificateBenchLabel(certificate)),
+                    ]
+                  : standardCertificates.map((certificate) => certificateBenchLabel(certificate))
               }
               onChange={(value) => onChange({ testBench: value })}
             />
           )}
+          {selectedBenchDetails.length > 0 ? (
+            <div className="ratm-model-details">
+              {selectedBenchDetails.map(([label, value]) => (
+                <div key={label} className="ratm-readonly-field">
+                  <span className="ratm-readonly-label">{label}</span>
+                  <p>{value.trim() || '—'}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          </div>
         </RatmExpandableSection>
 
         <RatmExpandableSection
