@@ -901,28 +901,6 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   doc.y = y + boxHeight + 14
 }
 
-function drawAccreditation(doc: PdfDocument) {
-  ensureSpace(doc, 46)
-  const y = doc.y
-  doc.roundedRect(PAGE.margin, y, CONTENT_WIDTH, 40, 6).fillAndStroke(COLORS.graySoft, COLORS.grayBorder)
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(8)
-    .fillColor(COLORS.navy)
-    .text('Credenciamento / Qualidade', PAGE.margin + 12, y + 8, { lineBreak: false })
-  doc
-    .font('Helvetica')
-    .fontSize(7)
-    .fillColor(COLORS.textMuted)
-    .text(
-      'Ensaios conduzidos sob sistema de gestão alinhado à ABNT NBR ISO/IEC 17025 e procedimentos metrológicos do Laboratório de Medição EDP SP.',
-      PAGE.margin + 12,
-      y + 20,
-      { width: CONTENT_WIDTH - 24 },
-    )
-  doc.y = y + 48
-}
-
 function drawFooter(doc: PdfDocument, page: number, total: number) {
   const barY = PAGE.height - 28
   doc.rect(0, barY, PAGE.width, 28).fill(COLORS.footerBar)
@@ -1011,7 +989,6 @@ export async function generateRatmLaudoPdf(laudo: RatmLaudoPdfInput, res: Respon
   drawResultado(doc, laudo, irregularityCodes, irregularityDescriptions)
   drawReferencias(doc)
   drawAssinaturas(doc, laudo)
-  drawAccreditation(doc)
 
   const range = doc.bufferedPageRange()
   for (let index = 0; index < range.count; index += 1) {
