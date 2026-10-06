@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api } from '../api'
 import { RatmFormFields } from './RatmFormFields'
-import { PdfInlineViewer } from './PdfInlineViewer'
 import { formatRatmLaudoNumber, mapRatmLaudoFromApi, type RatmLaudo } from './laudos'
 import { openRatmLaudoPdf } from './laudoPdf'
 import {
@@ -39,7 +38,6 @@ export function RatmLaudoViewer({
   const [mode, setMode] = useState<'view' | 'edit'>(initialMode)
   const [currentLaudo, setCurrentLaudo] = useState(laudo)
   const [formData, setFormData] = useState<RatmFormData>(() => laudoToFormData(laudo))
-  const [pdfVersion, setPdfVersion] = useState(1)
   const [actionLoading, setActionLoading] = useState(false)
   const [clientPresent, setClientPresent] = useState<'Sim' | 'Não' | ''>(() => {
     const value = laudoToFormData(laudo).clientAccompanied
@@ -51,17 +49,6 @@ export function RatmLaudoViewer({
     type: 'success' | 'error'
     message: string
   } | null>(null)
-
-  const handlePdfLoadError = (message: string) => {
-    setFeedback({
-      type: 'error',
-      message,
-    })
-  }
-
-  const refreshPdf = () => {
-    setPdfVersion((previous) => previous + 1)
-  }
 
   useEffect(() => {
     document.body.classList.add('laudo-viewer-open')
@@ -90,7 +77,6 @@ export function RatmLaudoViewer({
       setFormData(laudoToFormData(updatedLaudo))
       setMode('view')
       onUpdated(updatedLaudo)
-      refreshPdf()
       setFeedback({
         type: 'success',
         message: 'Laudo atualizado com sucesso.',
@@ -193,9 +179,9 @@ export function RatmLaudoViewer({
       : ''
 
   return createPortal(
-    <div className="laudo-modal-overlay" role="presentation">
+    <div className={`laudo-modal-overlay${mode === 'view' ? ' is-compact' : ''}`} role="presentation">
       <section
-        className="laudo-viewer-modal"
+        className={`laudo-viewer-modal${mode === 'view' ? ' is-compact' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="laudo-viewer-title"
@@ -218,16 +204,8 @@ export function RatmLaudoViewer({
           </div>
         ) : null}
 
-        <div className="laudo-viewer-main">
-          {mode === 'view' ? (
-            <div className="laudo-viewer-body">
-              <PdfInlineViewer
-                laudoId={currentLaudo.id}
-                version={pdfVersion}
-                onLoadError={handlePdfLoadError}
-              />
-            </div>
-          ) : (
+        {mode === 'edit' ? (
+          <div className="laudo-viewer-main">
             <div className="laudo-viewer-edit">
               <RatmFormFields
                 index={0}
@@ -237,8 +215,8 @@ export function RatmLaudoViewer({
                 onScan={() => undefined}
               />
             </div>
-          )}
-        </div>
+          </div>
+        ) : null}
 
         {mode === 'view' && currentLaudo.status === 'Pendente' && !currentLaudo.revokedAt ? (
           <fieldset className="laudo-client-present radio-fieldset">

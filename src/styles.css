@@ -6083,6 +6083,13 @@ button {
   background: #031424;
 }
 
+.laudo-modal-overlay.is-compact {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(2, 12, 22, 0.78);
+}
+
 body.laudo-viewer-open {
   overflow: hidden;
 }
@@ -6099,6 +6106,15 @@ body.laudo-viewer-open {
   border: none;
   background: linear-gradient(180deg, rgba(10, 29, 53, 0.98), rgba(5, 20, 38, 0.98));
   box-shadow: none;
+}
+
+.laudo-viewer-modal.is-compact {
+  width: min(560px, 100%);
+  height: auto;
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 216, 240, 0.18);
 }
 
 .laudo-viewer-main {
@@ -6252,6 +6268,10 @@ body.laudo-viewer-open {
 
 body.laudo-viewer-open .laudo-viewer-actions {
   padding-right: 240px;
+}
+
+body.laudo-viewer-open .laudo-viewer-modal.is-compact .laudo-viewer-actions {
+  padding-right: 0;
 }
 
 @media (max-width: 720px) {
