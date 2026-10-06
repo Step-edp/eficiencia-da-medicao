@@ -29,6 +29,21 @@ function EyeIcon() {
   )
 }
 
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function DownloadIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -88,13 +103,20 @@ const emptyForm = {
   pdfName: '',
 }
 
-export function CertificadosPadroesPanel({ readOnly = false }: { readOnly?: boolean }) {
+export function CertificadosPadroesPanel({
+  readOnly = false,
+  isAdmin = false,
+}: {
+  readOnly?: boolean
+  isAdmin?: boolean
+}) {
   const fileInputId = useId()
   const [certificates, setCertificates] = useState<StandardCertificateRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
@@ -188,6 +210,32 @@ export function CertificadosPadroesPanel({ readOnly = false }: { readOnly?: bool
   const loadPdf = async (certificate: StandardCertificateRecord) => {
     const { pdf, pdfName } = await api.getStandardCertificatePdf(certificate.id)
     return { pdf, pdfName: pdfName || 'certificado.pdf' }
+  }
+
+  const deleteCertificate = async (certificate: StandardCertificateRecord) => {
+    const confirmed = window.confirm(
+      `Excluir o certificado ${certificate.certificateNumber}?`,
+    )
+    if (!confirmed) return
+
+    setDeletingId(certificate.id)
+    setFeedback(null)
+    try {
+      await api.deleteStandardCertificate(certificate.id)
+      setCertificates((current) => current.filter((item) => item.id !== certificate.id))
+      setFeedback({
+        type: 'success',
+        message: `Certificado ${certificate.certificateNumber} excluído.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError ? error.message : 'Não foi possível excluir o certificado.',
+      })
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   const viewPdf = async (certificate: StandardCertificateRecord) => {
@@ -480,6 +528,18 @@ export function CertificadosPadroesPanel({ readOnly = false }: { readOnly?: bool
                       >
                         <DownloadIcon />
                       </button>
+                      {isAdmin ? (
+                        <button
+                          type="button"
+                          className="csds-icon-button is-danger"
+                          onClick={() => void deleteCertificate(certificate)}
+                          disabled={deletingId === certificate.id}
+                          aria-label={`Excluir certificado ${certificate.certificateNumber}`}
+                          title="Excluir"
+                        >
+                          <TrashIcon />
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>

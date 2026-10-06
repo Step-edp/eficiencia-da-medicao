@@ -5678,7 +5678,7 @@ function HomePanel({
               selectedAuditArea === 'Apresentação' ? (
                 <ApresentacaoPanel readOnly={labMedicaoReadOnly} />
               ) : selectedAuditArea === 'Certificados Padrões' ? (
-                <CertificadosPadroesPanel readOnly={labMedicaoReadOnly} />
+                <CertificadosPadroesPanel readOnly={labMedicaoReadOnly} isAdmin={isAdmin} />
               ) : selectedAuditArea ? (
                 <p>
                   Página dedicada da área {selectedAuditArea}. Aqui você pode concentrar

@@ -16,6 +16,7 @@ import { softwareRoutes, createSoftware } from './routes/softwares.js'
 import {
   standardCertificateRoutes,
   createStandardCertificate,
+  deleteStandardCertificate,
 } from './routes/standard-certificates.js'
 import {
   createIrregularityCode,
@@ -271,6 +272,12 @@ async function start() {
     createStandardCertificate,
   )
   app.get('/api/standard-certificates/:id/pdf', ...wrap(standardCertificateRoutes.pdf))
+  app.delete(
+    '/api/standard-certificates/:id',
+    requireAuth,
+    requireAdmin,
+    deleteStandardCertificate,
+  )
 
   app.get('/api/irregularity-codes', ...wrap(irregularityCodeRoutes.list))
   app.post(

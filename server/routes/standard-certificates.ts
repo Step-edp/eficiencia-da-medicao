@@ -154,6 +154,39 @@ export async function getStandardCertificatePdf(req: Request, res: Response) {
   res.json({ pdf: row.pdf, pdfName: row.pdf_name || 'certificado.pdf' })
 }
 
+export async function deleteStandardCertificate(req: Request, res: Response) {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: 'Identificador inválido.' })
+    return
+  }
+
+  const existing = await query<CertificateRow>(
+    `SELECT id, asset_number, serial, model, manufacturer, accuracy_class,
+            certificate_number, certificate_type, calibrated_on::text AS calibrated_on,
+            valid_until::text AS valid_until, pdf_name, created_at
+     FROM standard_certificates
+     WHERE id = $1`,
+    [id],
+  )
+  const row = existing.rows[0]
+  if (!row) {
+    res.status(404).json({ error: 'Certificado não encontrado.' })
+    return
+  }
+
+  await query(`DELETE FROM standard_certificates WHERE id = $1`, [id])
+  const removed = mapCertificate(row)
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'standard_certificate',
+    entityId: String(id),
+    summary: `Excluiu o certificado ${removed.certificateNumber}.`,
+    oldData: removed,
+  })
+  res.json({ ok: true, id })
+}
+
 export const standardCertificateRoutes = {
   list: [requireAuth, listStandardCertificates],
   pdf: [requireAuth, getStandardCertificatePdf],

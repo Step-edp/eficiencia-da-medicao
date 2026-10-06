@@ -1458,6 +1458,10 @@ export const api = {
     }),
   getStandardCertificatePdf: (id: number) =>
     request<{ pdf: string; pdfName: string }>(`/api/standard-certificates/${id}/pdf`),
+  deleteStandardCertificate: (id: number) =>
+    request<{ ok: true; id: number }>(`/api/standard-certificates/${id}`, {
+      method: 'DELETE',
+    }),
   listIrregularityCodes: () =>
     request<{ codes: IrregularityCodeRecord[] }>('/api/irregularity-codes'),
   createIrregularityCode: (payload: { code: string; name: string; description?: string }) =>
