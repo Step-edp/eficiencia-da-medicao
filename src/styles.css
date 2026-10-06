@@ -1050,6 +1050,25 @@ button {
   margin: 0.35rem 0 1.5rem;
 }
 
+.certificate-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.certificate-status-badge.is-expired {
+  background: rgba(255, 92, 92, 0.16);
+  color: #ffb4b4;
+}
+
+.certificate-status-badge.is-valid {
+  background: rgba(85, 219, 136, 0.16);
+  color: #b6ffd2;
+}
+
 .irregularity-codes-panel .data-table td {
   vertical-align: top;
 }

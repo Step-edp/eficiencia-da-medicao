@@ -58,6 +58,16 @@ function DownloadIcon() {
   )
 }
 
+function todayInSaoPaulo() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
+}
+
+function certificateStatus(validUntil: string) {
+  const day = validUntil.slice(0, 10)
+  if (!day) return null
+  return day < todayInSaoPaulo() ? 'Vencido' : 'Válido'
+}
+
 function formatValidUntil(value: string) {
   const [year, month, day] = value.slice(0, 10).split('-')
   if (!year || !month || !day) return value
@@ -427,6 +437,7 @@ export function CertificadosPadroesPanel({ readOnly = false }: { readOnly?: bool
                 <th>Tipo</th>
                 <th>Data de Calibração</th>
                 <th>Validade</th>
+                <th>Status</th>
                 <th>PDF</th>
               </tr>
             </thead>
@@ -442,6 +453,13 @@ export function CertificadosPadroesPanel({ readOnly = false }: { readOnly?: bool
                   <td>{certificate.certificateType}</td>
                   <td>{certificate.calibratedOn ? formatValidUntil(certificate.calibratedOn) : '—'}</td>
                   <td>{formatValidUntil(certificate.validUntil)}</td>
+                  <td>
+                    {certificateStatus(certificate.validUntil) === 'Vencido' ? (
+                      <span className="certificate-status-badge is-expired">Vencido</span>
+                    ) : (
+                      <span className="certificate-status-badge is-valid">Válido</span>
+                    )}
+                  </td>
                   <td>
                     <div className="table-row-actions">
                       <button
