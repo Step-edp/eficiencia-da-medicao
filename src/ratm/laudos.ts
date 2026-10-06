@@ -55,7 +55,12 @@ export function mapRatmLaudoFromApi(record: {
 
 export function formatRatmLaudoNumber(ratmNumber: number, createdAt: string) {
   const date = new Date(createdAt)
-  const year = Number.isNaN(date.getTime()) ? '' : String(date.getFullYear())
+  const year = Number.isNaN(date.getTime())
+    ? ''
+    : new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+      }).format(date)
   const seq = String(ratmNumber).padStart(4, '0')
   return year ? `${seq}_${year}` : seq
 }

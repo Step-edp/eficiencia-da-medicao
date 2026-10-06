@@ -61,9 +61,25 @@ async function revokeActiveLaudosForMeter(meter: string, exceptId?: string) {
   )
 }
 
+function currentRatmYear() {
+  return Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+    }).format(new Date()),
+  )
+}
+
 async function nextRatmNumber() {
-  const result = await query<{ n: string }>(`SELECT nextval('ratm_laudo_number_seq') AS n`)
-  return Number(result.rows[0]?.n ?? 1)
+  const result = await query<{ last_number: string }>(
+    `INSERT INTO ratm_laudo_year_counters (year, last_number)
+     VALUES ($1, 1)
+     ON CONFLICT (year) DO UPDATE
+     SET last_number = ratm_laudo_year_counters.last_number + 1
+     RETURNING last_number`,
+    [currentRatmYear()],
+  )
+  return Number(result.rows[0]?.last_number ?? 1)
 }
 
 export async function listRatmLaudos(req: Request, res: Response) {

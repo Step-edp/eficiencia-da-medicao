@@ -85,9 +85,17 @@ function formatDate(isoDate: string) {
   return date.toLocaleDateString('pt-BR')
 }
 
-export function formatRatmLaudoNumber(ratmNumber: number, createdAt: string) {
+export function ratmCalendarYear(createdAt: string) {
   const date = new Date(createdAt)
-  const year = Number.isNaN(date.getTime()) ? '' : String(date.getFullYear())
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+  }).format(date)
+}
+
+export function formatRatmLaudoNumber(ratmNumber: number, createdAt: string) {
+  const year = ratmCalendarYear(createdAt)
   const seq = String(ratmNumber).padStart(4, '0')
   return year ? `${seq}_${year}` : seq
 }
@@ -99,8 +107,7 @@ export function buildRatmPdfFileName(laudo: {
   note?: string
   formData?: Record<string, unknown>
 }) {
-  const date = new Date(laudo.createdAt)
-  const year = Number.isNaN(date.getTime()) ? '0000' : String(date.getFullYear())
+  const year = ratmCalendarYear(laudo.createdAt) || '0000'
   const id = String(laudo.ratmNumber)
   const meter = String(laudo.meter ?? '').replace(/\D/g, '') || '0'
   const formNote = typeof laudo.formData?.note === 'string' ? laudo.formData.note.trim() : ''

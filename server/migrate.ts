@@ -1144,6 +1144,12 @@ export async function migrate() {
 
   await query(`ALTER TABLE ratm_laudos ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ`)
   await query(`CREATE SEQUENCE IF NOT EXISTS ratm_laudo_number_seq`)
+  await query(`
+    CREATE TABLE IF NOT EXISTS ratm_laudo_year_counters (
+      year INTEGER PRIMARY KEY,
+      last_number INTEGER NOT NULL
+    )
+  `)
 
   const ratmNumberFlag = await query<{ key: string }>(
     `SELECT key FROM app_runtime_flags WHERE key = 'ratm_laudo_number_v1'`,
@@ -1183,6 +1189,16 @@ export async function migrate() {
     `)
     await query(`INSERT INTO app_runtime_flags (key) VALUES ('ratm_laudo_number_v1')`)
   }
+
+  await query(`
+    INSERT INTO ratm_laudo_year_counters (year, last_number)
+    SELECT EXTRACT(YEAR FROM created_at AT TIME ZONE 'America/Sao_Paulo')::int AS year,
+           MAX(ratm_number) AS last_number
+    FROM ratm_laudos
+    GROUP BY 1
+    ON CONFLICT (year) DO UPDATE
+    SET last_number = GREATEST(ratm_laudo_year_counters.last_number, EXCLUDED.last_number)
+  `)
 
   const demmCsdAlignFlag = await query<{ key: string }>(
     `SELECT key FROM app_runtime_flags WHERE key = 'demm_csd_align_v1'`,
