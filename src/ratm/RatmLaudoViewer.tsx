@@ -315,19 +315,7 @@ export function RatmLaudoViewer({
                 className="secondary-button"
                 type="button"
                 disabled={actionLoading}
-                onClick={() => {
-                  try {
-                    openRatmLaudoPdf(currentLaudo.id)
-                  } catch (error) {
-                    setFeedback({
-                      type: 'error',
-                      message:
-                        error instanceof Error
-                          ? error.message
-                          : 'Não foi possível abrir o PDF no navegador.',
-                    })
-                  }
-                }}
+                onClick={() => openRatmLaudoPdf(currentLaudo.id)}
               >
                 Visualizar PDF
               </button>

@@ -22,7 +22,6 @@ export function RatmAprovacaoPanel({
 }: RatmAprovacaoPanelProps) {
   const [viewingLaudo, setViewingLaudo] = useState<RatmLaudo | null>(null)
   const [viewerMode, setViewerMode] = useState<'view' | 'edit'>('view')
-  const [pdfError, setPdfError] = useState('')
   const [search, setSearch] = useState('')
   const pendingLaudos = laudos.filter((laudo) => laudo.status === 'Pendente' && !laudo.revokedAt)
   const visibleLaudos = useMemo(() => {
@@ -41,31 +40,8 @@ export function RatmAprovacaoPanel({
     })
   }, [pendingLaudos, search])
 
-  const handleOpenPdf = (laudoId: string) => {
-    try {
-      setPdfError('')
-      openRatmLaudoPdf(laudoId)
-    } catch (error) {
-      setPdfError(
-        error instanceof Error ? error.message : 'Não foi possível abrir o PDF no navegador.',
-      )
-    }
-  }
-
   return (
     <>
-      <p>
-        {readOnly
-          ? 'Laudos de RATM pendentes de aprovação (somente visualização).'
-          : 'Laudos oficiais de perícia metrológica aguardando aprovação. Visualize o PDF, edite se necessário e aprove o laudo dentro do aplicativo.'}
-      </p>
-
-      {pdfError ? (
-        <p className="generated-password-empty" role="alert">
-          {pdfError}
-        </p>
-      ) : null}
-
       <label className="approval-search">
         Pesquisar
         <input
@@ -98,7 +74,7 @@ export function RatmAprovacaoPanel({
                 <button
                   className="secondary-button approval-action-button"
                   type="button"
-                  onClick={() => handleOpenPdf(laudo.id)}
+                  onClick={() => openRatmLaudoPdf(laudo.id)}
                 >
                   Visualizar PDF
                 </button>

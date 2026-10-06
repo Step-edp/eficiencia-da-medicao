@@ -30,14 +30,7 @@ function namedPdfFile(blob: Blob, filename: string) {
 }
 
 export function openRatmLaudoPdf(laudoId: string) {
-  const opened = window.open(
-    `/api/ratm-laudos/${encodeURIComponent(laudoId)}/pdf`,
-    '_blank',
-    'noopener,noreferrer',
-  )
-  if (!opened) {
-    throw new Error('Não foi possível abrir o PDF. Permita pop-ups para este site.')
-  }
+  window.open(`/api/ratm-laudos/${encodeURIComponent(laudoId)}/pdf`, '_blank', 'noopener,noreferrer')
 }
 
 export async function downloadRatmLaudoPdf(laudoId: string, filename?: string) {
