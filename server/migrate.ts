@@ -1213,6 +1213,28 @@ export async function migrate() {
   }
 
   await query(`
+    CREATE TABLE IF NOT EXISTS standard_certificates (
+      id SERIAL PRIMARY KEY,
+      asset_number TEXT NOT NULL,
+      serial TEXT NOT NULL,
+      model TEXT NOT NULL,
+      manufacturer TEXT NOT NULL,
+      accuracy_class TEXT NOT NULL,
+      certificate_number TEXT NOT NULL,
+      certificate_type TEXT NOT NULL,
+      valid_until DATE NOT NULL,
+      pdf TEXT NOT NULL,
+      pdf_name TEXT NOT NULL DEFAULT '',
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
+    ALTER TABLE standard_certificates
+      ADD COLUMN IF NOT EXISTS certificate_type TEXT NOT NULL DEFAULT 'Padrão'
+  `)
+
+  await query(`
     CREATE TABLE IF NOT EXISTS ratm_assay_drafts (
       meter_key TEXT PRIMARY KEY,
       form_data JSONB NOT NULL,

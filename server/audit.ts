@@ -35,6 +35,7 @@ export type AuditEntityType =
   | 'analisador_tensao'
   | 'presentation'
   | 'software'
+  | 'standard_certificate'
   | 'iq09_run'
   | 'consolidacao_carga_cliente'
 

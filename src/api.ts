@@ -284,6 +284,20 @@ export type PresentationRecord = {
   createdByRegistration?: string
 }
 
+export type StandardCertificateRecord = {
+  id: number
+  assetNumber: string
+  serial: string
+  model: string
+  manufacturer: string
+  accuracyClass: string
+  certificateNumber: string
+  certificateType: 'Padrão' | 'Hipot'
+  validUntil: string
+  pdfName: string
+  createdAt: string
+}
+
 export type SoftwareRecord = {
   id: number
   name: string
@@ -1422,6 +1436,26 @@ export const api = {
     request<{ attachment: string; attachmentName: string }>(
       `/api/softwares/${id}/attachment`,
     ),
+  listStandardCertificates: () =>
+    request<{ certificates: StandardCertificateRecord[] }>('/api/standard-certificates'),
+  createStandardCertificate: (payload: {
+    assetNumber: string
+    serial: string
+    model: string
+    manufacturer: string
+    accuracyClass: string
+    certificateNumber: string
+    certificateType: 'Padrão' | 'Hipot'
+    validUntil: string
+    pdf: string
+    pdfName: string
+  }) =>
+    request<{ certificate: StandardCertificateRecord }>('/api/standard-certificates', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getStandardCertificatePdf: (id: number) =>
+    request<{ pdf: string; pdfName: string }>(`/api/standard-certificates/${id}/pdf`),
   listIrregularityCodes: () =>
     request<{ codes: IrregularityCodeRecord[] }>('/api/irregularity-codes'),
   createIrregularityCode: (payload: { code: string; name: string; description?: string }) =>

@@ -14,6 +14,10 @@ import { meterModelRoutes, createMeterModel, updateMeterModel } from './routes/m
 import { presentationRoutes, createPresentation } from './routes/presentations.js'
 import { softwareRoutes, createSoftware } from './routes/softwares.js'
 import {
+  standardCertificateRoutes,
+  createStandardCertificate,
+} from './routes/standard-certificates.js'
+import {
   createIrregularityCode,
   deleteIrregularityCode,
   irregularityCodeRoutes,
@@ -258,6 +262,15 @@ async function start() {
     createSoftware,
   )
   app.get('/api/softwares/:id/attachment', ...wrap(softwareRoutes.attachment))
+
+  app.get('/api/standard-certificates', ...wrap(standardCertificateRoutes.list))
+  app.post(
+    '/api/standard-certificates',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    createStandardCertificate,
+  )
+  app.get('/api/standard-certificates/:id/pdf', ...wrap(standardCertificateRoutes.pdf))
 
   app.get('/api/irregularity-codes', ...wrap(irregularityCodeRoutes.list))
   app.post(

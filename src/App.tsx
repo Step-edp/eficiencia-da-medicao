@@ -48,6 +48,7 @@ import { EnsaiosCalendar } from './EnsaiosCalendar'
 import { CsdsPanel } from './CsdsPanel'
 import { CriarModeloPanel } from './CriarModeloPanel'
 import { ApresentacaoPanel } from './ApresentacaoPanel'
+import { CertificadosPadroesPanel } from './CertificadosPadroesPanel'
 import { SoftwaresPanel } from './SoftwaresPanel'
 import { IrregularityCodesPanel } from './IrregularityCodesPanel'
 import { AnalisadoresTensaoPanel } from './AnalisadoresTensaoPanel'
@@ -5677,13 +5678,7 @@ function HomePanel({
               selectedAuditArea === 'Apresentação' ? (
                 <ApresentacaoPanel readOnly={labMedicaoReadOnly} />
               ) : selectedAuditArea === 'Certificados Padrões' ? (
-                <div className="area-actions right-aligned-actions">
-                  {labMedicaoReadOnly ? null : (
-                    <button type="button" className="primary-button">
-                      Cadastrar Certificado
-                    </button>
-                  )}
-                </div>
+                <CertificadosPadroesPanel readOnly={labMedicaoReadOnly} />
               ) : selectedAuditArea ? (
                 <p>
                   Página dedicada da área {selectedAuditArea}. Aqui você pode concentrar
