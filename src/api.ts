@@ -1537,6 +1537,19 @@ export const api = {
       sourceFile: string
       updatedAt: string | null
     }>(`/api/inventario/iq09/${encodeURIComponent(monthKey)}`),
+  deleteRatmAssayDraft: (meter: string) =>
+    request<{ ok: true }>(`/api/ratm-assay-drafts?meter=${encodeURIComponent(meter)}`, {
+      method: 'DELETE',
+    }),
+  getRatmAssayDraft: (meter: string) =>
+    request<{
+      draft: { meter: string; formData: Record<string, unknown>; updatedAt: string } | null
+    }>(`/api/ratm-assay-drafts?meter=${encodeURIComponent(meter)}`),
+  saveRatmAssayDraft: (meter: string, formData: Record<string, unknown>) =>
+    request<{ ok: true }>('/api/ratm-assay-drafts', {
+      method: 'PUT',
+      body: JSON.stringify({ meter, formData }),
+    }),
   listRatmLaudos: (meter?: string) => {
     const search = new URLSearchParams()
     if (meter?.trim()) search.set('meter', meter.trim())

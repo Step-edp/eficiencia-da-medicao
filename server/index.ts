@@ -31,6 +31,9 @@ import {
   createRatmLaudos,
   updateRatmLaudo,
   approveRatmLaudo,
+  getRatmAssayDraft,
+  saveRatmAssayDraft,
+  deleteRatmAssayDraft,
 } from './routes/ratm-laudos.js'
 import {
   getSatisfactionSurvey,
@@ -327,6 +330,14 @@ async function start() {
     approveRatmLaudo,
   )
   app.get('/api/ratm-laudos/:id/pdf', ...wrap(ratmLaudoRoutes.pdf))
+  app.get('/api/ratm-assay-drafts', requireAuth, getRatmAssayDraft)
+  app.put(
+    '/api/ratm-assay-drafts',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    saveRatmAssayDraft,
+  )
+  app.delete('/api/ratm-assay-drafts', requireAuth, rejectLabMedicaoViewOnlyMutations, deleteRatmAssayDraft)
 
   app.get('/api/public/pesquisa/:laudoId', getSatisfactionSurvey)
   app.post('/api/public/pesquisa/:laudoId', submitSatisfactionSurvey)

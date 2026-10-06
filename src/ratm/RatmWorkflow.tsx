@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../api'
 import { LoginFeedback } from '../LoginFeedback'
 import { RatmFormFields } from './RatmFormFields'
@@ -51,15 +51,76 @@ export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWork
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
   const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [draftReady, setDraftReady] = useState(false)
+  const [serverDraftNotice, setServerDraftNotice] = useState(false)
+  const formsRef = useRef(forms)
+  formsRef.current = forms
 
   useEffect(() => {
+    let cancelled = false
+
+    const loadSharedDrafts = async () => {
+      const current = formsRef.current
+      const next = [...current]
+      let restored = false
+
+      for (let index = 0; index < next.length; index += 1) {
+        const meter = next[index]?.meter.trim()
+        if (!meter) continue
+        try {
+          const response = await api.getRatmAssayDraft(meter)
+          if (!response.draft?.formData) continue
+          next[index] = normalizeRatmForm(response.draft.formData as Partial<RatmFormData>)
+          restored = true
+        } catch {
+          // O preenchimento local continua disponível se a consulta falhar.
+        }
+      }
+
+      if (cancelled) return
+      if (restored) {
+        setForms(next)
+        setServerDraftNotice(true)
+        setShowRestoredDraft(false)
+      }
+      setDraftReady(true)
+    }
+
+    void loadSharedDrafts()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!draftReady) return
+
     saveRatmDraft({
       count,
       activeIndex,
       forms,
       updatedAt: new Date().toISOString(),
     })
-  }, [count, activeIndex, forms])
+
+    const timer = window.setTimeout(() => {
+      for (const form of formsRef.current) {
+        if (!form.meter.trim()) continue
+        void api.saveRatmAssayDraft(form.meter, form).catch(() => undefined)
+      }
+    }, 700)
+
+    return () => window.clearTimeout(timer)
+  }, [count, activeIndex, forms, draftReady])
+
+  useEffect(() => {
+    if (!draftReady) return
+    return () => {
+      for (const form of formsRef.current) {
+        if (!form.meter.trim()) continue
+        void api.saveRatmAssayDraft(form.meter, form).catch(() => undefined)
+      }
+    }
+  }, [draftReady])
 
   const updateForm = (index: number, patch: Partial<RatmFormData>) => {
     setForms((prev) =>
@@ -118,6 +179,11 @@ export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWork
     setFeedback(null)
     try {
       await onFinish(forms, replacePending ? { replacePending: true } : undefined)
+      await Promise.all(
+        forms.map((form) =>
+          form.meter.trim() ? api.deleteRatmAssayDraft(form.meter).catch(() => undefined) : undefined,
+        ),
+      )
       clearRatmDraft()
     } catch (error) {
       setFeedback({
@@ -202,6 +268,14 @@ export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWork
 
   return (
     <div className="ratm-workflow">
+      {serverDraftNotice ? (
+        <LoginFeedback
+          type="success"
+          message="Informações já preenchidas deste medidor foram restauradas."
+          onClose={() => setServerDraftNotice(false)}
+        />
+      ) : null}
+
       {showRestoredDraft ? (
         <LoginFeedback
           type="success"
@@ -259,6 +333,7 @@ export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWork
         </button>
       </div>
 
+      {draftReady ? (
       <RatmFormFields
         index={activeIndex}
         total={count}
@@ -266,6 +341,9 @@ export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWork
         onChange={(patch) => updateForm(activeIndex, patch)}
         onScan={handleScan}
       />
+      ) : (
+        <p className="generated-password-empty">Carregando preenchimento salvo...</p>
+      )}
 
       <div className="ratm-workflow-actions">
         {activeIndex < count - 1 ? (

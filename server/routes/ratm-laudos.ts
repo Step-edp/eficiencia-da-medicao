@@ -260,6 +260,10 @@ export async function createRatmLaudos(req: Request, res: Response) {
     )
 
     createdLaudos.push(mapRatmLaudo(result.rows[0]))
+    const draftKey = normalizeScheduleMeter(meter)
+    if (draftKey) {
+      await query(`DELETE FROM ratm_assay_drafts WHERE meter_key = $1`, [draftKey])
+    }
   }
 
   await writeAuditLog(req, {
@@ -489,6 +493,63 @@ export async function downloadRatmLaudoPdf(req: Request, res: Response) {
       res.status(500).json({ error: 'Não foi possível gerar o laudo em PDF.' })
     }
   }
+}
+
+export async function getRatmAssayDraft(req: Request, res: Response) {
+  const meter = typeof req.query.meter === 'string' ? req.query.meter.trim() : ''
+  const meterKey = normalizeScheduleMeter(meter)
+  if (!meterKey) {
+    res.json({ draft: null })
+    return
+  }
+
+  const result = await query<{
+    form_data: Record<string, unknown>
+    updated_at: Date
+  }>(
+    `SELECT form_data, updated_at FROM ratm_assay_drafts WHERE meter_key = $1`,
+    [meterKey],
+  )
+  const row = result.rows[0]
+  res.json({
+    draft: row
+      ? {
+          meter: meterKey,
+          formData: row.form_data,
+          updatedAt: row.updated_at.toISOString(),
+        }
+      : null,
+  })
+}
+
+export async function saveRatmAssayDraft(req: Request, res: Response) {
+  const meter = typeof req.body?.meter === 'string' ? req.body.meter.trim() : ''
+  const formData = req.body?.formData
+  const meterKey = normalizeScheduleMeter(meter)
+  if (!meterKey || !formData || typeof formData !== 'object') {
+    res.status(400).json({ error: 'Informe o medidor e o preenchimento do ensaio.' })
+    return
+  }
+
+  await query(
+    `INSERT INTO ratm_assay_drafts (meter_key, form_data, updated_by_user_id, updated_at)
+     VALUES ($1, $2::jsonb, $3, NOW())
+     ON CONFLICT (meter_key) DO UPDATE
+     SET form_data = EXCLUDED.form_data,
+         updated_by_user_id = EXCLUDED.updated_by_user_id,
+         updated_at = NOW()`,
+    [meterKey, JSON.stringify(formData), req.user?.id ?? null],
+  )
+  res.json({ ok: true })
+}
+
+export async function deleteRatmAssayDraft(req: Request, res: Response) {
+  const meter = typeof req.query.meter === 'string' ? req.query.meter.trim() : ''
+  const meterKey = normalizeScheduleMeter(meter)
+  if (meterKey) {
+    await query(`DELETE FROM ratm_assay_drafts WHERE meter_key = $1`, [meterKey])
+  }
+  res.json({ ok: true })
 }
 
 export const ratmLaudoRoutes = {

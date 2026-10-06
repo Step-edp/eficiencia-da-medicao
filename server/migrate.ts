@@ -1211,4 +1211,13 @@ export async function migrate() {
       console.error('Não foi possível alinhar o CSD dos agendamentos às DEMMs existentes.', error)
     }
   }
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS ratm_assay_drafts (
+      meter_key TEXT PRIMARY KEY,
+      form_data JSONB NOT NULL,
+      updated_by_user_id TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
 }
