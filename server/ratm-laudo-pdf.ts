@@ -313,28 +313,36 @@ function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
     .fillColor(COLORS.textMuted)
     .text('EDP SP', brandX, PAGE.margin + 11, { lineBreak: false })
 
-  const blockW = 78
-  const emissionX = PAGE.width - PAGE.margin - blockW
-  const reportX = emissionX - 10 - blockW
+  const reportNumber = buildLaudoNumber(laudo)
+  const emissionDate = formatDate(laudo.createdAt)
+  doc.font('Helvetica').fontSize(6)
+  const reportLabelW = doc.widthOfString('N DO RELATÓRIO')
+  const emissionLabelW = doc.widthOfString('EMISSÃO')
+  doc.font('Helvetica-Bold').fontSize(7)
+  const reportW = Math.max(reportLabelW, doc.widthOfString(reportNumber))
+  const emissionW = Math.max(emissionLabelW, doc.widthOfString(emissionDate))
+  const gap = 12
+  const emissionX = PAGE.width - PAGE.margin - emissionW
+  const reportX = emissionX - gap - reportW
   doc.font('Helvetica').fontSize(6).fillColor(COLORS.textMuted)
   doc.text('N DO RELATÓRIO', reportX, PAGE.margin, {
-    width: blockW,
+    width: reportW,
     align: 'right',
     lineBreak: false,
   })
   doc.text('EMISSÃO', emissionX, PAGE.margin, {
-    width: blockW,
+    width: emissionW,
     align: 'right',
     lineBreak: false,
   })
   doc.font('Helvetica-Bold').fontSize(7).fillColor(COLORS.navyDark)
-  doc.text(buildLaudoNumber(laudo), reportX, PAGE.margin + 8, {
-    width: blockW,
+  doc.text(reportNumber, reportX, PAGE.margin + 8, {
+    width: reportW,
     align: 'right',
     lineBreak: false,
   })
-  doc.text(formatDate(laudo.createdAt), emissionX, PAGE.margin + 8, {
-    width: blockW,
+  doc.text(emissionDate, emissionX, PAGE.margin + 8, {
+    width: emissionW,
     align: 'right',
     lineBreak: false,
   })
