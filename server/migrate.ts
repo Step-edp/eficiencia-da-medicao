@@ -1224,6 +1224,7 @@ export async function migrate() {
       certificate_type TEXT NOT NULL,
       calibrated_on DATE,
       valid_until DATE NOT NULL,
+      preventive_block_on DATE,
       pdf TEXT NOT NULL,
       pdf_name TEXT NOT NULL DEFAULT '',
       created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
@@ -1237,6 +1238,10 @@ export async function migrate() {
   await query(`
     ALTER TABLE standard_certificates
       ADD COLUMN IF NOT EXISTS calibrated_on DATE
+  `)
+  await query(`
+    ALTER TABLE standard_certificates
+      ADD COLUMN IF NOT EXISTS preventive_block_on DATE
   `)
 
   await query(`

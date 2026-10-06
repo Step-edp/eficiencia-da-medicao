@@ -149,6 +149,7 @@ const emptyForm = {
   certificateNumber: '',
   calibratedOn: '',
   validUntil: '',
+  preventiveBlockOn: '',
   certificateType: '' as '' | 'Padrão' | 'Hipot',
   pdf: '',
   pdfName: '',
@@ -226,6 +227,7 @@ export function CertificadosPadroesPanel({
         certificate.certificateType,
         formatValidUntil(certificate.calibratedOn),
         formatValidUntil(certificate.validUntil),
+        formatValidUntil(certificate.preventiveBlockOn),
         years,
         status,
       ]
@@ -275,6 +277,7 @@ export function CertificadosPadroesPanel({
       certificateNumber: certificate.certificateNumber,
       calibratedOn: certificate.calibratedOn.slice(0, 10),
       validUntil: certificate.validUntil.slice(0, 10),
+      preventiveBlockOn: certificate.preventiveBlockOn.slice(0, 10),
       certificateType: certificate.certificateType,
       pdf: '',
       pdfName: certificate.pdfName,
@@ -335,6 +338,7 @@ export function CertificadosPadroesPanel({
       certificateType: form.certificateType,
       calibratedOn: form.calibratedOn,
       validUntil: form.validUntil,
+      preventiveBlockOn: form.preventiveBlockOn,
       ...(form.pdf ? { pdf: form.pdf, pdfName: form.pdfName || 'certificado.pdf' } : {}),
     }
 
@@ -650,6 +654,15 @@ export function CertificadosPadroesPanel({
               disabled={submitting}
             />
           </label>
+          <label>
+            Data de bloqueio preventivo
+            <input
+              type="date"
+              value={form.preventiveBlockOn}
+              onChange={(event) => updateField('preventiveBlockOn', event.target.value)}
+              disabled={submitting}
+            />
+          </label>
           <fieldset className="radio-fieldset full-width">
             <legend>Tipo</legend>
             <div className="radio-group">
@@ -819,6 +832,7 @@ export function CertificadosPadroesPanel({
                 <th>Data de Calibração</th>
                 <th>Validade</th>
                 <th aria-label="Prazo em anos" />
+                <th>Data de bloqueio preventivo</th>
                 <th>Status</th>
                 <th>PDF</th>
               </tr>
@@ -837,6 +851,11 @@ export function CertificadosPadroesPanel({
                   <td className="certificate-years">
                     {certificate.calibratedOn
                       ? yearsBetween(certificate.calibratedOn, certificate.validUntil)
+                      : '—'}
+                  </td>
+                  <td className="certificate-years">
+                    {certificate.preventiveBlockOn
+                      ? formatValidUntil(certificate.preventiveBlockOn)
                       : '—'}
                   </td>
                   <td>

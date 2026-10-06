@@ -18,6 +18,7 @@ type CertificateRow = {
   certificate_type: string
   calibrated_on: string | null
   valid_until: string
+  preventive_block_on: string | null
   pdf_name: string
   created_at: Date
 }
@@ -40,6 +41,7 @@ function mapCertificate(row: CertificateRow) {
     certificateType: row.certificate_type,
     calibratedOn: dateOnly(row.calibrated_on),
     validUntil: dateOnly(row.valid_until),
+    preventiveBlockOn: dateOnly(row.preventive_block_on),
     pdfName: row.pdf_name || '',
     createdAt: row.created_at.toISOString(),
   }
@@ -77,6 +79,7 @@ function readCertificateBody(body: Record<string, unknown> | undefined) {
     certificateType: textField(body?.certificateType),
     calibratedOn: textField(body?.calibratedOn),
     validUntil: textField(body?.validUntil),
+    preventiveBlockOn: textField(body?.preventiveBlockOn),
     pdf: textField(body?.pdf),
     pdfName: textField(body?.pdfName) || 'certificado.pdf',
   }
@@ -102,6 +105,9 @@ function certificateFieldError(fields: ReturnType<typeof readCertificateBody>, r
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fields.validUntil)) {
     return 'Informe a validade do certificado.'
   }
+  if (fields.preventiveBlockOn && !/^\d{4}-\d{2}-\d{2}$/.test(fields.preventiveBlockOn)) {
+    return 'Informe a data de bloqueio preventivo.'
+  }
   if (requirePdf && (!fields.pdf.startsWith('data:application/pdf') || fields.pdf.length > MAX_PDF_CHARS)) {
     return 'Importe um PDF de até 15 MB.'
   }
@@ -115,7 +121,7 @@ export async function listStandardCertificates(_req: Request, res: Response) {
   const result = await query<CertificateRow>(
     `SELECT id, asset_number, serial, model, manufacturer, accuracy_class,
             certificate_number, certificate_type, calibrated_on::text AS calibrated_on,
-            valid_until::text AS valid_until, pdf_name, created_at
+            valid_until::text AS valid_until, preventive_block_on::text AS preventive_block_on, pdf_name, created_at
      FROM standard_certificates
      ORDER BY created_at DESC, id DESC`,
   )
@@ -139,6 +145,7 @@ export async function createStandardCertificate(req: Request, res: Response) {
     certificateType,
     calibratedOn,
     validUntil,
+    preventiveBlockOn,
     pdf,
     pdfName,
   } = fields
@@ -151,11 +158,11 @@ export async function createStandardCertificate(req: Request, res: Response) {
   const result = await query<CertificateRow>(
     `INSERT INTO standard_certificates (
        asset_number, serial, model, manufacturer, accuracy_class,
-       certificate_number, certificate_type, calibrated_on, valid_until, pdf, pdf_name, created_by_user_id
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::date, $9::date, $10, $11, $12)
+       certificate_number, certificate_type, calibrated_on, valid_until, preventive_block_on, pdf, pdf_name, created_by_user_id
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::date, $9::date, $10::date, $11, $12, $13)
      RETURNING id, asset_number, serial, model, manufacturer, accuracy_class,
                certificate_number, certificate_type, calibrated_on::text AS calibrated_on,
-               valid_until::text AS valid_until, pdf_name, created_at`,
+               valid_until::text AS valid_until, preventive_block_on::text AS preventive_block_on, pdf_name, created_at`,
     [
       assetNumber,
       serial,
@@ -166,6 +173,7 @@ export async function createStandardCertificate(req: Request, res: Response) {
       certificateType,
       calibratedOn,
       validUntil,
+      preventiveBlockOn || null,
       pdf,
       pdfName,
       req.user?.id ?? null,
@@ -225,12 +233,13 @@ export async function updateStandardCertificate(req: Request, res: Response) {
              certificate_type = $8,
              calibrated_on = $9::date,
              valid_until = $10::date,
-             pdf = $11,
-             pdf_name = $12
+             preventive_block_on = $11::date,
+             pdf = $12,
+             pdf_name = $13
          WHERE id = $1
          RETURNING id, asset_number, serial, model, manufacturer, accuracy_class,
                    certificate_number, certificate_type, calibrated_on::text AS calibrated_on,
-                   valid_until::text AS valid_until, pdf_name, created_at`
+                   valid_until::text AS valid_until, preventive_block_on::text AS preventive_block_on, pdf_name, created_at`
       : `UPDATE standard_certificates
          SET asset_number = $2,
              serial = $3,
@@ -240,11 +249,12 @@ export async function updateStandardCertificate(req: Request, res: Response) {
              certificate_number = $7,
              certificate_type = $8,
              calibrated_on = $9::date,
-             valid_until = $10::date
+             valid_until = $10::date,
+             preventive_block_on = $11::date
          WHERE id = $1
          RETURNING id, asset_number, serial, model, manufacturer, accuracy_class,
                    certificate_number, certificate_type, calibrated_on::text AS calibrated_on,
-                   valid_until::text AS valid_until, pdf_name, created_at`,
+                   valid_until::text AS valid_until, preventive_block_on::text AS preventive_block_on, pdf_name, created_at`,
     replacePdf
       ? [
           id,
@@ -257,6 +267,7 @@ export async function updateStandardCertificate(req: Request, res: Response) {
           fields.certificateType,
           fields.calibratedOn,
           fields.validUntil,
+          fields.preventiveBlockOn || null,
           fields.pdf,
           fields.pdfName,
         ]
@@ -271,6 +282,7 @@ export async function updateStandardCertificate(req: Request, res: Response) {
           fields.certificateType,
           fields.calibratedOn,
           fields.validUntil,
+          fields.preventiveBlockOn || null,
         ],
   )
 
@@ -334,7 +346,7 @@ export async function replaceStandardCertificate(req: Request, res: Response) {
      WHERE id = $1
      RETURNING id, asset_number, serial, model, manufacturer, accuracy_class,
                certificate_number, certificate_type, calibrated_on::text AS calibrated_on,
-               valid_until::text AS valid_until, pdf_name, created_at`,
+               valid_until::text AS valid_until, preventive_block_on::text AS preventive_block_on, pdf_name, created_at`,
     [id, certificateNumber, calibratedOn, validUntil, pdf, pdfName],
   )
 
@@ -379,7 +391,7 @@ export async function deleteStandardCertificate(req: Request, res: Response) {
   const existing = await query<CertificateRow>(
     `SELECT id, asset_number, serial, model, manufacturer, accuracy_class,
             certificate_number, certificate_type, calibrated_on::text AS calibrated_on,
-            valid_until::text AS valid_until, pdf_name, created_at
+            valid_until::text AS valid_until, preventive_block_on::text AS preventive_block_on, pdf_name, created_at
      FROM standard_certificates
      WHERE id = $1`,
     [id],
