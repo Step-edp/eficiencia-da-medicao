@@ -347,14 +347,11 @@ function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput, conclusion: stri
     .lineWidth(1)
     .stroke()
 
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(16)
-    .fillColor(COLORS.titleBlue)
-    .text('LAUDO DE PERÍCIA / FRAUDE EM MEDIDOR', PAGE.margin, PAGE.margin + 64, {
-      width: CONTENT_WIDTH - 190,
-      lineBreak: false,
-    })
+  const title = 'RATM • RELATÓRIO DE AVALIAÇÃO TÉCNICA DE MEDIDOR'
+  const titleWidth = CONTENT_WIDTH - 190
+  doc.font('Helvetica-Bold').fontSize(16)
+  const titleHeight = doc.heightOfString(title, { width: titleWidth })
+  doc.fillColor(COLORS.titleBlue).text(title, PAGE.margin, PAGE.margin + 64, { width: titleWidth })
 
   const boxX = PAGE.width - PAGE.margin - 180
   const boxY = PAGE.margin + 58
@@ -376,7 +373,7 @@ function drawHeader(doc: PdfDocument, laudo: RatmLaudoPdfInput, conclusion: stri
     .fillColor(COLORS.text)
     .text(conclusion, boxX + 30, boxY + 18, { width: 140 })
 
-  doc.y = Math.max(boxY + 52, PAGE.margin + 100)
+  doc.y = Math.max(boxY + 52, PAGE.margin + 64 + titleHeight + 10)
 }
 
 function firstText(...values: unknown[]) {
