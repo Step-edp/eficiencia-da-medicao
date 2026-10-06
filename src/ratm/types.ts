@@ -106,6 +106,9 @@ export type RatmFormData = {
   meterModelConstant: string
   analysisRequest: string
   clientAccompanied: string
+  clientDocumentPhoto: string
+  clientCpf: string
+  clientSignature: string
   satisfactionWhatsapp: string
   visualTest: string
   dielectric: string
@@ -212,6 +215,9 @@ export function createEmptyRatmForm(): RatmFormData {
     meterModelConstant: '',
     analysisRequest: '',
     clientAccompanied: '',
+    clientDocumentPhoto: '',
+    clientCpf: '',
+    clientSignature: '',
     satisfactionWhatsapp: '',
     visualTest: '',
     dielectric: '',

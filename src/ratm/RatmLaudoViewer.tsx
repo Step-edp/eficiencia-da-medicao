@@ -4,10 +4,7 @@ import { api } from '../api'
 import { RatmFormFields } from './RatmFormFields'
 import { formatRatmLaudoNumber, mapRatmLaudoFromApi, type RatmLaudo } from './laudos'
 import { openRatmLaudoPdf } from './laudoPdf'
-import {
-  buildWhatsAppSurveyUrl,
-  isValidWhatsappNumber,
-} from './satisfactionSurvey'
+import { RatmApprovalWizard } from './RatmApprovalWizard'
 import { normalizeRatmForm, type RatmFormData } from './types'
 
 type RatmLaudoViewerProps = {
@@ -39,12 +36,18 @@ export function RatmLaudoViewer({
   const [currentLaudo, setCurrentLaudo] = useState(laudo)
   const [formData, setFormData] = useState<RatmFormData>(() => laudoToFormData(laudo))
   const [actionLoading, setActionLoading] = useState(false)
-  const [clientPresent, setClientPresent] = useState<'Sim' | 'Não' | ''>(() => {
-    const value = laudoToFormData(laudo).clientAccompanied
-    return value === 'Sim' || value === 'Não' ? value : ''
+  const [approvalOpen, setApprovalOpen] = useState(() => {
+    const ownAssay = Boolean(
+      approverUserId && laudo.createdByUserId && laudo.createdByUserId === approverUserId,
+    )
+    return (
+      initialMode === 'view' &&
+      laudo.status === 'Pendente' &&
+      !laudo.revokedAt &&
+      approverIsLab &&
+      !ownAssay
+    )
   })
-  const [whatsappNumber, setWhatsappNumber] = useState(() => laudoToFormData(laudo).satisfactionWhatsapp)
-  const [showApproveConfirm, setShowApproveConfirm] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -94,76 +97,35 @@ export function RatmLaudoViewer({
     }
   }
 
-  const handleApproveClick = () => {
-    if (!clientPresent) {
-      setFeedback({
-        type: 'error',
-        message: 'Informe se o cliente está presente antes de aprovar o laudo.',
-      })
-      return
-    }
-
-    if (clientPresent === 'Sim' && !isValidWhatsappNumber(whatsappNumber)) {
-      setFeedback({
-        type: 'error',
-        message: 'Informe um número de WhatsApp válido para enviar a pesquisa de satisfação.',
-      })
-      return
-    }
-
-    setFeedback(null)
-    setShowApproveConfirm(true)
-  }
-
-  const handleSendWhatsappSurvey = () => {
-    if (!isValidWhatsappNumber(whatsappNumber)) {
-      setFeedback({
-        type: 'error',
-        message: 'Informe um número de WhatsApp válido antes de enviar o link.',
-      })
-      return
-    }
-
-    window.open(buildWhatsAppSurveyUrl(whatsappNumber, currentLaudo.id), '_blank', 'noopener,noreferrer')
-    setFeedback({
-      type: 'success',
-      message: 'WhatsApp aberto com o link da pesquisa de satisfação.',
-    })
-  }
-
-  const handleConfirmApprove = async () => {
-    if (!clientPresent) {
-      return
-    }
-
+  const approveAbsent = async () => {
     setActionLoading(true)
     setFeedback(null)
-
     try {
-      const response = await api.approveRatmLaudo(
-        currentLaudo.id,
-        clientPresent,
-        clientPresent === 'Sim' ? whatsappNumber : undefined,
-      )
+      const response = await api.approveRatmLaudo(currentLaudo.id, { clientPresent: 'Não' })
       const approvedLaudo = mapRatmLaudoFromApi(response.laudo)
-      setShowApproveConfirm(false)
       onApproved(approvedLaudo)
-
-      if (clientPresent === 'Sim' && isValidWhatsappNumber(whatsappNumber)) {
-        window.open(
-          buildWhatsAppSurveyUrl(whatsappNumber, currentLaudo.id),
-          '_blank',
-          'noopener,noreferrer',
-        )
-      }
-
       onClose()
-    } catch (error) {
-      setFeedback({
-        type: 'error',
-        message:
-          error instanceof Error ? error.message : 'Não foi possível aprovar o laudo.',
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const approvePresent = async (payload: {
+    clientDocumentPhoto: string
+    clientCpf: string
+    clientSignature: string
+    satisfactionWhatsapp: string
+  }) => {
+    setActionLoading(true)
+    setFeedback(null)
+    try {
+      const response = await api.approveRatmLaudo(currentLaudo.id, {
+        clientPresent: 'Sim',
+        ...payload,
       })
+      const approvedLaudo = mapRatmLaudoFromApi(response.laudo)
+      setCurrentLaudo(approvedLaudo)
+      onApproved(approvedLaudo)
     } finally {
       setActionLoading(false)
     }
@@ -218,74 +180,6 @@ export function RatmLaudoViewer({
           </div>
         ) : null}
 
-        {mode === 'view' && currentLaudo.status === 'Pendente' && !currentLaudo.revokedAt ? (
-          <fieldset className="laudo-client-present radio-fieldset">
-            <legend>Cliente presente</legend>
-            <div className="radio-group">
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  name={`client-present-${currentLaudo.id}`}
-                  value="Sim"
-                  checked={clientPresent === 'Sim'}
-                  disabled={actionLoading}
-                  onChange={() => {
-                    setClientPresent('Sim')
-                    setFeedback(null)
-                  }}
-                />
-                <span>Sim</span>
-              </label>
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  name={`client-present-${currentLaudo.id}`}
-                  value="Não"
-                  checked={clientPresent === 'Não'}
-                  disabled={actionLoading}
-                  onChange={() => {
-                    setClientPresent('Não')
-                    setWhatsappNumber('')
-                    setFeedback(null)
-                  }}
-                />
-                <span>Não</span>
-              </label>
-            </div>
-
-            {clientPresent === 'Sim' ? (
-              <div className="laudo-whatsapp-field">
-                <label className="full-width">
-                  WhatsApp do cliente
-                  <input
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    placeholder="(11) 99999-9999"
-                    value={whatsappNumber}
-                    disabled={actionLoading}
-                    onChange={(event) => {
-                      setWhatsappNumber(event.target.value)
-                      setFeedback(null)
-                    }}
-                  />
-                </label>
-                <p className="laudo-whatsapp-hint">
-                  O link da pesquisa ficará ativo após a aprovação do laudo.
-                </p>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  disabled={actionLoading || !isValidWhatsappNumber(whatsappNumber)}
-                  onClick={handleSendWhatsappSurvey}
-                >
-                  Enviar pesquisa no WhatsApp
-                </button>
-              </div>
-            ) : null}
-          </fieldset>
-        ) : null}
-
         <div className="laudo-viewer-actions">
           {readOnly ? null : mode === 'view' ? (
             <>
@@ -314,10 +208,9 @@ export function RatmLaudoViewer({
                 disabled={
                   actionLoading ||
                   currentLaudo.status !== 'Pendente' ||
-                  !clientPresent ||
                   Boolean(approvalBlockMessage)
                 }
-                onClick={handleApproveClick}
+                onClick={() => setApprovalOpen(true)}
               >
                 Aprovar
               </button>
@@ -350,52 +243,17 @@ export function RatmLaudoViewer({
           </p>
         ) : null}
 
-        {showApproveConfirm ? (
-          <div
-            className="laudo-confirm-overlay"
-            role="presentation"
-            onClick={() => !actionLoading && setShowApproveConfirm(false)}
-          >
-            <section
-              className="laudo-confirm-dialog"
-              role="alertdialog"
-              aria-modal="true"
-              aria-labelledby="laudo-approve-confirm-title"
-              aria-describedby="laudo-approve-confirm-message"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <h4 id="laudo-approve-confirm-title">Confirmar aprovação</h4>
-              <p id="laudo-approve-confirm-message">
-                Deseja confirmar sua resposta? Após a aprovação, não será possível alterá-la.
-              </p>
-              <p className="laudo-confirm-choice">
-                Cliente presente: <strong>{clientPresent}</strong>
-              </p>
-              {clientPresent === 'Sim' ? (
-                <p className="laudo-confirm-choice">
-                  WhatsApp: <strong>{whatsappNumber}</strong>
-                </p>
-              ) : null}
-              <div className="laudo-confirm-actions">
-                <button
-                  className="secondary-button"
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => setShowApproveConfirm(false)}
-                >
-                  Cancelar
-                </button>
-                <button
-                  className="reserve-button"
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={handleConfirmApprove}
-                >
-                  Confirmar aprovação
-                </button>
-              </div>
-            </section>
-          </div>
+        {approvalOpen && mode === 'view' ? (
+          <RatmApprovalWizard
+            laudoId={currentLaudo.id}
+            loading={actionLoading}
+            onClose={() => {
+              setApprovalOpen(false)
+              if (currentLaudo.status === 'Aprovado') onClose()
+            }}
+            onApproveAbsent={approveAbsent}
+            onApprovePresent={approvePresent}
+          />
         ) : null}
       </section>
     </div>,

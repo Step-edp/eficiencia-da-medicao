@@ -353,6 +353,27 @@ export async function updateRatmLaudo(req: Request, res: Response) {
   res.json({ laudo })
 }
 
+function isValidCpf(value: string) {
+  if (!/^\d{11}$/.test(value) || /^(\d)\1{10}$/.test(value)) return false
+  const check = (length: number) => {
+    let sum = 0
+    for (let index = 0; index < length; index += 1) {
+      sum += Number(value[index]) * (length + 1 - index)
+    }
+    const result = (sum * 10) % 11
+    return (result === 10 ? 0 : result) === Number(value[length])
+  }
+  return check(9) && check(10)
+}
+
+function imageDataUrlError(value: string, label: string, maxChars: number) {
+  if (!value || value.length > maxChars) return `${label} inválida.`
+  if (!/^data:image\/(png|jpeg|jpg);base64,[a-z0-9+/=\r\n]+$/i.test(value)) {
+    return `${label} inválida.`
+  }
+  return ''
+}
+
 export async function approveRatmLaudo(req: Request, res: Response) {
   const { id } = req.params
   const clientPresent = req.body?.clientPresent
@@ -360,9 +381,14 @@ export async function approveRatmLaudo(req: Request, res: Response) {
     typeof req.body?.satisfactionWhatsapp === 'string'
       ? req.body.satisfactionWhatsapp.replace(/\D/g, '')
       : ''
+  const clientDocumentPhoto =
+    typeof req.body?.clientDocumentPhoto === 'string' ? req.body.clientDocumentPhoto.trim() : ''
+  const clientSignature =
+    typeof req.body?.clientSignature === 'string' ? req.body.clientSignature.trim() : ''
+  const clientCpf = typeof req.body?.clientCpf === 'string' ? req.body.clientCpf.replace(/\D/g, '') : ''
 
   if (clientPresent !== 'Sim' && clientPresent !== 'Não') {
-    res.status(400).json({ error: 'Informe se o cliente está presente (Sim ou Não).' })
+    res.status(400).json({ error: 'Informe se o cliente acompanhou (Sim ou Não).' })
     return
   }
 
@@ -374,6 +400,21 @@ export async function approveRatmLaudo(req: Request, res: Response) {
 
     if (normalizedWhatsapp.length < 12 || normalizedWhatsapp.length > 13) {
       res.status(400).json({ error: 'Informe um número de WhatsApp válido para enviar a pesquisa.' })
+      return
+    }
+
+    const photoError = imageDataUrlError(clientDocumentPhoto, 'A foto do documento', 2_500_000)
+    if (photoError) {
+      res.status(400).json({ error: photoError })
+      return
+    }
+    const signatureError = imageDataUrlError(clientSignature, 'A assinatura', 1_500_000)
+    if (signatureError) {
+      res.status(400).json({ error: signatureError })
+      return
+    }
+    if (!isValidCpf(clientCpf)) {
+      res.status(400).json({ error: 'Informe um CPF válido.' })
       return
     }
   }
@@ -420,6 +461,9 @@ export async function approveRatmLaudo(req: Request, res: Response) {
     ...existing.rows[0].form_data,
     clientAccompanied: clientPresent,
     ratmApprovedBy: formatPortalUser(approver),
+    clientDocumentPhoto: clientPresent === 'Sim' ? clientDocumentPhoto : '',
+    clientCpf: clientPresent === 'Sim' ? clientCpf : '',
+    clientSignature: clientPresent === 'Sim' ? clientSignature : '',
     satisfactionWhatsapp:
       clientPresent === 'Sim'
         ? satisfactionWhatsapp.length === 10 || satisfactionWhatsapp.length === 11
@@ -438,6 +482,14 @@ export async function approveRatmLaudo(req: Request, res: Response) {
   )
 
   const laudo = mapRatmLaudo(result.rows[0])
+  const auditLaudo = {
+    ...laudo,
+    formData: {
+      ...laudo.formData,
+      clientDocumentPhoto: laudo.formData.clientDocumentPhoto ? '[foto]' : '',
+      clientSignature: laudo.formData.clientSignature ? '[assinatura]' : '',
+    },
+  }
 
   await writeAuditLog(req, {
     action: 'approve',
@@ -445,7 +497,7 @@ export async function approveRatmLaudo(req: Request, res: Response) {
     entityId: laudo.id,
     summary: `Laudo RATM ${laudo.ratmNumber} aprovado`,
     oldData: mapRatmLaudo(existing.rows[0]),
-    newData: laudo,
+    newData: auditLaudo,
     metadata: { clientPresent },
   })
 
@@ -483,9 +535,10 @@ export async function downloadRatmLaudoPdf(req: Request, res: Response) {
 
     const laudo = mapRatmLaudo(result.rows[0])
     const filename = buildRatmPdfFileName(laudo)
+    const laudoId = typeof id === 'string' ? id : id[0]
     const requestedName = typeof req.params.filename === 'string' ? req.params.filename : ''
     if (requestedName !== filename) {
-      res.redirect(302, `/api/ratm-laudos/${encodeURIComponent(id)}/pdf/${encodeURIComponent(filename)}`)
+      res.redirect(302, `/api/ratm-laudos/${encodeURIComponent(laudoId)}/pdf/${encodeURIComponent(filename)}`)
       return
     }
 

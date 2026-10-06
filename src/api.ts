@@ -1648,10 +1648,19 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ formData }),
     }),
-  approveRatmLaudo: (id: string, clientPresent: 'Sim' | 'Não', satisfactionWhatsapp?: string) =>
-    request<{ laudo: RatmLaudoRecord }>(`/api/ratm-laudos/${id}/approve`, {
+  approveRatmLaudo: (
+    id: string,
+    payload: {
+      clientPresent: 'Sim' | 'Não'
+      satisfactionWhatsapp?: string
+      clientCpf?: string
+      clientDocumentPhoto?: string
+      clientSignature?: string
+    },
+  ) =>
+    request<{ laudo: RatmLaudoRecord }>(`/api/ratm-laudos/${encodeURIComponent(id)}/approve`, {
       method: 'PATCH',
-      body: JSON.stringify({ clientPresent, satisfactionWhatsapp }),
+      body: JSON.stringify(payload),
     }),
   deleteRatmLaudo: (id: string) =>
     request<{ ok: true; id: string }>(`/api/ratm-laudos/${encodeURIComponent(id)}`, {

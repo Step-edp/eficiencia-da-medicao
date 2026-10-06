@@ -33,6 +33,24 @@ export function openRatmLaudoPdf(laudoId: string) {
   window.open(`/api/ratm-laudos/${encodeURIComponent(laudoId)}/pdf`, '_blank', 'noopener,noreferrer')
 }
 
+export async function printRatmLaudoPdf(laudoId: string) {
+  const { blob } = await fetchRatmLaudoPdf(laudoId)
+  const url = URL.createObjectURL(blob)
+  const iframe = document.createElement('iframe')
+  iframe.title = 'Imprimir laudo'
+  iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden'
+  iframe.src = url
+  iframe.onload = () => {
+    iframe.contentWindow?.focus()
+    iframe.contentWindow?.print()
+    window.setTimeout(() => {
+      iframe.remove()
+      URL.revokeObjectURL(url)
+    }, 60_000)
+  }
+  document.body.appendChild(iframe)
+}
+
 export async function downloadRatmLaudoPdf(laudoId: string, filename?: string) {
   const fetched = await fetchRatmLaudoPdf(laudoId)
   const downloadName = filename || fetched.filename

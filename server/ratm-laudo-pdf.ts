@@ -930,6 +930,23 @@ function drawReferencias(doc: PdfDocument) {
   })
 }
 
+function imageFromDataUrl(value: unknown) {
+  if (typeof value !== 'string') return null
+  const match = value.match(/^data:image\/(?:png|jpeg|jpg);base64,([a-z0-9+/=\s]+)$/i)
+  if (!match) return null
+  try {
+    return Buffer.from(match[1].replace(/\s/g, ''), 'base64')
+  } catch {
+    return null
+  }
+}
+
+function formatCpf(value: unknown) {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  if (digits.length !== 11) return ''
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`
+}
+
 function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   const form = laudo.formData
   const assayName = laudo.createdByName?.trim() ?? ''
@@ -944,9 +961,12 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
       .toLocaleLowerCase('pt-BR')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '') === 'nao'
+  const signatureImage = clientAbsent ? null : imageFromDataUrl(form.clientSignature)
+  const clientCpf = clientAbsent ? 'Não aplicável' : formatCpf(form.clientCpf)
   const clientSignature = clientAbsent ? 'Não aplicável' : ''
   const rowStart = ROW_START
   const rowStep = 16
+  const signatureExtra = signatureImage ? 16 : 0
   const rows: Array<{ left: [string, string]; right: [string, string] }> = [
     {
       left: ['Análise a pedido', firstText(form.analysisRequest)],
@@ -954,14 +974,14 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
     },
     {
       left: ['Assinatura do Cliente', clientSignature],
-      right: ['CPF do Cliente', clientSignature],
+      right: ['CPF do Cliente', clientCpf || clientSignature],
     },
     {
       left: ['Ensaio realizado por', ensaioPor],
       right: ['RATM aprovado por', aprovadoPor],
     },
   ]
-  const boxHeight = rowStart + rows.length * rowStep + BOX_TAIL
+  const boxHeight = rowStart + rows.length * rowStep + signatureExtra + BOX_TAIL
   ensureSpace(doc, boxHeight + 16)
   const y = doc.y
   doc
@@ -975,7 +995,7 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
   const rightX = PAGE.margin + 16 + colW
 
   rows.forEach((row, index) => {
-    const rowY = y + rowStart + index * rowStep
+    const rowY = y + rowStart + index * rowStep + (index > 1 ? signatureExtra : 0)
     const pair = [
       { x: leftX, label: row.left[0], value: row.left[1] },
       { x: rightX, label: row.right[0], value: row.right[1] },
@@ -985,6 +1005,21 @@ function drawAssinaturas(doc: PdfDocument, laudo: RatmLaudoPdfInput) {
         width: colW - 8,
         lineBreak: false,
       })
+      if (field.label === 'Assinatura do Cliente' && signatureImage) {
+        try {
+          doc.image(signatureImage, field.x, rowY + 7, {
+            fit: [colW - 20, 22],
+          })
+        } catch {
+          doc
+            .moveTo(field.x, rowY + 12)
+            .lineTo(field.x + colW - 16, rowY + 12)
+            .strokeColor(COLORS.grayBorder)
+            .lineWidth(0.8)
+            .stroke()
+        }
+        return
+      }
       if (field.value) {
         doc.font('Helvetica-Bold').fontSize(6.5).fillColor(COLORS.text).text(field.value, field.x, rowY + 8, {
           width: colW - 8,
