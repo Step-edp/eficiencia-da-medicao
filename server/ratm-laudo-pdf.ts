@@ -473,20 +473,26 @@ async function loadPadraoEnsaio(testBench: unknown): Promise<PadraoEnsaio> {
   }
 }
 
+function drawInfoIcon(doc: PdfDocument, cx: number, cy: number) {
+  doc.circle(cx, cy, 5.5).fill(COLORS.titleBlue)
+  doc.circle(cx, cy - 2.1, 0.9).fill(COLORS.white)
+  doc.roundedRect(cx - 0.7, cy - 0.3, 1.4, 3.5, 0.5).fill(COLORS.white)
+}
+
 function drawPadraoEnsaio(doc: PdfDocument, padrao: PadraoEnsaio) {
   drawSectionTitle(doc, 2, 'DADOS DO PADRÃO DE ENSAIO')
   ensureSpace(doc, 36)
   const introY = doc.y
-  doc.circle(PAGE.margin + 4, introY + 4, 2).fill(COLORS.cyan)
+  drawInfoIcon(doc, PAGE.margin + 6, introY + 5)
   doc
     .font('Helvetica')
     .fontSize(8)
     .fillColor(COLORS.text)
     .text(
       'Padrão de ensaio: Equipamento de alta precisão usado como referência para verificar se um medidor de energia está medindo corretamente.',
-      PAGE.margin + 12,
+      PAGE.margin + 16,
       introY,
-      { width: CONTENT_WIDTH - 12 },
+      { width: CONTENT_WIDTH - 16 },
     )
   doc.y = Math.max(doc.y, introY + 28)
 
