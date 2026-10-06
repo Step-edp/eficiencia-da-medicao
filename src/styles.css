@@ -7909,11 +7909,6 @@ input[type='file'] {
   gap: 8px;
 }
 
-.ratm-status-line {
-  margin: 0;
-  color: #b6f7ff;
-}
-
 .ratm-readonly-field {
   display: grid;
   gap: 6px;
@@ -8301,10 +8296,6 @@ input[type='file'] {
   gap: 14px;
   padding: 14px 16px 16px;
   min-width: 0;
-}
-
-.ratm-expandable-body .ratm-status-line {
-  margin: 0;
 }
 
 .ratm-expandable-body .ratm-section-box-grid {

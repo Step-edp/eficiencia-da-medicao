@@ -1028,10 +1028,6 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           accordionName={accordionName}
           complete={entryInfoComplete}
         >
-          {data.meterStatus ? (
-            <p className="ratm-status-line">Status - {data.meterStatus}</p>
-          ) : null}
-
           <div className="ratm-entry-info">
 
           <EntryComparisonField
