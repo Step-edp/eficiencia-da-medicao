@@ -47,6 +47,8 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
   const [receivedMeters, setReceivedMeters] = useState<MeterScheduleRecord[]>([])
   const [receivedLoading, setReceivedLoading] = useState(false)
   const [receivedSearch, setReceivedSearch] = useState('')
+  const [selectedMeters, setSelectedMeters] = useState<string[]>([])
+  const [workflowMeters, setWorkflowMeters] = useState<string[] | null>(null)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -98,6 +100,7 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
   }
 
   const handleEnsaiarMeter = (meter: string) => {
+    setWorkflowMeters(null)
     setWorkflowMeter(meter)
     setRatmCount('1')
     setStartedCount(1)
@@ -112,18 +115,52 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
     receivedRequestRef.current = receivedRequest
     setStartedCount(null)
     setWorkflowMeter(undefined)
+    setWorkflowMeters(null)
+    setSelectedMeters([])
     setShowReceived(true)
     setFeedback(null)
   }, [receivedRequest])
 
+  const toggleReceivedMeter = (meter: string) => {
+    if (!selectedMeters.includes(meter) && selectedMeters.length >= maxRatmCount) {
+      setFeedback({
+        type: 'error',
+        message: `Selecione no máximo ${maxRatmCount} medidores.`,
+      })
+      return
+    }
+    setFeedback(null)
+    setSelectedMeters((current) =>
+      current.includes(meter) ? current.filter((item) => item !== meter) : [...current, meter],
+    )
+  }
+
+  const handleEnsaiarSelected = () => {
+    if (!selectedMeters.length) {
+      setFeedback({
+        type: 'error',
+        message: 'Selecione pelo menos um medidor para ensaiar.',
+      })
+      return
+    }
+    setWorkflowMeters(selectedMeters)
+    setWorkflowMeter(undefined)
+    setStartedCount(selectedMeters.length)
+    setShowReceived(false)
+    setFeedback(null)
+  }
+
   if (startedCount) {
     return (
       <RatmWorkflow
-        count={startedCount}
-        initialMeter={workflowMeter}
+        count={workflowMeters?.length || startedCount}
+        initialMeter={workflowMeters?.length ? undefined : workflowMeter}
+        initialMeters={workflowMeters ?? undefined}
         onBack={() => {
           setStartedCount(null)
+          setWorkflowMeters(null)
           setFeedback(null)
+          if (workflowMeters?.length) setShowReceived(true)
         }}
         onFinish={onFinish}
       />
@@ -186,6 +223,14 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
                 spellCheck={false}
               />
             </label>
+            <button
+              className="primary-button"
+              type="button"
+              disabled={!selectedMeters.length}
+              onClick={handleEnsaiarSelected}
+            >
+              Ensaiar{selectedMeters.length ? ` (${selectedMeters.length})` : ''}
+            </button>
           </div>
 
           {receivedLoading && total === 0 ? (
@@ -207,6 +252,7 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
                     <th>Nota</th>
                     <th>CSD</th>
                     <th>Data de ensaio</th>
+                    <th>Selecionar</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
@@ -219,6 +265,14 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
                       <td>{item.note || '—'}</td>
                       <td>{item.csd || '—'}</td>
                       <td>{item.scheduledAtLabel || formatDateTime(item.scheduledAt)}</td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedMeters.includes(item.meter)}
+                          onChange={() => toggleReceivedMeter(item.meter)}
+                          aria-label={`Selecionar medidor ${item.meter}`}
+                        />
+                      </td>
                       <td>
                         <button
                           type="button"
@@ -234,17 +288,6 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
               </table>
             </div>
           )}
-
-          <button
-            className="secondary-button full-width"
-            type="button"
-            onClick={() => {
-              setShowReceived(false)
-              setFeedback(null)
-            }}
-          >
-            Voltar
-          </button>
         </div>
       </>
     )

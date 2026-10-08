@@ -12,17 +12,36 @@ import { createEmptyRatmForm, normalizeRatmForm, type RatmFormData } from './typ
 type RatmWorkflowProps = {
   count: number
   initialMeter?: string
+  initialMeters?: string[]
   onBack: () => void
   onFinish: (forms: RatmFormData[], options?: { replacePending?: boolean }) => void | Promise<void>
 }
 
-export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWorkflowProps) {
+function formsForMeters(meters: string[]) {
+  return meters.map((meter) => {
+    const form = createEmptyRatmForm()
+    form.meterSearch = meter
+    form.meter = meter
+    return form
+  })
+}
+
+export function RatmWorkflow({
+  count,
+  initialMeter,
+  initialMeters,
+  onBack,
+  onFinish,
+}: RatmWorkflowProps) {
+  const presetMeters = (initialMeters ?? []).map((meter) => meter.trim()).filter(Boolean)
+  const hasPresetMeters = presetMeters.length > 0
   const [activeIndex, setActiveIndex] = useState(() => {
-    if (initialMeter) return 0
+    if (hasPresetMeters || initialMeter) return 0
     const draft = loadRatmDraft()
     return draft?.count === count ? draft.activeIndex : 0
   })
   const [forms, setForms] = useState<RatmFormData[]>(() => {
+    if (hasPresetMeters) return formsForMeters(presetMeters)
     if (initialMeter) {
       const form = createEmptyRatmForm()
       form.meterSearch = initialMeter
@@ -39,7 +58,7 @@ export function RatmWorkflow({ count, initialMeter, onBack, onFinish }: RatmWork
     return Array.from({ length: count }, () => createEmptyRatmForm())
   })
   const [showRestoredDraft, setShowRestoredDraft] = useState(() => {
-    if (initialMeter) return false
+    if (hasPresetMeters || initialMeter) return false
     const draft = loadRatmDraft()
     return draft?.count === count
   })

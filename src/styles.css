@@ -8026,6 +8026,16 @@ input[type='file'] {
   margin: 0;
 }
 
+.ensaiar-received .consultar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ensaiar-received .consultar-search {
+  flex: 1;
+}
+
 .ensaiar-received .primary-button {
   padding: 8px 12px;
   width: auto;
