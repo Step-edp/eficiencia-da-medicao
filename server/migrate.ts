@@ -1047,6 +1047,50 @@ export async function migrate() {
   `)
 
   await query(`
+    INSERT INTO toi_schedule_deviations (
+      id, meter_schedule_id, meter, kind, description,
+      scheduled_label, document_label, previous_scheduled_at, adjusted_scheduled_at,
+      collaborator1_name, collaborator1_registration,
+      collaborator2_name, collaborator2_registration, created_by_user_id, created_at
+    )
+    SELECT
+      'resched-audit-' || a.id::text,
+      a.entity_id,
+      COALESCE(NULLIF(a.metadata->>'meter', ''), ms.meter),
+      'schedule_date_mismatch',
+      'Reagendamento da data de ensaio. Justificativa: '
+        || COALESCE(a.metadata->>'justification', '')
+        || '. Responsável: '
+        || COALESCE(NULLIF(a.metadata->>'changedBy', ''), NULLIF(u.name, ''), a.user_registration, 'não identificado')
+        || '.',
+      COALESCE(NULLIF(a.metadata->>'previousScheduledAtLabel', ''), ''),
+      COALESCE(NULLIF(a.metadata->>'newScheduledAtLabel', ''), ''),
+      (a.metadata->>'previousScheduledAt')::timestamptz,
+      (a.metadata->>'newScheduledAt')::timestamptz,
+      COALESCE(ms.toi_collaborator1_name, ''),
+      COALESCE(ms.toi_collaborator1_registration, ''),
+      COALESCE(ms.toi_collaborator2_name, ''),
+      COALESCE(ms.toi_collaborator2_registration, ''),
+      a.user_id,
+      a.occurred_at
+    FROM audit_logs a
+    JOIN meter_schedules ms ON ms.id = a.entity_id
+    LEFT JOIN users u ON u.id = a.user_id
+    WHERE a.entity_type = 'meter_schedule'
+      AND a.summary ILIKE '%reagendado de%'
+      AND COALESCE(a.metadata->>'previousScheduledAt', '') <> ''
+      AND COALESCE(a.metadata->>'newScheduledAt', '') <> ''
+      AND NOT EXISTS (
+        SELECT 1
+        FROM toi_schedule_deviations d
+        WHERE d.meter_schedule_id = a.entity_id
+          AND d.kind = 'schedule_date_mismatch'
+          AND d.previous_scheduled_at = (a.metadata->>'previousScheduledAt')::timestamptz
+          AND d.adjusted_scheduled_at = (a.metadata->>'newScheduledAt')::timestamptz
+      )
+  `)
+
+  await query(`
     UPDATE users
     SET access_areas = access_areas || '["Usuários"]'::jsonb
     WHERE approval_status = 'approved'

@@ -1295,6 +1295,30 @@ export async function rescheduleMeterSchedule(req: Request, res: Response) {
 
   const actorLabel = await loadRescheduleActor(req.user?.id)
 
+  await query(
+    `INSERT INTO toi_schedule_deviations (
+       id, meter_schedule_id, meter, kind, description,
+       scheduled_label, document_label, previous_scheduled_at, adjusted_scheduled_at,
+       collaborator1_name, collaborator1_registration,
+       collaborator2_name, collaborator2_registration, created_by_user_id
+     ) VALUES ($1,$2,$3,'schedule_date_mismatch',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+    [
+      `resched-${schedule.id}-${Date.now()}`,
+      schedule.id,
+      schedule.meter,
+      `Reagendamento da data de ensaio. Justificativa: ${normalizedJustification}. Responsável: ${actorLabel}.`,
+      previous.scheduledAtLabel,
+      schedule.scheduledAtLabel,
+      previous.scheduledAt,
+      schedule.scheduledAt,
+      current.toi_collaborator1_name ?? '',
+      current.toi_collaborator1_registration ?? '',
+      current.toi_collaborator2_name ?? '',
+      current.toi_collaborator2_registration ?? '',
+      req.user?.id ?? null,
+    ],
+  )
+
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'meter_schedule',

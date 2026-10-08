@@ -5667,7 +5667,7 @@ function HomePanel({
               <ScheduleDateAdjustmentsPanel
                 scope="all"
                 title="Alteração de data"
-                intro="Medidores com data/horário de agendamento diferente do inserido no documento. Marque Ajustado fisicamente quando a correção da data no documento estiver concluída."
+                intro="Medidores com data de ensaio reagendada ou diferente do documento. Marque Ajustado fisicamente quando a correção estiver concluída."
                 allowPhysicalAdjust
                 readOnly={labMedicaoReadOnly}
                 onPendingCountChange={setLabDateAdjustmentCount}
