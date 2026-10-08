@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError, type MeterScheduleRecord } from './api'
 import { ENSAIAR_TRAIL_STEP } from './labTrailSteps'
 import { RatmWorkflow } from './ratm/RatmWorkflow'
@@ -11,6 +11,7 @@ const ratmOptions = Array.from({ length: maxRatmCount }, (_, index) => index + 1
 type EnsaiarFormProps = {
   onFinish: (forms: RatmFormData[], options?: { replacePending?: boolean }) => void | Promise<void>
   initialMeter?: string
+  receivedRequest?: number
 }
 
 function formatDateTime(isoDate: string) {
@@ -35,7 +36,7 @@ function receivedMeterMatches(item: MeterScheduleRecord, query: string) {
   return haystack.includes(query)
 }
 
-export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
+export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: EnsaiarFormProps) {
   const draft = initialMeter ? null : loadRatmDraft()
   const [ratmCount, setRatmCount] = useState(initialMeter ? '1' : draft ? String(draft.count) : '')
   const [startedCount, setStartedCount] = useState<number | null>(
@@ -104,10 +105,16 @@ export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
     setFeedback(null)
   }
 
-  const openReceivedList = () => {
+  const receivedRequestRef = useRef(receivedRequest)
+
+  useEffect(() => {
+    if (receivedRequest === receivedRequestRef.current) return
+    receivedRequestRef.current = receivedRequest
+    setStartedCount(null)
+    setWorkflowMeter(undefined)
     setShowReceived(true)
     setFeedback(null)
-  }
+  }, [receivedRequest])
 
   if (startedCount) {
     return (
@@ -272,9 +279,6 @@ export function EnsaiarForm({ onFinish, initialMeter }: EnsaiarFormProps) {
 
         <button className="primary-button full-width" type="button" onClick={handleStart}>
           Iniciar formulários
-        </button>
-        <button className="secondary-button full-width" type="button" onClick={openReceivedList}>
-          Medidores recebidos
         </button>
       </div>
     </>

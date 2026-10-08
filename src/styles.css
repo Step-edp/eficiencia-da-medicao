@@ -1734,6 +1734,8 @@ button {
 .lab-trail-calendar-slot {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 10px;
 }
 
@@ -1783,6 +1785,13 @@ button {
 
 .lab-trail-nav.is-trail-hidden .lab-trail-calendar-slot {
   margin-bottom: 0;
+}
+
+.lab-trail-received-button {
+  width: auto;
+  min-height: 36px;
+  padding: 6px 14px;
+  white-space: nowrap;
 }
 
 .lab-trail {

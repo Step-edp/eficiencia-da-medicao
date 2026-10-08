@@ -2072,6 +2072,7 @@ function HomePanel({
   const [labDateAdjustmentCount, setLabDateAdjustmentCount] = useState(0)
   const [labDeviationsCount, setLabDeviationsCount] = useState(0)
   const [ensaiarPrefillMeter, setEnsaiarPrefillMeter] = useState<string | null>(null)
+  const [ensaiarReceivedRequest, setEnsaiarReceivedRequest] = useState(0)
   const [selectedHomologationSection, setSelectedHomologationSection] = useState<string | null>(
     () => savedNav?.selectedHomologationSection ?? null,
   )
@@ -5653,6 +5654,17 @@ function HomePanel({
                 renderCalendarIcon={() => (
                   <ItemIcon title={ENSAIOS_CALENDAR_SECTION} />
                 )}
+                calendarAside={
+                  selectedLabMeasurementSection === ENSAIAR_TRAIL_STEP && !labMedicaoReadOnly ? (
+                    <button
+                      className="secondary-button lab-trail-received-button"
+                      type="button"
+                      onClick={() => setEnsaiarReceivedRequest((current) => current + 1)}
+                    >
+                      Medidores recebidos
+                    </button>
+                  ) : null
+                }
               />
             ) : null}
             {selectedLabMeasurementSection === ENSAIOS_CALENDAR_SECTION ? (
@@ -5814,6 +5826,7 @@ function HomePanel({
                 <EnsaiarForm
                   key={ensaiarPrefillMeter ?? 'ensaiar'}
                   initialMeter={ensaiarPrefillMeter ?? undefined}
+                  receivedRequest={ensaiarReceivedRequest}
                   onFinish={async (forms) => {
                     setEnsaiarPrefillMeter(null)
                     await handleRatmFinish(forms)
