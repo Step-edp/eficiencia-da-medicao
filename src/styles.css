@@ -3941,6 +3941,25 @@ button {
   gap: 0.5rem;
   flex-shrink: 0;
 }
+
+.ensaios-day-ensaiar-button {
+  margin: 0;
+  padding: 3px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(24, 216, 240, 0.28);
+  background: transparent;
+  color: #9fd4e4;
+  box-shadow: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.ensaios-day-ensaiar-button:hover,
+.ensaios-day-ensaiar-button:focus-visible {
+  background: rgba(24, 216, 240, 0.1);
+  color: #d7e8f2;
+}
   display: inline-flex;
   align-items: center;
   padding: 0.2rem 0.55rem;

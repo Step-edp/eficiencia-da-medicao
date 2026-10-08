@@ -437,7 +437,7 @@ export function EnsaiosCalendar({
                           {!readOnly && meter.status === 'Recebido' && onEnsaiar ? (
                             <button
                               type="button"
-                              className="primary-button compact-button"
+                              className="ensaios-day-ensaiar-button"
                               onClick={() => {
                                 closeDayModal()
                                 onEnsaiar(meter)
