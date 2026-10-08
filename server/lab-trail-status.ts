@@ -36,6 +36,11 @@ export function hasMeterEntradaGiven(status: string): boolean {
   return status === 'Recebido' || status === 'Ensaiado' || status === 'Aprovado'
 }
 
+/** Data em que o agendamento foi realizado, no fuso de São Paulo. */
+export function scheduleCountedFromTodaySql(alias = 'ms') {
+  return `COALESCE(${alias}.scheduling_date, (${alias}.created_at AT TIME ZONE 'America/Sao_Paulo')::date) >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date`
+}
+
 export function normalizedMeterColumnSql(alias?: string) {
   const column = alias ? `${alias}.meter` : 'meter'
   return `LPAD(RIGHT(REGEXP_REPLACE(${column}, '[^0-9]', '', 'g'), 8), 8, '0')`

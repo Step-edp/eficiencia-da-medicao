@@ -23,7 +23,7 @@ import {
   resolvePontoFocalCsdNames,
   isBackofficeScopeUser,
 } from '../ponto-focal-csds.js'
-import { STILL_AWAITING_ENTRADA_SQL, normalizedMeterColumnSql } from '../lab-trail-status.js'
+import { STILL_AWAITING_ENTRADA_SQL, normalizedMeterColumnSql, scheduleCountedFromTodaySql } from '../lab-trail-status.js'
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 
@@ -2114,6 +2114,7 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
     return
   }
 
+  const fromToday = req.query.fromToday === '1'
   const csdNames = await resolvePontoFocalCsdNames(scopeUserId)
   const backofficeAccess = csdNames === null && (await isBackofficeScopeUser(scopeUserId))
   if (csdNames === null && !backofficeAccess) {
@@ -2183,6 +2184,7 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
        LIMIT 1
      ) d ON true
      WHERE ${backofficeAccess ? 'TRUE' : 'UPPER(TRIM(ms.csd)) = ANY($1::text[])'}
+       ${fromToday ? `AND ${scheduleCountedFromTodaySql('ms')}` : ''}
      ORDER BY ms.scheduled_at ASC`,
     backofficeAccess ? [] : [(csdNames ?? []).map((name) => name.toUpperCase())],
   )
@@ -2381,6 +2383,7 @@ export async function getAgendamentoDashboard(_req: Request, res: Response) {
               )
             ) AS avg_days
      FROM meter_schedules ms
+     WHERE ${scheduleCountedFromTodaySql('ms')}
      GROUP BY 1
      ORDER BY 1`,
   )

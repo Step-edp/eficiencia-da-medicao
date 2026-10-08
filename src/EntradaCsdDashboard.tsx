@@ -121,6 +121,9 @@ export function EntradaCsdDashboard() {
 
   return (
     <div className="entrada-csd-dashboard">
+      <p className="produtividade-intro">
+        As informações exibidas são de agendamentos realizados a partir de hoje.
+      </p>
       <div className="users-dashboard-kpis" aria-label="Resumo geral">
         <article className="users-dashboard-kpi">
           <p className="users-dashboard-kpi-label">Entregas fora do prazo</p>

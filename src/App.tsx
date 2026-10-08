@@ -5539,6 +5539,7 @@ function HomePanel({
               />
             ) : selectedFieldTeamSection === 'Dashboard' ? (
               <PontoFocalDashboard
+                fromToday
                 forUserId={isAdmin && previewUser ? previewUser.id : undefined}
               />
             ) : selectedFieldTeamSection === 'Medidores atrasados' ? (

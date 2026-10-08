@@ -1758,9 +1758,10 @@ export const api = {
   },
   getAgendamentoDashboard: () =>
     request<AgendamentoDashboardData>('/api/meter-schedules/agendamento-dashboard'),
-  getPontoFocalDashboard: (forUserId?: string) => {
+  getPontoFocalDashboard: (forUserId?: string, options?: { fromToday?: boolean }) => {
     const search = new URLSearchParams()
     if (forUserId) search.set('forUserId', forUserId)
+    if (options?.fromToday) search.set('fromToday', '1')
     const queryString = search.toString()
     return request<PontoFocalDashboardData>(
       `/api/meter-schedules/ponto-focal-dashboard${queryString ? `?${queryString}` : ''}`,

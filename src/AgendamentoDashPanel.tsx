@@ -109,6 +109,9 @@ export function AgendamentoDashPanel() {
         Volume de agendamentos por mês e por ano, com o tempo médio entre a data do
         agendamento e a data de ensaio.
       </p>
+      <p className="produtividade-intro">
+        As informações exibidas são de agendamentos realizados a partir de hoje.
+      </p>
 
       <div className="users-dashboard-kpis agendamento-dash-kpis" aria-label="Indicadores">
         <article className="users-dashboard-kpi">

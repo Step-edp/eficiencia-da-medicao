@@ -10,6 +10,7 @@ import {
 type PontoFocalDashboardProps = {
   forUserId?: string
   mode?: 'full' | 'late-meters'
+  fromToday?: boolean
 }
 
 function formatPercent(value: number) {
@@ -54,6 +55,7 @@ function lateMeterMatchesQuery(item: PontoFocalLateMeter, query: string) {
 export function PontoFocalDashboard({
   forUserId,
   mode = 'full',
+  fromToday = false,
 }: PontoFocalDashboardProps) {
   const [data, setData] = useState<PontoFocalDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -73,7 +75,7 @@ export function PontoFocalDashboard({
     setError('')
 
     api
-      .getPontoFocalDashboard(forUserId)
+      .getPontoFocalDashboard(forUserId, { fromToday })
       .then((response) => {
         if (cancelled) return
         setData(response)
@@ -100,7 +102,7 @@ export function PontoFocalDashboard({
     return () => {
       cancelled = true
     }
-  }, [forUserId, mode])
+  }, [forUserId, mode, fromToday])
 
   const handleSaveJustification = async (meter: PontoFocalLateMeter) => {
     const justification = (drafts[meter.id] ?? '').trim()
@@ -225,6 +227,11 @@ export function PontoFocalDashboard({
         ) : null}
         .
       </p>
+      {fromToday ? (
+        <p className="produtividade-intro">
+          As informações exibidas são de agendamentos realizados a partir de hoje.
+        </p>
+      ) : null}
 
       {feedback ? (
         <LoginFeedback

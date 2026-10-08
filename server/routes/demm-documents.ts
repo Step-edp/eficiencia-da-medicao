@@ -15,6 +15,7 @@ import {
   hasMeterEntradaGiven,
   normalizedMeterColumnSql,
   STILL_AWAITING_ENTRADA_SQL,
+  scheduleCountedFromTodaySql,
 } from '../lab-trail-status.js'
 import { formatAvailableSlot } from '../schedule-slots.js'
 import {
@@ -1596,6 +1597,7 @@ export async function getEntradaCsdDashboard(_req: Request, res: Response) {
        LIMIT 1
      ) d ON true
      WHERE ms.delay_dismissed_at IS NULL
+       AND ${scheduleCountedFromTodaySql('ms')}
      ORDER BY ms.scheduled_at ASC`,
   )
 
@@ -1644,6 +1646,8 @@ export async function getEntradaCsdDashboard(_req: Request, res: Response) {
     `SELECT d.csd_id, c.name AS csd_name, d.created_at, d.extracted_meters
      FROM demm_documents d
      LEFT JOIN csds c ON c.id = d.csd_id
+     WHERE (d.created_at AT TIME ZONE 'America/Sao_Paulo')::date
+       >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date
      ORDER BY d.created_at ASC`,
   )
 
