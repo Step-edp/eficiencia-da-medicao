@@ -1387,12 +1387,6 @@ export function EntradaPanel({
     }
   }, [])
 
-  const openCsdPendencias = () => {
-    setView('csdPendencias')
-    setFeedback(null)
-    void loadCsdPendencias()
-  }
-
   const loadDemmHistorico = useCallback(async () => {
     setDemmHistoricoLoading(true)
     try {
@@ -1583,12 +1577,6 @@ export function EntradaPanel({
       setReceivedMetersLoading(false)
     }
   }, [])
-
-  const openInspectionPendencias = () => {
-    setView('inspectionPendencias')
-    setFeedback(null)
-    void loadInspectionPendencias()
-  }
 
   const handleUploadInspectionDocument = async (
     target: { id: string; meter: string },
@@ -1877,8 +1865,6 @@ export function EntradaPanel({
     if (target === 'metersBase') openMetersBase()
     else if (target === 'wpaAnalyzed') openWpaAnalyzed()
     else if (target === 'wpaBlocked') openWpaBlocked()
-    else if (target === 'csdPendencias') openCsdPendencias()
-    else if (target === 'inspectionPendencias') openInspectionPendencias()
     else if (target === 'weekMeters') openWeekMeters()
     else if (target === 'receivedMetersBase') setView('receivedMetersBase')
     else openDash()
@@ -1897,8 +1883,6 @@ export function EntradaPanel({
     else if (target === 'demmRejected') openDemmRejected()
     else if (target === 'metersWithoutDemm') openMetersWithoutDemm()
     else if (target === 'demmHistorico') openDemmHistorico()
-    else if (target === 'csdPendencias') openCsdPendencias()
-    else if (target === 'inspectionPendencias') openInspectionPendencias()
     else if (target === 'weekMeters') openWeekMeters()
     else if (target === 'receivedMetersBase') setView('receivedMetersBase')
     else openDash()
@@ -2048,24 +2032,6 @@ export function EntradaPanel({
               {wpaPendingCount}
             </span>
           ) : null}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'csdPendencias'}
-          className={view === 'csdPendencias' ? 'active' : ''}
-          onClick={() => openCsdPendencias()}
-        >
-          CSDs pendentes
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'inspectionPendencias'}
-          className={view === 'inspectionPendencias' ? 'active' : ''}
-          onClick={() => openInspectionPendencias()}
-        >
-          Documentos de inspeção pendentes
         </button>
         <button
           type="button"
