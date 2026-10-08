@@ -40,7 +40,7 @@ export function AnalisadorLaudoModal({
       })
       .catch((err) => {
         if (!active) return
-        setError(err instanceof ApiError ? err.message : 'Não foi possível carregar o laudo.')
+        setError(err instanceof ApiError ? err.message : 'Não foi possível carregar o certificado.')
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -103,11 +103,11 @@ export function AnalisadorLaudoModal({
 
         <h3 id="analisador-laudo-modal-title">Certificado de calibração</h3>
         <p className="ensaios-block-modal-date">
-          {analisador.identificacaoLaudo || 'Sem identificação de laudo'} · {analisador.numeroSerie}
+          {analisador.identificacaoLaudo || 'Sem identificação de certificado'} · {analisador.numeroSerie}
         </p>
 
         {loading ? (
-          <p className="entrada-panel-empty">Carregando laudo...</p>
+          <p className="entrada-panel-empty">Carregando certificado...</p>
         ) : error ? (
           <div className="login-feedback error" role="alert">
             {error}
@@ -119,7 +119,7 @@ export function AnalisadorLaudoModal({
         <div className="ensaios-block-modal-actions">
           {pdfUrl ? (
             <button type="button" className="primary-button" onClick={handleDownload}>
-              Baixar laudo
+              Baixar certificado
             </button>
           ) : null}
           <button type="button" className="primary-button" onClick={onClose}>

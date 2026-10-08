@@ -352,7 +352,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
     if (!numeroSerie.trim() || !identificacaoLaudo.trim() || !modelo.trim()) {
       setFeedback({
         type: 'error',
-        message: 'Informe número de série, identificação do laudo e modelo.',
+        message: 'Informe número de série, identificação do certificado e modelo.',
       })
       return
     }
@@ -500,8 +500,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         type: 'success',
         message:
           updated.length === 1
-            ? `Ensaio registrado para o analisador ${serieList}. Laudo: ${updated[0].resultadoUltimaCalibracao || 'sem resultado'}.`
-            : `Ensaio registrado para ${updated.length} analisadores (${resultados}). O laudo de cada um está na lista.`,
+            ? `Ensaio registrado para o analisador ${serieList}. Certificado: ${updated[0].resultadoUltimaCalibracao || 'sem resultado'}.`
+            : `Ensaio registrado para ${updated.length} analisadores (${resultados}). O certificado de cada um está na lista.`,
       })
     } catch (error) {
       setFeedback({
@@ -735,12 +735,12 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
             />
           </label>
           <label>
-            Identificação do laudo
+            Identificação do certificado
             <input
               type="text"
               value={identificacaoLaudo}
               onChange={(event) => setIdentificacaoLaudo(event.target.value)}
-              placeholder="Identificação do laudo"
+              placeholder="Identificação do certificado"
               required
               disabled={creating}
             />
@@ -1143,7 +1143,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                           if (!analisador) {
                             setFeedback({
                               type: 'error',
-                              message: `Não foi possível abrir o laudo do analisador ${sessao.numeroSerie}.`,
+                              message: `Não foi possível abrir o certificado do analisador ${sessao.numeroSerie}.`,
                             })
                             return
                           }
@@ -1151,7 +1151,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                           setLaudoAnalisador(analisador)
                         }}
                       >
-                        Ver Laudo
+                        Ver Certificado
                       </button>
                       {readOnly ? null : (
                         <button
@@ -1232,7 +1232,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                 <thead>
                   <tr>
                     <th>Número de série</th>
-                    <th>Identificação do laudo</th>
+                    <th>Identificação do certificado</th>
                     <th>Modelo</th>
                     <th>Fabricante</th>
                     <th>Classe</th>
@@ -1309,8 +1309,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                             setLaudoEnsaioId(null)
                             setLaudoAnalisador(item)
                           }}
-                          aria-label="Visualizar laudo"
-                          title="Visualizar laudo"
+                          aria-label="Visualizar certificado"
+                          title="Visualizar certificado"
                         >
                           <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path

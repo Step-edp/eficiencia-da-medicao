@@ -2301,7 +2301,7 @@ export const api = {
     )
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string }
-      throw new ApiError(response.status, payload.error ?? 'Não foi possível gerar o laudo.')
+      throw new ApiError(response.status, payload.error ?? 'Não foi possível gerar o certificado.')
     }
     const blob = await response.blob()
     const disposition = response.headers.get('Content-Disposition')

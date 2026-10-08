@@ -129,7 +129,7 @@ export async function createAnalisadorTensao(req: Request, res: Response) {
   const modelo = typeof req.body?.modelo === 'string' ? req.body.modelo.trim() : ''
 
   if (!numeroSerie || !identificacaoLaudo || !modelo) {
-    res.status(400).json({ error: 'Informe número de série, identificação do laudo e modelo.' })
+    res.status(400).json({ error: 'Informe número de série, identificação do certificado e modelo.' })
     return
   }
 
