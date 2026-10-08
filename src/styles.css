@@ -177,6 +177,10 @@ button {
   gap: 12px;
 }
 
+.home-assigned-processes-grid.is-support-beside {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .home-assigned-process-card {
   text-align: left;
   min-height: 88px;

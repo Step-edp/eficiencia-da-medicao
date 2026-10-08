@@ -33,6 +33,7 @@ import {
   isLabMedicaoViewOnly,
   isLabMedicaoOperator,
   isConsumoIrregular,
+  isConsumoIrregularAnalista,
   skipsVacationAgenda,
   listUsersForCadastroProfile,
   PORTAL_AREAS,
@@ -2597,6 +2598,11 @@ function HomePanel({
     previewProfile?.id === 'consumo-irregular' ||
     previewProfile?.id === 'consumo-irregular-analista' ||
     previewProfile?.id === 'consumo-irregular-engenheiro'
+
+  const placeSupportBesideApproved =
+    (!isAdmin && isConsumoIrregularAnalista(currentUser)) ||
+    (previewUser != null && isConsumoIrregularAnalista(previewUser)) ||
+    previewProfile?.id === 'consumo-irregular-analista'
 
   const effectiveLabJobTitle =
     previewUser?.jobTitle ??
@@ -6643,16 +6649,18 @@ function HomePanel({
               </button>
             </>
           ) : null}
-          <button
-            className={`area-card ${getAreaCardClassName('Suporte')}`}
-            type="button"
-            onClick={() => setShowSupport(true)}
-          >
-            <span className="area-card-title">
-              <ItemIcon title="Suporte" />
-              <span>Suporte</span>
-            </span>
-          </button>
+          {placeSupportBesideApproved ? null : (
+            <button
+              className={`area-card ${getAreaCardClassName('Suporte')}`}
+              type="button"
+              onClick={() => setShowSupport(true)}
+            >
+              <span className="area-card-title">
+                <ItemIcon title="Suporte" />
+                <span>Suporte</span>
+              </span>
+            </button>
+          )}
           {areas.map((area) => (
             <button
               key={area.title}
@@ -6683,7 +6691,7 @@ function HomePanel({
               <p className="home-assigned-processes-empty">Carregando processos…</p>
             ) : assignedProcesses.length ? (
               <div
-                className="home-assigned-processes-grid"
+                className={`home-assigned-processes-grid${placeSupportBesideApproved ? ' is-support-beside' : ''}`}
                 aria-label="Processos atribuídos para execução"
               >
                 {assignedProcesses.map((item) => (
@@ -6700,6 +6708,18 @@ function HomePanel({
                     <span className="home-assigned-process-area">{item.area}</span>
                   </button>
                 ))}
+                {placeSupportBesideApproved ? (
+                  <button
+                    type="button"
+                    className="area-card home-assigned-process-card"
+                    onClick={() => setShowSupport(true)}
+                  >
+                    <span className="area-card-title">
+                      <ItemIcon title="Suporte" />
+                      <span>Suporte</span>
+                    </span>
+                  </button>
+                ) : null}
               </div>
             ) : (
               <p className="home-assigned-processes-empty">
