@@ -144,12 +144,9 @@ export function formatSchedulePartnerAndTeamLabel(
   > &
     ScheduleAuthorFields,
 ) {
-  if (isToiTeamSchedule(item)) {
-    return [formatScheduleCollaborator1Label(item), formatScheduleCollaborator2Label(item)]
-      .filter(Boolean)
-      .join(' · ')
-  }
-  return formatSchedulePartnerLabel(item)
+  return [formatScheduleCollaborator1Label(item), formatScheduleCollaborator2Label(item)]
+    .filter(Boolean)
+    .join(' / ')
 }
 
 type ScheduleInspectionPeople = Pick<

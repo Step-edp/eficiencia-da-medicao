@@ -1056,6 +1056,20 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
     return collaboratorChoiceLabel({ id: '', name, registration })
   }
 
+  const shownPartner = () => {
+    const people = [shownCollaborator(1), shownCollaborator(2)]
+      .map((item) => item.trim())
+      .filter(
+        (item) =>
+          item &&
+          item.toLocaleLowerCase('pt-BR') !==
+            UNREGISTERED_COLLABORATOR.toLocaleLowerCase('pt-BR'),
+      )
+    const unique = [...new Set(people)]
+    if (unique.length) return unique.join(' / ')
+    return shownRegistered('partner', data.partnerLabel)
+  }
+
   const commitCollaborator = (slot: 1 | 2, value: string) => {
     const parts = collaboratorChoiceParts(value)
     const key = slot === 1 ? 'collaborator1' : 'collaborator2'
@@ -1399,7 +1413,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
                   <EditableTextLine
                     key={fieldKey}
                     label={schedulingTeamFieldLabels[fieldKey]}
-                    value={shownRegistered('partner', data.partnerLabel)}
+                    value={shownPartner()}
                     onCommit={(value) =>
                       commitRegistered('partner', value, { partnerLabel: value })
                     }
