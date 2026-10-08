@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api'
+import { LoginFeedback } from '../LoginFeedback'
 import { RatmLaudoViewer } from './RatmLaudoViewer'
 import { formatRatmLaudoNumber, mapRatmLaudoFromApi, type RatmLaudo } from './laudos'
 import { openRatmLaudoPdf } from './laudoPdf'
@@ -53,6 +54,12 @@ export function RatmAprovacaoPanel({
   const visiblePending = pendingLaudos.filter(matchesSearch)
   const visibleApproved = approvedLaudos.filter(matchesSearch)
 
+  useEffect(() => {
+    if (!successMessage) return
+    const timer = window.setTimeout(() => setSuccessMessage(''), 5000)
+    return () => window.clearTimeout(timer)
+  }, [successMessage])
+
   const approveLaudo = async (laudo: RatmLaudo) => {
     setApprovingId(laudo.id)
     setDeleteError('')
@@ -105,9 +112,12 @@ export function RatmAprovacaoPanel({
       </label>
 
       {successMessage ? (
-        <div className="login-feedback success" role="status">
-          {successMessage}
-        </div>
+        <LoginFeedback
+          type="success"
+          message={successMessage}
+          fixed={false}
+          onClose={() => setSuccessMessage('')}
+        />
       ) : null}
 
       {deleteError ? (
