@@ -21,7 +21,6 @@ export const PADRAO_CALIBRACAO = {
   calibradoEm: '2024-06-04',
   proximaCalibracao: '2027-06-04',
   limite: 0.01,
-  realizadoPor: 'Carlos Eduardo Bruni Alves',
   aprovadoPor: 'Acácio Moreira Junior',
 } as const
 

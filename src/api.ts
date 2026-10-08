@@ -652,7 +652,10 @@ export type EnsaioSessaoRecord = {
   createdByRegistration: string | null
 }
 
-export type EnsaioSessaoMedicaoRecord = EnsaioMedicaoRecord & { numeroSerie: string }
+export type EnsaioSessaoMedicaoRecord = EnsaioMedicaoRecord & {
+  numeroSerie: string
+  realizadoPor?: string
+}
 
 export type DemmDocumentRecord = {
   id: string
@@ -2285,7 +2288,7 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   getAnalisadorEnsaioMedicoes: (id: string) =>
-    request<{ ensaioId: string | null; medicoes: EnsaioMedicaoRecord[] }>(
+    request<{ ensaioId: string | null; realizadoPor: string | null; medicoes: EnsaioMedicaoRecord[] }>(
       `/api/analisadores-tensao/${id}/medicoes`,
     ),
   downloadAnalisadorLaudo: async (id: string, ensaioId?: string | null) => {

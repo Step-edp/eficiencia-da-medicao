@@ -26,6 +26,7 @@ export type AnalisadorLaudoPdfInput = {
   vmax: string
   instrumento: string
   dataCalibracao: string | null
+  realizadoPor: string
   certificado: CertificadoCalibracao
 }
 
@@ -295,7 +296,7 @@ export function sendAnalisadorLaudoPdf(res: Response, laudo: AnalisadorLaudoPdfI
   const signGap = 8
   const signW = (CONTENT_WIDTH - signGap * 2) / 3
   const signs = [
-    { label: 'REALIZADO POR', value: PADRAO_CALIBRACAO.realizadoPor },
+    { label: 'REALIZADO POR', value: laudo.realizadoPor },
     { label: 'APROVADO POR', value: PADRAO_CALIBRACAO.aprovadoPor },
     { label: 'DATA DA CALIBRAÇÃO', value: formatIsoDate(laudo.dataCalibracao) },
   ]

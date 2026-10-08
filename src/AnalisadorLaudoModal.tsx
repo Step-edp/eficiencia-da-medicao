@@ -48,21 +48,27 @@ export function AnalisadorLaudoModal({
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [medicoes, setMedicoes] = useState<EnsaioMedicaoRecord[]>([])
+  const [realizadoPor, setRealizadoPor] = useState('—')
 
   useEffect(() => {
     if (!analisador) return
     setLoading(true)
     setError(null)
     setMedicoes([])
+    setRealizadoPor('—')
 
     const request = ensaioId
-      ? api.getEnsaioSessaoMedicoes(ensaioId).then(({ medicoes: rows }) =>
-          rows.filter((row) => row.numeroSerie === analisador.numeroSerie),
-        )
-      : api.getAnalisadorEnsaioMedicoes(analisador.id).then(({ medicoes: rows }) => rows)
+      ? api.getEnsaioSessaoMedicoes(ensaioId).then(({ medicoes: rows }) => {
+          const mine = rows.filter((row) => row.numeroSerie === analisador.numeroSerie)
+          return { medicoes: mine, realizadoPor: mine.find((row) => row.realizadoPor)?.realizadoPor ?? null }
+        })
+      : api.getAnalisadorEnsaioMedicoes(analisador.id)
 
     request
-      .then((rows) => setMedicoes(rows))
+      .then(({ medicoes: rows, realizadoPor: responsavel }) => {
+        setMedicoes(rows)
+        setRealizadoPor(responsavel?.trim() || '—')
+      })
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : 'Não foi possível carregar o laudo.')
       })
@@ -293,7 +299,7 @@ export function AnalisadorLaudoModal({
             <dl className="laudo-signs">
               <div>
                 <dt>Realizado por</dt>
-                <dd>{PADRAO_CALIBRACAO.realizadoPor}</dd>
+                <dd>{realizadoPor}</dd>
               </div>
               <div>
                 <dt>Aprovado por</dt>

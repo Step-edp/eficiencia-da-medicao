@@ -413,6 +413,13 @@ type EnsaioMedicaoDbRow = {
   equipamento_fase_c: string
 }
 
+function formatRealizadoPor(name: string | null | undefined, registration: string | null | undefined) {
+  const person = name?.trim()
+  if (person) return person
+  const matricula = registration?.trim()
+  return matricula || '—'
+}
+
 export async function getAnalisadorEnsaioMedicoes(req: Request, res: Response) {
   const id = typeof req.params.id === 'string' ? req.params.id : ''
 
@@ -434,11 +441,20 @@ export async function getAnalisadorEnsaioMedicoes(req: Request, res: Response) {
   )
 
   if (!latest.rows[0]) {
-    res.json({ ensaioId: null, medicoes: [] })
+    res.json({ ensaioId: null, realizadoPor: null, medicoes: [] })
     return
   }
 
   const ensaioId = latest.rows[0].ensaio_id
+
+  const responsavel = await query<{ created_by_name: string | null; created_by_registration: string | null }>(
+    `SELECT u.name AS created_by_name, u.registration AS created_by_registration
+     FROM analisador_tensao_ensaio_medicoes m
+     LEFT JOIN users u ON u.id = m.created_by_user_id
+     WHERE m.analisador_id = $1 AND m.ensaio_id = $2
+     LIMIT 1`,
+    [id, ensaioId],
+  )
 
   const result = await query<EnsaioMedicaoDbRow>(
     `SELECT voltage, teste_numero, padrao_fase_a, padrao_fase_b, padrao_fase_c,
@@ -451,6 +467,10 @@ export async function getAnalisadorEnsaioMedicoes(req: Request, res: Response) {
 
   res.json({
     ensaioId,
+    realizadoPor: formatRealizadoPor(
+      responsavel.rows[0]?.created_by_name,
+      responsavel.rows[0]?.created_by_registration,
+    ),
     medicoes: result.rows.map((row) => ({
       voltage: row.voltage,
       testeNumero: row.teste_numero,
@@ -535,6 +555,15 @@ export async function downloadAnalisadorLaudo(req: Request, res: Response) {
     return
   }
 
+  const responsavel = await query<{ created_by_name: string | null; created_by_registration: string | null }>(
+    `SELECT u.name AS created_by_name, u.registration AS created_by_registration
+     FROM analisador_tensao_ensaio_medicoes m
+     LEFT JOIN users u ON u.id = m.created_by_user_id
+     WHERE m.analisador_id = $1 AND m.ensaio_id = $2
+     LIMIT 1`,
+    [id, latest.rows[0].ensaio_id],
+  )
+
   sendAnalisadorLaudoPdf(res, {
     numeroSerie: row.numero_serie,
     equipmentNumber: row.equipment_number,
@@ -546,6 +575,10 @@ export async function downloadAnalisadorLaudo(req: Request, res: Response) {
     vmax: row.vmax,
     instrumento: row.instrumento,
     dataCalibracao: latest.rows[0].data_calibracao || row.data_ultima_calibracao,
+    realizadoPor: formatRealizadoPor(
+      responsavel.rows[0]?.created_by_name,
+      responsavel.rows[0]?.created_by_registration,
+    ),
     certificado,
   })
 }
@@ -583,17 +616,23 @@ export async function listEnsaiosRealizados(_req: Request, res: Response) {
   })
 }
 
-type EnsaioSessaoMedicaoDbRow = EnsaioMedicaoDbRow & { numero_serie: string }
+type EnsaioSessaoMedicaoDbRow = EnsaioMedicaoDbRow & {
+  numero_serie: string
+  created_by_name: string | null
+  created_by_registration: string | null
+}
 
 export async function getEnsaioSessaoMedicoes(req: Request, res: Response) {
   const ensaioId = typeof req.params.ensaioId === 'string' ? req.params.ensaioId : ''
 
   const result = await query<EnsaioSessaoMedicaoDbRow>(
-    `SELECT a.numero_serie, m.voltage, m.teste_numero,
+    `SELECT a.numero_serie, u.name AS created_by_name, u.registration AS created_by_registration,
+            m.voltage, m.teste_numero,
             m.padrao_fase_a, m.padrao_fase_b, m.padrao_fase_c,
             m.equipamento_fase_a, m.equipamento_fase_b, m.equipamento_fase_c
      FROM analisador_tensao_ensaio_medicoes m
      JOIN analisadores_tensao a ON a.id = m.analisador_id
+     LEFT JOIN users u ON u.id = m.created_by_user_id
      WHERE m.ensaio_id = $1
      ORDER BY a.numero_serie ASC, m.voltage ASC, m.teste_numero ASC`,
     [ensaioId],
@@ -608,6 +647,7 @@ export async function getEnsaioSessaoMedicoes(req: Request, res: Response) {
     ensaioId,
     medicoes: result.rows.map((row) => ({
       numeroSerie: row.numero_serie,
+      realizadoPor: formatRealizadoPor(row.created_by_name, row.created_by_registration),
       voltage: row.voltage,
       testeNumero: row.teste_numero,
       padraoFaseA: row.padrao_fase_a,
