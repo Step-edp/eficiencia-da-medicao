@@ -801,8 +801,8 @@ function drawResultadosEnsaio(doc: PdfDocument, form: Record<string, unknown>, m
     ['Exatidão em Carga Nominal Ativa • Fator de Potência 1,0', form.cn],
     ['Exatidão em Carga Indutiva Ativa • Fator de Potência 0,5', form.ci],
     ['Exatidão em Carga Pequena Ativa • Fator de Potência 1,0', form.cp],
-    ['Exatidão em Carga Nominal Reativa • Fator de Potência 0,5', form.cnRi],
-    ['Exatidão em Carga Nominal Reativa • Fator de Potência 0,8 Capacitiva', form.cnRc],
+    ['Exatidão em Carga Nominal Reativa Indutiva • Fator de Potência 0,5', form.cnRi],
+    ['Exatidão em Carga Nominal Reativa Capacitiva • Fator de Potência 0,8', form.cnRc],
   ]
   const boxHeight = rowStart + rows.length * rowStep + BOX_TAIL
   ensureSpace(doc, boxHeight + 16)
