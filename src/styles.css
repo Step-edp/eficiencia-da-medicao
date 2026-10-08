@@ -4604,6 +4604,12 @@ button {
   box-shadow: 0 10px 22px rgba(59, 240, 0, 0.24);
 }
 
+.approval-item-actions .approval-action-button.is-approve:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .approval-reject-form {
   display: grid;
   gap: 12px;

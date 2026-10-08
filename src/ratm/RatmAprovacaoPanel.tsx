@@ -203,11 +203,12 @@ export function RatmAprovacaoPanel({
                       Editar
                     </button>
                   )}
-                  {readOnly || isAdmin ? null : (
+                  {readOnly ? null : (
                     <button
                       className="secondary-button approval-action-button is-approve"
                       type="button"
-                      disabled={approvingId === laudo.id}
+                      disabled={isAdmin || approvingId === laudo.id}
+                      title={isAdmin ? 'O administrador não pode aprovar o laudo.' : undefined}
                       onClick={() => void approveLaudo(laudo)}
                     >
                       Aprovar
