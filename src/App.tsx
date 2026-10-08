@@ -5818,7 +5818,7 @@ function HomePanel({
                 readOnly={labMedicaoReadOnly}
                 isAdmin={isAdmin}
                 approverUserId={currentUser.id}
-                approverIsLab={isLabMedicaoOperator(currentUser)}
+                approverIsLab={!isAdmin && isLabMedicaoOperator(currentUser)}
                 laudos={ratmLaudos}
                 onLaudoDeleted={(laudoId) => {
                   setRatmLaudos((prev) => prev.filter((item) => item.id !== laudoId))

@@ -203,7 +203,7 @@ export function RatmAprovacaoPanel({
                       Editar
                     </button>
                   )}
-                  {readOnly ? null : (
+                  {readOnly || isAdmin ? null : (
                     <button
                       className="secondary-button approval-action-button is-approve"
                       type="button"

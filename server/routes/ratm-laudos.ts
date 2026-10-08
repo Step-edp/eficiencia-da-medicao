@@ -50,21 +50,6 @@ function mapRatmLaudo(row: RatmLaudoRow) {
   }
 }
 
-async function loadPortalUser(userId: string | null | undefined) {
-  if (!userId) return null
-  const result = await query<{
-    id: string
-    name: string
-    registration: string
-  }>(
-    `SELECT id, name, registration
-     FROM users
-     WHERE id = $1`,
-    [userId],
-  )
-  return result.rows[0] ?? null
-}
-
 async function loadLaboratorioMedicaoUser(userId: string | null | undefined) {
   if (!userId) return null
   const result = await query<{
@@ -503,9 +488,12 @@ export async function approveRatmLaudo(req: Request, res: Response) {
     return
   }
 
-  const approver = req.user?.role === 'admin'
-    ? await loadPortalUser(req.user.id)
-    : await loadLaboratorioMedicaoUser(req.user?.id)
+  if (req.user?.role === 'admin') {
+    res.status(403).json({ error: 'O administrador não pode aprovar o laudo.' })
+    return
+  }
+
+  const approver = await loadLaboratorioMedicaoUser(req.user?.id)
   if (!approver) {
     res.status(403).json({
       error: 'Somente usuários do Laboratório de Medição podem aprovar o laudo.',
@@ -521,7 +509,7 @@ export async function approveRatmLaudo(req: Request, res: Response) {
     return
   }
 
-  if (req.user?.role !== 'admin' && approver.id === assayUser.id) {
+  if (approver.id === assayUser.id) {
     res.status(403).json({
       error: 'Quem realizou o ensaio não pode aprovar o próprio laudo.',
     })
