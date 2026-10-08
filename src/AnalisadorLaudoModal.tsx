@@ -273,7 +273,7 @@ export function AnalisadorLaudoModal({
             </div>
 
             <p className="laudo-geral">
-              Resultado da calibração:{' '}
+              Resultado:{' '}
               <strong className={certificado.resultado === 'Aprovado' ? 'laudo-ok' : 'laudo-bad'}>
                 {certificado.resultado === 'Aprovado' ? 'APROVADO' : 'REPROVADO'}
               </strong>

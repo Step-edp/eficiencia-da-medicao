@@ -3793,14 +3793,9 @@ button {
 }
 
 .laudo-ok {
-  color: #031424;
-  background: #5bf000;
+  color: #1fa971;
+  background: transparent;
   font-weight: 750;
-}
-
-.laudo-geral .laudo-ok {
-  padding: 1px 8px;
-  border-radius: 999px;
 }
 
 .laudo-bad {

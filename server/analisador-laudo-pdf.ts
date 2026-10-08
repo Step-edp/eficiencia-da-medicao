@@ -41,8 +41,6 @@ const COLORS = {
   line: '#c5dde8',
   soft: '#e7f6fa',
   card: '#f4fbfd',
-  green: '#5bf000',
-  greenInk: '#031424',
   red: '#d22b4a',
   white: '#FFFFFF',
 }
@@ -271,12 +269,20 @@ export function sendAnalisadorLaudoPdf(res: Response, laudo: AnalisadorLaudoPdfI
     const aprovado = tensao.aprovado
     drawCell(x, y, resultW, aprovado ? 'APROVADO' : 'REPROVADO', {
       bold: true,
-      fill: aprovado ? COLORS.green : '#fde8ec',
-      color: aprovado ? COLORS.greenInk : COLORS.red,
+      color: aprovado ? '#1FA971' : COLORS.red,
     })
   }
 
-  y += rowH + 12
+  y += rowH + 14
+  const geralAprovado = laudo.certificado.resultado === 'Aprovado'
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(11)
+    .fillColor(geralAprovado ? '#1FA971' : COLORS.red)
+    .text(`Resultado: ${geralAprovado ? 'APROVADO' : 'REPROVADO'}`, PAGE.margin, y, {
+      lineBreak: false,
+    })
+  y += 18
   const note =
     'UMP: unidade de medida do padrão. UST: unidade sendo testada. Erro: maior erro absoluto entre as cinco leituras, (UST − UMP) / UMP. U: incerteza expandida, com fator de abrangência K e probabilidade de 95%. Aprovado quando o erro somado e subtraído da incerteza permanece dentro de ±1% em todas as fases.'
   doc.font('Helvetica').fontSize(7.5)
