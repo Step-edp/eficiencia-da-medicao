@@ -21,6 +21,26 @@ function formatDateTime(isoDate: string) {
   }).format(new Date(isoDate))
 }
 
+function daysAfterAssay(isoDate: string) {
+  const assay = new Date(isoDate)
+  if (Number.isNaN(assay.getTime())) return null
+  const formatKey = (date: Date) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(date)
+  const [assayYear, assayMonth, assayDay] = formatKey(assay).split('-').map(Number)
+  const [todayYear, todayMonth, todayDay] = formatKey(new Date()).split('-').map(Number)
+  const elapsed = Math.round(
+    (Date.UTC(todayYear, todayMonth - 1, todayDay) -
+      Date.UTC(assayYear, assayMonth - 1, assayDay)) /
+      86400000,
+  )
+  return Math.max(0, elapsed)
+}
+
+function slaLabel(days: number | null) {
+  if (days == null) return '—'
+  return `${days} ${days === 1 ? 'dia' : 'dias'}`
+}
+
 function receivedMeterMatches(item: MeterScheduleRecord, query: string) {
   if (!query) return true
   const haystack = [
@@ -252,6 +272,7 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
                     <th>Nota</th>
                     <th>CSD</th>
                     <th>Data de ensaio</th>
+                    <th title="Dias decorridos após a data de ensaio">SLA</th>
                     <th>Selecionar</th>
                     <th>Ações</th>
                   </tr>
@@ -265,6 +286,7 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
                       <td>{item.note || '—'}</td>
                       <td>{item.csd || '—'}</td>
                       <td>{item.scheduledAtLabel || formatDateTime(item.scheduledAt)}</td>
+                      <td>{slaLabel(daysAfterAssay(item.scheduledAt))}</td>
                       <td>
                         <input
                           type="checkbox"
