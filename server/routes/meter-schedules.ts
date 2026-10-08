@@ -512,12 +512,12 @@ export async function listMeterSchedules(req: Request, res: Response) {
     ? { id: req.user.id, registration: req.user.registration }
     : undefined
   const schedules = result.rows.map((row) => mapMeterSchedule(row, viewer))
+  const newestFirst = Boolean(meterSearch || allTrailSteps)
   schedules.sort((a, b) => {
-    if (a.isLate !== b.isLate) return a.isLate ? -1 : 1
-    return (
-      new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime() ||
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
+    if (!newestFirst && a.isLate !== b.isLate) return a.isLate ? -1 : 1
+    const scheduledDelta = new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+    const createdDelta = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    return newestFirst ? -scheduledDelta || createdDelta : scheduledDelta || createdDelta
   })
 
   res.json({
