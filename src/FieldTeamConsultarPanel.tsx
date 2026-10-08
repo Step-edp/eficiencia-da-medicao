@@ -573,6 +573,7 @@ export function FieldTeamConsultarPanel({
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [newestFirst, setNewestFirst] = useState(true)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
@@ -841,9 +842,14 @@ export function FieldTeamConsultarPanel({
 
   const filteredSchedules = useMemo(() => {
     const query = normalizeSearch(searchQuery)
-    if (!query) return schedules
-    return schedules.filter((item) => scheduleMatchesQuery(item, query))
-  }, [schedules, searchQuery])
+    const matched = query ? schedules.filter((item) => scheduleMatchesQuery(item, query)) : schedules
+    if (!allTrailSteps) return matched
+    return [...matched].sort((a, b) => {
+      const scheduledDelta = new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+      const createdDelta = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      return newestFirst ? -scheduledDelta || createdDelta : scheduledDelta || createdDelta
+    })
+  }, [allTrailSteps, newestFirst, schedules, searchQuery])
 
   const totalCount = schedules.length
   const shownCount = filteredSchedules.length
@@ -911,6 +917,57 @@ export function FieldTeamConsultarPanel({
             />
           </label>
           <div className="consultar-toolbar-end">
+            {allTrailSteps ? (
+              <button
+                type="button"
+                className="consultar-download-button"
+                aria-label={
+                  newestFirst
+                    ? 'Reclassificar para o mais antigo primeiro'
+                    : 'Reclassificar para o mais recente primeiro'
+                }
+                title={
+                  newestFirst
+                    ? 'Reclassificar: mais antigo primeiro'
+                    : 'Reclassificar: mais recente primeiro'
+                }
+                aria-pressed={newestFirst}
+                onClick={() => setNewestFirst((current) => !current)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M8 7v10"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M5 10l3-3 3 3"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M16 17V7"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M13 14l3 3 3-3"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            ) : null}
             <button
               type="button"
               className="consultar-download-button"
