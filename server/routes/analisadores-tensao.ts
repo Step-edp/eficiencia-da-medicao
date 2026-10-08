@@ -486,13 +486,25 @@ export async function downloadAnalisadorLaudo(req: Request, res: Response) {
     return
   }
 
-  const latest = await query<{ ensaio_id: string }>(
-    `SELECT ensaio_id FROM analisador_tensao_ensaio_medicoes
-     WHERE analisador_id = $1
-     ORDER BY created_at DESC
-     LIMIT 1`,
-    [id],
-  )
+  const requestedEnsaioId =
+    typeof req.query.ensaioId === 'string' ? req.query.ensaioId.trim() : ''
+  const latest = requestedEnsaioId
+    ? await query<{ ensaio_id: string; data_calibracao: string }>(
+        `SELECT ensaio_id,
+                (MIN(created_at) AT TIME ZONE 'America/Sao_Paulo')::date::text AS data_calibracao
+         FROM analisador_tensao_ensaio_medicoes
+         WHERE analisador_id = $1 AND ensaio_id = $2
+         GROUP BY ensaio_id`,
+        [id, requestedEnsaioId],
+      )
+    : await query<{ ensaio_id: string; data_calibracao: string | null }>(
+        `SELECT ensaio_id, NULL::text AS data_calibracao
+         FROM analisador_tensao_ensaio_medicoes
+         WHERE analisador_id = $1
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [id],
+      )
   if (!latest.rows[0]) {
     res.status(404).json({ error: 'Nenhum ensaio registrado para esse analisador.' })
     return
@@ -533,7 +545,7 @@ export async function downloadAnalisadorLaudo(req: Request, res: Response) {
     vn: row.vn,
     vmax: row.vmax,
     instrumento: row.instrumento,
-    dataCalibracao: row.data_ultima_calibracao,
+    dataCalibracao: latest.rows[0].data_calibracao || row.data_ultima_calibracao,
     certificado,
   })
 }

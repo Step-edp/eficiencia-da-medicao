@@ -2288,10 +2288,14 @@ export const api = {
     request<{ ensaioId: string | null; medicoes: EnsaioMedicaoRecord[] }>(
       `/api/analisadores-tensao/${id}/medicoes`,
     ),
-  downloadAnalisadorLaudo: async (id: string) => {
-    const response = await fetch(`/api/analisadores-tensao/${encodeURIComponent(id)}/laudo`, {
-      credentials: 'include',
-    })
+  downloadAnalisadorLaudo: async (id: string, ensaioId?: string | null) => {
+    const search = ensaioId ? `?${new URLSearchParams({ ensaioId }).toString()}` : ''
+    const response = await fetch(
+      `/api/analisadores-tensao/${encodeURIComponent(id)}/laudo${search}`,
+      {
+        credentials: 'include',
+      },
+    )
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string }
       throw new ApiError(response.status, payload.error ?? 'Não foi possível gerar o laudo.')

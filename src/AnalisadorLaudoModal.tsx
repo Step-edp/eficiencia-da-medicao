@@ -13,6 +13,8 @@ import {
 
 type AnalisadorLaudoModalProps = {
   analisador: AnalisadorTensaoRecord | null
+  ensaioId?: string | null
+  dataCalibracao?: string | null
   onClose: () => void
 }
 
@@ -22,13 +24,26 @@ const FASES: Array<{ key: FaseCalibracao; label: string }> = [
   { key: 'c', label: 'Fase C' },
 ]
 
+function formatLaudoDate(value: string | null | undefined) {
+  if (!value) return '—'
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return formatIsoDate(value)
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return formatIsoDate(value)
+  return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(date)
+}
+
 function formatFase(value: string) {
   const number = Number(value)
   if (!Number.isFinite(number)) return value
   return number.toFixed(2).replace('.', ',')
 }
 
-export function AnalisadorLaudoModal({ analisador, onClose }: AnalisadorLaudoModalProps) {
+export function AnalisadorLaudoModal({
+  analisador,
+  ensaioId = null,
+  dataCalibracao = null,
+  onClose,
+}: AnalisadorLaudoModalProps) {
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -40,14 +55,19 @@ export function AnalisadorLaudoModal({ analisador, onClose }: AnalisadorLaudoMod
     setError(null)
     setMedicoes([])
 
-    api
-      .getAnalisadorEnsaioMedicoes(analisador.id)
-      .then(({ medicoes: rows }) => setMedicoes(rows))
+    const request = ensaioId
+      ? api.getEnsaioSessaoMedicoes(ensaioId).then(({ medicoes: rows }) =>
+          rows.filter((row) => row.numeroSerie === analisador.numeroSerie),
+        )
+      : api.getAnalisadorEnsaioMedicoes(analisador.id).then(({ medicoes: rows }) => rows)
+
+    request
+      .then((rows) => setMedicoes(rows))
       .catch((err) => {
         setError(err instanceof ApiError ? err.message : 'Não foi possível carregar o laudo.')
       })
       .finally(() => setLoading(false))
-  }, [analisador])
+  }, [analisador, ensaioId])
 
   useEffect(() => {
     if (!analisador) return
@@ -66,7 +86,7 @@ export function AnalisadorLaudoModal({ analisador, onClose }: AnalisadorLaudoMod
     setDownloading(true)
     setError(null)
     try {
-      await api.downloadAnalisadorLaudo(analisador.id)
+      await api.downloadAnalisadorLaudo(analisador.id, ensaioId)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível gerar o laudo.')
     } finally {
@@ -269,7 +289,7 @@ export function AnalisadorLaudoModal({ analisador, onClose }: AnalisadorLaudoMod
               </div>
               <div>
                 <dt>Data da calibração</dt>
-                <dd>{formatIsoDate(analisador.dataUltimaCalibracao)}</dd>
+                <dd>{formatLaudoDate(dataCalibracao || analisador.dataUltimaCalibracao)}</dd>
               </div>
             </dl>
           </div>

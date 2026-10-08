@@ -217,6 +217,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [situacaoFilter, setSituacaoFilter] = useState<SituacaoFilter>('Todos')
   const [calibracaoSort, setCalibracaoSort] = useState<'asc' | 'desc'>('asc')
   const [laudoAnalisador, setLaudoAnalisador] = useState<AnalisadorTensaoRecord | null>(null)
+  const [laudoEnsaioId, setLaudoEnsaioId] = useState<string | null>(null)
+  const [laudoData, setLaudoData] = useState<string | null>(null)
 
   const [showEnsaiosRealizados, setShowEnsaiosRealizados] = useState(false)
   const [ensaiosSessoes, setEnsaiosSessoes] = useState<EnsaioSessaoRecord[]>([])
@@ -477,7 +479,11 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         .join(', ')
       resetEnsaiarForm()
       setShowEnsaiarForm(false)
-      if (updated.length === 1) setLaudoAnalisador(updated[0])
+      if (updated.length === 1) {
+        setLaudoEnsaioId(null)
+        setLaudoData(null)
+        setLaudoAnalisador(updated[0])
+      }
       setFeedback({
         type: 'success',
         message:
@@ -1083,6 +1089,27 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                       >
                         Ver análises
                       </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => {
+                          const analisador =
+                            analisadores.find((item) => item.numeroSerie === sessao.numeroSerie) ??
+                            null
+                          if (!analisador) {
+                            setFeedback({
+                              type: 'error',
+                              message: `Não foi possível abrir o laudo do analisador ${sessao.numeroSerie}.`,
+                            })
+                            return
+                          }
+                          setLaudoEnsaioId(sessao.ensaioId)
+                          setLaudoData(sessao.createdAt)
+                          setLaudoAnalisador(analisador)
+                        }}
+                      >
+                        Ver Laudo
+                      </button>
                       {readOnly ? null : (
                         <button
                           type="button"
@@ -1231,7 +1258,11 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                         <button
                           type="button"
                           className="icon-button"
-                          onClick={() => setLaudoAnalisador(item)}
+                          onClick={() => {
+                            setLaudoEnsaioId(null)
+                            setLaudoData(null)
+                            setLaudoAnalisador(item)
+                          }}
                           aria-label="Visualizar laudo"
                           title="Visualizar laudo"
                         >
@@ -1272,7 +1303,16 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         <p className="entrada-panel-empty">Nenhum analisador cadastrado.</p>
       )}
 
-      <AnalisadorLaudoModal analisador={laudoAnalisador} onClose={() => setLaudoAnalisador(null)} />
+      <AnalisadorLaudoModal
+        analisador={laudoAnalisador}
+        ensaioId={laudoEnsaioId}
+        dataCalibracao={laudoData}
+        onClose={() => {
+          setLaudoAnalisador(null)
+          setLaudoEnsaioId(null)
+          setLaudoData(null)
+        }}
+      />
       <EnsaioSessaoModal
         ensaioId={selectedEnsaio?.ensaioId ?? null}
         numeroSerie={selectedEnsaio?.numeroSerie ?? null}
