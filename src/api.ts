@@ -2291,7 +2291,7 @@ export const api = {
     request<{ ensaioId: string | null; realizadoPor: string | null; medicoes: EnsaioMedicaoRecord[] }>(
       `/api/analisadores-tensao/${id}/medicoes`,
     ),
-  downloadAnalisadorLaudo: async (id: string, ensaioId?: string | null) => {
+  fetchAnalisadorLaudo: async (id: string, ensaioId?: string | null) => {
     const search = ensaioId ? `?${new URLSearchParams({ ensaioId }).toString()}` : ''
     const response = await fetch(
       `/api/analisadores-tensao/${encodeURIComponent(id)}/laudo${search}`,
@@ -2306,10 +2306,17 @@ export const api = {
     const blob = await response.blob()
     const disposition = response.headers.get('Content-Disposition')
     const match = disposition?.match(/filename="([^"]+)"/)
+    return {
+      blob,
+      filename: match?.[1] ?? 'Certificado_calibracao.pdf',
+    }
+  },
+  downloadAnalisadorLaudo: async (id: string, ensaioId?: string | null) => {
+    const { blob, filename } = await api.fetchAnalisadorLaudo(id, ensaioId)
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = match?.[1] ?? 'Certificado_calibracao.pdf'
+    link.download = filename
     link.rel = 'noopener'
     document.body.appendChild(link)
     link.click()

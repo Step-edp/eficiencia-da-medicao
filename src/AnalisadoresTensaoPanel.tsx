@@ -218,7 +218,6 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [calibracaoSort, setCalibracaoSort] = useState<'asc' | 'desc'>('asc')
   const [laudoAnalisador, setLaudoAnalisador] = useState<AnalisadorTensaoRecord | null>(null)
   const [laudoEnsaioId, setLaudoEnsaioId] = useState<string | null>(null)
-  const [laudoData, setLaudoData] = useState<string | null>(null)
 
   const [showEnsaiosRealizados, setShowEnsaiosRealizados] = useState(false)
   const [searchEnsaio, setSearchEnsaio] = useState('')
@@ -495,7 +494,6 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
       setShowEnsaiarForm(false)
       if (updated.length === 1) {
         setLaudoEnsaioId(null)
-        setLaudoData(null)
         setLaudoAnalisador(updated[0])
       }
       setFeedback({
@@ -1150,7 +1148,6 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                             return
                           }
                           setLaudoEnsaioId(sessao.ensaioId)
-                          setLaudoData(sessao.createdAt)
                           setLaudoAnalisador(analisador)
                         }}
                       >
@@ -1310,7 +1307,6 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                           className="icon-button"
                           onClick={() => {
                             setLaudoEnsaioId(null)
-                            setLaudoData(null)
                             setLaudoAnalisador(item)
                           }}
                           aria-label="Visualizar laudo"
@@ -1356,11 +1352,9 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
       <AnalisadorLaudoModal
         analisador={laudoAnalisador}
         ensaioId={laudoEnsaioId}
-        dataCalibracao={laudoData}
         onClose={() => {
           setLaudoAnalisador(null)
           setLaudoEnsaioId(null)
-          setLaudoData(null)
         }}
       />
       <EnsaioSessaoModal

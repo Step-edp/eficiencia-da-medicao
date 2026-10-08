@@ -3650,8 +3650,16 @@ button {
 
 .analisador-laudo-modal {
   width: min(1180px, 100%);
-  max-height: 90vh;
-  overflow-y: auto;
+  max-height: 92vh;
+  overflow: hidden;
+}
+
+.laudo-pdf-frame {
+  width: 100%;
+  height: min(74vh, 760px);
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
 }
 
 .laudo-sheet {
