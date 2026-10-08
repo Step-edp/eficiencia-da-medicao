@@ -839,11 +839,11 @@ export async function migrate() {
       ON memoria_massa_notas (created_at DESC)
   `)
 
-  // Consumo Irregular: Laboratório de Medição + Reagendar / Consultar Medidor / Consultar RATM.
+  // Consumo Irregular: Relatórios Aprovados, Consultar Medidor e Reagendar.
   await query(`
     UPDATE users
     SET access_areas = '["Laboratório de Medição"]'::jsonb,
-        access_processes = '["Laboratório de Medição::Reagendar","Laboratório de Medição::Consultar Medidor","Laboratório de Medição::Consultar RATM"]'::jsonb
+        access_processes = '["Laboratório de Medição::Relatórios Aprovados","Laboratório de Medição::Consultar Medidor","Laboratório de Medição::Reagendar"]'::jsonb
     WHERE role <> 'admin'
       AND work_area = 'Consumo Irregular'
       AND approval_status = 'approved'

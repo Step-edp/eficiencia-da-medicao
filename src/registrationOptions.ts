@@ -160,7 +160,6 @@ export const CONSUMO_IRREGULAR_LAB_PROCESSES = [
   'Relatórios Aprovados',
   'Consultar Medidor',
   'Reagendar',
-  'Consultar RATM',
 ] as const
 
 export function consumoIrregularAccessProcesses(): string[] {

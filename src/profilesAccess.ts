@@ -382,7 +382,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'consumo-irregular',
     name: profileName('Consumo Irregular', 'Operacional'),
     description:
-      'Acesso a Relatórios Aprovados, Consulta de Medidores, Reagendar e Consultar RATM no Laboratório de Medição.',
+      'Acesso a Relatórios Aprovados, Consulta de Medidores e Reagendar no Laboratório de Medição.',
     areas: ['Laboratório de Medição'],
     match: {
       workArea: 'Consumo Irregular',
@@ -393,8 +393,8 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'consumo-irregular-analista',
     name: profileName('Consumo Irregular', 'Analista'),
     description:
-      'Acesso a Relatórios Aprovados, Consulta de Medidores, Reagendar e Consultar RATM no Laboratório de Medição.',
-    areas: ['Laboratório de Medição'],
+      'Consulta de Medidores, Reagendar e Relatórios Aprovados, sem Agenda e sem o portal Laboratório de Medição.',
+    areas: [],
     match: {
       workArea: 'Consumo Irregular',
       jobTitle: 'Analista',
@@ -404,7 +404,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'consumo-irregular-engenheiro',
     name: profileName('Consumo Irregular', 'Engenheiro'),
     description:
-      'Acesso a Relatórios Aprovados, Consulta de Medidores, Reagendar e Consultar RATM no Laboratório de Medição.',
+      'Acesso a Relatórios Aprovados, Consulta de Medidores e Reagendar no Laboratório de Medição.',
     areas: ['Laboratório de Medição'],
     match: {
       workArea: 'Consumo Irregular',
@@ -413,9 +413,17 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
 ]
 
-/** Área Consumo Irregular: Relatórios Aprovados, Consulta de Medidores, Reagendar e Consultar RATM. */
+/** Área Consumo Irregular: Relatórios Aprovados, Consulta de Medidores e Reagendar. */
 export function isConsumoIrregular(user: { workArea?: string | null }) {
   return isConsumoIrregularWorkArea(user.workArea)
+}
+
+/** Analista de Consumo Irregular: sem portal Laboratório de Medição e sem Agenda. */
+export function isConsumoIrregularAnalista(user: {
+  workArea?: string | null
+  jobTitle?: string | null
+}) {
+  return isConsumoIrregular(user) && (user.jobTitle?.trim() ?? '') === 'Analista'
 }
 
 /** Estagiário da Medição: Agenda + Suporte + lista de processos atribuídos. */
@@ -640,12 +648,23 @@ export function getAccessiblePortals(user: {
     portals = [...portals, 'Usuários']
   }
 
-  // Consumo Irregular: Laboratório de Medição (Relatórios Aprovados, Consulta de Medidores, Reagendar, Consultar RATM).
-  if (isConsumoIrregular(user) && !portals.includes('Laboratório de Medição')) {
+  const consumoIrregularAnalista = isConsumoIrregularAnalista(user)
+
+  // Consumo Irregular: Laboratório de Medição (Relatórios Aprovados, Consulta de Medidores, Reagendar).
+  // O analista entra só pelos processos atribuídos, sem o portal da área.
+  if (
+    isConsumoIrregular(user) &&
+    !consumoIrregularAnalista &&
+    !portals.includes('Laboratório de Medição')
+  ) {
     portals = [...portals, 'Laboratório de Medição']
   }
 
-  if (skipsVacationAgenda(user.workSubtype)) {
+  if (consumoIrregularAnalista) {
+    portals = portals.filter(
+      (portal) => portal !== 'Agenda' && portal !== 'Laboratório de Medição',
+    )
+  } else if (skipsVacationAgenda(user.workSubtype)) {
     portals = portals.filter((portal) => portal !== 'Agenda')
   } else if (!portals.includes('Agenda')) {
     portals = [...portals, 'Agenda']
@@ -781,10 +800,15 @@ export function getHomeAreasForProfilePreview(profileId: string): readonly Porta
   const profile = getCadastroProfile(profileId)
   if (!profile) return [...PORTAL_AREAS]
 
+  const consumoIrregularAnalista =
+    profile.match.workArea === 'Consumo Irregular' && profile.match.jobTitle === 'Analista'
   const areas = PORTAL_AREAS.filter(
     (area) =>
-      profile.areas.includes(area) ||
-      (area === 'Agenda' && !skipsVacationAgenda(profile.match.workSubtype)),
+      (profile.areas.includes(area) &&
+        !(consumoIrregularAnalista && area === 'Laboratório de Medição')) ||
+      (area === 'Agenda' &&
+        !consumoIrregularAnalista &&
+        !skipsVacationAgenda(profile.match.workSubtype)),
   )
 
   // Responsável por célula: só o conteúdo da célula na home (sem Gestão Operacional).

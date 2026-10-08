@@ -255,8 +255,8 @@ export async function listAssignedProcessesForUser(req: Request, res: Response) 
        ORDER BY process_key, role`,
       [targetUserId],
     ),
-    query<{ access_processes: unknown }>(
-      `SELECT access_processes FROM users WHERE id = $1`,
+    query<{ access_processes: unknown; work_area: string | null }>(
+      `SELECT access_processes, work_area FROM users WHERE id = $1`,
       [targetUserId],
     ),
   ])
@@ -302,11 +302,13 @@ export async function listAssignedProcessesForUser(req: Request, res: Response) 
     })
   }
 
-  const processes = [...byKey.values()].sort(
-    (a, b) =>
+  const consumoIrregular = userRow.rows[0]?.work_area?.trim() === 'Consumo Irregular'
+  const processes = [...byKey.values()]
+    .filter((item) => !consumoIrregular || item.process !== 'Consultar RATM')
+    .sort((a, b) =>
       a.area.localeCompare(b.area, 'pt-BR') ||
       a.process.localeCompare(b.process, 'pt-BR'),
-  )
+    )
 
   res.json({ processes })
 }

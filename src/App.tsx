@@ -2807,8 +2807,12 @@ function HomePanel({
       return [...getAccessiblePortals(previewUser)]
     }
     if (isAdmin && previewProfile) {
+      const consumoIrregularAnalista =
+        previewProfile.match.workArea === 'Consumo Irregular' &&
+        previewProfile.match.jobTitle === 'Analista'
       const areas = [...previewProfile.areas] as Array<(typeof PORTAL_AREAS)[number]>
       if (
+        !consumoIrregularAnalista &&
         !skipsVacationAgenda(previewProfile.match.workSubtype) &&
         !areas.includes('Agenda')
       ) {
@@ -2816,7 +2820,10 @@ function HomePanel({
       }
       return areas.filter(
         (area) =>
-          area !== 'Agenda' || !skipsVacationAgenda(previewProfile.match.workSubtype),
+          (area !== 'Agenda' ||
+            (!consumoIrregularAnalista &&
+              !skipsVacationAgenda(previewProfile.match.workSubtype))) &&
+          !(consumoIrregularAnalista && area === 'Laboratório de Medição'),
       )
     }
     return getAccessiblePortals(currentUser)
