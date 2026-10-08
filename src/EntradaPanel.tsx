@@ -2039,11 +2039,11 @@ export function EntradaPanel({
           aria-selected={false}
           onClick={openAnalysisMenu}
         >
-          Análises
+          Análise documental
           {wpaPendingCount > 0 ? (
             <span
               className="lab-trail-step-badge"
-              aria-label={`${wpaPendingCount} pendente${wpaPendingCount === 1 ? '' : 's'} de análise`}
+              aria-label={`${wpaPendingCount} pendente${wpaPendingCount === 1 ? '' : 's'} de análise documental`}
             >
               {wpaPendingCount}
             </span>
