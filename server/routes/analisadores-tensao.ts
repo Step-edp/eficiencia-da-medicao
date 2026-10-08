@@ -2,6 +2,8 @@ import type { Request, Response } from 'express'
 import * as XLSX from 'xlsx'
 import { query, pool } from '../db.js'
 import { writeAuditLog } from '../audit.js'
+import { buildCertificado } from '../analisador-calibracao.js'
+import { sendAnalisadorLaudoPdf } from '../analisador-laudo-pdf.js'
 
 const ENSAIO_EXCEL_VOLTAGES = ['127V', '220V'] as const
 const ENSAIO_EXCEL_TESTES = [1, 2, 3, 4, 5] as const
@@ -353,13 +355,17 @@ export async function registrarEnsaioAnalisadores(req: Request, res: Response) {
       )
     }
 
-    await client.query(
-      `UPDATE analisadores_tensao
-       SET primeira_calibracao = FALSE,
-           data_ultima_calibracao = CURRENT_DATE
-       WHERE id = ANY($1::text[])`,
-      [analisadorIds],
-    )
+    for (const analisadorId of analisadorIds) {
+      const certificado = buildCertificado(rows.filter((row) => row.analisadorId === analisadorId))
+      await client.query(
+        `UPDATE analisadores_tensao
+         SET primeira_calibracao = FALSE,
+             data_ultima_calibracao = CURRENT_DATE,
+             resultado_ultima_calibracao = $2
+         WHERE id = $1`,
+        [analisadorId, certificado?.resultado ?? null],
+      )
+    }
 
     await client.query('COMMIT')
   } catch (error) {
@@ -389,7 +395,7 @@ export async function registrarEnsaioAnalisadores(req: Request, res: Response) {
     action: 'update',
     entityType: 'analisador_tensao',
     entityId: ensaioId,
-    summary: `Ensaio registrado para ${analisadorIds.length} analisador(es) de tensão (127V e 220V, 5 testes cada)`,
+    summary: `Ensaio registrado para ${analisadorIds.length} analisador(es) de tensão, com laudo de calibração`,
     newData: { ensaioId, analisadorIds, rowCount: rows.length },
   })
 
@@ -455,6 +461,80 @@ export async function getAnalisadorEnsaioMedicoes(req: Request, res: Response) {
       equipamentoFaseB: row.equipamento_fase_b,
       equipamentoFaseC: row.equipamento_fase_c,
     })),
+  })
+}
+
+export async function downloadAnalisadorLaudo(req: Request, res: Response) {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+
+  const analisador = await query<AnalisadorTensaoRow>(
+    `SELECT a.id, a.equipment_number, a.numero_serie, a.identificacao_laudo, a.modelo,
+            a.fabricante, a.classe, a.vn, a.vmax, a.instrumento, a.primeira_calibracao,
+            a.data_ultima_calibracao::text AS data_ultima_calibracao,
+            a.resultado_ultima_calibracao,
+            a.created_by_user_id, a.created_at,
+            u.name AS created_by_name,
+            u.registration AS created_by_registration
+     FROM analisadores_tensao a
+     LEFT JOIN users u ON u.id = a.created_by_user_id
+     WHERE a.id = $1`,
+    [id],
+  )
+  const row = analisador.rows[0]
+  if (!row) {
+    res.status(404).json({ error: 'Analisador não encontrado.' })
+    return
+  }
+
+  const latest = await query<{ ensaio_id: string }>(
+    `SELECT ensaio_id FROM analisador_tensao_ensaio_medicoes
+     WHERE analisador_id = $1
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [id],
+  )
+  if (!latest.rows[0]) {
+    res.status(404).json({ error: 'Nenhum ensaio registrado para esse analisador.' })
+    return
+  }
+
+  const medicoes = await query<EnsaioMedicaoDbRow>(
+    `SELECT voltage, teste_numero, padrao_fase_a, padrao_fase_b, padrao_fase_c,
+            equipamento_fase_a, equipamento_fase_b, equipamento_fase_c
+     FROM analisador_tensao_ensaio_medicoes
+     WHERE analisador_id = $1 AND ensaio_id = $2
+     ORDER BY voltage ASC, teste_numero ASC`,
+    [id, latest.rows[0].ensaio_id],
+  )
+  const certificado = buildCertificado(
+    medicoes.rows.map((medicao) => ({
+      voltage: medicao.voltage,
+      testeNumero: medicao.teste_numero,
+      padraoFaseA: medicao.padrao_fase_a,
+      padraoFaseB: medicao.padrao_fase_b,
+      padraoFaseC: medicao.padrao_fase_c,
+      equipamentoFaseA: medicao.equipamento_fase_a,
+      equipamentoFaseB: medicao.equipamento_fase_b,
+      equipamentoFaseC: medicao.equipamento_fase_c,
+    })),
+  )
+  if (!certificado) {
+    res.status(400).json({ error: 'O ensaio não tem as cinco leituras de 127 V e 220 V.' })
+    return
+  }
+
+  sendAnalisadorLaudoPdf(res, {
+    numeroSerie: row.numero_serie,
+    equipmentNumber: row.equipment_number,
+    identificacaoLaudo: row.identificacao_laudo,
+    modelo: row.modelo,
+    fabricante: row.fabricante,
+    classe: row.classe,
+    vn: row.vn,
+    vmax: row.vmax,
+    instrumento: row.instrumento,
+    dataCalibracao: row.data_ultima_calibracao,
+    certificado,
   })
 }
 

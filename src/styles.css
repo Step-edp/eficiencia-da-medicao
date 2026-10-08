@@ -3649,9 +3649,103 @@ button {
 }
 
 .analisador-laudo-modal {
-  width: min(1000px, 100%);
+  width: min(1180px, 100%);
   max-height: 90vh;
   overflow-y: auto;
+}
+
+.laudo-sheet {
+  margin-top: 8px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f7fafc;
+  color: #1f2a37;
+}
+
+.laudo-sheet h4 {
+  margin: 14px 0 8px;
+  color: #0b3a66;
+  font-size: 0.95rem;
+}
+
+.laudo-sheet h4:first-child {
+  margin-top: 0;
+}
+
+.laudo-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin: 0;
+}
+
+.laudo-meta dt {
+  font-size: 0.72rem;
+  color: #5b6b7c;
+}
+
+.laudo-meta dd {
+  margin: 2px 0 0;
+  font-weight: 650;
+}
+
+.laudo-classe,
+.laudo-geral,
+.laudo-notes {
+  margin: 12px 0 0;
+  color: #3d4d5c;
+  font-size: 0.86rem;
+}
+
+.laudo-notes {
+  padding-left: 18px;
+}
+
+.laudo-result {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.laudo-result th,
+.laudo-result td {
+  border: 1px solid #d7dee7;
+  padding: 6px 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.laudo-result th {
+  background: #0b3a66;
+  color: #fff;
+  font-weight: 650;
+}
+
+.laudo-ok {
+  color: #1fa971;
+  font-weight: 750;
+}
+
+.laudo-bad {
+  color: #c62828;
+  font-weight: 750;
+}
+
+.laudo-leituras {
+  margin-top: 14px;
+  color: var(--text-soft);
+}
+
+.laudo-leituras summary {
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 800px) {
+  .laudo-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .ensaios-block-modal h3 {

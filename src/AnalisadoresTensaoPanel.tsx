@@ -472,14 +472,18 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
       )
 
       const serieList = ensaiarQueue.map((item) => item.numeroSerie).join(', ')
+      const resultados = updated
+        .map((item) => `${item.numeroSerie}: ${item.resultadoUltimaCalibracao || 'sem resultado'}`)
+        .join(', ')
       resetEnsaiarForm()
       setShowEnsaiarForm(false)
+      if (updated.length === 1) setLaudoAnalisador(updated[0])
       setFeedback({
         type: 'success',
         message:
           updated.length === 1
-            ? `Ensaio registrado para o analisador ${serieList}.`
-            : `Ensaio registrado para ${updated.length} analisadores: ${serieList}.`,
+            ? `Ensaio registrado para o analisador ${serieList}. Laudo: ${updated[0].resultadoUltimaCalibracao || 'sem resultado'}.`
+            : `Ensaio registrado para ${updated.length} analisadores (${resultados}). O laudo de cada um está na lista.`,
       })
     } catch (error) {
       setFeedback({

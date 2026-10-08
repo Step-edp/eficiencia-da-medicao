@@ -2288,6 +2288,27 @@ export const api = {
     request<{ ensaioId: string | null; medicoes: EnsaioMedicaoRecord[] }>(
       `/api/analisadores-tensao/${id}/medicoes`,
     ),
+  downloadAnalisadorLaudo: async (id: string) => {
+    const response = await fetch(`/api/analisadores-tensao/${encodeURIComponent(id)}/laudo`, {
+      credentials: 'include',
+    })
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string }
+      throw new ApiError(response.status, payload.error ?? 'Não foi possível gerar o laudo.')
+    }
+    const blob = await response.blob()
+    const disposition = response.headers.get('Content-Disposition')
+    const match = disposition?.match(/filename="([^"]+)"/)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = match?.[1] ?? 'Certificado_calibracao.pdf'
+    link.rel = 'noopener'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  },
   listEnsaiosRealizados: () =>
     request<{ ensaios: EnsaioSessaoRecord[] }>('/api/analisadores-tensao/ensaios'),
   downloadEnsaiosAnalisadoresExcel: async () => {
