@@ -4409,6 +4409,18 @@ button {
   gap: 12px;
 }
 
+.approval-section {
+  display: grid;
+  gap: 12px;
+  margin-top: 1.25rem;
+}
+
+.approval-section h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
 .approval-item {
   display: grid;
   gap: 16px;

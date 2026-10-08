@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { api, ApiError } from '../api'
 import { RatmLaudoViewer } from './RatmLaudoViewer'
 import { formatRatmLaudoNumber, type RatmLaudo } from './laudos'
@@ -30,24 +30,25 @@ export function RatmAprovacaoPanel({
   const [search, setSearch] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState('')
+  const query = search.trim().toLocaleLowerCase('pt-BR')
+  const matchesSearch = (laudo: RatmLaudo) => {
+    if (!query) return true
+    const haystack = [
+      formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt),
+      laudo.meter,
+      laudo.client,
+      laudo.createdByName,
+      laudo.createdByRegistration,
+      new Date(laudo.createdAt).toLocaleString('pt-BR'),
+    ]
+      .join(' ')
+      .toLocaleLowerCase('pt-BR')
+    return haystack.includes(query)
+  }
   const pendingLaudos = laudos.filter((laudo) => laudo.status === 'Pendente' && !laudo.revokedAt)
-  const visibleLaudos = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase('pt-BR')
-    if (!query) return pendingLaudos
-    return pendingLaudos.filter((laudo) => {
-      const haystack = [
-        formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt),
-        laudo.meter,
-        laudo.client,
-        laudo.createdByName,
-        laudo.createdByRegistration,
-        new Date(laudo.createdAt).toLocaleString('pt-BR'),
-      ]
-        .join(' ')
-        .toLocaleLowerCase('pt-BR')
-      return haystack.includes(query)
-    })
-  }, [pendingLaudos, search])
+  const approvedLaudos = laudos.filter((laudo) => laudo.status === 'Aprovado' && !laudo.revokedAt)
+  const visiblePending = pendingLaudos.filter(matchesSearch)
+  const visibleApproved = approvedLaudos.filter(matchesSearch)
 
   const deleteLaudo = async (laudo: RatmLaudo) => {
     const number = formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)
@@ -87,79 +88,133 @@ export function RatmAprovacaoPanel({
         </div>
       ) : null}
 
-      <div className="approval-list" aria-label="Laudos de RATM pendentes">
-        {pendingLaudos.length === 0 ? (
-          <p className="generated-password-empty">
-            Nenhum laudo de RATM aguardando aprovação.
-          </p>
-        ) : visibleLaudos.length === 0 ? (
-          <p className="generated-password-empty">
-            Nenhum laudo encontrado com essa pesquisa.
-          </p>
-        ) : (
-          visibleLaudos.map((laudo) => (
-            <article key={laudo.id} className="approval-item">
-              <div className="approval-item-info">
-                <strong>Laudo {formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)}</strong>
-                <span>Medidor: {laudo.meter}</span>
-                <span>Cliente: {laudo.client}</span>
-                <span>
-                  Ensaio realizado por:{' '}
-                  {laudo.createdByName || laudo.createdByRegistration
-                    ? `${laudo.createdByName || '—'}${
-                        laudo.createdByRegistration ? ` (${laudo.createdByRegistration})` : ''
-                      }`
-                    : '—'}
-                </span>
-                <span>Gerado em {new Date(laudo.createdAt).toLocaleString('pt-BR')}</span>
-              </div>
-              <div className="approval-item-actions">
-                <button
-                  className="secondary-button approval-action-button"
-                  type="button"
-                  onClick={() => openRatmLaudoPdf(laudo.id)}
-                >
-                  Visualizar PDF
-                </button>
-                {readOnly ? null : (
+      <section className="approval-section">
+        <h3>Pendente Aprovação</h3>
+        <div className="approval-list" aria-label="Laudos de RATM pendentes">
+          {pendingLaudos.length === 0 ? (
+            <p className="generated-password-empty">
+              Nenhum laudo de RATM aguardando aprovação.
+            </p>
+          ) : visiblePending.length === 0 ? (
+            <p className="generated-password-empty">
+              Nenhum laudo encontrado com essa pesquisa.
+            </p>
+          ) : (
+            visiblePending.map((laudo) => (
+              <article key={laudo.id} className="approval-item">
+                <div className="approval-item-info">
+                  <strong>Laudo {formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)}</strong>
+                  <span>Medidor: {laudo.meter}</span>
+                  <span>Cliente: {laudo.client}</span>
+                  <span>
+                    Ensaio realizado por:{' '}
+                    {laudo.createdByName || laudo.createdByRegistration
+                      ? `${laudo.createdByName || '—'}${
+                          laudo.createdByRegistration ? ` (${laudo.createdByRegistration})` : ''
+                        }`
+                      : '—'}
+                  </span>
+                  <span>Gerado em {new Date(laudo.createdAt).toLocaleString('pt-BR')}</span>
+                </div>
+                <div className="approval-item-actions">
                   <button
                     className="secondary-button approval-action-button"
                     type="button"
-                    onClick={() => {
-                      setViewerMode('edit')
-                      setViewingLaudo(laudo)
-                    }}
+                    onClick={() => openRatmLaudoPdf(laudo.id)}
                   >
-                    Editar
+                    Visualizar PDF
                   </button>
-                )}
-                {readOnly ? null : (
+                  {readOnly ? null : (
+                    <button
+                      className="secondary-button approval-action-button"
+                      type="button"
+                      onClick={() => {
+                        setViewerMode('edit')
+                        setViewingLaudo(laudo)
+                      }}
+                    >
+                      Editar
+                    </button>
+                  )}
+                  {readOnly ? null : (
+                    <button
+                      className="secondary-button approval-action-button is-approve"
+                      type="button"
+                      onClick={() => {
+                        setViewerMode('view')
+                        setViewingLaudo(laudo)
+                      }}
+                    >
+                      Aprovar
+                    </button>
+                  )}
+                  {isAdmin ? (
+                    <button
+                      className="secondary-button approval-action-button is-delete"
+                      type="button"
+                      disabled={deletingId === laudo.id}
+                      onClick={() => void deleteLaudo(laudo)}
+                    >
+                      Excluir
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className="approval-section">
+        <h3>Relatórios Aprovados</h3>
+        <div className="approval-list" aria-label="Relatórios RATM aprovados">
+          {approvedLaudos.length === 0 ? (
+            <p className="generated-password-empty">Nenhum relatório aprovado.</p>
+          ) : visibleApproved.length === 0 ? (
+            <p className="generated-password-empty">
+              Nenhum laudo encontrado com essa pesquisa.
+            </p>
+          ) : (
+            visibleApproved.map((laudo) => (
+              <article key={laudo.id} className="approval-item">
+                <div className="approval-item-info">
+                  <strong>Laudo {formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)}</strong>
+                  <span>Medidor: {laudo.meter}</span>
+                  <span>Cliente: {laudo.client}</span>
+                  <span>
+                    Ensaio realizado por:{' '}
+                    {laudo.createdByName || laudo.createdByRegistration
+                      ? `${laudo.createdByName || '—'}${
+                          laudo.createdByRegistration ? ` (${laudo.createdByRegistration})` : ''
+                        }`
+                      : '—'}
+                  </span>
+                  <span>Gerado em {new Date(laudo.createdAt).toLocaleString('pt-BR')}</span>
+                </div>
+                <div className="approval-item-actions">
                   <button
-                    className="secondary-button approval-action-button is-approve"
+                    className="secondary-button approval-action-button"
                     type="button"
-                    onClick={() => {
-                      setViewerMode('view')
-                      setViewingLaudo(laudo)
-                    }}
+                    onClick={() => openRatmLaudoPdf(laudo.id)}
                   >
-                    Aprovar
+                    Visualizar PDF
                   </button>
-                )}
-                {isAdmin ? (
-                  <button
-                    className="secondary-button approval-action-button is-delete"
-                    type="button"
-                    disabled={deletingId === laudo.id}
-                    onClick={() => void deleteLaudo(laudo)}
-                  >
-                    Excluir
-                  </button>
-                ) : null}
-              </div>
-            </article>
-          ))
-        )}
-      </div>
+                  {isAdmin ? (
+                    <button
+                      className="secondary-button approval-action-button is-delete"
+                      type="button"
+                      disabled={deletingId === laudo.id}
+                      onClick={() => void deleteLaudo(laudo)}
+                    >
+                      Excluir
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
 
       {viewingLaudo ? (
         <RatmLaudoViewer
