@@ -138,6 +138,13 @@ export function AnalisadorLaudoModal({
           </p>
         ) : certificado ? (
           <div className="laudo-sheet">
+            <div className="laudo-brand">
+              <img src="/logo/edp-logo.png" alt="EDP" />
+              <div>
+                <strong>Certificado de calibração</strong>
+                <span>{analisador.identificacaoLaudo || analisador.numeroSerie}</span>
+              </div>
+            </div>
             <div className="laudo-blocks">
             <section className="laudo-block">
             <h4>Padrão utilizado</h4>

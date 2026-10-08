@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import PDFDocument from 'pdfkit'
 import type { Response } from 'express'
 import {
@@ -30,14 +33,43 @@ const PAGE = { width: 841.89, height: 595.28, margin: 32 }
 const CONTENT_WIDTH = PAGE.width - PAGE.margin * 2
 
 const COLORS = {
-  navy: '#0B3A66',
-  text: '#1F2A37',
-  muted: '#5B6B7C',
-  line: '#D7DEE7',
-  soft: '#F4F7FA',
-  green: '#1FA971',
-  red: '#C62828',
+  navy: '#031424',
+  navyMid: '#0e3157',
+  cyan: '#18d8f0',
+  text: '#102033',
+  muted: '#4d6478',
+  line: '#c5dde8',
+  soft: '#e7f6fa',
+  card: '#f4fbfd',
+  green: '#5bf000',
+  greenInk: '#031424',
+  red: '#d22b4a',
   white: '#FFFFFF',
+}
+
+let cachedLogo: Buffer | null | undefined
+
+function loadEdpLogo() {
+  if (cachedLogo !== undefined) return cachedLogo
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  const names = ['edp-logo.png', 'Logso edp branca.png']
+  const roots = [
+    path.join(process.cwd(), 'public', 'logo'),
+    path.join(process.cwd(), 'dist', 'logo'),
+    path.join(here, '../public/logo'),
+    path.join(here, '../../public/logo'),
+    path.join(here, '../../dist/logo'),
+  ]
+  for (const root of roots) {
+    for (const name of names) {
+      const candidate = path.join(root, name)
+      if (!existsSync(candidate)) continue
+      cachedLogo = readFileSync(candidate)
+      return cachedLogo
+    }
+  }
+  cachedLogo = null
+  return null
 }
 
 const FASES: FaseCalibracao[] = ['a', 'b', 'c']
@@ -71,9 +103,10 @@ function drawInfoCard(
   const pad = 10
   const rowH = 26
   const height = 22 + rows.length * rowH + 8
-  doc.roundedRect(x, y, width, height, 6).lineWidth(0.6).fillAndStroke('#F8FBFD', COLORS.line)
+  doc.roundedRect(x, y, width, height, 6).lineWidth(0.6).fillAndStroke(COLORS.card, COLORS.line)
+  doc.rect(x, y + 6, 3, height - 12).fill(COLORS.cyan)
   doc
-    .fillColor(COLORS.navy)
+    .fillColor(COLORS.navyMid)
     .font('Helvetica-Bold')
     .fontSize(9)
     .text(title, x + pad, y + 8, { width: width - pad * 2, lineBreak: false })
@@ -111,12 +144,26 @@ export function sendAnalisadorLaudoPdf(res: Response, laudo: AnalisadorLaudoPdfI
   })
   doc.pipe(res)
 
-  doc.rect(0, 0, PAGE.width, 46).fill(COLORS.navy)
-  doc.fillColor(COLORS.white).font('Helvetica-Bold').fontSize(16).text('CERTIFICADO DE CALIBRAÇÃO', PAGE.margin, 16, {
-    width: CONTENT_WIDTH - 180,
+  const headerH = 52
+  doc.rect(0, 0, PAGE.width, headerH).fill(COLORS.navy)
+  doc.rect(0, headerH, PAGE.width, 3).fill(COLORS.cyan)
+
+  const logo = loadEdpLogo()
+  let titleX = PAGE.margin
+  if (logo && logo.length >= 24) {
+    const pngWidth = logo.readUInt32BE(16)
+    const pngHeight = logo.readUInt32BE(20)
+    const logoHeight = 30
+    const logoWidth = pngHeight > 0 ? Math.round(logoHeight * (pngWidth / pngHeight)) : 82
+    doc.image(logo, 20, 11, { width: logoWidth, height: logoHeight })
+    titleX = 20 + logoWidth + 14
+  }
+
+  doc.fillColor(COLORS.white).font('Helvetica-Bold').fontSize(15).text('CERTIFICADO DE CALIBRAÇÃO', titleX, 18, {
+    width: CONTENT_WIDTH - (titleX - PAGE.margin) - 160,
     lineBreak: false,
   })
-  doc.font('Helvetica').fontSize(9).text(laudo.identificacaoLaudo || '—', PAGE.width - PAGE.margin - 180, 18, {
+  doc.fillColor(COLORS.cyan).font('Helvetica').fontSize(9).text(laudo.identificacaoLaudo || '—', PAGE.width - PAGE.margin - 180, 19, {
     width: 180,
     align: 'right',
     lineBreak: false,
@@ -124,7 +171,7 @@ export function sendAnalisadorLaudoPdf(res: Response, laudo: AnalisadorLaudoPdfI
 
   const gap = 12
   const cardW = (CONTENT_WIDTH - gap) / 2
-  const cardY = 58
+  const cardY = headerH + 16
   const padraoHeight = drawInfoCard(doc, PAGE.margin, cardY, cardW, 'Padrão utilizado', [
     [
       { label: 'INSTRUMENTO', value: PADRAO_CALIBRACAO.instrumento },
@@ -185,13 +232,13 @@ export function sendAnalisadorLaudoPdf(res: Response, laudo: AnalisadorLaudoPdfI
   }
 
   let x = PAGE.margin
-  drawCell(x, y, tensaoW, '', { fill: COLORS.navy })
+  drawCell(x, y, tensaoW, '', { fill: COLORS.navyMid })
   x += tensaoW
   for (const fase of ['Fase A', 'Fase B', 'Fase C']) {
-    drawCell(x, y, faseW, fase, { bold: true, fill: COLORS.navy, color: COLORS.white })
+    drawCell(x, y, faseW, fase, { bold: true, fill: COLORS.navyMid, color: COLORS.white })
     x += faseW
   }
-  drawCell(x, y, resultW, 'Resultado', { bold: true, fill: COLORS.navy, color: COLORS.white })
+  drawCell(x, y, resultW, 'Resultado', { bold: true, fill: COLORS.navyMid, color: COLORS.white })
 
   y += rowH
   x = PAGE.margin
@@ -224,7 +271,8 @@ export function sendAnalisadorLaudoPdf(res: Response, laudo: AnalisadorLaudoPdfI
     const aprovado = tensao.aprovado
     drawCell(x, y, resultW, aprovado ? 'APROVADO' : 'REPROVADO', {
       bold: true,
-      color: aprovado ? COLORS.green : COLORS.red,
+      fill: aprovado ? COLORS.green : '#fde8ec',
+      color: aprovado ? COLORS.greenInk : COLORS.red,
     })
   }
 

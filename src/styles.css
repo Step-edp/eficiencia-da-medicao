@@ -3662,9 +3662,37 @@ button {
   color: #1f2a37;
 }
 
+.laudo-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: -16px -16px 14px;
+  padding: 12px 16px;
+  background: #031424;
+  border-bottom: 3px solid #18d8f0;
+  border-radius: 14px 14px 0 0;
+}
+
+.laudo-brand img {
+  height: 36px;
+  width: auto;
+}
+
+.laudo-brand strong {
+  display: block;
+  color: #fff;
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+}
+
+.laudo-brand span {
+  color: #18d8f0;
+  font-size: 0.82rem;
+}
+
 .laudo-sheet h4 {
   margin: 14px 0 8px;
-  color: #0b3a66;
+  color: #0e3157;
   font-size: 0.95rem;
 }
 
@@ -3754,14 +3782,25 @@ button {
 }
 
 .laudo-result th {
-  background: #0b3a66;
+  background: #0e3157;
   color: #fff;
   font-weight: 650;
 }
 
+.laudo-result tbody td:first-child {
+  color: #0e3157;
+  font-weight: 700;
+}
+
 .laudo-ok {
-  color: #1fa971;
+  color: #031424;
+  background: #5bf000;
   font-weight: 750;
+}
+
+.laudo-geral .laudo-ok {
+  padding: 1px 8px;
+  border-radius: 999px;
 }
 
 .laudo-bad {
