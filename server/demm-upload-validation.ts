@@ -232,15 +232,6 @@ export async function validateDemmUploadMeters(
 
     const hasBlocked = await demmHasBlockedMeters(metersFromExtracted(demm.extractedMeters))
     if (!hasBlocked && !demm.rejected) {
-      const label = demm.documentNumber?.trim() || demm.fileName
-      for (const meter of pendingOverlap) {
-        if (conflicts.has(meter) || replaceableMeters.has(meter)) continue
-        conflicts.set(meter, {
-          meter,
-          reason: 'demm_registered',
-          detail: label,
-        })
-      }
       continue
     }
 
