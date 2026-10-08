@@ -1909,29 +1909,15 @@ export function InspectionDocumentAnalysisModal({
                     onAgendamentoChange={(value) => handleWpaChange('scheduleMeter', value)}
                   />
                   <ComparisonField
-                    label="Lacre do invólucro"
-                    campo={canEditWpa ? wpaDraft.lacre : conference?.campoLacre}
-                    documento={documentoLacre}
-                    agendamento={
-                      canEditWpa
-                        ? wpaDraft.scheduleLacre
-                        : (conference?.scheduleLacre ?? document.registeredLacre)
-                    }
+                    label="Leitura"
+                    campo={canEditWpa ? wpaDraft.reading : conference?.campoReading}
+                    documento={documentoReading}
+                    agendamentoEmpty="Não aplicável"
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
-                    agendamentoEditable={canEditWpa}
-                    agendamentoInputKind="text"
-                    onCampoChange={(value) => handleWpaChange('lacre', value)}
-                    onDocumentoChange={(value) => handleDocumentoChange(document.docType, 'lacre', value)}
-                    onAgendamentoChange={(value) => handleWpaChange('scheduleLacre', value)}
-                    agendamentoPhoto={envelopePhoto}
-                    onPreviewAgendamentoPhoto={() =>
-                      envelopePhoto
-                        ? setPreviewPhoto({
-                            src: envelopePhoto,
-                            caption: `Foto do lacre do invólucro no agendamento do medidor ${meter}`,
-                          })
-                        : undefined
+                    onCampoChange={(value) => handleWpaChange('reading', value)}
+                    onDocumentoChange={(value) =>
+                      handleDocumentoChange(document.docType, 'reading', value)
                     }
                   />
                   <ComparisonField
@@ -1961,15 +1947,29 @@ export function InspectionDocumentAnalysisModal({
                     }
                   />
                   <ComparisonField
-                    label="Leitura"
-                    campo={canEditWpa ? wpaDraft.reading : conference?.campoReading}
-                    documento={documentoReading}
-                    agendamentoEmpty="Não aplicável"
+                    label="Lacre do invólucro"
+                    campo={canEditWpa ? wpaDraft.lacre : conference?.campoLacre}
+                    documento={documentoLacre}
+                    agendamento={
+                      canEditWpa
+                        ? wpaDraft.scheduleLacre
+                        : (conference?.scheduleLacre ?? document.registeredLacre)
+                    }
                     campoEditable={canEditWpa}
                     documentoEditable={canEditWpa}
-                    onCampoChange={(value) => handleWpaChange('reading', value)}
-                    onDocumentoChange={(value) =>
-                      handleDocumentoChange(document.docType, 'reading', value)
+                    agendamentoEditable={canEditWpa}
+                    agendamentoInputKind="text"
+                    onCampoChange={(value) => handleWpaChange('lacre', value)}
+                    onDocumentoChange={(value) => handleDocumentoChange(document.docType, 'lacre', value)}
+                    onAgendamentoChange={(value) => handleWpaChange('scheduleLacre', value)}
+                    agendamentoPhoto={envelopePhoto}
+                    onPreviewAgendamentoPhoto={() =>
+                      envelopePhoto
+                        ? setPreviewPhoto({
+                            src: envelopePhoto,
+                            caption: `Foto do lacre do invólucro no agendamento do medidor ${meter}`,
+                          })
+                        : undefined
                     }
                   />
                   <ComparisonField
