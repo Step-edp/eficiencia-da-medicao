@@ -275,13 +275,11 @@ export function sendAnalisadorLaudoPdf(res: Response, laudo: AnalisadorLaudoPdfI
 
   y += rowH + 14
   const geralAprovado = laudo.certificado.resultado === 'Aprovado'
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(11)
-    .fillColor(geralAprovado ? '#1FA971' : COLORS.red)
-    .text(`Resultado: ${geralAprovado ? 'APROVADO' : 'REPROVADO'}`, PAGE.margin, y, {
-      lineBreak: false,
-    })
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.text)
+  doc.text('Resultado: ', PAGE.margin, y, { lineBreak: false, continued: true })
+  doc.fillColor(geralAprovado ? '#1FA971' : COLORS.red).text(geralAprovado ? 'APROVADO' : 'REPROVADO', {
+    lineBreak: false,
+  })
   y += 18
   const note =
     'UMP: unidade de medida do padrão. UST: unidade sendo testada. Erro: maior erro absoluto entre as cinco leituras, (UST − UMP) / UMP. U: incerteza expandida, com fator de abrangência K e probabilidade de 95%. Aprovado quando o erro somado e subtraído da incerteza permanece dentro de ±1% em todas as fases.'
