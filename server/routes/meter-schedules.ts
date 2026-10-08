@@ -407,8 +407,13 @@ export async function listMeterSchedules(req: Request, res: Response) {
   const filters: string[] = []
 
   if (meterSearch) {
-    params.push(meterSearch)
-    filters.push(`ms.meter = $${params.length}`)
+    const meterKey = normalizeScheduleMeter(meterSearch)
+    if (!meterKey) {
+      res.status(400).json({ error: 'Informe o número do medidor.' })
+      return
+    }
+    params.push(meterKey)
+    filters.push(`${normalizedMeterColumnSql('ms')} = $${params.length}`)
   } else if (galleryMode) {
     filters.push(`ms.envelope_photo <> ''`)
     filters.push(`ms.delay_dismissed_at IS NULL`)
@@ -1157,6 +1162,25 @@ export async function createPassiveMeterSchedule(req: Request, res: Response) {
 
 const MIN_JUSTIFICATION_LENGTH = 5
 
+function isRescheduleBlocked(status: string, trailStep: string) {
+  const normalizedStatus = status.trim()
+  const trail = trailStep.trim()
+  if (normalizedStatus === 'Ensaiado' || normalizedStatus === 'Aprovado') return true
+  return trail === 'Aprovação de RATM' || trail === 'Sucata' || trail === 'Pesquisa de satisfação'
+}
+
+async function loadRescheduleActor(userId: string | undefined) {
+  if (!userId) return 'usuário não identificado'
+  const actor = await query<{ name: string; registration: string }>(
+    `SELECT name, registration FROM users WHERE id = $1`,
+    [userId],
+  )
+  const name = actor.rows[0]?.name?.trim() ?? ''
+  const registration = actor.rows[0]?.registration?.trim() ?? ''
+  if (name && registration) return `${name} (${registration})`
+  return name || registration || 'usuário não identificado'
+}
+
 export async function rescheduleMeterSchedule(req: Request, res: Response) {
   const id = typeof req.params.id === 'string' ? req.params.id.trim() : ''
   if (!id) {
@@ -1223,6 +1247,26 @@ export async function rescheduleMeterSchedule(req: Request, res: Response) {
     created_by_registration: null,
   })
 
+  const registry = await query<{ status: string; trail_step: string }>(
+    `SELECT status, trail_step
+     FROM meter_registry
+     WHERE ${normalizedMeterColumnSql()} = $1
+     LIMIT 1`,
+    [normalizeScheduleMeter(current.meter)],
+  )
+  const registryStatus = registry.rows[0]?.status ?? previous.registryStatus ?? ''
+  const registryTrail = registry.rows[0]?.trail_step ?? ''
+  if (
+    isRescheduleBlocked(registryStatus, registryTrail) ||
+    isRescheduleBlocked(previous.registryStatus ?? '', previous.trailStep)
+  ) {
+    res.status(409).json({
+      error:
+        'Este medidor já está ensaiado ou em etapa posterior. Não é possível reagendar a data de ensaio.',
+    })
+    return
+  }
+
   const update = await query<Omit<MeterScheduleRow, 'created_by_registration'>>(
     `UPDATE meter_schedules
      SET scheduled_at = $1
@@ -1240,8 +1284,8 @@ export async function rescheduleMeterSchedule(req: Request, res: Response) {
   await query(
     `UPDATE meter_registry
      SET scheduled_at = $1
-     WHERE meter = $2`,
-    [nextDate.toISOString(), updatedRow.meter],
+     WHERE ${normalizedMeterColumnSql()} = $2`,
+    [nextDate.toISOString(), normalizeScheduleMeter(updatedRow.meter)],
   )
 
   const schedule = mapMeterSchedule({
@@ -1249,11 +1293,13 @@ export async function rescheduleMeterSchedule(req: Request, res: Response) {
     created_by_registration: req.user?.registration ?? null,
   })
 
+  const actorLabel = await loadRescheduleActor(req.user?.id)
+
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'meter_schedule',
     entityId: schedule.id,
-    summary: `Medidor ${schedule.meter} reagendado de ${previous.scheduledAtLabel} para ${schedule.scheduledAtLabel}. Justificativa: ${normalizedJustification}`,
+    summary: `Medidor ${schedule.meter} reagendado de ${previous.scheduledAtLabel} para ${schedule.scheduledAtLabel} por ${actorLabel}. Justificativa: ${normalizedJustification}`,
     oldData: {
       meter: previous.meter,
       scheduledAt: previous.scheduledAt,
@@ -1264,9 +1310,10 @@ export async function rescheduleMeterSchedule(req: Request, res: Response) {
       scheduledAt: schedule.scheduledAt,
       scheduledAtLabel: schedule.scheduledAtLabel,
     },
-    metadata: {
+      metadata: {
       meter: schedule.meter,
       justification: normalizedJustification,
+      changedBy: actorLabel,
       previousScheduledAt: previous.scheduledAt,
       previousScheduledAtLabel: previous.scheduledAtLabel,
       newScheduledAt: schedule.scheduledAt,
@@ -1304,6 +1351,12 @@ export async function listMeterScheduleHistory(req: Request, res: Response) {
     return
   }
 
+  const meterKey = normalizeScheduleMeter(meter)
+  if (!meterKey) {
+    res.status(400).json({ error: 'Informe o número do medidor.' })
+    return
+  }
+
   const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500)
 
   const result = await query<MeterHistoryRow>(
@@ -1314,14 +1367,13 @@ export async function listMeterScheduleHistory(req: Request, res: Response) {
      LEFT JOIN users u ON u.id = a.user_id
      WHERE a.entity_type = 'meter_schedule'
        AND (
-         COALESCE(a.metadata->>'meter', '') = $1
-         OR COALESCE(a.new_data->>'meter', '') = $1
-         OR COALESCE(a.old_data->>'meter', '') = $1
-         OR a.summary ILIKE '%' || $1 || '%'
+         LPAD(RIGHT(REGEXP_REPLACE(COALESCE(a.metadata->>'meter', ''), '[^0-9]', '', 'g'), 8), 8, '0') = $1
+         OR LPAD(RIGHT(REGEXP_REPLACE(COALESCE(a.new_data->>'meter', ''), '[^0-9]', '', 'g'), 8), 8, '0') = $1
+         OR LPAD(RIGHT(REGEXP_REPLACE(COALESCE(a.old_data->>'meter', ''), '[^0-9]', '', 'g'), 8), 8, '0') = $1
        )
      ORDER BY a.occurred_at DESC
      LIMIT $2`,
-    [meter, limit],
+    [meterKey, limit],
   )
 
   res.json({

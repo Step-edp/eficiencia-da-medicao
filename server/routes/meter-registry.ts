@@ -1,11 +1,13 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import {
+  APROVACAO_TRAIL_STEP,
   ENTRADA_TRAIL_STEP,
   ENSAIAR_TRAIL_STEP,
-  APROVACAO_TRAIL_STEP,
   SUCATA_TRAIL_STEP,
+  normalizedMeterColumnSql,
 } from '../lab-trail-status.js'
+import { normalizeScheduleMeter } from '../numeric-field-validation.js'
 
 const TRAIL_STEPS = [
   ENTRADA_TRAIL_STEP,
@@ -188,13 +190,21 @@ export async function getMeterRegistry(req: Request, res: Response) {
     return
   }
 
+  const meterKey = normalizeScheduleMeter(meter)
+  if (!meterKey) {
+    res.status(400).json({ error: 'Informe o número do medidor.' })
+    return
+  }
+
   const result = await query<MeterRegistryRow>(
     `SELECT meter, installation, toi, note, csd, client, status, trail_step,
             manufacturer, model, ratm_number, delivered_by, scheduling_notes,
             available_at, scheduled_at, received_at
      FROM meter_registry
-     WHERE meter = $1`,
-    [meter],
+     WHERE ${normalizedMeterColumnSql()} = $1
+     ORDER BY CASE WHEN meter = $2 THEN 0 ELSE 1 END, received_at DESC NULLS LAST
+     LIMIT 1`,
+    [meterKey, meter],
   )
 
   res.json({

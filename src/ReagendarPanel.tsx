@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useState } from 'react'
 import {
   api,
   ApiError,
+  type MeterRegistryRecord,
   type MeterScheduleHistoryRecord,
   type MeterScheduleRecord,
 } from './api'
@@ -31,10 +32,29 @@ function formatActor(entry: MeterScheduleHistoryRecord) {
   return 'Sistema / público'
 }
 
+function isRescheduleBlocked(status: string, trailStep: string) {
+  const normalizedStatus = status.trim()
+  const trail = trailStep.trim()
+  if (normalizedStatus === 'Ensaiado' || normalizedStatus === 'Aprovado') return true
+  return trail === 'Aprovação de RATM' || trail === 'Sucata' || trail === 'Pesquisa de satisfação'
+}
+
+function reagendarStatusLabel(status: string, trailStep: string) {
+  if (status === 'Aprovado' || trailStep === 'Sucata') return 'Aprovado'
+  if (status === 'Ensaiado' || trailStep === 'Aprovação de RATM' || trailStep === 'Pesquisa de satisfação') {
+    return 'Ensaiado'
+  }
+  if (status === 'Recebido' || trailStep === 'Ensaiar') return 'Recebido'
+  if (status.trim()) return status
+  if (trailStep === 'Entrada de medidores' || !trailStep) return 'Agendado'
+  return trailStep
+}
+
 export function ReagendarPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [meterQuery, setMeterQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
+  const [registry, setRegistry] = useState<MeterRegistryRecord | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [history, setHistory] = useState<MeterScheduleHistoryRecord[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
@@ -48,6 +68,17 @@ export function ReagendarPanel({ readOnly = false }: { readOnly?: boolean }) {
   } | null>(null)
 
   const selected = schedules.find((item) => item.id === selectedId) ?? null
+  const statusSource = registry
+    ? { status: registry.status, trailStep: registry.trailStep }
+    : selected
+      ? { status: selected.registryStatus ?? '', trailStep: selected.trailStep }
+      : null
+  const blocked = statusSource
+    ? isRescheduleBlocked(statusSource.status, statusSource.trailStep)
+    : false
+  const blockedLabel = statusSource
+    ? reagendarStatusLabel(statusSource.status, statusSource.trailStep)
+    : ''
 
   const loadHistory = useCallback(async (meter: string) => {
     setLoadingHistory(true)
@@ -73,6 +104,7 @@ export function ReagendarPanel({ readOnly = false }: { readOnly?: boolean }) {
     setSearching(true)
     setFeedback(null)
     setSchedules([])
+    setRegistry(null)
     setSelectedId(null)
     setHistory([])
     setNewScheduledAt('')
@@ -80,17 +112,37 @@ export function ReagendarPanel({ readOnly = false }: { readOnly?: boolean }) {
     setSearchedMeter(meter)
 
     try {
-      const response = await api.listMeterSchedules(undefined, { meter })
+      const [response, base] = await Promise.all([
+        api.listMeterSchedules(undefined, { meter }),
+        api.getMeterRegistry(meter),
+      ])
       setSchedules(response.schedules)
-      if (response.schedules.length === 0) {
+      setRegistry(base.registry)
+      if (!base.registry && response.schedules.length === 0) {
         setFeedback({
           type: 'error',
-          message: `Nenhum agendamento encontrado para o medidor ${meter}.`,
+          message: `Medidor ${meter} não encontrado na base de medidores.`,
         })
       } else {
-        const first = response.schedules[0]
-        setSelectedId(first.id)
-        setNewScheduledAt(toDatetimeLocalValue(first.scheduledAt))
+        const source = base.registry
+          ? { status: base.registry.status, trailStep: base.registry.trailStep }
+          : {
+              status: response.schedules[0]?.registryStatus ?? '',
+              trailStep: response.schedules[0]?.trailStep ?? '',
+            }
+        if (isRescheduleBlocked(source.status, source.trailStep)) {
+          setFeedback({
+            type: 'error',
+            message: `O medidor ${meter} já está ${reagendarStatusLabel(source.status, source.trailStep).toLocaleLowerCase('pt-BR')}. Não é possível reagendar a data de ensaio.`,
+          })
+        }
+        if (response.schedules.length > 0) {
+          const first = response.schedules[0]
+          setSelectedId(first.id)
+          setNewScheduledAt(toDatetimeLocalValue(first.scheduledAt))
+        } else if (base.registry?.scheduledAt) {
+          setNewScheduledAt(toDatetimeLocalValue(base.registry.scheduledAt))
+        }
       }
       await loadHistory(meter)
     } catch (error) {
@@ -115,7 +167,7 @@ export function ReagendarPanel({ readOnly = false }: { readOnly?: boolean }) {
 
   const handleReschedule = async (event: FormEvent) => {
     event.preventDefault()
-    if (!selected) return
+    if (!selected || blocked) return
 
     if (!newScheduledAt) {
       setFeedback({ type: 'error', message: 'Informe a nova data de ensaio.' })
@@ -178,8 +230,9 @@ export function ReagendarPanel({ readOnly = false }: { readOnly?: boolean }) {
   return (
     <div className="reagendar-panel">
       <p className="reagendar-intro">
-        Pesquise o medidor, altere a data de ensaio e registre a justificativa. Todas as
-        alterações ficam no histórico do medidor com o responsável pela mudança.
+        Pesquise o medidor na base de medidores e altere a data de ensaio. Medidor ensaiado,
+        aprovado ou em etapa posterior não pode ser reagendado. A mudança fica registrada
+        com quem a fez.
       </p>
 
       {feedback ? (
@@ -211,49 +264,76 @@ export function ReagendarPanel({ readOnly = false }: { readOnly?: boolean }) {
         </button>
       </form>
 
-      {schedules.length > 0 ? (
+      {schedules.length > 0 || registry ? (
         <div className="reagendar-results">
           <div className="entrada-table-wrap">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Selecionar</th>
+                  {schedules.length > 1 ? <th>Selecionar</th> : null}
                   <th>Medidor</th>
                   <th>Instalação</th>
                   <th>TOI</th>
                   <th>CSD</th>
-                  <th>Etapa</th>
-                  <th>Data atual</th>
+                  <th>Status</th>
+                  <th>Data de ensaio</th>
                 </tr>
               </thead>
               <tbody>
-                {schedules.map((schedule) => (
-                  <tr
-                    key={schedule.id}
-                    className={schedule.id === selectedId ? 'reagendar-row-selected' : undefined}
-                  >
-                    <td>
-                      <input
-                        type="radio"
-                        name="reagendar-schedule"
-                        checked={schedule.id === selectedId}
-                        onChange={() => handleSelectSchedule(schedule)}
-                        aria-label={`Selecionar agendamento do medidor ${schedule.meter}`}
-                      />
-                    </td>
-                    <td>{schedule.meter}</td>
-                    <td>{schedule.installation || '—'}</td>
-                    <td>{schedule.toi || '—'}</td>
-                    <td>{schedule.csd || '—'}</td>
-                    <td>{schedule.trailStep || '—'}</td>
-                    <td>{schedule.scheduledAtLabel}</td>
-                  </tr>
-                ))}
+                {schedules.length > 0
+                  ? schedules.map((schedule) => (
+                      <tr
+                        key={schedule.id}
+                        className={schedule.id === selectedId ? 'reagendar-row-selected' : undefined}
+                      >
+                        {schedules.length > 1 ? (
+                          <td>
+                            <input
+                              type="radio"
+                              name="reagendar-schedule"
+                              checked={schedule.id === selectedId}
+                              onChange={() => handleSelectSchedule(schedule)}
+                              aria-label={`Selecionar agendamento do medidor ${schedule.meter}`}
+                            />
+                          </td>
+                        ) : null}
+                        <td>{schedule.meter}</td>
+                        <td>{schedule.installation || registry?.installation || '—'}</td>
+                        <td>{schedule.toi || registry?.toi || '—'}</td>
+                        <td>{schedule.csd || registry?.csd || '—'}</td>
+                        <td>
+                          {reagendarStatusLabel(
+                            registry?.status || schedule.registryStatus || '',
+                            registry?.trailStep || schedule.trailStep,
+                          )}
+                        </td>
+                        <td>{schedule.scheduledAtLabel}</td>
+                      </tr>
+                    ))
+                  : registry ? (
+                      <tr>
+                        <td>{registry.meter}</td>
+                        <td>{registry.installation || '—'}</td>
+                        <td>{registry.toi || '—'}</td>
+                        <td>{registry.csd || '—'}</td>
+                        <td>{reagendarStatusLabel(registry.status, registry.trailStep)}</td>
+                        <td>
+                          {registry.scheduledAt
+                            ? new Date(registry.scheduledAt).toLocaleString('pt-BR')
+                            : '—'}
+                        </td>
+                      </tr>
+                    ) : null}
               </tbody>
             </table>
           </div>
 
-          {selected && !readOnly ? (
+          {blocked ? (
+            <p className="field-hint">
+              Medidor {blockedLabel.toLocaleLowerCase('pt-BR')}. A data de ensaio não pode ser
+              alterada a partir deste status.
+            </p>
+          ) : selected && !readOnly ? (
             <form
               className="material-form-grid apresentacao-form reagendar-form"
               onSubmit={(event) => void handleReschedule(event)}
