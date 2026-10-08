@@ -2848,7 +2848,7 @@ export function EntradaPanel({
                       <th>TOI</th>
                       <th>Nota</th>
                       <th>CSD</th>
-                      {analyzedView ? null : <th>{blockedView ? 'Etapa' : 'Status'}</th>}
+                      {analyzedView || blockedView ? null : <th>Status</th>}
                       <th>Data de ensaio</th>
                       {blockedView ? <th>Bloqueado em</th> : null}
                       <th>{blockedView ? 'Justificativa' : 'Documentação'}</th>
@@ -2865,10 +2865,8 @@ export function EntradaPanel({
                         <td>{item.toi || '—'}</td>
                         <td>{item.note || '—'}</td>
                         <td>{item.csd}</td>
-                        {analyzedView ? null : (
-                          <td>
-                            {blockedView ? item.trailStep : 'Aguardando análise documental'}
-                          </td>
+                        {analyzedView || blockedView ? null : (
+                          <td>Aguardando análise documental</td>
                         )}
                         <td>{formatDateTime(item.scheduledAt)}</td>
                         {blockedView ? (
