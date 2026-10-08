@@ -287,13 +287,16 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
                       <td>{item.csd || '—'}</td>
                       <td>{item.scheduledAtLabel || formatDateTime(item.scheduledAt)}</td>
                       <td>{slaLabel(daysAfterAssay(item.scheduledAt))}</td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedMeters.includes(item.meter)}
-                          onChange={() => toggleReceivedMeter(item.meter)}
+                      <td className="received-select-cell">
+                        <button
+                          type="button"
+                          className={`received-select-dot${selectedMeters.includes(item.meter) ? ' is-selected' : ''}`}
+                          aria-pressed={selectedMeters.includes(item.meter)}
                           aria-label={`Selecionar medidor ${item.meter}`}
-                        />
+                          onClick={() => toggleReceivedMeter(item.meter)}
+                        >
+                          <span className="ratm-choice-dot" aria-hidden="true" />
+                        </button>
                       </td>
                       <td>
                         <button
