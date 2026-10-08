@@ -3672,10 +3672,28 @@ button {
   margin-top: 0;
 }
 
+.laudo-blocks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.laudo-block {
+  padding: 12px;
+  border: 1px solid #d7dee7;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.laudo-block h4 {
+  margin-top: 0;
+}
+
 .laudo-meta {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px 14px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
   margin: 0;
 }
 
@@ -3699,6 +3717,25 @@ button {
 
 .laudo-notes {
   padding-left: 18px;
+}
+
+.laudo-signs {
+  display: grid;
+  grid-template-columns: 1.4fr 1.4fr 0.8fr;
+  gap: 12px;
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #d7dee7;
+}
+
+.laudo-signs dt {
+  font-size: 0.72rem;
+  color: #5b6b7c;
+}
+
+.laudo-signs dd {
+  margin: 2px 0 0;
+  font-weight: 650;
 }
 
 .laudo-result {
@@ -3743,8 +3780,9 @@ button {
 }
 
 @media (max-width: 800px) {
-  .laudo-meta {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .laudo-blocks,
+  .laudo-signs {
+    grid-template-columns: 1fr;
   }
 }
 

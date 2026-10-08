@@ -138,6 +138,8 @@ export function AnalisadorLaudoModal({
           </p>
         ) : certificado ? (
           <div className="laudo-sheet">
+            <div className="laudo-blocks">
+            <section className="laudo-block">
             <h4>Padrão utilizado</h4>
             <dl className="laudo-meta">
               <div>
@@ -173,7 +175,9 @@ export function AnalisadorLaudoModal({
                 <dd>{formatIsoDate(PADRAO_CALIBRACAO.proximaCalibracao)}</dd>
               </div>
             </dl>
+            </section>
 
+            <section className="laudo-block">
             <h4>Instrumento calibrado</h4>
             <dl className="laudo-meta">
               <div>
@@ -209,10 +213,11 @@ export function AnalisadorLaudoModal({
                 <dd>{analisador.vmax}</dd>
               </div>
             </dl>
-
             <p className="laudo-classe">
               Classe de exatidão: {analisador.classe} - {analisador.vn} a {analisador.vmax}
             </p>
+            </section>
+            </div>
 
             <div className="entrada-table-wrap">
               <table className="laudo-result">
@@ -278,7 +283,7 @@ export function AnalisadorLaudoModal({
                 todas as fases.
               </li>
             </ul>
-            <dl className="laudo-meta">
+            <dl className="laudo-signs">
               <div>
                 <dt>Realizado por</dt>
                 <dd>{PADRAO_CALIBRACAO.realizadoPor}</dd>

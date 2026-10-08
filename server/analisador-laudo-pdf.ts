@@ -52,12 +52,41 @@ export function buildAnalisadorLaudoFileName(numeroSerie: string) {
 }
 
 function field(doc: PdfDocument, x: number, y: number, label: string, value: string, width: number) {
-  doc.font('Helvetica').fontSize(7).fillColor(COLORS.muted).text(label, x, y, { width, lineBreak: false })
+  doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.muted).text(label, x, y, { width, lineBreak: false })
   doc
     .font('Helvetica-Bold')
-    .fontSize(9)
+    .fontSize(8)
     .fillColor(COLORS.text)
-    .text(value || '—', x, y + 10, { width, lineBreak: false })
+    .text(value || '—', x, y + 9, { width, lineBreak: false })
+}
+
+function drawInfoCard(
+  doc: PdfDocument,
+  x: number,
+  y: number,
+  width: number,
+  title: string,
+  rows: Array<Array<{ label: string; value: string }>>,
+) {
+  const pad = 10
+  const rowH = 26
+  const height = 22 + rows.length * rowH + 8
+  doc.roundedRect(x, y, width, height, 6).lineWidth(0.6).fillAndStroke('#F8FBFD', COLORS.line)
+  doc
+    .fillColor(COLORS.navy)
+    .font('Helvetica-Bold')
+    .fontSize(9)
+    .text(title, x + pad, y + 8, { width: width - pad * 2, lineBreak: false })
+
+  rows.forEach((row, index) => {
+    const rowY = y + 24 + index * rowH
+    const cellW = (width - pad * 2) / row.length
+    row.forEach((cell, cellIndex) => {
+      field(doc, x + pad + cellIndex * cellW, rowY, cell.label, cell.value, cellW - 6)
+    })
+  })
+
+  return height
 }
 
 export function sendAnalisadorLaudoPdf(res: Response, laudo: AnalisadorLaudoPdfInput) {
@@ -93,41 +122,43 @@ export function sendAnalisadorLaudoPdf(res: Response, laudo: AnalisadorLaudoPdfI
     lineBreak: false,
   })
 
-  let y = 62
-  doc.fillColor(COLORS.navy).font('Helvetica-Bold').fontSize(10).text('Padrão utilizado', PAGE.margin, y)
-  y += 16
-  const col = CONTENT_WIDTH / 4
-  field(doc, PAGE.margin, y, 'INSTRUMENTO', PADRAO_CALIBRACAO.instrumento, col)
-  field(doc, PAGE.margin + col, y, 'MODELO', PADRAO_CALIBRACAO.modelo, col + 40)
-  field(doc, PAGE.margin + col * 2 + 40, y, 'Nº SÉRIE', PADRAO_CALIBRACAO.serie, col - 40)
-  field(doc, PAGE.margin + col * 3, y, 'FABRICANTE', PADRAO_CALIBRACAO.fabricante, col)
-  y += 32
-  field(doc, PAGE.margin, y, 'CERTIFICADO', PADRAO_CALIBRACAO.certificado, col)
-  field(doc, PAGE.margin + col, y, 'CLASSE', formatClassePadrao(PADRAO_CALIBRACAO.classe), col)
-  field(doc, PAGE.margin + col * 2, y, 'CALIBRADO EM', formatIsoDate(PADRAO_CALIBRACAO.calibradoEm), col)
-  field(doc, PAGE.margin + col * 3, y, 'PRÓXIMA CALIBRAÇÃO', formatIsoDate(PADRAO_CALIBRACAO.proximaCalibracao), col)
+  const gap = 12
+  const cardW = (CONTENT_WIDTH - gap) / 2
+  const cardY = 58
+  const padraoHeight = drawInfoCard(doc, PAGE.margin, cardY, cardW, 'Padrão utilizado', [
+    [
+      { label: 'INSTRUMENTO', value: PADRAO_CALIBRACAO.instrumento },
+      { label: 'FABRICANTE', value: PADRAO_CALIBRACAO.fabricante },
+    ],
+    [
+      { label: 'MODELO', value: PADRAO_CALIBRACAO.modelo },
+      { label: 'Nº SÉRIE', value: PADRAO_CALIBRACAO.serie },
+    ],
+    [
+      { label: 'CERTIFICADO', value: PADRAO_CALIBRACAO.certificado },
+      { label: 'CLASSE', value: formatClassePadrao(PADRAO_CALIBRACAO.classe) },
+    ],
+    [
+      { label: 'CALIBRADO EM', value: formatIsoDate(PADRAO_CALIBRACAO.calibradoEm) },
+      { label: 'PRÓXIMA CALIBRAÇÃO', value: formatIsoDate(PADRAO_CALIBRACAO.proximaCalibracao) },
+    ],
+  ])
+  drawInfoCard(doc, PAGE.margin + cardW + gap, cardY, cardW, 'Instrumento calibrado', [
+    [{ label: 'INSTRUMENTO', value: laudo.instrumento }],
+    [
+      { label: 'FABRICANTE', value: laudo.fabricante },
+      { label: 'MODELO', value: laudo.modelo },
+    ],
+    [
+      { label: 'Nº SÉRIE', value: laudo.numeroSerie },
+      { label: 'PATRIMÔNIO', value: laudo.equipmentNumber },
+    ],
+    [
+      { label: 'CLASSE', value: `${laudo.classe} · ${laudo.vn} a ${laudo.vmax}` },
+    ],
+  ])
 
-  y += 40
-  doc.fillColor(COLORS.navy).font('Helvetica-Bold').fontSize(10).text('Instrumento calibrado', PAGE.margin, y)
-  y += 16
-  field(doc, PAGE.margin, y, 'INSTRUMENTO', laudo.instrumento, col * 1.6)
-  field(doc, PAGE.margin + col * 1.6, y, 'FABRICANTE', laudo.fabricante, col)
-  field(doc, PAGE.margin + col * 2.6, y, 'MODELO', laudo.modelo, col * 0.7)
-  field(doc, PAGE.margin + col * 3.3, y, 'PATRIMÔNIO', laudo.equipmentNumber, col * 0.7)
-  y += 32
-  field(doc, PAGE.margin, y, 'Nº SÉRIE', laudo.numeroSerie, col)
-  field(doc, PAGE.margin + col, y, 'CLASSE', laudo.classe, col)
-  field(doc, PAGE.margin + col * 2, y, 'VN', laudo.vn, col)
-  field(doc, PAGE.margin + col * 3, y, 'Vmáx', laudo.vmax, col)
-
-  y += 36
-  doc
-    .fillColor(COLORS.text)
-    .font('Helvetica')
-    .fontSize(8)
-    .text(`Classe de exatidão: ${laudo.classe} - ${laudo.vn} a ${laudo.vmax}`, PAGE.margin, y)
-
-  y += 18
+  let y = cardY + padraoHeight + 14
   const tensaoW = 58
   const resultW = 78
   const faseW = (CONTENT_WIDTH - tensaoW - resultW) / 3
@@ -197,24 +228,30 @@ export function sendAnalisadorLaudoPdf(res: Response, laudo: AnalisadorLaudoPdfI
     })
   }
 
-  y += rowH + 16
-  doc.fillColor(COLORS.muted).font('Helvetica').fontSize(8)
-  const notes = [
-    'UMP: unidade de medida do padrão. UST: unidade sendo testada.',
-    'Erro: maior erro absoluto entre as cinco leituras, (UST − UMP) / UMP.',
-    'U: incerteza expandida, incerteza combinada multiplicada pelo fator de abrangência K de uma distribuição t, com probabilidade de 95%.',
-    'Aprovado quando o erro somado e subtraído da incerteza permanece dentro de ±1% em todas as fases.',
+  y += rowH + 12
+  const note =
+    'UMP: unidade de medida do padrão. UST: unidade sendo testada. Erro: maior erro absoluto entre as cinco leituras, (UST − UMP) / UMP. U: incerteza expandida, com fator de abrangência K e probabilidade de 95%. Aprovado quando o erro somado e subtraído da incerteza permanece dentro de ±1% em todas as fases.'
+  doc.font('Helvetica').fontSize(7.5)
+  const noteHeight = doc.heightOfString(note, { width: CONTENT_WIDTH, lineGap: 1 })
+  doc.fillColor(COLORS.muted).text(note, PAGE.margin, y, {
+    width: CONTENT_WIDTH,
+    height: noteHeight + 2,
+    lineGap: 1,
+  })
+  y += noteHeight + 14
+  const signH = 36
+  const signGap = 8
+  const signW = (CONTENT_WIDTH - signGap * 2) / 3
+  const signs = [
+    { label: 'REALIZADO POR', value: PADRAO_CALIBRACAO.realizadoPor },
+    { label: 'APROVADO POR', value: PADRAO_CALIBRACAO.aprovadoPor },
+    { label: 'DATA DA CALIBRAÇÃO', value: formatIsoDate(laudo.dataCalibracao) },
   ]
-  for (const note of notes) {
-    doc.text(note, PAGE.margin, y, { width: CONTENT_WIDTH })
-    y = doc.y + 3
-  }
-
-  y += 12
-  const signW = CONTENT_WIDTH / 3
-  field(doc, PAGE.margin, y, 'REALIZADO POR', PADRAO_CALIBRACAO.realizadoPor, signW)
-  field(doc, PAGE.margin + signW, y, 'APROVADO POR', PADRAO_CALIBRACAO.aprovadoPor, signW)
-  field(doc, PAGE.margin + signW * 2, y, 'DATA DA CALIBRAÇÃO', formatIsoDate(laudo.dataCalibracao), signW)
+  signs.forEach((sign, index) => {
+    const signX = PAGE.margin + index * (signW + signGap)
+    doc.roundedRect(signX, y, signW, signH, 4).lineWidth(0.6).fillAndStroke(COLORS.white, COLORS.line)
+    field(doc, signX + 8, y + 6, sign.label, sign.value, signW - 16)
+  })
 
   doc.end()
 }
