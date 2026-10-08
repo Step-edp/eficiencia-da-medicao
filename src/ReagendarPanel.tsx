@@ -229,12 +229,6 @@ export function ReagendarPanel({ readOnly = false }: { readOnly?: boolean }) {
 
   return (
     <div className="reagendar-panel">
-      <p className="reagendar-intro">
-        Pesquise o medidor na base de medidores e altere a data de ensaio. Medidor ensaiado,
-        aprovado ou em etapa posterior não pode ser reagendado. A mudança fica registrada
-        com quem a fez.
-      </p>
-
       {feedback ? (
         <LoginFeedback
           type={feedback.type}
