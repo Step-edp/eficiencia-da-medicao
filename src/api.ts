@@ -560,6 +560,7 @@ export type MeterScheduleRecord = {
   demmDocumentNumber?: string | null
   demmMeterCount: number
   registryStatus?: string
+  inspectionAnalysisCompleted?: boolean
   installationTypedWrong?: boolean
   previousInstallation?: string
   installationMark?: 'wrong' | 'adjusted' | null

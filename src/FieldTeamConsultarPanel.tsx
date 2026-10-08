@@ -131,18 +131,34 @@ function inspectionStatusBadgeClass(summary: MeterInspectionSummary | undefined)
   return 'schedule-late-badge'
 }
 
+function meterBaseStatusLabel(
+  item: MeterScheduleRecord,
+  summary: MeterInspectionSummary | undefined,
+) {
+  if (item.registryStatus === 'Aprovado' || item.trailStep === 'Sucata') return 'Aprovado'
+  if (item.registryStatus === 'Ensaiado' || item.trailStep === 'Aprovação de RATM') return 'Ensaiado'
+  const hasEntry =
+    item.registryStatus === 'Recebido' ||
+    item.trailStep === 'Ensaiar' ||
+    Boolean(item.demmDocumentId)
+  if (hasEntry) return 'Recebido'
+  const hasDocument = Boolean(summary?.hasToi || summary?.hasComunicado)
+  if (item.inspectionAnalysisCompleted) return 'Analisado'
+  if (hasDocument) return 'Aguardando análise'
+  return 'Agendado'
+}
+
 async function downloadMetersExcel(
   schedules: MeterScheduleRecord[],
   inspectionByScheduleId: Record<string, MeterInspectionSummary>,
-  includeTrailStep: boolean,
 ) {
   const XLSX = await import('xlsx')
   const rows = schedules.map((item) => {
     const summary = inspectionByScheduleId[item.id]
     const row: Record<string, string> = {
       Medidor: item.meter || '',
+      Status: meterBaseStatusLabel(item, summary),
     }
-    if (includeTrailStep) row.Etapa = getLabTrailLabel(item.trailStep)
     row.Instalação = item.installation || ''
     row.TOI = item.toi || ''
     row['Lacre do invólucro'] = item.envelopeSeal || ''
@@ -901,7 +917,7 @@ export function FieldTeamConsultarPanel({
               aria-label="Baixar Excel com todos os medidores"
               title="Baixar Excel"
               onClick={() => {
-                void downloadMetersExcel(schedules, inspectionSummaryByScheduleId, allTrailSteps).catch(
+                void downloadMetersExcel(schedules, inspectionSummaryByScheduleId).catch(
                   () => {
                     setFeedback({
                       type: 'error',
