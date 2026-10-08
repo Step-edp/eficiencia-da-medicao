@@ -1098,18 +1098,18 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Em</th>
                   <th>Número de série</th>
                   <th>Registrado por</th>
+                  <th>Em</th>
                   <th aria-label="Ações" />
                 </tr>
               </thead>
               <tbody>
                 {filteredEnsaios.map((sessao) => (
                   <tr key={`${sessao.ensaioId}-${sessao.numeroSerie}`}>
-                    <td>{formatAuditDate(sessao.createdAt)}</td>
                     <td>{sessao.numeroSerie}</td>
                     <td>{sessao.createdByName || sessao.createdByRegistration || '—'}</td>
+                    <td>{formatAuditDate(sessao.createdAt)}</td>
                     <td className="ensaios-realizados-actions">
                       <button
                         type="button"
