@@ -884,12 +884,6 @@ export function FieldTeamConsultarPanel({
         />
       ) : null}
 
-      {allTrailSteps ? (
-        <p className="entrada-panel-intro">
-          Pesquisa todos os medidores do laboratório, em qualquer etapa da trilha.
-        </p>
-      ) : null}
-
       {!loading && totalCount > 0 ? (
         <div className="consultar-toolbar">
           <label className="consultar-search">
