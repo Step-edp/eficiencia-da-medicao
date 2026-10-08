@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { api, ApiError } from '../api'
 import { RatmLaudoViewer } from './RatmLaudoViewer'
-import { formatRatmLaudoNumber, type RatmLaudo } from './laudos'
+import { formatRatmLaudoNumber, mapRatmLaudoFromApi, type RatmLaudo } from './laudos'
 import { openRatmLaudoPdf } from './laudoPdf'
 
 type RatmAprovacaoPanelProps = {
@@ -29,7 +29,9 @@ export function RatmAprovacaoPanel({
   const [viewerMode, setViewerMode] = useState<'view' | 'edit'>('view')
   const [search, setSearch] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const query = search.trim().toLocaleLowerCase('pt-BR')
   const matchesSearch = (laudo: RatmLaudo) => {
     if (!query) return true
@@ -49,6 +51,24 @@ export function RatmAprovacaoPanel({
   const approvedLaudos = laudos.filter((laudo) => laudo.status === 'Aprovado' && !laudo.revokedAt)
   const visiblePending = pendingLaudos.filter(matchesSearch)
   const visibleApproved = approvedLaudos.filter(matchesSearch)
+
+  const approveLaudo = async (laudo: RatmLaudo) => {
+    setApprovingId(laudo.id)
+    setDeleteError('')
+    setSuccessMessage('')
+    try {
+      const response = await api.approveRatmLaudo(laudo.id, { clientPresent: 'Não' })
+      const approved = mapRatmLaudoFromApi(response.laudo)
+      onLaudoApproved(approved)
+      setSuccessMessage(
+        `Laudo ${formatRatmLaudoNumber(approved.ratmNumber, approved.createdAt)} aprovado com sucesso.`,
+      )
+    } catch (error) {
+      setDeleteError(error instanceof ApiError ? error.message : 'Não foi possível aprovar o laudo.')
+    } finally {
+      setApprovingId(null)
+    }
+  }
 
   const deleteLaudo = async (laudo: RatmLaudo) => {
     const number = formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)
@@ -81,6 +101,12 @@ export function RatmAprovacaoPanel({
           placeholder="Laudo, medidor ou cliente"
         />
       </label>
+
+      {successMessage ? (
+        <div className="login-feedback success" role="status">
+          {successMessage}
+        </div>
+      ) : null}
 
       {deleteError ? (
         <div className="login-feedback error" role="status">
@@ -140,10 +166,8 @@ export function RatmAprovacaoPanel({
                     <button
                       className="secondary-button approval-action-button is-approve"
                       type="button"
-                      onClick={() => {
-                        setViewerMode('view')
-                        setViewingLaudo(laudo)
-                      }}
+                      disabled={approvingId === laudo.id}
+                      onClick={() => void approveLaudo(laudo)}
                     >
                       Aprovar
                     </button>
