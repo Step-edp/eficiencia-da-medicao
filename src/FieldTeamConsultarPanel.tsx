@@ -50,6 +50,8 @@ function normalizeSearch(value: string) {
 }
 
 function deliveryStatusLabel(item: MeterScheduleRecord) {
+  if (item.registryStatus === 'Aprovado' || item.trailStep === 'Sucata') return 'Aprovado'
+  if (item.registryStatus === 'Ensaiado' || item.trailStep === 'Aprovação de RATM') return 'Ensaiado'
   if (item.isLate) return 'Atrasado'
   if (item.trailStep === 'Entrada de medidores') return 'No prazo'
   return 'Entregue'
@@ -998,10 +1000,17 @@ export function FieldTeamConsultarPanel({
                           </button>
                         ) : null}
                       </div>
-                    ) : item.trailStep === 'Entrada de medidores' ? (
-                      <span className="schedule-ok-badge">No prazo</span>
                     ) : (
-                      'Entregue'
+                      <span
+                        className={
+                          deliveryStatusLabel(item) === 'Aprovado' ||
+                          deliveryStatusLabel(item) === 'No prazo'
+                            ? 'schedule-ok-badge'
+                            : undefined
+                        }
+                      >
+                        {deliveryStatusLabel(item)}
+                      </span>
                     )}
                   </td>
                   <td className="table-inspection-cell">

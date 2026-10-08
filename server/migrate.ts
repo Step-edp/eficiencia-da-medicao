@@ -1200,6 +1200,69 @@ export async function migrate() {
     SET last_number = GREATEST(ratm_laudo_year_counters.last_number, EXCLUDED.last_number)
   `)
 
+  const meterKeySql = (column: string) =>
+    `LPAD(RIGHT(REGEXP_REPLACE(${column}, '[^0-9]', '', 'g'), 8), 8, '0')`
+  await query(`
+    UPDATE meter_registry AS registry
+    SET status = 'Aprovado', trail_step = 'Sucata'
+    WHERE EXISTS (
+      SELECT 1
+      FROM ratm_laudos AS laudo
+      WHERE laudo.revoked_at IS NULL
+        AND laudo.status = 'Aprovado'
+        AND ${meterKeySql('laudo.meter')} = ${meterKeySql('registry.meter')}
+    )
+  `)
+  await query(`
+    UPDATE meter_schedules AS schedule
+    SET trail_step = 'Sucata'
+    WHERE EXISTS (
+      SELECT 1
+      FROM ratm_laudos AS laudo
+      WHERE laudo.revoked_at IS NULL
+        AND laudo.status = 'Aprovado'
+        AND ${meterKeySql('laudo.meter')} = ${meterKeySql('schedule.meter')}
+    )
+  `)
+  await query(`
+    UPDATE meter_registry AS registry
+    SET status = 'Ensaiado', trail_step = 'Aprovação de RATM'
+    WHERE registry.status IS DISTINCT FROM 'Aprovado'
+      AND EXISTS (
+        SELECT 1
+        FROM ratm_laudos AS laudo
+        WHERE laudo.revoked_at IS NULL
+          AND laudo.status = 'Pendente'
+          AND ${meterKeySql('laudo.meter')} = ${meterKeySql('registry.meter')}
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ratm_laudos AS laudo
+        WHERE laudo.revoked_at IS NULL
+          AND laudo.status = 'Aprovado'
+          AND ${meterKeySql('laudo.meter')} = ${meterKeySql('registry.meter')}
+      )
+  `)
+  await query(`
+    UPDATE meter_schedules AS schedule
+    SET trail_step = 'Aprovação de RATM'
+    WHERE BTRIM(schedule.trail_step) IS DISTINCT FROM 'Sucata'
+      AND EXISTS (
+        SELECT 1
+        FROM ratm_laudos AS laudo
+        WHERE laudo.revoked_at IS NULL
+          AND laudo.status = 'Pendente'
+          AND ${meterKeySql('laudo.meter')} = ${meterKeySql('schedule.meter')}
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ratm_laudos AS laudo
+        WHERE laudo.revoked_at IS NULL
+          AND laudo.status = 'Aprovado'
+          AND ${meterKeySql('laudo.meter')} = ${meterKeySql('schedule.meter')}
+      )
+  `)
+
   const demmCsdAlignFlag = await query<{ key: string }>(
     `SELECT key FROM app_runtime_flags WHERE key = 'demm_csd_align_v1'`,
   )

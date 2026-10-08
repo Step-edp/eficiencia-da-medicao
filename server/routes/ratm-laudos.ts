@@ -3,7 +3,13 @@ import { query } from '../db.js'
 import { requireAuth } from '../auth.js'
 import { buildRatmPdfFileName, formatRatmLaudoNumber, generateRatmLaudoPdf } from '../ratm-laudo-pdf.js'
 import { writeAuditLog } from '../audit.js'
-import { isMeterReadyForEnsaio } from '../lab-trail-status.js'
+import {
+  APROVACAO_TRAIL_STEP,
+  ENSAIAR_TRAIL_STEP,
+  SUCATA_TRAIL_STEP,
+  isMeterReadyForEnsaio,
+  normalizedMeterColumnSql,
+} from '../lab-trail-status.js'
 import { normalizeScheduleMeter } from '../numeric-field-validation.js'
 
 type RatmLaudoRow = {
@@ -86,6 +92,53 @@ async function loadLaboratorioMedicaoUser(userId: string | null | undefined) {
 
 function formatPortalUser(user: { name: string; registration: string }) {
   return user.name.trim()
+}
+
+async function setMeterProcessStatus(meter: string, status: 'Ensaiado' | 'Aprovado' | 'Recebido') {
+  const meterKey = normalizeScheduleMeter(meter)
+  if (!meterKey) return
+  const trailStep =
+    status === 'Aprovado'
+      ? SUCATA_TRAIL_STEP
+      : status === 'Ensaiado'
+        ? APROVACAO_TRAIL_STEP
+        : ENSAIAR_TRAIL_STEP
+  const scheduleSql =
+    status === 'Ensaiado'
+      ? `UPDATE meter_schedules
+         SET trail_step = $1
+         WHERE ${normalizedMeterColumnSql()} = $2
+           AND BTRIM(trail_step) IS DISTINCT FROM $3`
+      : `UPDATE meter_schedules
+         SET trail_step = $1
+         WHERE ${normalizedMeterColumnSql()} = $2`
+  await query(
+    scheduleSql,
+    status === 'Ensaiado' ? [trailStep, meterKey, SUCATA_TRAIL_STEP] : [trailStep, meterKey],
+  )
+  const registrySql =
+    status === 'Ensaiado'
+      ? `UPDATE meter_registry
+         SET status = $1, trail_step = $2
+         WHERE ${normalizedMeterColumnSql()} = $3
+           AND status IS DISTINCT FROM 'Aprovado'`
+      : `UPDATE meter_registry
+         SET status = $1, trail_step = $2
+         WHERE ${normalizedMeterColumnSql()} = $3`
+  await query(registrySql, [status, trailStep, meterKey])
+}
+
+async function refreshMeterProcessFromLaudos(meter: string) {
+  const active = await findActiveLaudosForMeter(meter)
+  if (active.some((row) => row.status === 'Aprovado')) {
+    await setMeterProcessStatus(meter, 'Aprovado')
+    return
+  }
+  if (active.some((row) => row.status === 'Pendente')) {
+    await setMeterProcessStatus(meter, 'Ensaiado')
+    return
+  }
+  await setMeterProcessStatus(meter, 'Recebido')
 }
 
 function normalizedMeterSql(column: string) {
@@ -276,6 +329,7 @@ export async function createRatmLaudos(req: Request, res: Response) {
     )
 
     createdLaudos.push(mapRatmLaudo(result.rows[0]))
+    await setMeterProcessStatus(meter, 'Ensaiado')
     const draftKey = normalizeScheduleMeter(meter)
     if (draftKey) {
       await query(`DELETE FROM ratm_assay_drafts WHERE meter_key = $1`, [draftKey])
@@ -499,6 +553,7 @@ export async function approveRatmLaudo(req: Request, res: Response) {
   )
 
   const laudo = mapRatmLaudo(result.rows[0])
+  await setMeterProcessStatus(laudo.meter, 'Aprovado')
   const auditLaudo = {
     ...laudo,
     formData: {
@@ -638,6 +693,7 @@ export async function deleteRatmLaudo(req: Request, res: Response) {
   }
 
   await query(`DELETE FROM ratm_laudos WHERE id = $1`, [id])
+  await refreshMeterProcessFromLaudos(row.meter)
 
   const number = formatRatmLaudoNumber(row.ratm_number, row.created_at.toISOString())
   await writeAuditLog(req, {
