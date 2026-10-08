@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
 import { LabAgendarPanel } from './LabAgendarPanel'
+import { LabDashboardPanel } from './LabDashboardPanel'
 import { FieldTeamCadastrarForm } from './FieldTeamCadastrarForm'
 import { FieldTeamConsultarPanel } from './FieldTeamConsultarPanel'
 import { PontoFocalDashboard } from './PontoFocalDashboard'
@@ -5844,6 +5845,8 @@ function HomePanel({
                   })
                 }}
               />
+            ) : selectedLabMeasurementSection === 'Dashboard' ? (
+              <LabDashboardPanel />
             ) : selectedLabMeasurementSection === 'Analisadores de Tensão' ? (
               <AnalisadoresTensaoPanel readOnly={labMedicaoReadOnly} />
             ) : (

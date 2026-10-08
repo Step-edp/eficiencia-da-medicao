@@ -20,7 +20,6 @@ import { useCsdsOptions } from './useCsdsOptions'
 import { inspectionPdfFilesFromList, readFileAsBase64 } from './fileUtils'
 import { inspectionIssueReason } from './inspectionStatusReason'
 import { UserDetailModal } from './UserDetailModal'
-import { EntradaCsdDashboard } from './EntradaCsdDashboard'
 import { MeterDetailModal } from './MeterDetailModal'
 import { InspectionDocumentAnalysisModal } from './InspectionDocumentAnalysisModal'
 import { LoginFeedback } from './LoginFeedback'
@@ -1096,7 +1095,6 @@ function RejectDemmConfirmModal({
 }
 
 export type EntradaPanelView =
-  | 'dash'
   | 'overview'
   | 'demmEntrada'
   | 'demmRejected'
@@ -1123,7 +1121,7 @@ export function EntradaPanel({
   readOnly = false,
   allowUserProfilePhotoEdit = false,
   isAdmin = false,
-  initialView = 'dash',
+  initialView = 'weekMeters',
 }: EntradaPanelProps) {
   const [view, setView] = useState<EntradaPanelView>(initialView)
   const [demmDocuments, setDemmDocuments] = useState<DemmDocumentRecord[]>([])
@@ -1214,8 +1212,8 @@ export function EntradaPanel({
   const [profilePhotos, setProfilePhotos] = useState<Record<string, string>>({})
 
   const onTrailCountsChangeRef = useRef(onTrailCountsChange)
-  const demmReturnViewRef = useRef<EntradaPanelView>('dash')
-  const analysisReturnViewRef = useRef<EntradaPanelView>('dash')
+  const demmReturnViewRef = useRef<EntradaPanelView>('weekMeters')
+  const analysisReturnViewRef = useRef<EntradaPanelView>('weekMeters')
   useEffect(() => {
     onTrailCountsChangeRef.current = onTrailCountsChange
   }, [onTrailCountsChange])
@@ -1805,19 +1803,6 @@ export function EntradaPanel({
     void loadMetersWithoutDemm()
   }
 
-  const openDash = () => {
-    setView('dash')
-    setFeedback(null)
-    void Promise.all([
-      loadData(),
-      loadCsdPendencias(),
-      loadInspectionPendencias(),
-      loadWpaMeters(),
-      loadWpaBlockedMeters(),
-      loadWeekMeters(),
-    ])
-  }
-
   useEffect(() => {
     void loadData()
     void loadCsdPendencias()
@@ -1867,7 +1852,7 @@ export function EntradaPanel({
     else if (target === 'wpaBlocked') openWpaBlocked()
     else if (target === 'weekMeters') openWeekMeters()
     else if (target === 'receivedMetersBase') setView('receivedMetersBase')
-    else openDash()
+    else openWeekMeters()
   }
 
   const openAnalysisMenu = () => {
@@ -1885,7 +1870,7 @@ export function EntradaPanel({
     else if (target === 'demmHistorico') openDemmHistorico()
     else if (target === 'weekMeters') openWeekMeters()
     else if (target === 'receivedMetersBase') setView('receivedMetersBase')
-    else openDash()
+    else openWeekMeters()
   }
 
   const renderEntradaTabBar = () => (
@@ -2041,15 +2026,6 @@ export function EntradaPanel({
           onClick={() => openWeekMeters()}
         >
           Medidores da semana
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'dash'}
-          className={view === 'dash' ? 'active' : ''}
-          onClick={() => openDash()}
-        >
-          Dash
         </button>
         </>
         ) : null}
@@ -2645,28 +2621,6 @@ export function EntradaPanel({
   ) : null
 
   const openMeterDetail = (meter: string) => setMeterDetailTarget(meter)
-
-  if (view === 'dash') {
-    return (
-      <>
-        <div className="entrada-panel">
-          {renderEntradaTabBar()}
-
-          {renderFixedFeedback()}
-
-          <section className="entrada-section users-dashboard" aria-label="Dash de entrada">
-            <div className="entrada-section-heading">
-              <h3 className="entrada-section-title">Dash</h3>
-            </div>
-
-            <EntradaCsdDashboard />
-          </section>
-        </div>
-        {userProfileModal}
-        {meterDetailModal}
-      </>
-    )
-  }
 
   if (view === 'receivedMetersBase') {
     const hasReceivedSearch = Boolean(receivedMetersSearchQuery.trim())
