@@ -5590,6 +5590,10 @@ function HomePanel({
                   setSelectedAuditArea(null)
                   return
                 }
+                if (placeSupportBesideApproved) {
+                  exitToHome()
+                  return
+                }
                 setSelectedLabMeasurementSection(null)
               }}
               onHome={() => {
