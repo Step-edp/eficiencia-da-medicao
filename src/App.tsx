@@ -5740,6 +5740,7 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Consultar Medidor' ? (
               <FieldTeamConsultarPanel
                 allTrailSteps
+                hideInspectionDocument={showConsumoIrregularLab}
                 allowEdit={!labMedicaoReadOnly && !showConsumoIrregularLab}
                 allowCancelSchedule={!labMedicaoReadOnly && !showConsumoIrregularLab}
                 allowDeleteInspection={!labMedicaoReadOnly && !showConsumoIrregularLab}

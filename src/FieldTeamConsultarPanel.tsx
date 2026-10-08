@@ -34,6 +34,8 @@ type FieldTeamSchedulesPanelProps = {
   allowDeleteInspection?: boolean
     /** Lista Medidores agendados: só quem ainda não tem documento de inspeção importado. */
   excludeAnalyzed?: boolean
+  /** Consumo Irregular não vê a coluna Documento de inspeção. */
+  hideInspectionDocument?: boolean
 }
 
 type EnvelopePreview = {
@@ -151,6 +153,7 @@ function meterBaseStatusLabel(
 async function downloadMetersExcel(
   schedules: MeterScheduleRecord[],
   inspectionByScheduleId: Record<string, MeterInspectionSummary>,
+  hideInspectionDocument = false,
 ) {
   const XLSX = await import('xlsx')
   const rows = schedules.map((item) => {
@@ -171,7 +174,9 @@ async function downloadMetersExcel(
     row['Registrado em'] = formatScheduleCreatedAtLabel(item.createdAt)
     row['Prazo entrega'] = item.deliveryDeadlineLabel || ''
     row['Status entrega'] = deliveryStatusLabel(item)
-    row['Documento de inspeção'] = inspectionStatusLabel(summary)
+    if (!hideInspectionDocument) {
+      row['Documento de inspeção'] = inspectionStatusLabel(summary)
+    }
     return row
   })
   const sheet = XLSX.utils.json_to_sheet(rows)
@@ -569,6 +574,7 @@ export function FieldTeamConsultarPanel({
   allowEdit = false,
   allowDeleteInspection = false,
   excludeAnalyzed = false,
+  hideInspectionDocument = false,
 }: FieldTeamSchedulesPanelProps) {
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -974,7 +980,11 @@ export function FieldTeamConsultarPanel({
               aria-label="Baixar Excel com todos os medidores"
               title="Baixar Excel"
               onClick={() => {
-                void downloadMetersExcel(schedules, inspectionSummaryByScheduleId).catch(
+                void downloadMetersExcel(
+                  schedules,
+                  inspectionSummaryByScheduleId,
+                  hideInspectionDocument,
+                ).catch(
                   () => {
                     setFeedback({
                       type: 'error',
@@ -1049,7 +1059,7 @@ export function FieldTeamConsultarPanel({
                 <th>Registrado em</th>
                 <th>Prazo entrega</th>
                 <th>Status entrega</th>
-                <th>Documento de inspeção</th>
+                {hideInspectionDocument ? null : <th>Documento de inspeção</th>}
                 {allowCancelSchedule ? <th>Excluir</th> : null}
               </tr>
             </thead>
@@ -1166,6 +1176,7 @@ export function FieldTeamConsultarPanel({
                       </span>
                     )}
                   </td>
+                  {hideInspectionDocument ? null : (
                   <td className="table-inspection-cell">
                     <div className="table-inspection-actions">
                       <span
@@ -1240,6 +1251,7 @@ export function FieldTeamConsultarPanel({
                       </div>
                     </div>
                   </td>
+                  )}
                   {allowCancelSchedule ? (
                     <td>
                       <button
