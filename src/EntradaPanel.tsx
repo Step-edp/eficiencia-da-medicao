@@ -997,8 +997,9 @@ function BulkReceiveConfirmModal({
 
         <h3 id="bulk-receive-confirm-title">Entrada em massa</h3>
         <p className="demm-modal-intro">
-          Dar entrada em massa para todos os {demmDocument.meterCount} medidor(es) da DEMM{' '}
-          <strong>{label}</strong>? Eles ficarão disponíveis para ensaio.
+          Dar entrada nos medidores analisados que ainda aguardam entrada da DEMM{' '}
+          <strong>{label}</strong>? Medidores já recebidos permanecem como estão. Os demais
+          ficarão disponíveis para ensaio.
         </p>
 
         <div className="ensaios-block-modal-actions">

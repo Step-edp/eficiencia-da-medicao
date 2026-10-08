@@ -139,6 +139,21 @@ async function loadMetersWithEntradaGiven(meters: string[]): Promise<Set<string>
   return given
 }
 
+function demmMeterPastEntry(appStatus: string | undefined) {
+  return appStatus === 'recebido' || appStatus === 'ensaiado' || appStatus === 'aprovado'
+}
+
+function demmMeterReadyForBulkEntry(
+  appStatus: string | undefined,
+  analysisStatus: { analyzed?: boolean; blocked?: boolean } | undefined,
+) {
+  return (
+    appStatus === 'agendado' &&
+    analysisStatus?.analyzed === true &&
+    analysisStatus.blocked !== true
+  )
+}
+
 export async function listDemmDocuments(_req: Request, res: Response) {
   const result = await query<Omit<DemmDocumentRow, 'file_data'> & { created_by_registration: string | null }>(
     `SELECT d.id, d.meter_schedule_id, d.meter, d.file_name, d.extracted_meters,
@@ -186,16 +201,18 @@ export async function listDemmDocuments(_req: Request, res: Response) {
       const bulkEntryReady =
         !rejected &&
         !hasBlockedMeters &&
-        meterNumbers.length > 0 &&
+        meterNumbers.some((meter) => {
+          const norm = normalizeScheduleMeter(meter)
+          return demmMeterReadyForBulkEntry(
+            analysisByNorm.get(norm)?.appStatus,
+            analysisStatusByNorm.get(norm),
+          )
+        }) &&
         meterNumbers.every((meter) => {
           const norm = normalizeScheduleMeter(meter)
-          const analysisStatus = analysisStatusByNorm.get(norm)
           const appStatus = analysisByNorm.get(norm)?.appStatus
-          return (
-            analysisStatus?.analyzed === true &&
-            !analysisStatus?.blocked &&
-            appStatus === 'agendado'
-          )
+          if (demmMeterPastEntry(appStatus) || appStatus === 'nao_agendado') return true
+          return demmMeterReadyForBulkEntry(appStatus, analysisStatusByNorm.get(norm))
         })
       const liberadoCount = meterNumbers.filter(
         (meter) => statusByMeter.get(meter) === 'liberado',
@@ -1365,29 +1382,29 @@ export async function receiveDemmDocumentBulk(req: Request, res: Response) {
     return
   }
 
-  const statusByMeter = await buildMeterWeekStatusMap(meterNumbers)
   const analysisStatusByNorm = await loadInspectionAnalysisStatusByMeter(meterNumbers)
   const analyzedMeters = await analyzeDemmMeters(meterNumbers)
   const analyzedByNorm = new Map(
     analyzedMeters.map((item) => [normalizeScheduleMeter(item.meter), item]),
   )
-  const notAnalyzed = meterNumbers.filter(
-    (meter) => !analysisStatusByNorm.get(normalizeScheduleMeter(meter))?.analyzed,
+  const pendingMeters = meterNumbers.filter(
+    (meter) => !demmMeterPastEntry(analyzedByNorm.get(normalizeScheduleMeter(meter))?.appStatus),
   )
+  const metersToReceive = pendingMeters.filter((meter) =>
+    demmMeterReadyForBulkEntry(
+      analyzedByNorm.get(normalizeScheduleMeter(meter))?.appStatus,
+      analysisStatusByNorm.get(normalizeScheduleMeter(meter)),
+    ),
+  )
+  const pendingNotAnalyzed = pendingMeters.filter((meter) => {
+    const norm = normalizeScheduleMeter(meter)
+    const appStatus = analyzedByNorm.get(norm)?.appStatus
+    return appStatus === 'agendado' && !analysisStatusByNorm.get(norm)?.analyzed
+  })
   const blockedMeters = meterNumbers.filter(
     (meter) => analysisStatusByNorm.get(normalizeScheduleMeter(meter))?.analysisBlocked,
   )
-  const notAwaitingEntry = meterNumbers.filter(
-    (meter) => analyzedByNorm.get(normalizeScheduleMeter(meter))?.appStatus !== 'agendado',
-  )
 
-  if (notAnalyzed.length) {
-    res.status(409).json({
-      error: 'Nem todos os medidores desta DEMM tiveram a análise salva.',
-      meters: notAnalyzed,
-    })
-    return
-  }
   if (blockedMeters.length) {
     res.status(409).json({
       error: 'Esta DEMM possui medidor(es) bloqueado(s) e não pode dar entrada. Rejeite a DEMM.',
@@ -1395,26 +1412,22 @@ export async function receiveDemmDocumentBulk(req: Request, res: Response) {
     })
     return
   }
-  if (notAwaitingEntry.length) {
+  if (pendingNotAnalyzed.length) {
     res.status(409).json({
-      error: 'Nem todos os medidores desta DEMM estão aguardando entrada.',
-      meters: notAwaitingEntry,
+      error: 'Nem todos os medidores aguardando entrada tiveram a análise salva.',
+      meters: pendingNotAnalyzed,
     })
     return
   }
-
-  const notReady = meterNumbers.filter((meter) => statusByMeter.get(meter) !== 'liberado')
-  if (notReady.length) {
+  if (!metersToReceive.length) {
     res.status(409).json({
-      error:
-        'Nem todos os medidores desta DEMM estão liberados para entrada. Verifique TOI, CSM e análise.',
-      meters: notReady,
+      error: 'Não há medidores analisados aguardando entrada nesta DEMM.',
     })
     return
   }
 
   const schedules: Array<{ meter: string; schedule: WeekMeterScheduleRow }> = []
-  for (const meter of meterNumbers) {
+  for (const meter of metersToReceive) {
     const schedule = await resolveWeekMeterSchedule(meter, '')
     if (!schedule) {
       res.status(409).json({ error: `Agendamento do medidor ${meter} não encontrado.` })
@@ -1422,12 +1435,26 @@ export async function receiveDemmDocumentBulk(req: Request, res: Response) {
     }
 
     const validationError = await weekMeterReceiveValidationError(schedule)
-    if (validationError) {
+    if (validationError?.includes('já teve entrada')) continue
+    if (
+      validationError &&
+      !demmMeterReadyForBulkEntry(
+        analyzedByNorm.get(normalizeScheduleMeter(meter))?.appStatus,
+        analysisStatusByNorm.get(normalizeScheduleMeter(meter)),
+      )
+    ) {
       res.status(409).json({ error: `Medidor ${meter}: ${validationError}` })
       return
     }
 
     schedules.push({ meter, schedule })
+  }
+
+  if (!schedules.length) {
+    res.status(409).json({
+      error: 'Não há medidores analisados aguardando entrada nesta DEMM.',
+    })
+    return
   }
 
   const receivedAt = new Date()
