@@ -1040,7 +1040,7 @@ export function FieldTeamConsultarPanel({
             <thead>
               <tr>
                 <th>Medidor</th>
-                {allTrailSteps ? <th>Etapa</th> : null}
+                {allTrailSteps ? <th>Status</th> : null}
                 <th>Instalação</th>
                 <th>TOI</th>
                 <th>Invólucro</th>
@@ -1078,7 +1078,7 @@ export function FieldTeamConsultarPanel({
                       {item.meter}
                     </button>
                   </td>
-                  {allTrailSteps ? <td>{getLabTrailLabel(item.trailStep)}</td> : null}
+                  {allTrailSteps ? <td>{meterBaseStatusLabel(item, summary)}</td> : null}
                   <td>
                     <div className="table-installation-cell">
                       <span>{item.installation || '—'}</span>
