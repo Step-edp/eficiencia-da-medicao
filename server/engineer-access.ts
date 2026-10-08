@@ -195,8 +195,9 @@ export const BUSINESS_AREA_TO_HOME_PORTALS: Record<string, readonly string[]> = 
 
 /** Processos liberados para a área Consumo Irregular. */
 export const CONSUMO_IRREGULAR_LAB_PROCESSES = [
-  'Reagendar',
+  'Relatórios Aprovados',
   'Consultar Medidor',
+  'Reagendar',
   'Consultar RATM',
 ] as const
 

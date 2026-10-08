@@ -1102,6 +1102,7 @@ function ItemIcon({ title }: { title: string }) {
     Agendar: 'calendar',
     'Consultar RATM': 'search',
     'Consultar Medidor': 'search',
+    'Relatórios Aprovados': 'check',
     'Base de medidores recebidos': 'database',
     'Calendário de ensaios': 'calendar',
     Reagendar: 'repeat',
@@ -2497,6 +2498,7 @@ function HomePanel({
     'Dashboard',
     'Minha produtividade',
     'Consultar RATM',
+    'Relatórios Aprovados',
     'Consultar Medidor',
     'Base de medidores recebidos',
     'Reagendar',
@@ -3395,7 +3397,10 @@ function HomePanel({
   }, [])
 
   useEffect(() => {
-    if (selectedLabMeasurementSection === 'Aprovação de RATM') {
+    if (
+      selectedLabMeasurementSection === 'Aprovação de RATM' ||
+      selectedLabMeasurementSection === 'Relatórios Aprovados'
+    ) {
       void loadRatmLaudos()
     }
   }, [selectedLabMeasurementSection])
@@ -5590,7 +5595,9 @@ function HomePanel({
                   ? selectedAuditArea
                   : LAB_TRAIL_KEYS.has(selectedLabMeasurementSection)
                     ? getLabTrailLabel(selectedLabMeasurementSection)
-                    : selectedLabMeasurementSection}
+                    : showConsumoIrregularLab && selectedLabMeasurementSection === 'Consultar Medidor'
+                      ? 'Consulta de Medidores'
+                      : selectedLabMeasurementSection}
             </h2>
             {labMedicaoReadOnly ? (
               <div className="agenda-alert agenda-alert-ok" role="status">
@@ -5705,12 +5712,20 @@ function HomePanel({
               <GalleryPanel />
             ) : selectedLabMeasurementSection === 'Consultar RATM' ? (
               <ConsultarRatmPanel isAdmin={isAdmin} />
+            ) : selectedLabMeasurementSection === 'Relatórios Aprovados' ? (
+              <RatmAprovacaoPanel
+                approvedOnly
+                readOnly
+                laudos={ratmLaudos}
+                onLaudoUpdated={() => undefined}
+                onLaudoApproved={() => undefined}
+              />
             ) : selectedLabMeasurementSection === 'Consultar Medidor' ? (
               <FieldTeamConsultarPanel
                 allTrailSteps
-                allowEdit={!labMedicaoReadOnly}
-                allowCancelSchedule={!labMedicaoReadOnly}
-                allowDeleteInspection={!labMedicaoReadOnly}
+                allowEdit={!labMedicaoReadOnly && !showConsumoIrregularLab}
+                allowCancelSchedule={!labMedicaoReadOnly && !showConsumoIrregularLab}
+                allowDeleteInspection={!labMedicaoReadOnly && !showConsumoIrregularLab}
               />
             ) : selectedLabMeasurementSection === 'Base de medidores recebidos' ? (
               <EntradaPanel
@@ -6320,7 +6335,11 @@ function HomePanel({
                     >
                       <span className="item-with-icon measurement-item-row">
                         <ItemIcon title={section} />
-                        <span>{section}</span>
+                        <span>
+                          {showConsumoIrregularLab && section === 'Consultar Medidor'
+                            ? 'Consulta de Medidores'
+                            : section}
+                        </span>
                         {section === 'Suporte' ? (
                           <LateMetersCountBadge
                             count={openSupportCount}

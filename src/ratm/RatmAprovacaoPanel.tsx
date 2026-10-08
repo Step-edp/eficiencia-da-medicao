@@ -12,6 +12,7 @@ type RatmAprovacaoPanelProps = {
   onLaudoDeleted?: (laudoId: string) => void
   readOnly?: boolean
   isAdmin?: boolean
+  approvedOnly?: boolean
   approverUserId?: string
   approverIsLab?: boolean
 }
@@ -23,6 +24,7 @@ export function RatmAprovacaoPanel({
   onLaudoDeleted,
   readOnly = false,
   isAdmin = false,
+  approvedOnly = false,
   approverUserId,
   approverIsLab = false,
 }: RatmAprovacaoPanelProps) {
@@ -126,6 +128,7 @@ export function RatmAprovacaoPanel({
         </div>
       ) : null}
 
+      {approvedOnly ? null : (
       <div
         className="panel-switch users-view-switch lab-agendar-switch"
         role="tablist"
@@ -150,8 +153,9 @@ export function RatmAprovacaoPanel({
           Relatórios Aprovados
         </button>
       </div>
+      )}
 
-      {tab === 'pending' ? (
+      {!approvedOnly && tab === 'pending' ? (
       <section className="approval-section">
         <div className="approval-list" aria-label="Laudos de RATM pendentes">
           {pendingLaudos.length === 0 ? (

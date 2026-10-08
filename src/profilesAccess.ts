@@ -382,7 +382,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'consumo-irregular',
     name: profileName('Consumo Irregular', 'Operacional'),
     description:
-      'Acesso a Reagendar, Consultar Medidor e Consultar RATM no Laboratório de Medição.',
+      'Acesso a Relatórios Aprovados, Consulta de Medidores, Reagendar e Consultar RATM no Laboratório de Medição.',
     areas: ['Laboratório de Medição'],
     match: {
       workArea: 'Consumo Irregular',
@@ -393,7 +393,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'consumo-irregular-analista',
     name: profileName('Consumo Irregular', 'Analista'),
     description:
-      'Acesso a Reagendar, Consultar Medidor e Consultar RATM no Laboratório de Medição.',
+      'Acesso a Relatórios Aprovados, Consulta de Medidores, Reagendar e Consultar RATM no Laboratório de Medição.',
     areas: ['Laboratório de Medição'],
     match: {
       workArea: 'Consumo Irregular',
@@ -404,7 +404,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
     id: 'consumo-irregular-engenheiro',
     name: profileName('Consumo Irregular', 'Engenheiro'),
     description:
-      'Acesso a Reagendar, Consultar Medidor e Consultar RATM no Laboratório de Medição.',
+      'Acesso a Relatórios Aprovados, Consulta de Medidores, Reagendar e Consultar RATM no Laboratório de Medição.',
     areas: ['Laboratório de Medição'],
     match: {
       workArea: 'Consumo Irregular',
@@ -413,7 +413,7 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   },
 ]
 
-/** Área Consumo Irregular: Reagendar, Consultar Medidor e Consultar RATM. */
+/** Área Consumo Irregular: Relatórios Aprovados, Consulta de Medidores, Reagendar e Consultar RATM. */
 export function isConsumoIrregular(user: { workArea?: string | null }) {
   return isConsumoIrregularWorkArea(user.workArea)
 }
@@ -640,7 +640,7 @@ export function getAccessiblePortals(user: {
     portals = [...portals, 'Usuários']
   }
 
-  // Consumo Irregular: Laboratório de Medição (Reagendar, Consultar Medidor, Consultar RATM).
+  // Consumo Irregular: Laboratório de Medição (Relatórios Aprovados, Consulta de Medidores, Reagendar, Consultar RATM).
   if (isConsumoIrregular(user) && !portals.includes('Laboratório de Medição')) {
     portals = [...portals, 'Laboratório de Medição']
   }
