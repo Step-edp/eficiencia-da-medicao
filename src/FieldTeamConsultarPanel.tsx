@@ -131,6 +131,43 @@ function inspectionStatusBadgeClass(summary: MeterInspectionSummary | undefined)
   return 'schedule-late-badge'
 }
 
+async function downloadMetersExcel(
+  schedules: MeterScheduleRecord[],
+  inspectionByScheduleId: Record<string, MeterInspectionSummary>,
+  includeTrailStep: boolean,
+) {
+  const XLSX = await import('xlsx')
+  const rows = schedules.map((item) => {
+    const summary = inspectionByScheduleId[item.id]
+    const row: Record<string, string> = {
+      Medidor: item.meter || '',
+    }
+    if (includeTrailStep) row.Etapa = getLabTrailLabel(item.trailStep)
+    row.Instalação = item.installation || ''
+    row.TOI = item.toi || ''
+    row['Lacre do invólucro'] = item.envelopeSeal || ''
+    row.Nota = item.note || ''
+    row.CSD = item.csd || ''
+    row['Agendado por'] = formatScheduleCreatedByLabel(item)
+    row['Colaborador 1'] = formatScheduleCollaborator1Label(item)
+    row['Colaborador 2'] = formatScheduleCollaborator2Label(item)
+    row['Data de ensaio'] = item.scheduledAtLabel || ''
+    row['Registrado em'] = formatScheduleCreatedAtLabel(item.createdAt)
+    row['Prazo entrega'] = item.deliveryDeadlineLabel || ''
+    row['Status entrega'] = deliveryStatusLabel(item)
+    row['Documento de inspeção'] = inspectionStatusLabel(summary)
+    return row
+  })
+  const sheet = XLSX.utils.json_to_sheet(rows)
+  sheet['!cols'] = Object.keys(rows[0] ?? { Medidor: '' }).map((key) => ({
+    wch: Math.max(key.length + 2, 18),
+  }))
+  const book = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(book, sheet, 'Medidores')
+  const stamp = new Date().toISOString().slice(0, 10)
+  XLSX.writeFile(book, `medidores-${stamp}.xlsx`)
+}
+
 function stillAwaitingEntrada(item: MeterScheduleRecord) {
   const status = item.registryStatus?.trim() ?? ''
   if (status === 'Recebido' || status === 'Ensaiado' || status === 'Aprovado') {
@@ -857,9 +894,52 @@ export function FieldTeamConsultarPanel({
               spellCheck={false}
             />
           </label>
-          <p className="consultar-count" aria-live="polite">
-            {counterLabel}
-          </p>
+          <div className="consultar-toolbar-end">
+            <button
+              type="button"
+              className="consultar-download-button"
+              aria-label="Baixar Excel com todos os medidores"
+              title="Baixar Excel"
+              onClick={() => {
+                void downloadMetersExcel(schedules, inspectionSummaryByScheduleId, allTrailSteps).catch(
+                  () => {
+                    setFeedback({
+                      type: 'error',
+                      message: 'Não foi possível baixar a planilha dos medidores.',
+                    })
+                  },
+                )
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 3v11"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M7 10l5 5 5-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M5 21h14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+            <p className="consultar-count" aria-live="polite">
+              {counterLabel}
+            </p>
+          </div>
         </div>
       ) : null}
 

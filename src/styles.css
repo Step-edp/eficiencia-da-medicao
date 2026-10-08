@@ -3025,6 +3025,38 @@ button {
   padding-left: 40px;
 }
 
+.consultar-toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.consultar-download-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(24, 216, 240, 0.28);
+  background: rgba(8, 39, 66, 0.55);
+  color: #9fd4e4;
+  box-shadow: none;
+}
+
+.consultar-download-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.consultar-download-button:hover,
+.consultar-download-button:focus-visible {
+  background: rgba(24, 216, 240, 0.12);
+  color: #d7e8f2;
+}
+
 .consultar-count {
   margin: 0;
   color: var(--text-soft);
