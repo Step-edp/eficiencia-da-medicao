@@ -391,10 +391,6 @@ function ScheduleDetailModal({
             </div>
           ) : null}
           <div>
-            <dt>Data de agendamento</dt>
-            <dd>{displayValue(schedule.scheduledAtLabel)}</dd>
-          </div>
-          <div>
             <dt>Data de ensaio</dt>
             <dd>{displayValue(schedule.scheduledAtLabel)}</dd>
           </div>
@@ -894,7 +890,6 @@ export function FieldTeamConsultarPanel({
                 <th>Agendado por</th>
                 <th>Colaborador 1</th>
                 <th>Colaborador 2</th>
-                <th>Data de agendamento</th>
                 <th>Data de ensaio</th>
                 <th>Registrado em</th>
                 <th>Prazo entrega</th>
@@ -978,7 +973,6 @@ export function FieldTeamConsultarPanel({
                   <td>{formatScheduleCreatedByLabel(item) || '—'}</td>
                   <td>{formatScheduleCollaborator1Label(item) || '—'}</td>
                   <td>{formatScheduleCollaborator2Label(item) || '—'}</td>
-                  <td>{item.scheduledAtLabel || '—'}</td>
                   <td>{item.scheduledAtLabel || '—'}</td>
                   <td>{formatScheduleCreatedAtLabel(item.createdAt) || '—'}</td>
                   <td>{item.deliveryDeadlineLabel || '—'}</td>
