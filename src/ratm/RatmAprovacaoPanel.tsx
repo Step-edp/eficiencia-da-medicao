@@ -32,6 +32,7 @@ export function RatmAprovacaoPanel({
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [tab, setTab] = useState<'pending' | 'approved'>('pending')
   const query = search.trim().toLocaleLowerCase('pt-BR')
   const matchesSearch = (laudo: RatmLaudo) => {
     if (!query) return true
@@ -63,6 +64,7 @@ export function RatmAprovacaoPanel({
       setSuccessMessage(
         `Laudo ${formatRatmLaudoNumber(approved.ratmNumber, approved.createdAt)} aprovado com sucesso.`,
       )
+      setTab('approved')
     } catch (error) {
       setDeleteError(error instanceof ApiError ? error.message : 'Não foi possível aprovar o laudo.')
     } finally {
@@ -114,8 +116,33 @@ export function RatmAprovacaoPanel({
         </div>
       ) : null}
 
+      <div
+        className="panel-switch users-view-switch lab-agendar-switch"
+        role="tablist"
+        aria-label="Aprovação de laudos"
+      >
+        <button
+          className={tab === 'pending' ? 'active' : ''}
+          type="button"
+          role="tab"
+          aria-selected={tab === 'pending'}
+          onClick={() => setTab('pending')}
+        >
+          Pendente Aprovação
+        </button>
+        <button
+          className={tab === 'approved' ? 'active' : ''}
+          type="button"
+          role="tab"
+          aria-selected={tab === 'approved'}
+          onClick={() => setTab('approved')}
+        >
+          Relatórios Aprovados
+        </button>
+      </div>
+
+      {tab === 'pending' ? (
       <section className="approval-section">
-        <h3>Pendente Aprovação</h3>
         <div className="approval-list" aria-label="Laudos de RATM pendentes">
           {pendingLaudos.length === 0 ? (
             <p className="generated-password-empty">
@@ -188,9 +215,8 @@ export function RatmAprovacaoPanel({
           )}
         </div>
       </section>
-
+      ) : (
       <section className="approval-section">
-        <h3>Relatórios Aprovados</h3>
         <div className="approval-list" aria-label="Relatórios RATM aprovados">
           {approvedLaudos.length === 0 ? (
             <p className="generated-password-empty">Nenhum relatório aprovado.</p>
@@ -239,6 +265,7 @@ export function RatmAprovacaoPanel({
           )}
         </div>
       </section>
+      )}
 
       {viewingLaudo ? (
         <RatmLaudoViewer
