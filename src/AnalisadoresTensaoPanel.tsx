@@ -221,6 +221,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   const [laudoData, setLaudoData] = useState<string | null>(null)
 
   const [showEnsaiosRealizados, setShowEnsaiosRealizados] = useState(false)
+  const [searchEnsaio, setSearchEnsaio] = useState('')
   const [ensaiosSessoes, setEnsaiosSessoes] = useState<EnsaioSessaoRecord[]>([])
   const [loadingEnsaiosSessoes, setLoadingEnsaiosSessoes] = useState(false)
   const [selectedEnsaio, setSelectedEnsaio] = useState<{
@@ -332,6 +333,19 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         return calibracaoSort === 'asc' ? order : -order
       })
   }, [analisadores, calibracaoSort, searchNumeroSerie, situacaoFilter])
+
+  const filteredEnsaios = useMemo(() => {
+    const query = searchEnsaio.trim().toLowerCase()
+    if (!query) return ensaiosSessoes
+    return ensaiosSessoes.filter((sessao) => {
+      const responsavel = `${sessao.createdByName ?? ''} ${sessao.createdByRegistration ?? ''}`
+      return (
+        sessao.numeroSerie.toLowerCase().includes(query) ||
+        responsavel.toLowerCase().includes(query) ||
+        formatAuditDate(sessao.createdAt).toLowerCase().includes(query)
+      )
+    })
+  }, [ensaiosSessoes, searchEnsaio])
 
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault()
@@ -1048,6 +1062,38 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         loadingEnsaiosSessoes ? (
           <p className="entrada-panel-empty">Carregando ensaios realizados...</p>
         ) : ensaiosSessoes.length ? (
+          <>
+          <div className="consultar-toolbar ensaios-realizados-toolbar">
+            <label className="consultar-search">
+              <span className="sr-only">Pesquisar ensaios realizados</span>
+              <span className="consultar-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+                  <path
+                    d="M20 20l-3.5-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <input
+                type="search"
+                value={searchEnsaio}
+                onChange={(event) => setSearchEnsaio(event.target.value)}
+                placeholder="Pesquisar por número de série ou responsável"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            <p className="consultar-count" aria-live="polite">
+              {filteredEnsaios.length === ensaiosSessoes.length
+                ? `${ensaiosSessoes.length} ensaio(s)`
+                : `${filteredEnsaios.length} de ${ensaiosSessoes.length} ensaio(s)`}
+            </p>
+          </div>
+          {filteredEnsaios.length ? (
           <div className="entrada-table-wrap">
             <table className="data-table">
               <thead>
@@ -1059,7 +1105,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                 </tr>
               </thead>
               <tbody>
-                {ensaiosSessoes.map((sessao) => (
+                {filteredEnsaios.map((sessao) => (
                   <tr key={`${sessao.ensaioId}-${sessao.numeroSerie}`}>
                     <td>{formatAuditDate(sessao.createdAt)}</td>
                     <td>{sessao.numeroSerie}</td>
@@ -1126,6 +1172,10 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               </tbody>
             </table>
           </div>
+          ) : (
+            <p className="entrada-panel-empty">Nenhum ensaio encontrado com essa pesquisa.</p>
+          )}
+          </>
         ) : (
           <p className="entrada-panel-empty">Nenhum ensaio registrado ainda.</p>
         )

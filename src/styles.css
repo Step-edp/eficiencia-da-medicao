@@ -6173,6 +6173,10 @@ button {
   flex: 0 0 auto;
 }
 
+.ensaios-realizados-toolbar {
+  margin-bottom: 12px;
+}
+
 .ensaios-realizados-actions {
   display: flex;
   gap: 8px;
