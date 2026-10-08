@@ -3,7 +3,7 @@ import { api, ApiError } from '../api'
 import { LoginFeedback } from '../LoginFeedback'
 import { RatmLaudoViewer } from './RatmLaudoViewer'
 import { formatRatmLaudoNumber, mapRatmLaudoFromApi, type RatmLaudo } from './laudos'
-import { openRatmLaudoPdf } from './laudoPdf'
+import { downloadRatmLaudoPdf, openRatmLaudoPdf } from './laudoPdf'
 
 type RatmAprovacaoPanelProps = {
   laudos: RatmLaudo[]
@@ -258,6 +258,17 @@ export function RatmAprovacaoPanel({
                     onClick={() => openRatmLaudoPdf(laudo.id)}
                   >
                     Visualizar PDF
+                  </button>
+                  <button
+                    className="secondary-button approval-action-button"
+                    type="button"
+                    onClick={() => {
+                      void downloadRatmLaudoPdf(laudo.id).catch(() => {
+                        setDeleteError('Não foi possível baixar o PDF.')
+                      })
+                    }}
+                  >
+                    Baixar PDF
                   </button>
                   {isAdmin ? (
                     <button
