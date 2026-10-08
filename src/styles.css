@@ -7436,16 +7436,6 @@ input[type='file'] {
   line-height: 1.45;
 }
 
-.lab-central-dashboard {
-  display: grid;
-  gap: 36px;
-}
-
-.lab-central-dashboard-section {
-  display: grid;
-  gap: 12px;
-}
-
 .produtividade-panel {
   display: grid;
   gap: 16px;
