@@ -2079,6 +2079,11 @@ export const api = {
       `/api/meter-schedules/${meterScheduleId}/unblock-inspection-analysis`,
       { method: 'POST' },
     ),
+  reopenInspectionAnalysis: (meterScheduleId: string) =>
+    request<{ ok: true }>(
+      `/api/meter-schedules/${meterScheduleId}/reopen-inspection-analysis`,
+      { method: 'POST' },
+    ),
   updateInspectionExtracted: (
     meterScheduleId: string,
     payload: {

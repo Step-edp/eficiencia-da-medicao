@@ -111,6 +111,7 @@ type InspectionDocumentAnalysisModalProps = {
   onAnalysisCompleted?: (meter: string) => void
   onAnalysisBlocked?: (meter: string) => void
   onAnalysisUnblocked?: (meter: string) => void
+  onAnalysisReopened?: (meter: string) => void
   viewOnly?: boolean
 }
 
@@ -958,6 +959,7 @@ export function InspectionDocumentAnalysisModal({
   onAnalysisCompleted,
   onAnalysisBlocked,
   onAnalysisUnblocked,
+  onAnalysisReopened,
   viewOnly = false,
 }: InspectionDocumentAnalysisModalProps) {
   const [loading, setLoading] = useState(true)
@@ -1022,6 +1024,7 @@ export function InspectionDocumentAnalysisModal({
   const [savingAnalysis, setSavingAnalysis] = useState(false)
   const [blockingAnalysis, setBlockingAnalysis] = useState(false)
   const [unblockingAnalysis, setUnblockingAnalysis] = useState(false)
+  const [reopeningAnalysis, setReopeningAnalysis] = useState(false)
   const [csmPhysicalOnly, setCsmPhysicalOnly] = useState(false)
 
   const loadDocuments = useCallback(async (options?: { silent?: boolean }) => {
@@ -1320,6 +1323,26 @@ export function InspectionDocumentAnalysisModal({
       })
     } finally {
       setBlockingAnalysis(false)
+    }
+  }
+
+  const handleReopenAnalysis = async () => {
+    setReopeningAnalysis(true)
+    setFeedback(null)
+    try {
+      await api.reopenInspectionAnalysis(scheduleId)
+      onDocumentsChanged?.()
+      onAnalysisReopened?.(registeredMeter || meter)
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Não foi possível reabrir a análise.',
+      })
+    } finally {
+      setReopeningAnalysis(false)
     }
   }
 
@@ -2208,6 +2231,17 @@ export function InspectionDocumentAnalysisModal({
                 </>
               ) : (
                 <div className="inspection-analysis-screen-action-row">
+                  {analysisCompleted ? (
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={reopeningAnalysis}
+                      onClick={() => void handleReopenAnalysis()}
+                      title="Voltar o medidor para a fila de análise"
+                    >
+                      {reopeningAnalysis ? 'Reabrindo...' : 'Reanalisar'}
+                    </button>
+                  ) : null}
                   <button type="button" className="secondary-button" onClick={onClose}>
                     Voltar
                   </button>
@@ -2300,9 +2334,20 @@ export function InspectionDocumentAnalysisModal({
           ) : analysisCompleted ? (
             <>
               <span className="inspection-analysis-saved-badge">Análise completa</span>
-              <button type="button" className="secondary-button" onClick={onClose}>
-                Voltar
-              </button>
+              <div className="inspection-analysis-screen-action-row">
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={reopeningAnalysis}
+                  onClick={() => void handleReopenAnalysis()}
+                  title="Voltar o medidor para a fila de análise"
+                >
+                  {reopeningAnalysis ? 'Reabrindo...' : 'Reanalisar'}
+                </button>
+                <button type="button" className="secondary-button" onClick={onClose}>
+                  Voltar
+                </button>
+              </div>
             </>
           ) : (
             <button type="button" className="secondary-button" onClick={onClose}>

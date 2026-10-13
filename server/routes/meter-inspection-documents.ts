@@ -3826,6 +3826,52 @@ export async function blockInspectionAnalysis(req: Request, res: Response) {
   })
 }
 
+export async function reopenInspectionAnalysis(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+
+  if (!(await canManageInspectionDocuments(req))) {
+    res.status(403).json({
+      error: 'Somente administradores e usuários do Laboratório de Medição podem reanalisar.',
+    })
+    return
+  }
+
+  const existing = await query<{
+    id: string
+    meter: string
+    inspection_analysis_completed_at: Date | null
+  }>(
+    `SELECT id, meter, inspection_analysis_completed_at FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  if (!existing.rows[0]) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+  if (!existing.rows[0].inspection_analysis_completed_at) {
+    res.status(409).json({ error: 'Este medidor ainda não teve a análise concluída.' })
+    return
+  }
+
+  await query(
+    `UPDATE meter_schedules
+     SET inspection_analysis_completed_at = NULL,
+         inspection_analysis_completed_by_user_id = NULL
+     WHERE id = $1`,
+    [meterScheduleId],
+  )
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: meterScheduleId,
+    summary: `Análise reaberta para o medidor ${existing.rows[0].meter}`,
+    newData: { reopened: true },
+  })
+
+  res.json({ ok: true })
+}
+
 export async function unblockInspectionAnalysis(req: Request, res: Response) {
   const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
 

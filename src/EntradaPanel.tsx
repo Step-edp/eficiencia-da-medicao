@@ -1150,6 +1150,7 @@ export function EntradaPanel({
   const [wpaBlockedMeters, setWpaBlockedMeters] = useState<MeterInspectionDocumentadoRecord[]>([])
   const [wpaBlockedMetersLoading, setWpaBlockedMetersLoading] = useState(false)
   const [wpaBlockedSearchQuery, setWpaBlockedSearchQuery] = useState('')
+  const [reopeningAnalysisId, setReopeningAnalysisId] = useState<string | null>(null)
   const [receivedMeters, setReceivedMeters] = useState<MeterRegistryRecord[]>([])
   const [receivedMetersTotal, setReceivedMetersTotal] = useState(0)
   const [receivedMetersLoading, setReceivedMetersLoading] = useState(false)
@@ -1540,6 +1541,46 @@ export function EntradaPanel({
     void loadWeekMeters()
     void loadData()
     refreshTrailCounts()
+  }
+
+  const handleWpaAnalysisReopened = (reopenedMeter: string) => {
+    setInspectionDocumentTarget((current) =>
+      current ? { ...current, viewOnly: false } : current,
+    )
+    setView('metersBase')
+    setFeedback({
+      type: 'success',
+      message: `Medidor ${reopenedMeter} liberado para reanálise.`,
+    })
+    void loadWpaMeters()
+    void loadWpaAnalyzedMeters()
+    void loadWpaBlockedMeters()
+    void loadInspectionPendencias()
+    void loadWeekMeters()
+    void loadData()
+    refreshTrailCounts()
+  }
+
+  const reopenWpaAnalysis = async (item: MeterInspectionDocumentadoRecord) => {
+    setReopeningAnalysisId(item.id)
+    setFeedback(null)
+    try {
+      await api.reopenInspectionAnalysis(item.id)
+      handleWpaAnalysisReopened(item.meter)
+      setInspectionDocumentTarget({
+        meter: item.meter,
+        scheduleId: item.id,
+        viewOnly: false,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError ? error.message : 'Não foi possível reabrir a análise.',
+      })
+    } finally {
+      setReopeningAnalysisId(null)
+    }
   }
 
   const handleWpaAnalysisUnblocked = (unblockedMeter: string) => {
@@ -2895,19 +2936,32 @@ export function EntradaPanel({
                           </span>
                         </td>
                         <td>
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            onClick={() =>
-                              setInspectionDocumentTarget({
-                                meter: item.meter,
-                                scheduleId: item.id,
-                                viewOnly: analyzedView || blockedView,
-                              })
-                            }
-                          >
-                            {actionLabel}
-                          </button>
+                          <div className="inspection-analysis-row-actions">
+                            {analyzedView && !readOnly ? (
+                              <button
+                                type="button"
+                                className="primary-button"
+                                disabled={reopeningAnalysisId === item.id}
+                                onClick={() => void reopenWpaAnalysis(item)}
+                                title="Voltar o medidor para a fila de análise"
+                              >
+                                {reopeningAnalysisId === item.id ? 'Reabrindo...' : 'Reanalisar'}
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() =>
+                                setInspectionDocumentTarget({
+                                  meter: item.meter,
+                                  scheduleId: item.id,
+                                  viewOnly: analyzedView || blockedView,
+                                })
+                              }
+                            >
+                              {actionLabel}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -2935,6 +2989,7 @@ export function EntradaPanel({
             onAnalysisCompleted={handleWpaAnalysisCompleted}
             onAnalysisBlocked={handleWpaAnalysisBlocked}
             onAnalysisUnblocked={handleWpaAnalysisUnblocked}
+            onAnalysisReopened={handleWpaAnalysisReopened}
           />
         ) : null}
         {userProfileModal}
@@ -3460,6 +3515,7 @@ export function EntradaPanel({
             onAnalysisCompleted={handleWpaAnalysisCompleted}
             onAnalysisBlocked={handleWpaAnalysisBlocked}
             onAnalysisUnblocked={handleWpaAnalysisUnblocked}
+            onAnalysisReopened={handleWpaAnalysisReopened}
           />
         ) : null}
         {userProfileModal}

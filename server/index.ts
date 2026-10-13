@@ -132,6 +132,7 @@ import {
   completeInspectionAnalysis,
   blockInspectionAnalysis,
   unblockInspectionAnalysis,
+  reopenInspectionAnalysis,
 } from './routes/meter-inspection-documents.js'
 import {
   createSupportTicket,
@@ -607,6 +608,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     unblockInspectionAnalysis,
+  )
+  app.post(
+    '/api/meter-schedules/:id/reopen-inspection-analysis',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    reopenInspectionAnalysis,
   )
   app.post(
     '/api/meter-schedules/:id/adjust-schedule-date',
