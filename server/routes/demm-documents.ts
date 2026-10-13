@@ -212,7 +212,7 @@ export async function listDemmDocuments(_req: Request, res: Response) {
         meterNumbers.every((meter) => {
           const norm = normalizeScheduleMeter(meter)
           const appStatus = analysisByNorm.get(norm)?.appStatus
-          if (demmMeterPastEntry(appStatus) || appStatus === 'nao_agendado') return true
+          if (demmMeterPastEntry(appStatus)) return true
           return demmMeterReadyForBulkEntry(appStatus, analysisStatusByNorm.get(norm))
         })
       const liberadoCount = meterNumbers.filter(
@@ -1399,8 +1399,7 @@ export async function receiveDemmDocumentBulk(req: Request, res: Response) {
   )
   const pendingNotAnalyzed = pendingMeters.filter((meter) => {
     const norm = normalizeScheduleMeter(meter)
-    const appStatus = analyzedByNorm.get(norm)?.appStatus
-    return appStatus === 'agendado' && !analysisStatusByNorm.get(norm)?.analyzed
+    return analysisStatusByNorm.get(norm)?.analyzed !== true
   })
   const blockedMeters = meterNumbers.filter(
     (meter) => analysisStatusByNorm.get(normalizeScheduleMeter(meter))?.analysisBlocked,
@@ -1415,7 +1414,7 @@ export async function receiveDemmDocumentBulk(req: Request, res: Response) {
   }
   if (pendingNotAnalyzed.length) {
     res.status(409).json({
-      error: 'Nem todos os medidores aguardando entrada tiveram a análise salva.',
+      error: 'A entrada em massa só é liberada quando todos os medidores aguardando entrada já foram analisados.',
       meters: pendingNotAnalyzed,
     })
     return
