@@ -146,12 +146,12 @@ function demmMeterPastEntry(appStatus: string | undefined) {
 
 function demmMeterReadyForBulkEntry(
   appStatus: string | undefined,
-  analysisStatus: { analyzed?: boolean; blocked?: boolean } | undefined,
+  analysisStatus: { analyzed?: boolean; blocked?: boolean; analysisBlocked?: boolean } | undefined,
 ) {
   return (
     appStatus === 'agendado' &&
     analysisStatus?.analyzed === true &&
-    analysisStatus.blocked !== true
+    analysisStatus.analysisBlocked !== true
   )
 }
 
@@ -1155,16 +1155,16 @@ async function resolveWeekMeterSchedule(
     : await query<WeekMeterScheduleRow>(
         `SELECT id, meter, trail_step
          FROM meter_schedules
-         WHERE meter = $1 AND trail_step = $2
-         ORDER BY created_at DESC
+         WHERE delay_dismissed_at IS NULL
+           AND trail_step = $2
+           AND ${NORMALIZED_METER_SQL} = LPAD(RIGHT(REGEXP_REPLACE($1::text, '[^0-9]', '', 'g'), 8), 8, '0')
+         ORDER BY inspection_analysis_completed_at DESC NULLS LAST, created_at DESC
          LIMIT 1`,
         [meter, ENTRADA_TRAIL_STEP],
       )
 
   const schedule = scheduleResult.rows[0]
-  if (!schedule || normalizeScheduleMeter(schedule.meter) !== normalizeScheduleMeter(meter)) {
-    return null
-  }
+  if (!schedule) return null
   return schedule
 }
 
@@ -1176,7 +1176,9 @@ async function weekMeterReceiveValidationError(
   }
 
   const registry = await query<{ status: string }>(
-    `SELECT status FROM meter_registry WHERE meter = $1`,
+    `SELECT status FROM meter_registry
+     WHERE ${NORMALIZED_METER_SQL} = LPAD(RIGHT(REGEXP_REPLACE($1::text, '[^0-9]', '', 'g'), 8), 8, '0')
+     LIMIT 1`,
     [schedule.meter],
   )
   if (registry.rows[0] && hasMeterEntradaGiven(registry.rows[0].status)) {

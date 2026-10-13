@@ -55,29 +55,6 @@ function metersFromExtracted(extracted: unknown): string[] {
   return extracted.map(extractedMeterValue).filter((meter) => meter.trim() !== '')
 }
 
-async function demmHasEntradaGiven(meters: string[]): Promise<boolean> {
-  if (!meters.length) return false
-  const uniqueMeters = [...new Set(meters)]
-  const [pastEntrada, ratmMeters, registeredMeters] = await Promise.all([
-    query<{ meter: string }>(
-      `SELECT meter FROM meter_schedules
-       WHERE meter = ANY($1::text[]) AND trail_step <> $2
-       LIMIT 1`,
-      [uniqueMeters, ENTRADA_TRAIL_STEP],
-    ),
-    query<{ meter: string }>(
-      `SELECT meter FROM ratm_laudos WHERE meter = ANY($1::text[]) LIMIT 1`,
-      [uniqueMeters],
-    ),
-    query<{ meter: string; status: string }>(
-      `SELECT meter, status FROM meter_registry WHERE meter = ANY($1::text[])`,
-      [uniqueMeters],
-    ),
-  ])
-  if (pastEntrada.rows[0] || ratmMeters.rows[0]) return true
-  return registeredMeters.rows.some((row) => hasMeterEntradaGiven(row.status))
-}
-
 async function demmHasBlockedMeters(meters: string[]): Promise<boolean> {
   if (!meters.length) return false
   const normalizedMeters = [...new Set(meters.map((meter) => normalizeScheduleMeter(meter)).filter(Boolean))]
@@ -240,17 +217,6 @@ export async function validateDemmUploadMeters(
       if (conflicts.get(meter)?.reason === 'demm_registered') {
         conflicts.delete(meter)
       }
-    }
-
-    const sameCsd = Boolean(options?.csdId && demm.csdId === options.csdId)
-    const demmMeters = metersFromExtracted(demm.extractedMeters)
-    const demmHasOtherEntrada = sameCsd
-      ? await demmHasEntradaGiven(demmMeters.filter((meter) => !pendingOverlap.includes(meter)))
-      : false
-
-    if (sameCsd && !demmHasOtherEntrada) {
-      replacement.deleteIds.push(demm.id)
-      continue
     }
 
     const remaining = Array.isArray(demm.extractedMeters)
