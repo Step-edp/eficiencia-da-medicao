@@ -604,13 +604,16 @@ export function aggregateInspectionForSchedule(
     }
   }
 
-  const meterMismatch = reasons.some((reason) =>
+  const activeReasons = reasons.filter(
+    (reason) => !meterDivergenceWaivedByConference(reason, schedule.inspection_wpa_meter),
+  )
+  const meterMismatch = activeReasons.some((reason) =>
     /diverge do medidor (encontrado|retirado)/i.test(reason),
   )
   const wrongDocument = meterMismatch && toiMismatch && noteMismatch
   const uniqueReasons = wrongDocument
     ? [WRONG_INSPECTION_DOCUMENT_REASON]
-    : [...new Set(reasons)]
+    : [...new Set(activeReasons)]
   return {
     hasToi,
     hasComunicado,
@@ -910,6 +913,27 @@ function expectedEnvelopeSealForEvaluation(
   const conference = scheduleLacre?.trim()
   if (conference) return conference
   return envelopeSeal?.trim() || null
+}
+
+function isWpaConferenceAccepted(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  return (
+    trimmed === 'compativel' ||
+    trimmed === 'nao_aplicavel' ||
+    trimmed === 'nao_visivel' ||
+    trimmed === 'sem_registro_fotografico' ||
+    trimmed === 'nao_abriu_wpa'
+  )
+}
+
+function meterDivergenceWaivedByConference(
+  reason: string,
+  wpaMeter: string | null | undefined,
+) {
+  return (
+    /diverge do medidor (encontrado|retirado|agendado)/i.test(reason) &&
+    isWpaConferenceAccepted(wpaMeter)
+  )
 }
 
 function isIgnorableRegisteredDivergence(
@@ -3592,6 +3616,7 @@ async function evaluateInspectionAnalysisCompletion(
     for (const reason of summary.blockReasons.split('|')) {
       const trimmed = reason.trim()
       if (!trimmed || isIgnorableRegisteredDivergence(trimmed, ignorable)) continue
+      if (meterDivergenceWaivedByConference(trimmed, row.inspection_wpa_meter)) continue
       const documentLacre = documents.rows.find((doc) => doc.extracted_lacre?.trim())?.extracted_lacre
       if (sealDivergenceResolved(trimmed, documentLacre, scheduleLacre)) continue
       reasons.push(trimmed)
@@ -3641,6 +3666,7 @@ async function evaluateInspectionAnalysisCompletion(
   for (const doc of documents.rows) {
     if (doc.blocked && doc.block_reason) {
       if (isIgnorableRegisteredDivergence(doc.block_reason, ignorable)) continue
+      if (meterDivergenceWaivedByConference(doc.block_reason, row.inspection_wpa_meter)) continue
       if (
         sealDivergenceResolved(
           doc.block_reason,

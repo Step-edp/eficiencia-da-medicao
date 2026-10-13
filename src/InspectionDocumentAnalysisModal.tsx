@@ -428,9 +428,12 @@ function shouldSuppressMeterBlockReason(
   blockReason: string | null | undefined,
   documentoMeter: string | null | undefined,
   scheduleMeter: string | null | undefined,
+  campoMeter: string | null | undefined,
 ) {
   if (!blockReason?.trim()) return false
   if (!/diverge do medidor agendado/i.test(blockReason)) return false
+  const conference = parseWpaConferenceOption(campoMeter)
+  if (conference && conference !== 'nao_compativel') return true
   const documentMeter = normalizeConferenceDigits(documentoMeter)
   const scheduledMeter = normalizeConferenceDigits(scheduleMeter)
   return Boolean(documentMeter && scheduledMeter && documentMeter === scheduledMeter)
@@ -609,7 +612,12 @@ function resolveDocumentAnalysisStatus(
     : (conference?.scheduleMeter ?? document.registeredMeter ?? registeredMeter)
   const requireToiFields = hasToi || document.docType === 'toi' || document.docType === 'ambos'
   const effectiveBlockReason =
-    shouldSuppressMeterBlockReason(document.blockReason, documentoMeter, scheduleMeterValue) ||
+    shouldSuppressMeterBlockReason(
+      document.blockReason,
+      documentoMeter,
+      scheduleMeterValue,
+      campoMeter,
+    ) ||
     shouldSuppressSealBlockReason(document.blockReason, documentoLacre, scheduleLacreValue) ||
     shouldSuppressNotApplicableBlockReason(document.blockReason, wpaDraft)
       ? null
