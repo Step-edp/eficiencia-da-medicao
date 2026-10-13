@@ -135,7 +135,10 @@ function wpaDocumentationLabel(item: MeterInspectionDocumentadoRecord) {
   if (item.analysisBlocked && item.analysisBlockReason) {
     return `Bloqueado: ${item.analysisBlockReason}`
   }
-  return inspectionIssueReason(item) ?? 'OK'
+  const csmWaived = item.csmPhysicalOnly === true && item.hasToi && !item.hasComunicado
+  return (
+    inspectionIssueReason(csmWaived ? { ...item, hasComunicado: true } : item) ?? 'OK'
+  )
 }
 
 function normalizeWpaSearch(value: string) {
@@ -2882,7 +2885,7 @@ export function EntradaPanel({
                               item.analysisBlocked ||
                               item.anyBlocked ||
                               !item.hasToi ||
-                              !item.hasComunicado
+                              (!item.hasComunicado && !item.csmPhysicalOnly)
                                 ? 'schedule-pending-badge'
                                 : 'schedule-ok-badge'
                             }

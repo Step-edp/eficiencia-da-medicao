@@ -2660,13 +2660,15 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     inspection_analysis_completed_at: Date | null
     inspection_analysis_block_reason: string | null
     inspection_analysis_blocked_at: Date | null
+    inspection_csm_physical_only: boolean
   }>(
     `SELECT id, meter, installation, toi, note, csd, envelope_seal, cover_seal, meter_reading, source, scheduled_at,
             installation_wrong, previous_installation, toi_wrong, previous_toi, note_wrong, previous_note,
             envelope_photo, inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
             inspection_wpa_cover_seal_2, inspection_wpa_reading, inspection_observations,
             inspection_schedule_lacre, inspection_schedule_meter, inspection_analysis_completed_at,
-            inspection_analysis_block_reason, inspection_analysis_blocked_at
+            inspection_analysis_block_reason, inspection_analysis_blocked_at,
+            inspection_csm_physical_only
      FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
@@ -2825,6 +2827,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     analysisBlocked: Boolean(schedule.rows[0].inspection_analysis_block_reason?.trim()),
     analysisBlockReason: schedule.rows[0].inspection_analysis_block_reason?.trim() || null,
     analysisBlockedAt: schedule.rows[0].inspection_analysis_blocked_at?.toISOString() ?? null,
+    csmPhysicalOnly: schedule.rows[0].inspection_csm_physical_only === true,
   })
 }
 
@@ -3303,6 +3306,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
     inspection_wpa_reading: string | null
     inspection_analysis_block_reason: string | null
     inspection_analysis_blocked_at: Date | null
+    inspection_csm_physical_only: boolean
   }>(
     `SELECT ms.id,
             ms.meter,
@@ -3324,6 +3328,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
             ms.inspection_wpa_reading,
             ms.inspection_analysis_block_reason,
             ms.inspection_analysis_blocked_at,
+            ms.inspection_csm_physical_only,
             c.responsible_user_id,
             u.name AS responsible_name,
             u.registration AS responsible_registration,
@@ -3415,6 +3420,7 @@ export async function listWpaAnalysisMeters(req: Request, res: Response) {
       analysisBlocked: Boolean(row.inspection_analysis_block_reason?.trim()),
       analysisBlockReason: row.inspection_analysis_block_reason?.trim() || null,
       analysisBlockedAt: row.inspection_analysis_blocked_at?.toISOString() ?? null,
+      csmPhysicalOnly: row.inspection_csm_physical_only === true,
     })
   }
 
@@ -3498,7 +3504,10 @@ export async function loadInspectionAnalysisStatusByMeter(meters: string[]) {
   return result
 }
 
-async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
+async function evaluateInspectionAnalysisCompletion(
+  meterScheduleId: string,
+  options?: { csmPhysicalOnly?: boolean },
+) {
   const schedule = await query<{
     id: string
     meter: string
@@ -3518,20 +3527,25 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
     inspection_schedule_lacre: string | null
     inspection_schedule_meter: string | null
     inspection_analysis_completed_at: Date | null
+    inspection_csm_physical_only: boolean
   }>(
     `SELECT id, meter, installation, envelope_seal, cover_seal, meter_reading, toi, note, source, scheduled_at,
             inspection_wpa_meter, inspection_wpa_lacre, inspection_wpa_cover_seal,
             inspection_wpa_cover_seal_2, inspection_wpa_reading, inspection_schedule_lacre,
-            inspection_schedule_meter, inspection_analysis_completed_at
+            inspection_schedule_meter, inspection_analysis_completed_at, inspection_csm_physical_only
      FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
   const row = schedule.rows[0]
   if (!row) {
-    return { ready: false, reasons: ['Agendamento não encontrado.'] }
+    return { ready: false, reasons: ['Agendamento não encontrado.'], csmPhysicalOnly: false }
   }
   if (row.inspection_analysis_completed_at) {
-    return { ready: true, reasons: [] as string[] }
+    return {
+      ready: true,
+      reasons: [] as string[],
+      csmPhysicalOnly: row.inspection_csm_physical_only === true,
+    }
   }
 
   const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
@@ -3555,9 +3569,10 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
   )
 
   const presence = await loadDocTypePresence(meterScheduleId)
+  const csmPhysicalOnly = options?.csmPhysicalOnly === true && presence.hasToi && !presence.hasComunicado
   const reasons: string[] = []
   if (!presence.hasToi) reasons.push('Anexe o TOI.')
-  if (!presence.hasComunicado) reasons.push('Anexe o CSM.')
+  if (!presence.hasComunicado && !csmPhysicalOnly) reasons.push('Anexe o CSM.')
 
   const scheduleMeterFields = await loadScheduleMeterConferenceFields(
     meterScheduleId,
@@ -3655,7 +3670,7 @@ async function evaluateInspectionAnalysisCompletion(meterScheduleId: string) {
   const uniqueReasons = [...new Set(reasons.map((item) => item.trim()).filter(Boolean))].filter(
     (reason) => !isIgnorableRegisteredDivergence(reason, ignorable),
   )
-  return { ready: uniqueReasons.length === 0, reasons: uniqueReasons }
+  return { ready: uniqueReasons.length === 0, reasons: uniqueReasons, csmPhysicalOnly }
 }
 
 export async function completeInspectionAnalysis(req: Request, res: Response) {
@@ -3679,7 +3694,10 @@ export async function completeInspectionAnalysis(req: Request, res: Response) {
     return
   }
 
-  const evaluation = await evaluateInspectionAnalysisCompletion(meterScheduleId)
+  const csmPhysicalOnly = req.body?.csmPhysicalOnly === true
+  const evaluation = await evaluateInspectionAnalysisCompletion(meterScheduleId, {
+    csmPhysicalOnly,
+  })
   if (!evaluation.ready) {
     res.status(409).json({
       error: evaluation.reasons[0] ?? 'A análise ainda não está completa.',
@@ -3695,17 +3713,28 @@ export async function completeInspectionAnalysis(req: Request, res: Response) {
          inspection_analysis_completed_by_user_id = $3,
          inspection_analysis_block_reason = NULL,
          inspection_analysis_blocked_at = NULL,
-         inspection_analysis_blocked_by_user_id = NULL
+         inspection_analysis_blocked_by_user_id = NULL,
+         inspection_csm_physical_only = $4
      WHERE id = $1`,
-    [meterScheduleId, completedAt.toISOString(), req.user?.id ?? null],
+    [
+      meterScheduleId,
+      completedAt.toISOString(),
+      req.user?.id ?? null,
+      evaluation.csmPhysicalOnly,
+    ],
   )
 
   await writeAuditLog(req, {
     action: 'update',
     entityType: 'meter_schedule',
     entityId: meterScheduleId,
-    summary: `Análise de documentos concluída para o agendamento ${meterScheduleId}`,
-    newData: { completedAt: completedAt.toISOString() },
+    summary: evaluation.csmPhysicalOnly
+      ? `Análise de documentos concluída sem CSM digital para o agendamento ${meterScheduleId}`
+      : `Análise de documentos concluída para o agendamento ${meterScheduleId}`,
+    newData: {
+      completedAt: completedAt.toISOString(),
+      csmPhysicalOnly: evaluation.csmPhysicalOnly,
+    },
   })
 
   res.json({ ok: true, completedAt: completedAt.toISOString() })

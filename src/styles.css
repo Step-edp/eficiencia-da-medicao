@@ -2377,6 +2377,43 @@ button {
   font-size: 0.92rem;
 }
 
+.inspection-csm-physical-flag {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(24, 216, 240, 0.35);
+  background: rgba(24, 216, 240, 0.08);
+  color: #d7f7ff;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.inspection-csm-physical-flag input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex: 0 0 auto;
+  accent-color: #18d8f0;
+  cursor: pointer;
+}
+
+.inspection-csm-physical-flag input:disabled {
+  cursor: default;
+}
+
+.inspection-csm-physical-flag span {
+  display: grid;
+  gap: 2px;
+  font-weight: 500;
+}
+
+.inspection-csm-physical-flag strong {
+  font-weight: 700;
+}
+
 .inspection-document-card-actions {
   display: flex;
   flex-wrap: wrap;

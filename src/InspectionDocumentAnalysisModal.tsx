@@ -1014,6 +1014,7 @@ export function InspectionDocumentAnalysisModal({
   const [savingAnalysis, setSavingAnalysis] = useState(false)
   const [blockingAnalysis, setBlockingAnalysis] = useState(false)
   const [unblockingAnalysis, setUnblockingAnalysis] = useState(false)
+  const [csmPhysicalOnly, setCsmPhysicalOnly] = useState(false)
 
   const loadDocuments = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent === true
@@ -1090,6 +1091,9 @@ export function InspectionDocumentAnalysisModal({
       setAnalysisCompleted(response.analysisCompleted === true)
       setAnalysisBlocked(response.analysisBlocked === true)
       setBlockFormOpen(response.analysisBlocked === true)
+      if (!silent || response.csmPhysicalOnly === true) {
+        setCsmPhysicalOnly(response.csmPhysicalOnly === true)
+      }
       if (!silent) {
         setBlockJustification(response.analysisBlockReason ?? '')
       }
@@ -1100,6 +1104,7 @@ export function InspectionDocumentAnalysisModal({
       setDeleteBlockedReason(null)
       setHasToi(false)
       setHasComunicado(false)
+      setCsmPhysicalOnly(false)
       setRegisteredMeter(meter)
       setOriginalScheduleMeter(meter)
       setRegisteredInstallation(null)
@@ -1197,34 +1202,62 @@ export function InspectionDocumentAnalysisModal({
     [persistWpaDraft],
   )
 
+  const csmWaived = csmPhysicalOnly && hasToi && !hasComunicado
+  const effectiveHasComunicado = hasComunicado || csmWaived
+
   const analysisContext = useMemo(
     (): InspectionDocumentAnalysisContext => ({
       hasToi,
-      hasComunicado,
+      hasComunicado: effectiveHasComunicado,
       registeredMeter,
       conference,
       wpaDraft,
       documentDrafts,
       canEditWpa,
     }),
-    [hasToi, hasComunicado, registeredMeter, conference, wpaDraft, documentDrafts, canEditWpa],
+    [
+      hasToi,
+      effectiveHasComunicado,
+      registeredMeter,
+      conference,
+      wpaDraft,
+      documentDrafts,
+      canEditWpa,
+    ],
   )
 
   const canSaveAnalysis = useMemo(() => {
-    if (!canEditWpa || analysisCompleted || loading || documents.length === 0 || !hasToi || !hasComunicado) {
+    if (
+      !canEditWpa ||
+      analysisCompleted ||
+      loading ||
+      documents.length === 0 ||
+      !hasToi ||
+      !effectiveHasComunicado
+    ) {
       return false
     }
     const document = mergedAnalysisDocument(documents)
     if (!document) return false
     return resolveDocumentAnalysisStatus(document, analysisContext).status === 'ok'
-  }, [analysisCompleted, analysisContext, canEditWpa, documents, hasComunicado, hasToi, loading])
+  }, [
+    analysisCompleted,
+    analysisContext,
+    canEditWpa,
+    documents,
+    effectiveHasComunicado,
+    hasToi,
+    loading,
+  ])
 
   const handleSaveAnalysis = async () => {
     setSavingAnalysis(true)
     setFeedback(null)
     try {
       await api.updateInspectionWpa(scheduleId, wpaDraft)
-      await api.completeInspectionAnalysis(scheduleId)
+      await api.completeInspectionAnalysis(scheduleId, {
+        csmPhysicalOnly: csmWaived,
+      })
       setAnalysisCompleted(true)
       setAnalysisBlocked(false)
       onDocumentsChanged?.()
@@ -1722,7 +1755,7 @@ export function InspectionDocumentAnalysisModal({
           </p>
         ) : null}
 
-        {!loading && documents.length > 0 && (!hasToi || !hasComunicado) ? (
+        {!loading && documents.length > 0 && (!hasToi || (!hasComunicado && !csmWaived)) ? (
           <p className="inspection-missing-docs" role="status">
             {!hasToi && !hasComunicado
               ? 'Faltam o TOI e o CSM.'
@@ -1730,6 +1763,21 @@ export function InspectionDocumentAnalysisModal({
                 ? 'Falta o TOI. O arquivo anexado é o Comunicado de Substituição (CSM).'
                 : 'Falta o Comunicado de Substituição (CSM).'}
           </p>
+        ) : null}
+
+        {!loading && hasToi && !hasComunicado && documents.length > 0 && (csmPhysicalOnly || (canEditWpa && !analysisCompleted)) ? (
+          <label className="inspection-csm-physical-flag">
+            <input
+              type="checkbox"
+              checked={csmPhysicalOnly}
+              disabled={!canEditWpa || analysisCompleted || viewOnly}
+              onChange={(event) => setCsmPhysicalOnly(event.target.checked)}
+            />
+            <span>
+              <strong>CSM apenas físico</strong>
+              O comunicado existe só em papel. Com esta opção, a análise pode ser concluída sem o arquivo digital.
+            </span>
+          </label>
         ) : null}
 
         {loading ? (
