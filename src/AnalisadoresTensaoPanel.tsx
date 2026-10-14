@@ -333,7 +333,10 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   )
   const [searchNumeroSerie, setSearchNumeroSerie] = useState('')
   const [situacaoFilter, setSituacaoFilter] = useState<SituacaoFilter>('Todos')
-  const [calibracaoSort, setCalibracaoSort] = useState<'asc' | 'desc'>('asc')
+  const [tableSort, setTableSort] = useState<{ column: 'id' | 'calibracao'; direction: 'asc' | 'desc' }>({
+    column: 'calibracao',
+    direction: 'asc',
+  })
   const [laudoAnalisador, setLaudoAnalisador] = useState<AnalisadorTensaoRecord | null>(null)
   const [laudoEnsaioId, setLaudoEnsaioId] = useState<string | null>(null)
 
@@ -451,13 +454,20 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         return true
       })
       .sort((a, b) => {
+        const direction = tableSort.direction === 'asc' ? 1 : -1
+        if (tableSort.column === 'id') {
+          return (
+            certificadoId(a.identificacaoLaudo).localeCompare(certificadoId(b.identificacaoLaudo), 'pt-BR', {
+              numeric: true,
+            }) * direction
+          )
+        }
         if (!a.dataUltimaCalibracao && !b.dataUltimaCalibracao) return 0
         if (!a.dataUltimaCalibracao) return 1
         if (!b.dataUltimaCalibracao) return -1
-        const order = a.dataUltimaCalibracao.localeCompare(b.dataUltimaCalibracao)
-        return calibracaoSort === 'asc' ? order : -order
+        return a.dataUltimaCalibracao.localeCompare(b.dataUltimaCalibracao) * direction
       })
-  }, [analisadores, calibracaoSort, searchNumeroSerie, situacaoFilter])
+  }, [analisadores, searchNumeroSerie, situacaoFilter, tableSort])
 
   const filteredEnsaios = useMemo(() => {
     const query = searchEnsaio.trim().toLowerCase()
@@ -1383,7 +1393,39 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
+                    <th>
+                      <button
+                        type="button"
+                        className={`table-date-sort${
+                          tableSort.column === 'id' ? (tableSort.direction === 'asc' ? ' is-asc' : ' is-desc') : ''
+                        }`}
+                        onClick={() =>
+                          setTableSort((current) =>
+                            current.column === 'id'
+                              ? { column: 'id', direction: current.direction === 'asc' ? 'desc' : 'asc' }
+                              : { column: 'id', direction: 'asc' },
+                          )
+                        }
+                        aria-label={
+                          tableSort.column === 'id' && tableSort.direction === 'asc'
+                            ? 'ID do menor para o maior. Ordenar do maior para o menor.'
+                            : 'Ordenar pelo ID, do menor para o maior.'
+                        }
+                        title={
+                          tableSort.column === 'id' && tableSort.direction === 'desc'
+                            ? 'Maior para menor'
+                            : 'Menor para maior'
+                        }
+                      >
+                        ID
+                        <span className="table-date-sort-icon" aria-hidden="true">
+                          <svg viewBox="0 0 12 16">
+                            <path className="sort-up" d="M6 1.2 10.2 6.2H1.8z" />
+                            <path className="sort-down" d="M6 14.8 1.8 9.8h8.4z" />
+                          </svg>
+                        </span>
+                      </button>
+                    </th>
                     <th>Número de série</th>
                     <th>Identificação do certificado</th>
                     <th>Modelo</th>
@@ -1395,17 +1437,29 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                     <th>
                       <button
                         type="button"
-                        className={`table-date-sort${calibracaoSort === 'asc' ? ' is-asc' : ' is-desc'}`}
+                        className={`table-date-sort${
+                          tableSort.column === 'calibracao'
+                            ? tableSort.direction === 'asc'
+                              ? ' is-asc'
+                              : ' is-desc'
+                            : ''
+                        }`}
                         onClick={() =>
-                          setCalibracaoSort((current) => (current === 'asc' ? 'desc' : 'asc'))
+                          setTableSort((current) =>
+                            current.column === 'calibracao'
+                              ? { column: 'calibracao', direction: current.direction === 'asc' ? 'desc' : 'asc' }
+                              : { column: 'calibracao', direction: 'asc' },
+                          )
                         }
                         aria-label={
-                          calibracaoSort === 'asc'
+                          tableSort.column === 'calibracao' && tableSort.direction === 'asc'
                             ? 'Última calibração do menor para o maior. Ordenar do maior para o menor.'
-                            : 'Última calibração do maior para o menor. Ordenar do menor para o maior.'
+                            : 'Ordenar pela última calibração, do menor para o maior.'
                         }
                         title={
-                          calibracaoSort === 'asc' ? 'Menor para maior' : 'Maior para menor'
+                          tableSort.column === 'calibracao' && tableSort.direction === 'desc'
+                            ? 'Maior para menor'
+                            : 'Menor para maior'
                         }
                       >
                         Última calibração
