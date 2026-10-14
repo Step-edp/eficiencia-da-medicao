@@ -1260,7 +1260,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                           })
                         }
                       >
-                        Ver medições
+                        Medições
                       </button>
                       <button
                         type="button"
@@ -1272,7 +1272,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                           })
                         }
                       >
-                        Ver análises
+                        Análises
                       </button>
                       <button
                         type="button"
@@ -1292,7 +1292,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                           setLaudoAnalisador(analisador)
                         }}
                       >
-                        Ver Certificado
+                        Certificado
                       </button>
                       {readOnly ? null : (
                         <button
