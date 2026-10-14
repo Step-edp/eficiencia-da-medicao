@@ -6401,6 +6401,35 @@ button {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.ensaio-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgba(255, 120, 120, 0.45);
+  border-radius: 12px;
+  background: rgba(110, 23, 23, 0.4);
+  color: #ffe0e0;
+}
+
+.ensaio-delete-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ensaio-delete-button:hover,
+.ensaio-delete-button:focus-visible {
+  border-color: rgba(255, 150, 150, 0.7);
+}
+
+.ensaio-delete-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
 }
 
 .ensaio-step-title {

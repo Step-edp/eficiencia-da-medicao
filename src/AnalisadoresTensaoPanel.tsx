@@ -1284,11 +1284,22 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                       {readOnly ? null : (
                         <button
                           type="button"
-                          className="danger-button compact-button"
+                          className="ensaio-delete-button"
                           disabled={deletingEnsaio}
+                          aria-label={`Excluir ensaio do analisador ${sessao.numeroSerie}`}
+                          title="Excluir"
                           onClick={() => setEnsaioToDelete(sessao)}
                         >
-                          Excluir
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                              d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
                         </button>
                       )}
                     </td>
