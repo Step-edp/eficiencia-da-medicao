@@ -170,6 +170,14 @@ export function RatmWorkflow({
       return false
     }
 
+    if (!current.irregularityNotes.trim()) {
+      setFeedback({
+        type: 'error',
+        message: 'Preencha as observações da irregularidade antes de seguir.',
+      })
+      return false
+    }
+
     return true
   }
 
@@ -237,6 +245,16 @@ export function RatmWorkflow({
       setFeedback({
         type: 'error',
         message: METER_NOT_RECEIVED_MESSAGE,
+      })
+      return
+    }
+
+    const missingNotesIndex = forms.findIndex((form) => !form.irregularityNotes.trim())
+    if (missingNotesIndex >= 0) {
+      setActiveIndex(missingNotesIndex)
+      setFeedback({
+        type: 'error',
+        message: 'Preencha as observações da irregularidade antes de seguir.',
       })
       return
     }

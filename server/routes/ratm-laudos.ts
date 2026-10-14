@@ -79,6 +79,10 @@ function formatPortalUser(user: { name: string; registration: string }) {
   return user.name.trim()
 }
 
+function irregularityNotesOf(form: { irregularityNotes?: unknown }) {
+  return typeof form.irregularityNotes === 'string' ? form.irregularityNotes.trim() : ''
+}
+
 async function setMeterProcessStatus(meter: string, status: 'Ensaiado' | 'Aprovado' | 'Recebido') {
   const meterKey = normalizeScheduleMeter(meter)
   if (!meterKey) return
@@ -234,10 +238,17 @@ export async function createRatmLaudos(req: Request, res: Response) {
   const createdLaudos = []
 
   for (let index = 0; index < forms.length; index += 1) {
-    const form = forms[index] as { meter?: string; client?: string }
+    const form = forms[index] as { meter?: string; client?: string; irregularityNotes?: unknown }
 
     if (!form.meter?.trim()) {
       res.status(400).json({ error: `Informe o medidor no RATM ${index + 1}.` })
+      return
+    }
+
+    if (!irregularityNotesOf(form)) {
+      res.status(400).json({
+        error: `Preencha as observações da irregularidade no RATM ${index + 1}.`,
+      })
       return
     }
 
@@ -340,7 +351,9 @@ export async function createRatmLaudos(req: Request, res: Response) {
 
 export async function updateRatmLaudo(req: Request, res: Response) {
   const id = typeof req.params.id === 'string' ? req.params.id : ''
-  const form = req.body?.formData as { meter?: string; client?: string } | undefined
+  const form = req.body?.formData as
+    | { meter?: string; client?: string; irregularityNotes?: unknown }
+    | undefined
 
   if (!form || typeof form !== 'object') {
     res.status(400).json({ error: 'Informe os dados do laudo para edição.' })
@@ -349,6 +362,11 @@ export async function updateRatmLaudo(req: Request, res: Response) {
 
   if (!form.meter?.trim()) {
     res.status(400).json({ error: 'Informe o medidor antes de salvar.' })
+    return
+  }
+
+  if (!irregularityNotesOf(form)) {
+    res.status(400).json({ error: 'Preencha as observações da irregularidade antes de seguir.' })
     return
   }
 
@@ -435,10 +453,15 @@ export async function redoRatmLaudo(req: Request, res: Response) {
   const incoming = req.body?.formData
   const form = (
     incoming && typeof incoming === 'object' ? { ...incoming } : { ...source.form_data }
-  ) as { meter?: string; client?: string }
+  ) as { meter?: string; client?: string; irregularityNotes?: unknown }
 
   if (!form.meter?.trim()) {
     res.status(400).json({ error: 'Informe o medidor antes de gerar o novo RATM.' })
+    return
+  }
+
+  if (!irregularityNotesOf(form)) {
+    res.status(400).json({ error: 'Preencha as observações da irregularidade antes de seguir.' })
     return
   }
 

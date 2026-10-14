@@ -61,6 +61,7 @@ export function isAssayDataSectionComplete(data: RatmFormData) {
     isFilled(data.recorder) &&
     isFilled(data.interruptedPhase) &&
     isFilled(data.irregularityCode) &&
+    isFilled(data.irregularityNotes) &&
     isFilled(data.fieldReportCorrect) &&
     isFilled(data.fieldIrregularityCode) &&
     isFilled(data.laboratoryNotes) &&

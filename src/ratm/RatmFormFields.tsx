@@ -947,13 +947,18 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
   const irregularityDescription =
     irregularityCodes[data.irregularityCode] ?? 'Selecione um código válido.'
 
+  const clearedCatalogNotes = useRef(false)
   useEffect(() => {
-    const nextNotes = descriptionForCode(data.irregularityCode)
-    if (data.irregularityNotes === nextNotes) return
-    if (!data.irregularityCode.trim() && !data.irregularityNotes.trim()) return
-    if (data.irregularityCode.trim() && !nextNotes) return
-    onChange({ irregularityNotes: nextNotes })
-  }, [data.irregularityCode, irregularityDescriptions, irregularityCodes])
+    if (clearedCatalogNotes.current) return
+    if (Object.keys(irregularityDescriptions).length === 0) return
+    clearedCatalogNotes.current = true
+    const catalog = descriptionForCode(data.irregularityCode).trim()
+    const codeName = (irregularityCodes[data.irregularityCode] || '').trim()
+    const current = data.irregularityNotes.trim()
+    if (current && (current === catalog || current === codeName)) {
+      onChange({ irregularityNotes: '' })
+    }
+  }, [irregularityCodes, irregularityDescriptions])
 
   const entryInfoComplete = isEntryInfoSectionComplete(data)
   const selectedMeterModel =
@@ -1754,13 +1759,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
           Cód. Irregularidade
           <select
             value={data.irregularityCode}
-            onChange={(event) => {
-              const irregularityCode = event.target.value
-              onChange({
-                irregularityCode,
-                irregularityNotes: descriptionForCode(irregularityCode),
-              })
-            }}
+            onChange={(event) => onChange({ irregularityCode: event.target.value })}
           >
             {Object.keys(codesForSelect(irregularityCodes, data.irregularityCode)).map((code) => (
               <option key={code} value={code}>
@@ -1776,9 +1775,10 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
         </label>
 
         <label className="full-width">
-          Descrição
+          Observações da Irregularidade
           <textarea
             rows={4}
+            required
             value={data.irregularityNotes}
             onChange={(event) => onChange({ irregularityNotes: event.target.value })}
           />

@@ -74,6 +74,14 @@ export function RatmLaudoViewer({
       return
     }
 
+    if (!formData.irregularityNotes.trim()) {
+      setFeedback({
+        type: 'error',
+        message: 'Preencha as observações da irregularidade antes de seguir.',
+      })
+      return
+    }
+
     setActionLoading(true)
     setFeedback(null)
 
