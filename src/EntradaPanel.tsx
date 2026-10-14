@@ -2878,7 +2878,7 @@ export function EntradaPanel({
                       <th>CSD</th>
                       <th>Data de ensaio</th>
                       {blockedView ? <th>Bloqueado em</th> : null}
-                      <th>{blockedView ? 'Justificativa' : 'Documentação'}</th>
+                      {blockedView ? <th>Justificativa</th> : null}
                       <th>Ações</th>
                     </tr>
                   </thead>
@@ -2900,21 +2900,23 @@ export function EntradaPanel({
                               : '—'}
                           </td>
                         ) : null}
-                        <td>
-                          <span
-                            className={
-                              item.analysisBlocked ||
-                              item.anyBlocked ||
-                              !item.hasToi ||
-                              (!item.hasComunicado && !item.csmPhysicalOnly)
-                                ? 'schedule-pending-badge'
-                                : 'schedule-ok-badge'
-                            }
-                            title={wpaDocumentationLabel(item)}
-                          >
-                            {wpaDocumentationLabel(item)}
-                          </span>
-                        </td>
+                        {blockedView ? (
+                          <td>
+                            <span
+                              className={
+                                item.analysisBlocked ||
+                                item.anyBlocked ||
+                                !item.hasToi ||
+                                (!item.hasComunicado && !item.csmPhysicalOnly)
+                                  ? 'schedule-pending-badge'
+                                  : 'schedule-ok-badge'
+                              }
+                              title={wpaDocumentationLabel(item)}
+                            >
+                              {wpaDocumentationLabel(item)}
+                            </span>
+                          </td>
+                        ) : null}
                         <td>
                           <div className="inspection-analysis-row-actions">
                             {analyzedView && !readOnly ? (
