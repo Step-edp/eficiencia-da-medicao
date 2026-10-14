@@ -148,6 +148,7 @@ type MeterScheduleRow = {
   demm_meter_count?: number | null
   registry_status?: string | null
   inspection_analysis_completed_at?: Date | null
+  inspection_analysis_block_reason?: string | null
   delay_justification?: string | null
   delay_dismissed_at?: Date | null
   delay_dismissed_by?: string | null
@@ -355,6 +356,7 @@ function mapMeterSchedule(
     demmMeterCount: Number(row.demm_meter_count ?? 0),
     registryStatus: row.registry_status || '',
     inspectionAnalysisCompleted: Boolean(row.inspection_analysis_completed_at),
+    analysisBlockReason: (row.inspection_analysis_block_reason ?? '').trim(),
     delayJustification: (row.delay_justification ?? '').trim(),
     installationTypedWrong,
     previousInstallation: (row.previous_installation ?? '').trim(),

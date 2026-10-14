@@ -598,9 +598,15 @@ function ScheduleDetailModal({
             <dt>Status entrega</dt>
             <dd>{deliveryStatus}</dd>
           </div>
+          {schedule.analysisBlockReason?.trim() ? (
+            <div className="user-detail-full">
+              <dt>Motivo do bloqueio</dt>
+              <dd>{schedule.analysisBlockReason.trim()}</dd>
+            </div>
+          ) : null}
           {schedule.delayJustification?.trim() ? (
             <div className="user-detail-full">
-              <dt>Motivo do atraso</dt>
+              <dt>Justificativa do atraso</dt>
               <dd>{schedule.delayJustification.trim()}</dd>
             </div>
           ) : null}
