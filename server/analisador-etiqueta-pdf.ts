@@ -79,30 +79,34 @@ function drawLabel(
 
   const textX = x
   const textW = width - QR_SIZE - 8
-  const line = (value: string, top: number, size: number, align: 'left' | 'center' = 'left') => {
-    doc.font('Helvetica-Bold').fontSize(size).fillColor('#111111').text(value, textX, top, {
-      width: textW,
-      height: size + 2,
-      align,
+  const labeledLine = (label: string, value: string, top: number, valueColor = '#111111') => {
+    doc.font('Helvetica-Bold').fontSize(7).fillColor('#111111')
+    const labelWidth = doc.widthOfString(label)
+    doc.text(label, textX, top, { width: textW, height: 9, lineBreak: false })
+    doc.font('Helvetica').fontSize(7).fillColor(valueColor).text(value, textX + labelWidth, top, {
+      width: Math.max(textW - labelWidth, 12),
+      height: 9,
       lineBreak: false,
     })
   }
 
-  line('LABORATÓRIO DE MEDIÇÃO-SP', y + 16, 6)
-  line(`EQUIPAMENTO: ${item.numeroSerie}`, y + 28, 7)
-  line(`N° CERTIFICADO: ${item.identificacaoLaudo || '—'}`, y + 40, 7)
-  const aprovado = item.resultado === 'Aprovado'
-  doc.font('Helvetica-Bold').fontSize(7).fillColor('#111111')
-  const statusLabel = 'STATUS: '
-  const statusWidth = doc.widthOfString(statusLabel)
-  doc.text(statusLabel, textX, y + 52, { width: textW, height: 9, lineBreak: false })
-  doc.fillColor(aprovado ? '#1FA971' : '#d22b4a').text(aprovado ? 'APROVADO' : 'REPROVADO', textX + statusWidth, y + 52, {
-    width: Math.max(textW - statusWidth, 20),
-    height: 9,
+  doc.font('Helvetica-Bold').fontSize(6).fillColor('#111111').text('LABORATÓRIO DE MEDIÇÃO-SP', textX, y + 16, {
+    width: textW,
+    height: 8,
+    align: 'center',
     lineBreak: false,
   })
-  line(`DATA DE CALIBRAÇÃO: ${formatIsoDate(item.dataCalibracao)}`, y + 64, 7)
-  line('*VÁLIDO POR 24 MESES', y + 78, 6.2, 'center')
+  labeledLine('EQUIPAMENTO: ', item.numeroSerie, y + 28)
+  labeledLine('N° CERTIFICADO: ', item.identificacaoLaudo || '—', y + 40)
+  const aprovado = item.resultado === 'Aprovado'
+  labeledLine('STATUS: ', aprovado ? 'APROVADO' : 'REPROVADO', y + 52, aprovado ? '#1FA971' : '#d22b4a')
+  labeledLine('DATA DE CALIBRAÇÃO: ', formatIsoDate(item.dataCalibracao), y + 64)
+  doc.font('Helvetica').fontSize(6.2).fillColor('#111111').text('*VÁLIDO POR 24 MESES', textX, y + 78, {
+    width: textW,
+    height: 8,
+    align: 'center',
+    lineBreak: false,
+  })
 }
 
 export async function sendAnalisadorEtiquetasPdf(res: Response, items: AnalisadorEtiquetaItem[]) {
