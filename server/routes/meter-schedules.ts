@@ -433,6 +433,8 @@ export async function listMeterSchedules(req: Request, res: Response) {
         WHERE d.meter_schedule_id = ms.id
       )`)
     }
+  } else {
+    filters.push(`ms.delay_dismissed_at IS NULL`)
   }
 
   let mineFilter = ''
@@ -487,14 +489,17 @@ export async function listMeterSchedules(req: Request, res: Response) {
      LEFT JOIN LATERAL (
        SELECT demm.id, demm.file_name, demm.document_number, demm.extracted_meters
        FROM demm_documents demm
-       WHERE demm.meter_schedule_id = ms.id
-          OR ${normalizedMeterColumnSql('demm')} = ${normalizedMeterColumnSql('ms')}
-          OR EXISTS (
-            SELECT 1
-            FROM jsonb_array_elements(COALESCE(demm.extracted_meters, '[]'::jsonb)) AS elem
-            WHERE LPAD(RIGHT(REGEXP_REPLACE(COALESCE(elem->>'meter', ''), '[^0-9]', '', 'g'), 8), 8, '0')
-                = ${normalizedMeterColumnSql('ms')}
-          )
+       WHERE demm.rejected_at IS NULL
+         AND (
+           demm.meter_schedule_id = ms.id
+           OR ${normalizedMeterColumnSql('demm')} = ${normalizedMeterColumnSql('ms')}
+           OR EXISTS (
+             SELECT 1
+             FROM jsonb_array_elements(COALESCE(demm.extracted_meters, '[]'::jsonb)) AS elem
+             WHERE LPAD(RIGHT(REGEXP_REPLACE(COALESCE(elem->>'meter', ''), '[^0-9]', '', 'g'), 8), 8, '0')
+                 = ${normalizedMeterColumnSql('ms')}
+           )
+         )
        ORDER BY
          CASE
            WHEN demm.meter_schedule_id = ms.id THEN 0
