@@ -2066,19 +2066,26 @@ button {
   overflow: auto;
 }
 
+.inspection-analysis-screen.schedule-detail-modal {
+  width: auto;
+  max-width: none;
+  max-height: none;
+  overflow: hidden;
+}
+
 .schedule-detail-toolbar {
   margin: 4px 0 12px;
 }
 
-.schedule-detail-modal .ensaios-block-modal-actions {
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions {
   position: sticky;
-  bottom: -22px;
+  bottom: 0;
   z-index: 2;
   flex-wrap: wrap;
   justify-content: flex-end;
-  margin: 0 -22px -22px;
-  padding: 14px 22px 22px;
-  background: linear-gradient(180deg, rgba(5, 26, 44, 0), rgba(5, 26, 44, 0.98) 28%);
+  margin-top: 8px;
+  padding-top: 14px;
+  background: linear-gradient(180deg, rgba(8, 39, 67, 0), rgba(8, 39, 67, 0.96) 28%);
 }
 
 .schedule-detail-grid {

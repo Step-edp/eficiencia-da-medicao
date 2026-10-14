@@ -337,34 +337,40 @@ function ScheduleDetailModal({
   }
 
   return createPortal(
-    <div className="ensaios-block-modal-overlay" role="presentation" onClick={onClose}>
-      <div
-        className="ensaios-block-modal demm-modal schedule-detail-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="schedule-detail-title"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <div
+      className="inspection-analysis-screen schedule-detail-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="schedule-detail-title"
+    >
+      <header className="inspection-analysis-screen-bar">
         <button
           type="button"
-          className="icon-button schedule-slot-modal-close"
+          className="icon-button"
           onClick={onClose}
-          aria-label="Fechar"
-          title="Fechar"
+          aria-label="Voltar"
+          title="Voltar"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path
-              d="M6 6l12 12M18 6L6 18"
+              d="M15 5l-7 7 7 7"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
               strokeLinecap="round"
+              strokeLinejoin="round"
             />
           </svg>
         </button>
-
-        <h3 id="schedule-detail-title">Medidor {schedule.meter}</h3>
-        <p className="demm-modal-intro">Etapa: {schedule.trailStep}</p>
+        <div className="inspection-analysis-screen-heading">
+          <h3 id="schedule-detail-title">Medidor {schedule.meter}</h3>
+          <p className="demm-modal-intro">Etapa: {schedule.trailStep}</p>
+        </div>
+        <button type="button" className="secondary-button" onClick={onClose}>
+          Voltar
+        </button>
+      </header>
+      <div className="inspection-analysis-screen-body">
         {allowCancel ? (
           <div className="schedule-detail-toolbar">
             <button
@@ -621,8 +627,8 @@ function ScheduleDetailModal({
               Excluir agendamento
             </button>
           ) : null}
-          <button type="button" className={allowEdit ? 'secondary-button' : 'primary-button'} onClick={onClose}>
-            {allowEdit ? 'Cancelar' : 'Fechar'}
+          <button type="button" className="secondary-button" onClick={onClose}>
+            Voltar
           </button>
         </div>
       </div>
