@@ -647,6 +647,7 @@ export type EnsaioMedicaoRecord = {
 
 export type EnsaioSessaoRecord = {
   ensaioId: string
+  analisadorId: string
   numeroSerie: string
   createdAt: string
   createdByName: string | null
@@ -2348,26 +2349,26 @@ export const api = {
     link.remove()
     URL.revokeObjectURL(url)
   },
-  openAnalisadorEtiqueta: async (id: string, ensaioId: string) => {
-    const search = `?${new URLSearchParams({ ensaioId }).toString()}`
-    const response = await fetch(
-      `/api/analisadores-tensao/${encodeURIComponent(id)}/etiqueta${search}`,
-      { credentials: 'include' },
-    )
+  openAnalisadorEtiquetas: async (
+    ensaios: Array<{ analisadorId: string; ensaioId: string }>,
+  ) => {
+    const response = await fetch('/api/analisadores-tensao/etiquetas', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ensaios }),
+    })
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string }
-      throw new ApiError(response.status, payload.error ?? 'Não foi possível gerar a etiqueta.')
+      throw new ApiError(response.status, payload.error ?? 'Não foi possível gerar as etiquetas.')
     }
     const blob = await response.blob()
-    const disposition = response.headers.get('Content-Disposition')
-    const match = disposition?.match(/filename="([^"]+)"/)
-    const filename = match?.[1] ?? 'Etiqueta.pdf'
     const url = URL.createObjectURL(blob)
     const popup = window.open(url, '_blank', 'noopener')
     if (!popup) {
       const link = document.createElement('a')
       link.href = url
-      link.download = filename
+      link.download = 'Etiquetas_calibracao.pdf'
       link.rel = 'noopener'
       document.body.appendChild(link)
       link.click()

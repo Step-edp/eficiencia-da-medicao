@@ -6328,6 +6328,45 @@ button {
   margin-bottom: 12px;
 }
 
+.etiqueta-picker-modal {
+  width: min(560px, 100%);
+}
+
+.etiqueta-picker-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.etiqueta-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 360px;
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.etiqueta-picker-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(8, 39, 66, 0.55);
+}
+
+.etiqueta-picker-list label span {
+  display: grid;
+  gap: 2px;
+}
+
+.etiqueta-picker-list small {
+  color: #9eb4c6;
+}
+
 .ensaios-realizados-actions {
   display: flex;
   gap: 8px;

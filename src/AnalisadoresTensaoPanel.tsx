@@ -196,6 +196,123 @@ function ConfirmDeleteEnsaioModal({
   )
 }
 
+function etiquetaKey(sessao: Pick<EnsaioSessaoRecord, 'analisadorId' | 'ensaioId'>) {
+  return `${sessao.analisadorId}:${sessao.ensaioId}`
+}
+
+function GerarEtiquetaModal({
+  ensaios,
+  submitting,
+  onClose,
+  onConfirm,
+}: {
+  ensaios: EnsaioSessaoRecord[]
+  submitting: boolean
+  onClose: () => void
+  onConfirm: (ensaios: EnsaioSessaoRecord[]) => void
+}) {
+  const [selected, setSelected] = useState<string[]>([])
+  const allSelected = ensaios.length > 0 && selected.length === ensaios.length
+
+  const toggle = (key: string) => {
+    setSelected((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
+    )
+  }
+
+  return createPortal(
+    <div
+      className="ensaios-block-modal-overlay confirm-delete-overlay"
+      role="presentation"
+      onClick={() => {
+        if (!submitting) onClose()
+      }}
+    >
+      <div
+        className="ensaios-block-modal etiqueta-picker-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gerar-etiqueta-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="icon-button schedule-slot-modal-close"
+          onClick={onClose}
+          disabled={submitting}
+          aria-label="Fechar"
+          title="Fechar"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6 6l12 12M18 6L6 18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+        <h3 id="gerar-etiqueta-title">Gerar etiqueta</h3>
+        <p className="demm-modal-intro">
+          Selecione os ensaios. As etiquetas saem juntas em um PDF e o QR Code abre o certificado.
+        </p>
+        <label className="etiqueta-picker-all">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            disabled={submitting || !ensaios.length}
+            onChange={() =>
+              setSelected(allSelected ? [] : ensaios.map((sessao) => etiquetaKey(sessao)))
+            }
+          />
+          Selecionar todos
+        </label>
+        <ul className="etiqueta-picker-list">
+          {ensaios.map((sessao) => {
+            const key = etiquetaKey(sessao)
+            return (
+              <li key={key}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(key)}
+                    disabled={submitting}
+                    onChange={() => toggle(key)}
+                  />
+                  <span>
+                    <strong>{sessao.numeroSerie}</strong>
+                    <small>
+                      {sessao.createdByName || sessao.createdByRegistration || '—'} ·{' '}
+                      {formatAuditDate(sessao.createdAt)}
+                    </small>
+                  </span>
+                </label>
+              </li>
+            )
+          })}
+        </ul>
+        <div className="ensaios-block-modal-actions">
+          <button type="button" className="secondary-button" disabled={submitting} onClick={onClose}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            disabled={submitting || selected.length === 0}
+            onClick={() =>
+              onConfirm(ensaios.filter((sessao) => selected.includes(etiquetaKey(sessao))))
+            }
+          >
+            {submitting ? 'Gerando...' : `Gerar PDF (${selected.length})`}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [analisadores, setAnalisadores] = useState<AnalisadorTensaoRecord[]>([])
   const [modelos, setModelos] = useState<AnalisadorModeloCatalogEntry[]>([])
@@ -233,7 +350,8 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   } | null>(null)
   const [ensaioToDelete, setEnsaioToDelete] = useState<EnsaioSessaoRecord | null>(null)
   const [deletingEnsaio, setDeletingEnsaio] = useState(false)
-  const [etiquetaEnsaioId, setEtiquetaEnsaioId] = useState<string | null>(null)
+  const [etiquetaOpen, setEtiquetaOpen] = useState(false)
+  const [generatingEtiquetas, setGeneratingEtiquetas] = useState(false)
   const [downloadingExcel, setDownloadingExcel] = useState(false)
 
   const [showEnsaiarForm, setShowEnsaiarForm] = useState(false)
@@ -673,6 +791,18 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
             ) : null}
           </>
         )}
+        {showEnsaiosRealizados ? (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              setFeedback(null)
+              setEtiquetaOpen(true)
+            }}
+          >
+            Gerar etiqueta
+          </button>
+        ) : null}
         {!showForm && !showEnsaiarForm ? (
           <button
             type="button"
@@ -1157,39 +1287,6 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                       >
                         Ver Certificado
                       </button>
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        disabled={etiquetaEnsaioId === sessao.ensaioId}
-                        onClick={() => {
-                          const analisador =
-                            analisadores.find((item) => item.numeroSerie === sessao.numeroSerie) ??
-                            null
-                          if (!analisador) {
-                            setFeedback({
-                              type: 'error',
-                              message: `Não foi possível gerar a etiqueta do analisador ${sessao.numeroSerie}.`,
-                            })
-                            return
-                          }
-                          setEtiquetaEnsaioId(sessao.ensaioId)
-                          setFeedback(null)
-                          void api
-                            .openAnalisadorEtiqueta(analisador.id, sessao.ensaioId)
-                            .catch((error: unknown) => {
-                              setFeedback({
-                                type: 'error',
-                                message:
-                                  error instanceof ApiError
-                                    ? error.message
-                                    : 'Não foi possível gerar a etiqueta.',
-                              })
-                            })
-                            .finally(() => setEtiquetaEnsaioId(null))
-                        }}
-                      >
-                        Gerar etiqueta
-                      </button>
                       {readOnly ? null : (
                         <button
                           type="button"
@@ -1404,6 +1501,37 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         numeroSerie={selectedAnalise?.numeroSerie ?? null}
         onClose={() => setSelectedAnalise(null)}
       />
+      {etiquetaOpen ? (
+        <GerarEtiquetaModal
+          ensaios={ensaiosSessoes}
+          submitting={generatingEtiquetas}
+          onClose={() => {
+            if (!generatingEtiquetas) setEtiquetaOpen(false)
+          }}
+          onConfirm={(ensaios) => {
+            setGeneratingEtiquetas(true)
+            setFeedback(null)
+            void api
+              .openAnalisadorEtiquetas(
+                ensaios.map((sessao) => ({
+                  analisadorId: sessao.analisadorId,
+                  ensaioId: sessao.ensaioId,
+                })),
+              )
+              .then(() => setEtiquetaOpen(false))
+              .catch((error: unknown) => {
+                setFeedback({
+                  type: 'error',
+                  message:
+                    error instanceof ApiError
+                      ? error.message
+                      : 'Não foi possível gerar as etiquetas.',
+                })
+              })
+              .finally(() => setGeneratingEtiquetas(false))
+          }}
+        />
+      ) : null}
       {ensaioToDelete ? (
         <ConfirmDeleteEnsaioModal
           numeroSerie={ensaioToDelete.numeroSerie}

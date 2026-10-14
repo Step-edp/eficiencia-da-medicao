@@ -6,7 +6,7 @@ import { writeAuditLog } from '../audit.js'
 import { buildCertificado } from '../analisador-calibracao.js'
 import { calibrationYear, nextIdentificacaoLaudo } from '../analisador-laudo-id.js'
 import { sendAnalisadorLaudoPdf, type AnalisadorLaudoPdfInput } from '../analisador-laudo-pdf.js'
-import { sendAnalisadorEtiquetaPdf } from '../analisador-etiqueta-pdf.js'
+import { sendAnalisadorEtiquetasPdf } from '../analisador-etiqueta-pdf.js'
 
 const ENSAIO_EXCEL_VOLTAGES = ['127V', '220V'] as const
 const ENSAIO_EXCEL_TESTES = [1, 2, 3, 4, 5] as const
@@ -698,19 +698,70 @@ export async function downloadAnalisadorLaudo(req: Request, res: Response) {
   sendAnalisadorLaudoPdf(res, loaded.laudo)
 }
 
-export async function downloadAnalisadorEtiqueta(req: Request, res: Response) {
-  const id = typeof req.params.id === 'string' ? req.params.id : ''
-  const ensaioId = typeof req.query.ensaioId === 'string' ? req.query.ensaioId.trim() : ''
+function publicOrigin(req: Request) {
+  const forwardedProto = req.get('x-forwarded-proto')?.split(',')[0]?.trim()
+  const forwardedHost = req.get('x-forwarded-host')?.split(',')[0]?.trim()
+  const proto = forwardedProto || req.protocol || 'https'
+  const host = forwardedHost || req.get('host') || ''
+  return `${proto}://${host}`
+}
+
+export async function downloadPublicAnalisadorCertificado(req: Request, res: Response) {
+  const id = typeof req.params.analisadorId === 'string' ? req.params.analisadorId.trim() : ''
+  const ensaioId = typeof req.params.ensaioId === 'string' ? req.params.ensaioId.trim() : ''
+  if (!id || !ensaioId) {
+    res.status(400).json({ error: 'Certificado inválido.' })
+    return
+  }
   const loaded = await loadAnalisadorCertificado(id, ensaioId)
   if (!loaded.ok) {
     res.status(loaded.status).json({ error: loaded.error })
     return
   }
-  sendAnalisadorEtiquetaPdf(res, loaded.laudo)
+  sendAnalisadorLaudoPdf(res, loaded.laudo)
+}
+
+export async function downloadAnalisadorEtiquetas(req: Request, res: Response) {
+  const raw = Array.isArray(req.body?.ensaios) ? req.body.ensaios : []
+  const ensaios = raw
+    .map((item: { analisadorId?: unknown; ensaioId?: unknown }) => ({
+      analisadorId: typeof item?.analisadorId === 'string' ? item.analisadorId.trim() : '',
+      ensaioId: typeof item?.ensaioId === 'string' ? item.ensaioId.trim() : '',
+    }))
+    .filter((item: { analisadorId: string; ensaioId: string }) => item.analisadorId && item.ensaioId)
+
+  if (!ensaios.length) {
+    res.status(400).json({ error: 'Selecione ao menos um ensaio.' })
+    return
+  }
+  if (ensaios.length > 80) {
+    res.status(400).json({ error: 'Selecione no máximo 80 ensaios por vez.' })
+    return
+  }
+
+  const origin = publicOrigin(req)
+  const etiquetas = []
+  for (const item of ensaios) {
+    const loaded = await loadAnalisadorCertificado(item.analisadorId, item.ensaioId)
+    if (!loaded.ok) {
+      res.status(loaded.status).json({ error: loaded.error })
+      return
+    }
+    etiquetas.push({
+      numeroSerie: loaded.laudo.numeroSerie,
+      identificacaoLaudo: loaded.laudo.identificacaoLaudo,
+      dataCalibracao: loaded.laudo.dataCalibracao,
+      resultado: loaded.laudo.certificado.resultado,
+      certificadoUrl: `${origin}/api/public/analisador-certificado/${encodeURIComponent(item.analisadorId)}/${encodeURIComponent(item.ensaioId)}`,
+    })
+  }
+
+  await sendAnalisadorEtiquetasPdf(res, etiquetas)
 }
 
 type EnsaioSessaoDbRow = {
   ensaio_id: string
+  analisador_id: string
   numero_serie: string
   created_at: Date
   created_by_name: string | null
@@ -720,6 +771,7 @@ type EnsaioSessaoDbRow = {
 export async function listEnsaiosRealizados(_req: Request, res: Response) {
   const result = await query<EnsaioSessaoDbRow>(
     `SELECT m.ensaio_id,
+            a.id AS analisador_id,
             a.numero_serie,
             MIN(m.created_at) AS created_at,
             u.name AS created_by_name,
@@ -727,13 +779,14 @@ export async function listEnsaiosRealizados(_req: Request, res: Response) {
      FROM analisador_tensao_ensaio_medicoes m
      JOIN analisadores_tensao a ON a.id = m.analisador_id
      LEFT JOIN users u ON u.id = m.created_by_user_id
-     GROUP BY m.ensaio_id, a.numero_serie, u.name, u.registration
+     GROUP BY m.ensaio_id, a.id, a.numero_serie, u.name, u.registration
      ORDER BY MIN(m.created_at) DESC, a.numero_serie ASC`,
   )
 
   res.json({
     ensaios: result.rows.map((row) => ({
       ensaioId: row.ensaio_id,
+      analisadorId: row.analisador_id,
       numeroSerie: row.numero_serie,
       createdAt: row.created_at.toISOString(),
       createdByName: row.created_by_name,
