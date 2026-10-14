@@ -16,6 +16,8 @@ type RatmLaudoViewerProps = {
   approverUserId?: string
   approverIsLab?: boolean
   initialMode?: 'view' | 'edit'
+  redo?: boolean
+  onRedone?: (laudo: RatmLaudo, revoked: RatmLaudo) => void
 }
 
 function laudoToFormData(laudo: RatmLaudo): RatmFormData {
@@ -31,6 +33,8 @@ export function RatmLaudoViewer({
   approverUserId,
   approverIsLab = false,
   initialMode = 'view',
+  redo = false,
+  onRedone,
 }: RatmLaudoViewerProps) {
   const [mode, setMode] = useState<'view' | 'edit'>(initialMode)
   const [currentLaudo, setCurrentLaudo] = useState(laudo)
@@ -74,6 +78,15 @@ export function RatmLaudoViewer({
     setFeedback(null)
 
     try {
+      if (redo) {
+        const response = await api.redoRatmLaudo(currentLaudo.id, formData)
+        const created = mapRatmLaudoFromApi(response.laudo)
+        const revoked = mapRatmLaudoFromApi(response.revokedLaudo)
+        onRedone?.(created, revoked)
+        onClose()
+        return
+      }
+
       const response = await api.updateRatmLaudo(currentLaudo.id, formData)
       const updatedLaudo = mapRatmLaudoFromApi(response.laudo)
       setCurrentLaudo(updatedLaudo)
@@ -152,6 +165,7 @@ export function RatmLaudoViewer({
           <div>
             <p className="section-tag">Laudo RATM</p>
             <h3 id="laudo-viewer-title">
+              {redo ? 'Refazer RATM — ' : ''}
               Medidor {currentLaudo.meter} — {formatRatmLaudoNumber(currentLaudo.ratmNumber, currentLaudo.createdAt)}
             </h3>
           </div>
@@ -164,6 +178,14 @@ export function RatmLaudoViewer({
           <div className={`login-feedback ${feedback.type}`} role="status">
             {feedback.message}
           </div>
+        ) : null}
+
+        {redo && mode === 'edit' ? (
+          <p className="csds-form-hint">
+            O novo RATM começa com as informações deste laudo. Ao gerar, o laudo{' '}
+            {formatRatmLaudoNumber(currentLaudo.ratmNumber, currentLaudo.createdAt)} fica com a
+            marca d&apos;água Revogado.
+          </p>
         ) : null}
 
         {mode === 'edit' ? (
@@ -221,7 +243,10 @@ export function RatmLaudoViewer({
                 className="secondary-button"
                 type="button"
                 disabled={actionLoading}
-                onClick={() => setMode('view')}
+                onClick={() => {
+                  if (redo) onClose()
+                  else setMode('view')
+                }}
               >
                 Cancelar
               </button>
@@ -231,7 +256,11 @@ export function RatmLaudoViewer({
                 disabled={actionLoading}
                 onClick={handleSaveEdit}
               >
-                Salvar alterações
+                {actionLoading && redo
+                  ? 'Gerando...'
+                  : redo
+                    ? 'Gerar novo RATM'
+                    : 'Salvar alterações'}
               </button>
             </>
           )}

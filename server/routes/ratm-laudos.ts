@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { query } from '../db.js'
+import { pool, query } from '../db.js'
 import { requireAuth } from '../auth.js'
 import { buildRatmPdfFileName, formatRatmLaudoNumber, generateRatmLaudoPdf } from '../ratm-laudo-pdf.js'
 import { writeAuditLog } from '../audit.js'
@@ -405,6 +405,153 @@ export async function updateRatmLaudo(req: Request, res: Response) {
   })
 
   res.json({ laudo })
+}
+
+export async function redoRatmLaudo(req: Request, res: Response) {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  const assayUser = await loadLaboratorioMedicaoUser(req.user?.id)
+  if (!assayUser) {
+    res.status(403).json({
+      error: 'Somente usuários do Laboratório de Medição podem refazer o RATM.',
+    })
+    return
+  }
+
+  const previous = await query<RatmLaudoRow>('SELECT * FROM ratm_laudos WHERE id = $1', [id])
+  const source = previous.rows[0]
+  if (!source) {
+    res.status(404).json({ error: 'Laudo não encontrado.' })
+    return
+  }
+  if (source.revoked_at) {
+    res.status(409).json({ error: 'Esse laudo já está revogado.' })
+    return
+  }
+  if (source.status !== 'Aprovado') {
+    res.status(409).json({ error: 'Só é possível refazer um laudo aprovado.' })
+    return
+  }
+
+  const incoming = req.body?.formData
+  const form = (
+    incoming && typeof incoming === 'object' ? { ...incoming } : { ...source.form_data }
+  ) as { meter?: string; client?: string }
+
+  if (!form.meter?.trim()) {
+    res.status(400).json({ error: 'Informe o medidor antes de gerar o novo RATM.' })
+    return
+  }
+
+  const meter = form.meter.trim()
+  if (typeof form.client === 'string') {
+    form.client = form.client.trim().toLocaleUpperCase('pt-BR')
+  }
+  const client = (typeof form.client === 'string' ? form.client.trim() : '') || 'Não informado'
+  form.meter = meter
+  form.client = client
+
+  const active = await findActiveLaudosForMeter(meter)
+  if (active.some((row) => row.status === 'Aprovado' && row.id !== source.id)) {
+    res.status(409).json({
+      error: `O medidor ${meter} já possui outro laudo aprovado.`,
+    })
+    return
+  }
+
+  const normalized = normalizeScheduleMeter(meter)
+  if (!normalized) {
+    res.status(400).json({ error: 'Informe o medidor antes de gerar o novo RATM.' })
+    return
+  }
+
+  const clientDb = await pool.connect()
+  let revokedRow: RatmLaudoRow | undefined
+  let createdRow: RatmLaudoRow | undefined
+  try {
+    await clientDb.query('BEGIN')
+    const revoked = await clientDb.query<RatmLaudoRow>(
+      `UPDATE ratm_laudos
+       SET revoked_at = NOW()
+       WHERE id = $1 AND status = 'Aprovado' AND revoked_at IS NULL
+       RETURNING *`,
+      [source.id],
+    )
+    revokedRow = revoked.rows[0]
+    if (!revokedRow) {
+      await clientDb.query('ROLLBACK')
+      res.status(409).json({ error: 'Não foi possível revogar o laudo aprovado.' })
+      return
+    }
+
+    await clientDb.query(
+      `UPDATE ratm_laudos
+       SET revoked_at = NOW()
+       WHERE revoked_at IS NULL
+         AND status = 'Pendente'
+         AND ${normalizedMeterSql('meter')} = $1`,
+      [normalized],
+    )
+
+    const numberResult = await clientDb.query<{ last_number: string }>(
+      `INSERT INTO ratm_laudo_year_counters (year, last_number)
+       VALUES ($1, 1)
+       ON CONFLICT (year) DO UPDATE
+       SET last_number = ratm_laudo_year_counters.last_number + 1
+       RETURNING last_number`,
+      [currentRatmYear()],
+    )
+    const ratmNumber = Number(numberResult.rows[0]?.last_number ?? 1)
+    const created = await clientDb.query<RatmLaudoRow>(
+      `INSERT INTO ratm_laudos (
+        id, ratm_number, meter, client, status, form_data, created_by_user_id
+      ) VALUES ($1, $2, $3, $4, 'Pendente', $5::jsonb, $6)
+      RETURNING *`,
+      [
+        `laudo-${Date.now()}-redo`,
+        ratmNumber,
+        meter,
+        client,
+        JSON.stringify(form),
+        assayUser.id,
+      ],
+    )
+    createdRow = created.rows[0]
+    await clientDb.query('COMMIT')
+  } catch (error) {
+    await clientDb.query('ROLLBACK')
+    throw error
+  } finally {
+    clientDb.release()
+  }
+
+  if (!revokedRow || !createdRow) {
+    res.status(500).json({ error: 'Não foi possível refazer o RATM.' })
+    return
+  }
+
+  await refreshMeterProcessFromLaudos(meter)
+  if (normalizeScheduleMeter(source.meter) !== normalized) {
+    await refreshMeterProcessFromLaudos(source.meter)
+  }
+  await query(`DELETE FROM ratm_assay_drafts WHERE meter_key = $1`, [normalized])
+
+  const laudo = mapRatmLaudo({
+    ...createdRow,
+    created_by_name: assayUser.name,
+    created_by_registration: assayUser.registration,
+  })
+  const revokedLaudo = mapRatmLaudo(revokedRow)
+
+  await writeAuditLog(req, {
+    action: 'create',
+    entityType: 'ratm_laudo',
+    entityId: laudo.id,
+    summary: `Laudo RATM ${laudo.ratmNumber} refeito a partir do laudo ${source.ratm_number} (medidor ${laudo.meter}). O laudo anterior foi revogado.`,
+    oldData: mapRatmLaudo(source),
+    newData: { laudo, revokedLaudo },
+  })
+
+  res.status(201).json({ laudo, revokedLaudo })
 }
 
 function isValidCpf(value: string) {

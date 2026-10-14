@@ -10,6 +10,7 @@ type RatmAprovacaoPanelProps = {
   onLaudoUpdated: (laudo: RatmLaudo) => void
   onLaudoApproved: (laudo: RatmLaudo) => void
   onLaudoDeleted?: (laudoId: string) => void
+  onLaudoRedone?: (laudo: RatmLaudo, revoked: RatmLaudo) => void
   readOnly?: boolean
   isAdmin?: boolean
   approvedOnly?: boolean
@@ -23,6 +24,7 @@ export function RatmAprovacaoPanel({
   onLaudoUpdated,
   onLaudoApproved,
   onLaudoDeleted,
+  onLaudoRedone,
   readOnly = false,
   isAdmin = false,
   approvedOnly = false,
@@ -32,6 +34,7 @@ export function RatmAprovacaoPanel({
 }: RatmAprovacaoPanelProps) {
   const [viewingLaudo, setViewingLaudo] = useState<RatmLaudo | null>(null)
   const [viewerMode, setViewerMode] = useState<'view' | 'edit'>('view')
+  const [redoingLaudo, setRedoingLaudo] = useState(false)
   const [search, setSearch] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [approvingId, setApprovingId] = useState<string | null>(null)
@@ -263,6 +266,20 @@ export function RatmAprovacaoPanel({
                   <span>Gerado em {new Date(laudo.createdAt).toLocaleString('pt-BR')}</span>
                 </div>
                 <div className="approval-item-actions">
+                  {approverIsLab && !readOnly ? (
+                    <button
+                      className="secondary-button approval-action-button"
+                      type="button"
+                      onClick={() => {
+                        setRedoingLaudo(true)
+                        setViewerMode('edit')
+                        setViewingLaudo(laudo)
+                        setDeleteError('')
+                      }}
+                    >
+                      Refazer RATM
+                    </button>
+                  ) : null}
                   <button
                     className="secondary-button approval-action-button"
                     type="button"
@@ -303,10 +320,23 @@ export function RatmAprovacaoPanel({
         <RatmLaudoViewer
           laudo={viewingLaudo}
           initialMode={viewerMode}
+          redo={redoingLaudo}
           readOnly={readOnly}
           approverUserId={approverUserId}
           approverIsLab={approverIsLab}
-          onClose={() => setViewingLaudo(null)}
+          onRedone={(created, revoked) => {
+            onLaudoRedone?.(created, revoked)
+            setViewingLaudo(null)
+            setRedoingLaudo(false)
+            setTab('pending')
+            setSuccessMessage(
+              `Laudo ${formatRatmLaudoNumber(created.ratmNumber, created.createdAt)} gerado. O laudo ${formatRatmLaudoNumber(revoked.ratmNumber, revoked.createdAt)} foi revogado.`,
+            )
+          }}
+          onClose={() => {
+            setViewingLaudo(null)
+            setRedoingLaudo(false)
+          }}
           onUpdated={(laudo) => {
             onLaudoUpdated(laudo)
             setViewingLaudo(laudo)

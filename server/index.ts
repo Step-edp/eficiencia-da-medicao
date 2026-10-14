@@ -37,6 +37,7 @@ import {
   ratmLaudoRoutes,
   createRatmLaudos,
   updateRatmLaudo,
+  redoRatmLaudo,
   approveRatmLaudo,
   getRatmAssayDraft,
   saveRatmAssayDraft,
@@ -360,6 +361,12 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     updateRatmLaudo,
+  )
+  app.post(
+    '/api/ratm-laudos/:id/redo',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    redoRatmLaudo,
   )
   app.patch(
     '/api/ratm-laudos/:id/approve',

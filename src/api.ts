@@ -1653,6 +1653,14 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ formData }),
     }),
+  redoRatmLaudo: (id: string, formData: Record<string, unknown>) =>
+    request<{ laudo: RatmLaudoRecord; revokedLaudo: RatmLaudoRecord }>(
+      `/api/ratm-laudos/${encodeURIComponent(id)}/redo`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ formData }),
+      },
+    ),
   approveRatmLaudo: (
     id: string,
     payload: {

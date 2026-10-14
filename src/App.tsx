@@ -5876,6 +5876,18 @@ function HomePanel({
                     message: `Laudo ${formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt)} aprovado com sucesso.`,
                   })
                 }}
+                onLaudoRedone={(laudo, revoked) => {
+                  setRatmLaudos((prev) => [
+                    laudo,
+                    ...prev
+                      .filter((item) => item.id !== laudo.id)
+                      .map((item) =>
+                        item.id === revoked.id
+                          ? { ...item, revokedAt: revoked.revokedAt ?? new Date().toISOString() }
+                          : item,
+                      ),
+                  ])
+                }}
               />
             ) : selectedLabMeasurementSection === 'Dashboard' ? (
               <LabDashboardPanel />
