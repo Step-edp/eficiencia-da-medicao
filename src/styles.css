@@ -2127,8 +2127,7 @@ button {
   flex-wrap: wrap;
   justify-content: flex-end;
   margin-top: 8px;
-  padding-top: 14px;
-  background: linear-gradient(180deg, rgba(8, 39, 67, 0), rgba(8, 39, 67, 0.96) 28%);
+  background: transparent;
 }
 
 .schedule-detail-grid {
