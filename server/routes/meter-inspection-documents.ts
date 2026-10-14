@@ -441,6 +441,7 @@ export type InspectionSummary = {
   anyBlocked: boolean
   blockReasons: string | null
   wrongDocument: boolean
+  analysisBlocked: boolean
 }
 
 type ScheduleForInspectionAggregate = {
@@ -620,6 +621,7 @@ export function aggregateInspectionForSchedule(
     anyBlocked: uniqueReasons.length > 0,
     blockReasons: uniqueReasons.length ? uniqueReasons.join(' | ') : null,
     wrongDocument,
+    analysisBlocked: false,
   }
 }
 
@@ -967,11 +969,12 @@ function withAnalysisBlock(
   analysisBlockReason: string | null | undefined,
 ): InspectionSummary {
   const reason = analysisBlockReason?.trim()
-  if (!reason) return summary
+  if (!reason) return { ...summary, analysisBlocked: false }
   const extra = `Análise bloqueada: ${reason}`
   return {
     ...summary,
     anyBlocked: true,
+    analysisBlocked: true,
     blockReasons: summary.blockReasons ? `${summary.blockReasons} | ${extra}` : extra,
   }
 }

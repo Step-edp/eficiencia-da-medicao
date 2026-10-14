@@ -145,6 +145,7 @@ function meterBaseStatusLabel(
   item: MeterScheduleRecord,
   summary: MeterInspectionSummary | undefined,
 ) {
+  if (summary?.analysisBlocked) return 'Bloqueado'
   if (item.registryStatus === 'Aprovado' || item.trailStep === 'Sucata') return 'Aprovado'
   if (item.registryStatus === 'Ensaiado' || item.trailStep === 'Aprovação de RATM') return 'Ensaiado'
   const hasEntry =

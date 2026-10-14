@@ -847,6 +847,7 @@ export type MeterInspectionSummary = {
   hasComunicado: boolean
   anyBlocked: boolean
   blockReasons: string | null
+  analysisBlocked?: boolean
 }
 
 export type DemmWeekStatus = 'entregue' | 'pendente' | 'nao_entregue' | 'retroativo'
