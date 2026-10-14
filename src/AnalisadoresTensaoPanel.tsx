@@ -121,6 +121,13 @@ function faseDigitsToDisplay(digits: string): string {
   return `${integerPart},${decimalPart}`
 }
 
+function certificadoId(identificacao: string) {
+  const trimmed = identificacao.trim()
+  const slash = trimmed.lastIndexOf('/')
+  if (slash < 0) return trimmed
+  return trimmed.slice(slash + 1)
+}
+
 function faseDigitsToNumber(digits: string): number {
   const normalized = digits.padStart(3, '0')
   const integerPart = normalized.slice(0, -2) || '0'
@@ -433,7 +440,13 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
     const query = searchNumeroSerie.trim().toLowerCase()
     return analisadores
       .filter((item) => {
-        if (query && !item.numeroSerie.toLowerCase().includes(query)) return false
+        if (
+          query &&
+          !item.numeroSerie.toLowerCase().includes(query) &&
+          !certificadoId(item.identificacaoLaudo).toLowerCase().includes(query)
+        ) {
+          return false
+        }
         if (situacaoFilter !== 'Todos' && getSituacao(item) !== situacaoFilter) return false
         return true
       })
@@ -1321,7 +1334,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         <>
           <div className="consultar-toolbar">
             <label className="consultar-search">
-              <span className="sr-only">Pesquisar por número de série</span>
+              <span className="sr-only">Pesquisar por ID ou número de série</span>
               <span className="consultar-search-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24">
                   <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -1338,7 +1351,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                 type="search"
                 value={searchNumeroSerie}
                 onChange={(event) => setSearchNumeroSerie(event.target.value)}
-                placeholder="Pesquisar por número de série"
+                placeholder="Pesquisar por ID ou número de série"
                 autoComplete="off"
                 spellCheck={false}
               />
@@ -1370,6 +1383,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               <table className="data-table">
                 <thead>
                   <tr>
+                    <th>ID</th>
                     <th>Número de série</th>
                     <th>Identificação do certificado</th>
                     <th>Modelo</th>
@@ -1413,6 +1427,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                 <tbody>
                   {filteredAnalisadores.map((item) => (
                     <tr key={item.id}>
+                      <td>{certificadoId(item.identificacaoLaudo) || '—'}</td>
                       <td>{item.numeroSerie}</td>
                       <td>{item.identificacaoLaudo}</td>
                       <td>{item.modelo}</td>
