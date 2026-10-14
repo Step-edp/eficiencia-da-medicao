@@ -79,11 +79,17 @@ function drawLabel(
 
   const textX = x
   const textW = width - QR_SIZE - 8
-  const labeledLine = (label: string, value: string, top: number, valueColor = '#111111') => {
+  const labeledLine = (
+    label: string,
+    value: string,
+    top: number,
+    valueColor = '#111111',
+    valueBold = false,
+  ) => {
     doc.font('Helvetica-Bold').fontSize(7).fillColor('#111111')
     const labelWidth = doc.widthOfString(label)
     doc.text(label, textX, top, { width: textW, height: 9, lineBreak: false })
-    doc.font('Helvetica').fontSize(7).fillColor(valueColor).text(value, textX + labelWidth, top, {
+    doc.font(valueBold ? 'Helvetica-Bold' : 'Helvetica').fontSize(7).fillColor(valueColor).text(value, textX + labelWidth, top, {
       width: Math.max(textW - labelWidth, 12),
       height: 9,
       lineBreak: false,
@@ -99,7 +105,7 @@ function drawLabel(
   labeledLine('EQUIPAMENTO: ', item.numeroSerie, y + 28)
   labeledLine('N° CERTIFICADO: ', item.identificacaoLaudo || '—', y + 40)
   const aprovado = item.resultado === 'Aprovado'
-  labeledLine('STATUS: ', aprovado ? 'APROVADO' : 'REPROVADO', y + 52, aprovado ? '#1FA971' : '#d22b4a')
+  labeledLine('STATUS: ', aprovado ? 'APROVADO' : 'REPROVADO', y + 52, aprovado ? '#1FA971' : '#d22b4a', true)
   labeledLine('DATA DE CALIBRAÇÃO: ', formatIsoDate(item.dataCalibracao), y + 64)
   doc.font('Helvetica').fontSize(6.2).fillColor('#111111').text('*VÁLIDO POR 24 MESES', textX, y + 78, {
     width: textW,
