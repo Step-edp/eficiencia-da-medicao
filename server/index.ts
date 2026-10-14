@@ -117,6 +117,7 @@ import {
   deleteInspectionDocument,
   deleteAllInspectionDocuments,
   listInspectionDocuments,
+  listInspectionPhotos,
   uploadInspectionPhotos,
   deleteInspectionPhoto,
   getScheduleEntryComparisons,
@@ -560,6 +561,11 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     deleteInspectionDocument,
+  )
+  app.get(
+    '/api/meter-schedules/:id/inspection-photos',
+    requireAuth,
+    listInspectionPhotos,
   )
   app.post(
     '/api/meter-schedules/:id/inspection-photos',

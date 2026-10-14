@@ -41,6 +41,13 @@ type FieldTeamSchedulesPanelProps = {
 type EnvelopePreview = {
   src: string
   meter: string
+  caption?: string
+}
+
+type ConsultPhoto = {
+  id: string
+  src: string
+  label: string
 }
 
 function normalizeSearch(value: string) {
@@ -233,6 +240,58 @@ function ScheduleDetailModal({
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<'instalacao' | 'toi' | 'nota' | 'csd', string>>>({})
+  const [consultPhotos, setConsultPhotos] = useState<ConsultPhoto[]>([])
+  const [photosLoading, setPhotosLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setPhotosLoading(true)
+    const envelope = schedule.envelopePhoto?.trim()
+      ? [{ id: `envelope-${schedule.id}`, src: schedule.envelopePhoto, label: 'Invólucro' }]
+      : []
+    setConsultPhotos(envelope)
+
+    void Promise.all([
+      api.listInspectionPhotos(schedule.id).catch(() => ({ photos: [] })),
+      api.listRatmLaudos(schedule.meter).catch(() => ({ laudos: [] })),
+    ]).then(([inspection, ratm]) => {
+      if (cancelled) return
+      const seen = new Set<string>()
+      const next: ConsultPhoto[] = []
+      const push = (photo: ConsultPhoto) => {
+        if (!photo.src.trim() || seen.has(photo.src)) return
+        seen.add(photo.src)
+        next.push(photo)
+      }
+      for (const item of envelope) push(item)
+      for (const photo of inspection.photos) {
+        push({
+          id: photo.id,
+          src: photo.photoData,
+          label: photo.fileName?.trim() || 'Análise',
+        })
+      }
+      for (const laudo of ratm.laudos) {
+        const raw = laudo.formData?.photos
+        if (!Array.isArray(raw)) continue
+        raw.forEach((photo, index) => {
+          if (typeof photo !== 'string' || !photo.startsWith('data:image/')) return
+          push({
+            id: `ratm-${laudo.id}-${index}`,
+            src: photo,
+            label: `Ensaio · Foto ${index + 1}`,
+          })
+        })
+      }
+      setConsultPhotos(next)
+    }).finally(() => {
+      if (!cancelled) setPhotosLoading(false)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [schedule.envelopePhoto, schedule.id, schedule.meter])
 
   useEffect(() => {
     setInstallation(schedule.installation)
@@ -504,31 +563,39 @@ function ScheduleDetailModal({
               <dd>{schedule.schedulingNotes.trim()}</dd>
             </div>
           ) : null}
-          {schedule.envelopePhoto ? (
-            <div className="user-detail-full">
-              <dt>Invólucro</dt>
-              <dd>
-                <button
-                  type="button"
-                  className="envelope-photo-link"
-                  onClick={() =>
-                    onPreviewEnvelope({
-                      src: schedule.envelopePhoto!,
-                      meter: schedule.meter,
-                    })
-                  }
-                  aria-label={`Ampliar foto do invólucro do medidor ${schedule.meter}`}
-                  title="Clique para ampliar"
-                >
-                  <img
-                    className="envelope-photo-thumb"
-                    src={schedule.envelopePhoto}
-                    alt={`Invólucro do medidor ${schedule.meter}`}
-                  />
-                </button>
-              </dd>
-            </div>
-          ) : null}
+          <div className="user-detail-full">
+            <dt>Fotos</dt>
+            <dd>
+              {photosLoading && consultPhotos.length === 0 ? (
+                <p className="field-hint">Carregando fotos...</p>
+              ) : consultPhotos.length === 0 ? (
+                <p className="field-hint">Nenhuma foto registrada.</p>
+              ) : (
+                <div className="inspection-photo-grid consult-photo-grid">
+                  {consultPhotos.map((photo) => (
+                    <figure key={photo.id} className="inspection-photo-item">
+                      <button
+                        type="button"
+                        className="inspection-photo-thumb-button"
+                        onClick={() =>
+                          onPreviewEnvelope({
+                            src: photo.src,
+                            meter: schedule.meter,
+                            caption: `${photo.label} · medidor ${schedule.meter}`,
+                          })
+                        }
+                        aria-label={`Ampliar ${photo.label} do medidor ${schedule.meter}`}
+                        title="Clique para ampliar"
+                      >
+                        <img src={photo.src} alt={photo.label} />
+                      </button>
+                      <figcaption className="consult-photo-caption">{photo.label}</figcaption>
+                    </figure>
+                  ))}
+                </div>
+              )}
+            </dd>
+          </div>
         </dl>
 
         {formError ? <LoginFeedback type="error" message={formError} /> : null}
@@ -1314,7 +1381,7 @@ export function FieldTeamConsultarPanel({
             className="envelope-photo-lightbox-dialog"
             role="dialog"
             aria-modal="true"
-            aria-label={`Foto do invólucro do medidor ${envelopePreview.meter}`}
+            aria-label={envelopePreview.caption ?? `Foto do invólucro do medidor ${envelopePreview.meter}`}
             onClick={(event) => event.stopPropagation()}
           >
             <button
@@ -1335,12 +1402,12 @@ export function FieldTeamConsultarPanel({
               </svg>
             </button>
             <p className="envelope-photo-lightbox-caption">
-              Invólucro · medidor {envelopePreview.meter}
+              {envelopePreview.caption ?? `Invólucro · medidor ${envelopePreview.meter}`}
             </p>
             <img
               className="envelope-photo-lightbox-image"
               src={envelopePreview.src}
-              alt={`Foto ampliada do invólucro do medidor ${envelopePreview.meter}`}
+              alt={envelopePreview.caption ?? `Foto ampliada do invólucro do medidor ${envelopePreview.meter}`}
             />
           </div>
         </div>

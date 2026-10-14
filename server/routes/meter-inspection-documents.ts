@@ -3956,6 +3956,54 @@ async function loadInspectionPhotos(meterScheduleId: string) {
   return result.rows.map(mapInspectionPhoto)
 }
 
+export async function listInspectionPhotos(req: Request, res: Response) {
+  const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
+  const schedule = await query<{ id: string }>(
+    `SELECT id FROM meter_schedules WHERE id = $1`,
+    [meterScheduleId],
+  )
+  if (!schedule.rows[0]) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+
+  const meterNorm = `LPAD(RIGHT(REGEXP_REPLACE(meter, '[^0-9]', '', 'g'), 8), 8, '0')`
+  const [inspection, envelopes] = await Promise.all([
+    query<InspectionPhotoRow>(
+      `SELECT p.id, p.file_name, p.photo_data, p.created_at
+       FROM meter_inspection_photos p
+       JOIN meter_schedules ms ON ms.id = p.meter_schedule_id
+       WHERE LPAD(RIGHT(REGEXP_REPLACE(ms.meter, '[^0-9]', '', 'g'), 8), 8, '0') = (
+         SELECT ${meterNorm} FROM meter_schedules WHERE id = $1
+       )
+       ORDER BY p.created_at DESC`,
+      [meterScheduleId],
+    ),
+    query<{ id: string; envelope_photo: string }>(
+      `SELECT id, envelope_photo
+       FROM meter_schedules
+       WHERE ${meterNorm} = (
+         SELECT ${meterNorm} FROM meter_schedules WHERE id = $1
+       )
+         AND COALESCE(BTRIM(envelope_photo), '') <> ''
+       ORDER BY created_at DESC`,
+      [meterScheduleId],
+    ),
+  ])
+
+  res.json({
+    photos: [
+      ...envelopes.rows.map((row) => ({
+        id: `envelope-${row.id}`,
+        fileName: 'Invólucro',
+        photoData: row.envelope_photo,
+        createdAt: null,
+      })),
+      ...inspection.rows.map(mapInspectionPhoto),
+    ],
+  })
+}
+
 export async function uploadInspectionPhotos(req: Request, res: Response) {
   const meterScheduleId = typeof req.params.id === 'string' ? req.params.id : ''
   if (!(await canManageInspectionDocuments(req))) {

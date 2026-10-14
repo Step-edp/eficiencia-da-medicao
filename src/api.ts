@@ -2145,6 +2145,10 @@ export const api = {
     request<{ exclusions: ScheduleExclusionRecord[]; total: number }>(
       '/api/meter-schedules/exclusions',
     ),
+  listInspectionPhotos: (meterScheduleId: string) =>
+    request<{ photos: InspectionPhotoRecord[] }>(
+      `/api/meter-schedules/${meterScheduleId}/inspection-photos`,
+    ),
   uploadInspectionPhotos: (
     meterScheduleId: string,
     photos: Array<{ fileName: string; photoData: string }>,
