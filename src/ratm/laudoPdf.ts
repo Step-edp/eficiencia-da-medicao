@@ -25,10 +25,6 @@ export async function fetchRatmLaudoPdfBlob(laudoId: string) {
   return blob
 }
 
-function namedPdfFile(blob: Blob, filename: string) {
-  return new File([blob], filename, { type: 'application/pdf' })
-}
-
 export function openRatmLaudoPdf(laudoId: string) {
   window.open(`/api/ratm-laudos/${encodeURIComponent(laudoId)}/pdf`, '_blank', 'noopener,noreferrer')
 }
@@ -54,10 +50,13 @@ export async function printRatmLaudoPdf(laudoId: string) {
 export async function downloadRatmLaudoPdf(laudoId: string, filename?: string) {
   const fetched = await fetchRatmLaudoPdf(laudoId)
   const downloadName = filename || fetched.filename
-  const url = URL.createObjectURL(namedPdfFile(fetched.blob, downloadName))
+  const url = URL.createObjectURL(fetched.blob)
   const link = document.createElement('a')
   link.href = url
   link.download = downloadName
+  link.rel = 'noopener'
+  document.body.appendChild(link)
   link.click()
-  URL.revokeObjectURL(url)
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1500)
 }

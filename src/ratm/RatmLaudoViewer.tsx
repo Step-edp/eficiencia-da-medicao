@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { api } from '../api'
 import { RatmFormFields } from './RatmFormFields'
 import { formatRatmLaudoNumber, mapRatmLaudoFromApi, type RatmLaudo } from './laudos'
-import { openRatmLaudoPdf } from './laudoPdf'
+import { downloadRatmLaudoPdf, openRatmLaudoPdf } from './laudoPdf'
 import { RatmApprovalWizard } from './RatmApprovalWizard'
 import { normalizeRatmForm, type RatmFormData } from './types'
 
@@ -220,6 +220,21 @@ export function RatmLaudoViewer({
                 onClick={() => openRatmLaudoPdf(currentLaudo.id)}
               >
                 Visualizar PDF
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={actionLoading}
+                onClick={() => {
+                  void downloadRatmLaudoPdf(currentLaudo.id).catch(() => {
+                    setFeedback({
+                      type: 'error',
+                      message: 'Não foi possível baixar o PDF.',
+                    })
+                  })
+                }}
+              >
+                Baixar PDF
               </button>
               <button
                 className="secondary-button"

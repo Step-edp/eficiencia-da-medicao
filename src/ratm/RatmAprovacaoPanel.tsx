@@ -198,6 +198,17 @@ export function RatmAprovacaoPanel({
                   >
                     Visualizar PDF
                   </button>
+                  <button
+                    className="secondary-button approval-action-button"
+                    type="button"
+                    onClick={() => {
+                      void downloadRatmLaudoPdf(laudo.id).catch(() => {
+                        setDeleteError('Não foi possível baixar o PDF.')
+                      })
+                    }}
+                  >
+                    Baixar PDF
+                  </button>
                   {readOnly ? null : (
                     <button
                       className="secondary-button approval-action-button"
