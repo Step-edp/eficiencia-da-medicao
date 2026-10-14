@@ -2591,26 +2591,43 @@ button {
 
 .consult-photo-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
+  grid-column: 1 / -1;
+}
+
+.consult-photo-frame {
+  position: relative;
 }
 
 .consult-photo-download {
-  justify-self: start;
-  padding: 4px 10px;
+  position: absolute;
+  z-index: 1;
+  right: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: 1px solid rgba(24, 216, 240, 0.35);
   border-radius: 8px;
-  background: rgba(24, 216, 240, 0.12);
+  background: rgba(5, 20, 38, 0.82);
   color: #d7fbff;
-  font: inherit;
-  font-size: 0.82rem;
   cursor: pointer;
+}
+
+.consult-photo-actions .consult-photo-download {
+  position: static;
+}
+
+.consult-photo-download svg {
+  width: 16px;
+  height: 16px;
 }
 
 .consult-photo-download:hover,
 .consult-photo-download:focus-visible {
-  background: rgba(24, 216, 240, 0.22);
+  background: rgba(24, 216, 240, 0.28);
 }
 
 .inspection-photo-item {

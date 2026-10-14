@@ -183,6 +183,23 @@ function photoDownloadName(meter: string, label: string, src: string) {
   return `medidor-${safeFilePart(meter)}-${safeFilePart(label)}.${imageExtension(src)}`
 }
 
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3v11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M7 10l5 5 5-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M5 21h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function triggerFileDownload(url: string, filename: string) {
   const link = document.createElement('a')
   link.href = url
@@ -623,12 +640,14 @@ function ScheduleDetailModal({
               ) : consultPhotos.length === 0 ? (
                 <p className="field-hint">Nenhuma foto registrada.</p>
               ) : (
-                <>
+                <div className="inspection-photo-grid consult-photo-grid">
                   {consultPhotos.length > 1 && !photosLoading ? (
                     <div className="consult-photo-actions">
                       <button
                         type="button"
                         className="consult-photo-download"
+                        aria-label="Baixar todas as fotos"
+                        title="Baixar todas"
                         onClick={() => {
                           void downloadImages(
                             consultPhotos.map((photo) => ({
@@ -638,13 +657,13 @@ function ScheduleDetailModal({
                           )
                         }}
                       >
-                        Baixar todas
+                        <DownloadIcon />
                       </button>
                     </div>
                   ) : null}
-                  <div className="inspection-photo-grid consult-photo-grid">
-                    {consultPhotos.map((photo) => (
-                      <figure key={photo.id} className="inspection-photo-item">
+                  {consultPhotos.map((photo) => (
+                    <figure key={photo.id} className="inspection-photo-item">
+                      <div className="consult-photo-frame">
                         <button
                           type="button"
                           className="inspection-photo-thumb-button"
@@ -661,11 +680,11 @@ function ScheduleDetailModal({
                         >
                           <img src={photo.src} alt={photo.label} />
                         </button>
-                        <figcaption className="consult-photo-caption">{photo.label}</figcaption>
                         <button
                           type="button"
                           className="consult-photo-download"
                           aria-label={`Baixar ${photo.label}`}
+                          title="Baixar"
                           onClick={() => {
                             void downloadImage(
                               photo.src,
@@ -673,12 +692,13 @@ function ScheduleDetailModal({
                             )
                           }}
                         >
-                          Baixar
+                          <DownloadIcon />
                         </button>
-                      </figure>
-                    ))}
-                  </div>
-                </>
+                      </div>
+                      <figcaption className="consult-photo-caption">{photo.label}</figcaption>
+                    </figure>
+                  ))}
+                </div>
               )}
             </dd>
           </div>
@@ -1495,6 +1515,8 @@ export function FieldTeamConsultarPanel({
               <button
                 type="button"
                 className="consult-photo-download"
+                aria-label="Baixar foto"
+                title="Baixar"
                 onClick={() => {
                   void downloadImage(
                     envelopePreview.src,
@@ -1507,7 +1529,7 @@ export function FieldTeamConsultarPanel({
                   )
                 }}
               >
-                Baixar foto
+                <DownloadIcon />
               </button>
             </div>
             <img
