@@ -4,13 +4,27 @@ import { api, ApiError } from '../api'
 import { PdfInlineViewer } from './PdfInlineViewer'
 import { formatRatmLaudoNumber, mapRatmLaudoFromApi, type RatmLaudo } from './laudos'
 
-function includesText(value: string, query: string) {
-  if (!query.trim()) return true
-  return value.toLowerCase().includes(query.trim().toLowerCase())
-}
-
-function toDateOnly(iso: string) {
-  return iso.slice(0, 10)
+function laudoSearchText(laudo: RatmLaudo) {
+  const created = new Date(laudo.createdAt)
+  const dateLabel = Number.isNaN(created.getTime()) ? '' : created.toLocaleString('pt-BR')
+  return [
+    laudo.meter,
+    laudo.installation,
+    laudo.toi,
+    laudo.note,
+    laudo.client,
+    laudo.id,
+    String(laudo.ratmNumber),
+    formatRatmLaudoNumber(laudo.ratmNumber, laudo.createdAt),
+    laudo.createdByName,
+    laudo.createdByRegistration,
+    laudo.status,
+    laudo.revokedAt ? 'Revogado' : '',
+    dateLabel,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
 }
 
 export function ConsultarRatmPanel({ isAdmin = false }: { isAdmin?: boolean }) {
@@ -23,16 +37,7 @@ export function ConsultarRatmPanel({ isAdmin = false }: { isAdmin?: boolean }) {
   const [pdfVersion, setPdfVersion] = useState(1)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const [meterFilter, setMeterFilter] = useState('')
-  const [installationFilter, setInstallationFilter] = useState('')
-  const [toiFilter, setToiFilter] = useState('')
-  const [noteFilter, setNoteFilter] = useState('')
-  const [clientFilter, setClientFilter] = useState('')
-  const [idFilter, setIdFilter] = useState('')
-  const [userFilter, setUserFilter] = useState('')
-  const [dateFilter, setDateFilter] = useState('')
-  const [periodStart, setPeriodStart] = useState('')
-  const [periodEnd, setPeriodEnd] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -81,36 +86,13 @@ export function ConsultarRatmPanel({ isAdmin = false }: { isAdmin?: boolean }) {
   }
 
   const filtered = useMemo(() => {
+    const tokens = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return laudos
     return laudos.filter((laudo) => {
-      const createdDay = toDateOnly(laudo.createdAt)
-      const userLabel = `${laudo.createdByName ?? ''} ${laudo.createdByRegistration ?? ''}`
-      const idLabel = `${laudo.id} ${laudo.ratmNumber}`
-
-      if (!includesText(laudo.meter, meterFilter)) return false
-      if (!includesText(laudo.installation ?? '', installationFilter)) return false
-      if (!includesText(laudo.toi ?? '', toiFilter)) return false
-      if (!includesText(laudo.note ?? '', noteFilter)) return false
-      if (!includesText(laudo.client, clientFilter)) return false
-      if (!includesText(idLabel, idFilter)) return false
-      if (!includesText(userLabel, userFilter)) return false
-      if (dateFilter && createdDay !== dateFilter) return false
-      if (periodStart && createdDay < periodStart) return false
-      if (periodEnd && createdDay > periodEnd) return false
-      return true
+      const haystack = laudoSearchText(laudo)
+      return tokens.every((token) => haystack.includes(token))
     })
-  }, [
-    laudos,
-    meterFilter,
-    installationFilter,
-    toiFilter,
-    noteFilter,
-    clientFilter,
-    idFilter,
-    userFilter,
-    dateFilter,
-    periodStart,
-    periodEnd,
-  ])
+  }, [laudos, searchQuery])
 
   return (
     <div className="consultar-ratm-panel">
@@ -118,96 +100,29 @@ export function ConsultarRatmPanel({ isAdmin = false }: { isAdmin?: boolean }) {
         Pesquise laudos RATM gerados e abra o PDF correspondente.
       </p>
 
-      <div className="gallery-filters consultar-ratm-filters">
-        <label>
-          Medidor
-          <input
-            type="text"
-            value={meterFilter}
-            onChange={(event) => setMeterFilter(event.target.value)}
-            placeholder="Número do medidor"
-          />
-        </label>
-        <label>
-          Instalação
-          <input
-            type="text"
-            value={installationFilter}
-            onChange={(event) => setInstallationFilter(event.target.value)}
-            placeholder="Instalação"
-          />
-        </label>
-        <label>
-          TOI
-          <input
-            type="text"
-            value={toiFilter}
-            onChange={(event) => setToiFilter(event.target.value)}
-            placeholder="TOI"
-          />
-        </label>
-        <label>
-          Nota
-          <input
-            type="text"
-            value={noteFilter}
-            onChange={(event) => setNoteFilter(event.target.value)}
-            placeholder="Nota"
-          />
-        </label>
-        <label>
-          Cliente
-          <input
-            type="text"
-            value={clientFilter}
-            onChange={(event) => setClientFilter(event.target.value)}
-            placeholder="Cliente"
-          />
-        </label>
-        <label>
-          ID
-          <input
-            type="text"
-            value={idFilter}
-            onChange={(event) => setIdFilter(event.target.value)}
-            placeholder="ID ou número do RATM"
-          />
-        </label>
-        <label>
-          Usuário
-          <input
-            type="text"
-            value={userFilter}
-            onChange={(event) => setUserFilter(event.target.value)}
-            placeholder="Nome ou matrícula"
-          />
-        </label>
-        <label>
-          Data
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(event) => setDateFilter(event.target.value)}
-          />
-        </label>
-        <label>
-          Período · início
-          <input
-            type="date"
-            value={periodStart}
-            onChange={(event) => setPeriodStart(event.target.value)}
-          />
-        </label>
-        <label>
-          Período · fim
-          <input
-            type="date"
-            value={periodEnd}
-            onChange={(event) => setPeriodEnd(event.target.value)}
-            min={periodStart || undefined}
-          />
-        </label>
-      </div>
+      <label className="consultar-search">
+        <span className="sr-only">Pesquisar</span>
+        <span className="consultar-search-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+            <path
+              d="M20 20l-3.5-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </span>
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Pesquisar por medidor, instalação, TOI, nota, cliente, ID, usuário ou data…"
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </label>
 
       {feedback ? (
         <div className={`login-feedback ${feedback.type}`} role="status">
@@ -218,7 +133,7 @@ export function ConsultarRatmPanel({ isAdmin = false }: { isAdmin?: boolean }) {
       {loading ? (
         <p className="entrada-panel-empty">Carregando laudos...</p>
       ) : filtered.length === 0 ? (
-        <p className="entrada-panel-empty">Nenhum laudo encontrado com esses filtros.</p>
+        <p className="entrada-panel-empty">Nenhum laudo encontrado.</p>
       ) : (
         <div className="approval-list" aria-label="Laudos RATM encontrados">
           {filtered.map((laudo) => (

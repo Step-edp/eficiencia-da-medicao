@@ -5114,8 +5114,10 @@ button {
   gap: 16px;
 }
 
-.consultar-ratm-filters {
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+.consultar-ratm-panel .consultar-search {
+  display: block;
+  width: min(720px, 100%);
+  max-width: 720px;
 }
 
 .consultar-ratm-pdf-modal {
