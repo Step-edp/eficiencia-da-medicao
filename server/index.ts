@@ -149,6 +149,7 @@ import {
   registrarEnsaioAnalisadores,
   getAnalisadorEnsaioMedicoes,
   downloadAnalisadorLaudo,
+  downloadAnalisadorEtiqueta,
   listEnsaiosRealizados,
   getEnsaioSessaoMedicoes,
   deleteEnsaioRealizado,
@@ -707,6 +708,7 @@ async function start() {
   )
   app.get('/api/analisadores-tensao/:id/medicoes', requireAuth, getAnalisadorEnsaioMedicoes)
   app.get('/api/analisadores-tensao/:id/laudo', requireAuth, downloadAnalisadorLaudo)
+  app.get('/api/analisadores-tensao/:id/etiqueta', requireAuth, downloadAnalisadorEtiqueta)
   app.get('/api/analisadores-tensao/ensaios', requireAuth, listEnsaiosRealizados)
   app.get('/api/analisadores-tensao/ensaios/excel', requireAuth, exportEnsaiosExcel)
   app.get('/api/analisadores-tensao/ensaios/:ensaioId', requireAuth, getEnsaioSessaoMedicoes)

@@ -5,7 +5,8 @@ import { query, pool } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 import { buildCertificado } from '../analisador-calibracao.js'
 import { calibrationYear, nextIdentificacaoLaudo } from '../analisador-laudo-id.js'
-import { sendAnalisadorLaudoPdf } from '../analisador-laudo-pdf.js'
+import { sendAnalisadorLaudoPdf, type AnalisadorLaudoPdfInput } from '../analisador-laudo-pdf.js'
+import { sendAnalisadorEtiquetaPdf } from '../analisador-etiqueta-pdf.js'
 
 const ENSAIO_EXCEL_VOLTAGES = ['127V', '220V'] as const
 const ENSAIO_EXCEL_TESTES = [1, 2, 3, 4, 5] as const
@@ -586,8 +587,10 @@ export async function getAnalisadorEnsaioMedicoes(req: Request, res: Response) {
   })
 }
 
-export async function downloadAnalisadorLaudo(req: Request, res: Response) {
-  const id = typeof req.params.id === 'string' ? req.params.id : ''
+async function loadAnalisadorCertificado(
+  id: string,
+  ensaioId: string,
+): Promise<{ ok: true; laudo: AnalisadorLaudoPdfInput } | { ok: false; status: number; error: string }> {
   await ensureIdentificacaoLaudos([id])
 
   const analisador = await query<AnalisadorTensaoRow>(
@@ -604,14 +607,9 @@ export async function downloadAnalisadorLaudo(req: Request, res: Response) {
     [id],
   )
   const row = analisador.rows[0]
-  if (!row) {
-    res.status(404).json({ error: 'Analisador não encontrado.' })
-    return
-  }
+  if (!row) return { ok: false, status: 404, error: 'Analisador não encontrado.' }
 
-  const requestedEnsaioId =
-    typeof req.query.ensaioId === 'string' ? req.query.ensaioId.trim() : ''
-  const latest = requestedEnsaioId
+  const latest = ensaioId
     ? await query<{ ensaio_id: string; data_calibracao: string; identificacao_laudo: string | null }>(
         `SELECT ensaio_id,
                 (MIN(created_at) AT TIME ZONE 'America/Sao_Paulo')::date::text AS data_calibracao,
@@ -619,7 +617,7 @@ export async function downloadAnalisadorLaudo(req: Request, res: Response) {
          FROM analisador_tensao_ensaio_medicoes
          WHERE analisador_id = $1 AND ensaio_id = $2
          GROUP BY ensaio_id`,
-        [id, requestedEnsaioId],
+        [id, ensaioId],
       )
     : await query<{ ensaio_id: string; data_calibracao: string | null; identificacao_laudo: string | null }>(
         `SELECT ensaio_id, NULL::text AS data_calibracao, identificacao_laudo
@@ -630,8 +628,7 @@ export async function downloadAnalisadorLaudo(req: Request, res: Response) {
         [id],
       )
   if (!latest.rows[0]) {
-    res.status(404).json({ error: 'Nenhum ensaio registrado para esse analisador.' })
-    return
+    return { ok: false, status: 404, error: 'Nenhum ensaio registrado para esse analisador.' }
   }
 
   const medicoes = await query<EnsaioMedicaoDbRow>(
@@ -655,8 +652,7 @@ export async function downloadAnalisadorLaudo(req: Request, res: Response) {
     })),
   )
   if (!certificado) {
-    res.status(400).json({ error: 'O ensaio não tem as cinco leituras de 127 V e 220 V.' })
-    return
+    return { ok: false, status: 400, error: 'O ensaio não tem as cinco leituras de 127 V e 220 V.' }
   }
 
   const responsavel = await query<{ created_by_name: string | null; created_by_registration: string | null }>(
@@ -668,27 +664,49 @@ export async function downloadAnalisadorLaudo(req: Request, res: Response) {
     [id, latest.rows[0].ensaio_id],
   )
 
-  const identificacaoLaudo =
-    latest.rows[0].identificacao_laudo?.trim() || row.identificacao_laudo
-  res.setHeader('X-Identificacao-Laudo', identificacaoLaudo.replace(/[\r\n]/g, ''))
+  return {
+    ok: true,
+    laudo: {
+      numeroSerie: row.numero_serie,
+      equipmentNumber: row.equipment_number,
+      identificacaoLaudo: latest.rows[0].identificacao_laudo?.trim() || row.identificacao_laudo,
+      modelo: row.modelo,
+      fabricante: row.fabricante,
+      classe: row.classe,
+      vn: row.vn,
+      vmax: row.vmax,
+      instrumento: row.instrumento,
+      dataCalibracao: latest.rows[0].data_calibracao || row.data_ultima_calibracao,
+      realizadoPor: formatRealizadoPor(
+        responsavel.rows[0]?.created_by_name,
+        responsavel.rows[0]?.created_by_registration,
+      ),
+      certificado,
+    },
+  }
+}
 
-  sendAnalisadorLaudoPdf(res, {
-    numeroSerie: row.numero_serie,
-    equipmentNumber: row.equipment_number,
-    identificacaoLaudo,
-    modelo: row.modelo,
-    fabricante: row.fabricante,
-    classe: row.classe,
-    vn: row.vn,
-    vmax: row.vmax,
-    instrumento: row.instrumento,
-    dataCalibracao: latest.rows[0].data_calibracao || row.data_ultima_calibracao,
-    realizadoPor: formatRealizadoPor(
-      responsavel.rows[0]?.created_by_name,
-      responsavel.rows[0]?.created_by_registration,
-    ),
-    certificado,
-  })
+export async function downloadAnalisadorLaudo(req: Request, res: Response) {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  const ensaioId = typeof req.query.ensaioId === 'string' ? req.query.ensaioId.trim() : ''
+  const loaded = await loadAnalisadorCertificado(id, ensaioId)
+  if (!loaded.ok) {
+    res.status(loaded.status).json({ error: loaded.error })
+    return
+  }
+  res.setHeader('X-Identificacao-Laudo', loaded.laudo.identificacaoLaudo.replace(/[\r\n]/g, ''))
+  sendAnalisadorLaudoPdf(res, loaded.laudo)
+}
+
+export async function downloadAnalisadorEtiqueta(req: Request, res: Response) {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  const ensaioId = typeof req.query.ensaioId === 'string' ? req.query.ensaioId.trim() : ''
+  const loaded = await loadAnalisadorCertificado(id, ensaioId)
+  if (!loaded.ok) {
+    res.status(loaded.status).json({ error: loaded.error })
+    return
+  }
+  sendAnalisadorEtiquetaPdf(res, loaded.laudo)
 }
 
 type EnsaioSessaoDbRow = {

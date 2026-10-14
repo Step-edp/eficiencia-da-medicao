@@ -233,6 +233,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
   } | null>(null)
   const [ensaioToDelete, setEnsaioToDelete] = useState<EnsaioSessaoRecord | null>(null)
   const [deletingEnsaio, setDeletingEnsaio] = useState(false)
+  const [etiquetaEnsaioId, setEtiquetaEnsaioId] = useState<string | null>(null)
   const [downloadingExcel, setDownloadingExcel] = useState(false)
 
   const [showEnsaiarForm, setShowEnsaiarForm] = useState(false)
@@ -1155,6 +1156,39 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                         }}
                       >
                         Ver Certificado
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={etiquetaEnsaioId === sessao.ensaioId}
+                        onClick={() => {
+                          const analisador =
+                            analisadores.find((item) => item.numeroSerie === sessao.numeroSerie) ??
+                            null
+                          if (!analisador) {
+                            setFeedback({
+                              type: 'error',
+                              message: `Não foi possível gerar a etiqueta do analisador ${sessao.numeroSerie}.`,
+                            })
+                            return
+                          }
+                          setEtiquetaEnsaioId(sessao.ensaioId)
+                          setFeedback(null)
+                          void api
+                            .openAnalisadorEtiqueta(analisador.id, sessao.ensaioId)
+                            .catch((error: unknown) => {
+                              setFeedback({
+                                type: 'error',
+                                message:
+                                  error instanceof ApiError
+                                    ? error.message
+                                    : 'Não foi possível gerar a etiqueta.',
+                              })
+                            })
+                            .finally(() => setEtiquetaEnsaioId(null))
+                        }}
+                      >
+                        Gerar etiqueta
                       </button>
                       {readOnly ? null : (
                         <button

@@ -2348,6 +2348,35 @@ export const api = {
     link.remove()
     URL.revokeObjectURL(url)
   },
+  openAnalisadorEtiqueta: async (id: string, ensaioId: string) => {
+    const search = `?${new URLSearchParams({ ensaioId }).toString()}`
+    const response = await fetch(
+      `/api/analisadores-tensao/${encodeURIComponent(id)}/etiqueta${search}`,
+      { credentials: 'include' },
+    )
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string }
+      throw new ApiError(response.status, payload.error ?? 'Não foi possível gerar a etiqueta.')
+    }
+    const blob = await response.blob()
+    const disposition = response.headers.get('Content-Disposition')
+    const match = disposition?.match(/filename="([^"]+)"/)
+    const filename = match?.[1] ?? 'Etiqueta.pdf'
+    const url = URL.createObjectURL(blob)
+    const popup = window.open(url, '_blank', 'noopener')
+    if (!popup) {
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.rel = 'noopener'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      return
+    }
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  },
   listEnsaiosRealizados: () =>
     request<{ ensaios: EnsaioSessaoRecord[] }>('/api/analisadores-tensao/ensaios'),
   downloadEnsaiosAnalisadoresExcel: async () => {
