@@ -91,7 +91,16 @@ function drawLabel(
   line('LABORATÓRIO DE MEDIÇÃO-SP', y + 16, 6)
   line(`EQUIPAMENTO: ${item.numeroSerie}`, y + 28, 7)
   line(`N° CERTIFICADO: ${item.identificacaoLaudo || '—'}`, y + 40, 7)
-  line(`STATUS: ${item.resultado === 'Aprovado' ? 'APROVADO' : 'REPROVADO'}`, y + 52, 7)
+  const aprovado = item.resultado === 'Aprovado'
+  doc.font('Helvetica-Bold').fontSize(7).fillColor('#111111')
+  const statusLabel = 'STATUS: '
+  const statusWidth = doc.widthOfString(statusLabel)
+  doc.text(statusLabel, textX, y + 52, { width: textW, height: 9, lineBreak: false })
+  doc.fillColor(aprovado ? '#1FA971' : '#d22b4a').text(aprovado ? 'APROVADO' : 'REPROVADO', textX + statusWidth, y + 52, {
+    width: Math.max(textW - statusWidth, 20),
+    height: 9,
+    lineBreak: false,
+  })
   line(`DATA DE CALIBRAÇÃO: ${formatIsoDate(item.dataCalibracao)}`, y + 64, 7)
   line('*VÁLIDO POR 24 MESES', y + 78, 6.2, 'center')
 }
