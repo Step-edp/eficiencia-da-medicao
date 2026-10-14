@@ -1956,14 +1956,6 @@ export function EntradaPanel({
               onClick={() => openDemmRejected()}
             >
               DEMMs rejeitadas
-              {rejectedDemmDocuments.length > 0 ? (
-                <span
-                  className="lab-trail-step-badge"
-                  aria-label={`${rejectedDemmDocuments.length} DEMM${rejectedDemmDocuments.length === 1 ? '' : 's'} rejeitada${rejectedDemmDocuments.length === 1 ? '' : 's'}`}
-                >
-                  {rejectedDemmDocuments.length}
-                </span>
-              ) : null}
             </button>
             <button
               type="button"
@@ -1992,14 +1984,6 @@ export function EntradaPanel({
           onClick={openDemmMenu}
         >
           DEMM
-          {rejectedDemmDocuments.length > 0 ? (
-            <span
-              className="lab-trail-step-badge"
-              aria-label={`${rejectedDemmDocuments.length} DEMM${rejectedDemmDocuments.length === 1 ? '' : 's'} rejeitada${rejectedDemmDocuments.length === 1 ? '' : 's'}`}
-            >
-              {rejectedDemmDocuments.length}
-            </span>
-          ) : null}
         </button>
         )}
         {analysisMenuOpen ? (
