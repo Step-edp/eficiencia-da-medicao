@@ -36,6 +36,8 @@ type FieldTeamSchedulesPanelProps = {
   excludeAnalyzed?: boolean
   /** Consumo Irregular não vê a coluna Documento de inspeção. */
   hideInspectionDocument?: boolean
+  /** Consumo Irregular não vê número da DEMM nem quantos medidores ela tem. */
+  hideDemm?: boolean
 }
 
 type EnvelopePreview = {
@@ -287,6 +289,7 @@ type ScheduleDetailModalProps = {
   schedule: MeterScheduleRecord
   allowEdit?: boolean
   allowCancel?: boolean
+  hideDemm?: boolean
   onClose: () => void
   onPreviewEnvelope: (preview: EnvelopePreview) => void
   onSaved?: (schedule: MeterScheduleRecord) => void
@@ -297,6 +300,7 @@ function ScheduleDetailModal({
   schedule,
   allowEdit = false,
   allowCancel = false,
+  hideDemm = false,
   onClose,
   onPreviewEnvelope,
   onSaved,
@@ -616,11 +620,13 @@ function ScheduleDetailModal({
               <dd>{schedule.schedulingDate.trim()}</dd>
             </div>
           ) : null}
-          <div>
-            <dt>DEMM</dt>
-            <dd>{displayValue(formatScheduleDemmLabel(schedule))}</dd>
-          </div>
-          {schedule.demmMeterCount > 0 ? (
+          {hideDemm ? null : (
+            <div>
+              <dt>DEMM</dt>
+              <dd>{displayValue(formatScheduleDemmLabel(schedule))}</dd>
+            </div>
+          )}
+          {!hideDemm && schedule.demmMeterCount > 0 ? (
             <div>
               <dt>Medidores na DEMM</dt>
               <dd>{schedule.demmMeterCount}</dd>
@@ -748,6 +754,7 @@ export function FieldTeamConsultarPanel({
   allowDeleteInspection = false,
   excludeAnalyzed = false,
   hideInspectionDocument = false,
+  hideDemm = false,
 }: FieldTeamSchedulesPanelProps) {
   const [schedules, setSchedules] = useState<MeterScheduleRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -1458,6 +1465,7 @@ export function FieldTeamConsultarPanel({
           schedule={selectedSchedule}
           allowEdit={allowEdit}
           allowCancel={allowCancelSchedule}
+          hideDemm={hideDemm}
           onClose={() => setSelectedSchedule(null)}
           onPreviewEnvelope={setEnvelopePreview}
           onRequestCancel={() => {

@@ -5773,6 +5773,7 @@ function HomePanel({
               <FieldTeamConsultarPanel
                 allTrailSteps
                 hideInspectionDocument={showConsumoIrregularLab}
+                hideDemm={showConsumoIrregularLab}
                 allowEdit={!labMedicaoReadOnly && !showConsumoIrregularLab}
                 allowCancelSchedule={!labMedicaoReadOnly && !showConsumoIrregularLab}
                 allowDeleteInspection={!labMedicaoReadOnly && !showConsumoIrregularLab}
