@@ -1,8 +1,10 @@
 import type { Request, Response } from 'express'
+import type { PoolClient } from 'pg'
 import * as XLSX from 'xlsx'
 import { query, pool } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 import { buildCertificado } from '../analisador-calibracao.js'
+import { calibrationYear, nextIdentificacaoLaudo } from '../analisador-laudo-id.js'
 import { sendAnalisadorLaudoPdf } from '../analisador-laudo-pdf.js'
 
 const ENSAIO_EXCEL_VOLTAGES = ['127V', '220V'] as const
@@ -93,11 +95,110 @@ async function nextEquipmentNumber() {
   return `AT-${String(result.rows[0].n).padStart(5, '0')}`
 }
 
+type EnsaioIdentificacaoRow = {
+  ensaio_id: string
+  created_at: Date
+  identificacao_laudo: string | null
+}
+
+async function assignIdentificacaoLaudos(client: PoolClient, analisadorId: string) {
+  const locked = await client.query<{
+    identificacao_laudo: string
+    identificacao_laudo_base: string
+  }>(
+    `SELECT identificacao_laudo, identificacao_laudo_base
+     FROM analisadores_tensao
+     WHERE id = $1
+     FOR UPDATE`,
+    [analisadorId],
+  )
+  const analyzer = locked.rows[0]
+  if (!analyzer) return
+
+  const ensaios = await client.query<EnsaioIdentificacaoRow>(
+    `SELECT ensaio_id,
+            MIN(created_at) AS created_at,
+            MAX(NULLIF(btrim(identificacao_laudo), '')) AS identificacao_laudo
+     FROM analisador_tensao_ensaio_medicoes
+     WHERE analisador_id = $1
+     GROUP BY ensaio_id
+     ORDER BY MIN(created_at) ASC, ensaio_id ASC`,
+    [analisadorId],
+  )
+  if (!ensaios.rows.length) return
+
+  const stored = analyzer.identificacao_laudo.trim()
+  let base = analyzer.identificacao_laudo_base.trim()
+  const numbered = ensaios.rows.some((ensaio) => ensaio.identificacao_laudo)
+  if (!base && !numbered) base = stored
+
+  let previous = base || stored
+  let latest = stored
+
+  for (const ensaio of ensaios.rows) {
+    const existing = ensaio.identificacao_laudo?.trim() || ''
+    if (existing) {
+      previous = existing
+      latest = existing
+      continue
+    }
+
+    const issued = nextIdentificacaoLaudo(previous, calibrationYear(new Date(ensaio.created_at)))
+    previous = issued
+    latest = issued
+    await client.query(
+      `UPDATE analisador_tensao_ensaio_medicoes
+       SET identificacao_laudo = $3
+       WHERE analisador_id = $1 AND ensaio_id = $2 AND btrim(identificacao_laudo) = ''`,
+      [analisadorId, ensaio.ensaio_id, issued],
+    )
+  }
+
+  await client.query(
+    `UPDATE analisadores_tensao
+     SET identificacao_laudo = $2,
+         identificacao_laudo_base = CASE
+           WHEN btrim(identificacao_laudo_base) = '' THEN $3
+           ELSE identificacao_laudo_base
+         END
+     WHERE id = $1`,
+    [analisadorId, latest, base],
+  )
+}
+
+async function ensureIdentificacaoLaudos(analisadorIds: string[]) {
+  const ids = [...new Set(analisadorIds.filter(Boolean))]
+  if (!ids.length) return
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    for (const id of ids) {
+      await assignIdentificacaoLaudos(client, id)
+    }
+    await client.query('COMMIT')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+async function analisadoresComLaudoPendente() {
+  const pending = await query<{ analisador_id: string }>(
+    `SELECT DISTINCT analisador_id
+     FROM analisador_tensao_ensaio_medicoes
+     WHERE btrim(identificacao_laudo) = ''`,
+  )
+  return pending.rows.map((row) => row.analisador_id)
+}
+
 export async function listAnalisadorModelos(_req: Request, res: Response) {
   res.json({ modelos: ANALISADOR_MODELO_CATALOG })
 }
 
 export async function listAnalisadoresTensao(_req: Request, res: Response) {
+  await ensureIdentificacaoLaudos(await analisadoresComLaudoPendente())
   const result = await query<AnalisadorTensaoRow>(
     `SELECT a.id, a.equipment_number, a.numero_serie, a.identificacao_laudo, a.modelo,
             a.fabricante, a.classe, a.vn, a.vmax, a.instrumento, a.primeira_calibracao,
@@ -365,6 +466,7 @@ export async function registrarEnsaioAnalisadores(req: Request, res: Response) {
          WHERE id = $1`,
         [analisadorId, certificado?.resultado ?? null],
       )
+      await assignIdentificacaoLaudos(client, analisadorId)
     }
 
     await client.query('COMMIT')
@@ -486,6 +588,7 @@ export async function getAnalisadorEnsaioMedicoes(req: Request, res: Response) {
 
 export async function downloadAnalisadorLaudo(req: Request, res: Response) {
   const id = typeof req.params.id === 'string' ? req.params.id : ''
+  await ensureIdentificacaoLaudos([id])
 
   const analisador = await query<AnalisadorTensaoRow>(
     `SELECT a.id, a.equipment_number, a.numero_serie, a.identificacao_laudo, a.modelo,
@@ -509,16 +612,17 @@ export async function downloadAnalisadorLaudo(req: Request, res: Response) {
   const requestedEnsaioId =
     typeof req.query.ensaioId === 'string' ? req.query.ensaioId.trim() : ''
   const latest = requestedEnsaioId
-    ? await query<{ ensaio_id: string; data_calibracao: string }>(
+    ? await query<{ ensaio_id: string; data_calibracao: string; identificacao_laudo: string | null }>(
         `SELECT ensaio_id,
-                (MIN(created_at) AT TIME ZONE 'America/Sao_Paulo')::date::text AS data_calibracao
+                (MIN(created_at) AT TIME ZONE 'America/Sao_Paulo')::date::text AS data_calibracao,
+                MAX(NULLIF(btrim(identificacao_laudo), '')) AS identificacao_laudo
          FROM analisador_tensao_ensaio_medicoes
          WHERE analisador_id = $1 AND ensaio_id = $2
          GROUP BY ensaio_id`,
         [id, requestedEnsaioId],
       )
-    : await query<{ ensaio_id: string; data_calibracao: string | null }>(
-        `SELECT ensaio_id, NULL::text AS data_calibracao
+    : await query<{ ensaio_id: string; data_calibracao: string | null; identificacao_laudo: string | null }>(
+        `SELECT ensaio_id, NULL::text AS data_calibracao, identificacao_laudo
          FROM analisador_tensao_ensaio_medicoes
          WHERE analisador_id = $1
          ORDER BY created_at DESC
@@ -564,10 +668,14 @@ export async function downloadAnalisadorLaudo(req: Request, res: Response) {
     [id, latest.rows[0].ensaio_id],
   )
 
+  const identificacaoLaudo =
+    latest.rows[0].identificacao_laudo?.trim() || row.identificacao_laudo
+  res.setHeader('X-Identificacao-Laudo', identificacaoLaudo.replace(/[\r\n]/g, ''))
+
   sendAnalisadorLaudoPdf(res, {
     numeroSerie: row.numero_serie,
     equipmentNumber: row.equipment_number,
-    identificacaoLaudo: row.identificacao_laudo,
+    identificacaoLaudo,
     modelo: row.modelo,
     fabricante: row.fabricante,
     classe: row.classe,
@@ -684,6 +792,8 @@ export async function deleteEnsaioRealizado(req: Request, res: Response) {
     return
   }
 
+  await ensureIdentificacaoLaudos([analisador.id])
+
   await query(
     `DELETE FROM analisador_tensao_ensaio_medicoes
      WHERE ensaio_id = $1 AND analisador_id = $2`,
@@ -716,6 +826,31 @@ export async function deleteEnsaioRealizado(req: Request, res: Response) {
     )
   }
 
+  const latestLaudo = await query<{ identificacao_laudo: string }>(
+    `SELECT identificacao_laudo
+     FROM analisador_tensao_ensaio_medicoes
+     WHERE analisador_id = $1 AND btrim(identificacao_laudo) <> ''
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [analisador.id],
+  )
+  const issued = latestLaudo.rows[0]?.identificacao_laudo?.trim()
+  if (issued) {
+    await query(
+      `UPDATE analisadores_tensao
+       SET identificacao_laudo = $2
+       WHERE id = $1`,
+      [analisador.id, issued],
+    )
+  } else {
+    await query(
+      `UPDATE analisadores_tensao
+       SET identificacao_laudo = identificacao_laudo_base
+       WHERE id = $1 AND btrim(identificacao_laudo_base) <> ''`,
+      [analisador.id],
+    )
+  }
+
   await writeAuditLog(req, {
     action: 'delete',
     entityType: 'analisador_tensao',
@@ -744,10 +879,11 @@ type EnsaioExcelMedicaoRow = {
 }
 
 export async function exportEnsaiosExcel(_req: Request, res: Response) {
+  await ensureIdentificacaoLaudos(await analisadoresComLaudoPendente())
   const result = await query<EnsaioExcelMedicaoRow>(
     `SELECT m.ensaio_id,
             a.numero_serie,
-            a.identificacao_laudo,
+            COALESCE(NULLIF(btrim(m.identificacao_laudo), ''), a.identificacao_laudo) AS identificacao_laudo,
             a.modelo,
             m.voltage,
             m.teste_numero,

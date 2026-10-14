@@ -659,6 +659,7 @@ export async function migrate() {
       ADD COLUMN IF NOT EXISTS primeira_calibracao BOOLEAN NOT NULL DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS data_ultima_calibracao DATE,
       ADD COLUMN IF NOT EXISTS identificacao_laudo TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS identificacao_laudo_base TEXT NOT NULL DEFAULT '',
       ADD COLUMN IF NOT EXISTS resultado_ultima_calibracao TEXT
   `)
   await query(`
@@ -677,6 +678,10 @@ export async function migrate() {
       created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `)
+  await query(`
+    ALTER TABLE analisador_tensao_ensaio_medicoes
+      ADD COLUMN IF NOT EXISTS identificacao_laudo TEXT NOT NULL DEFAULT ''
   `)
   await query(`
     CREATE INDEX IF NOT EXISTS idx_analisador_ensaio_medicoes_analisador

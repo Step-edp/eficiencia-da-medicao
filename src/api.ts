@@ -2331,6 +2331,7 @@ export const api = {
     return {
       blob,
       filename: match?.[1] ?? 'Certificado_calibracao.pdf',
+      identificacaoLaudo: response.headers.get('X-Identificacao-Laudo')?.trim() ?? '',
     }
   },
   downloadAnalisadorLaudo: async (id: string, ensaioId?: string | null) => {

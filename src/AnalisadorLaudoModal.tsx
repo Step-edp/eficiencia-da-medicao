@@ -17,6 +17,7 @@ export function AnalisadorLaudoModal({
   const [error, setError] = useState<string | null>(null)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [filename, setFilename] = useState('Certificado_calibracao.pdf')
+  const [identificacaoLaudo, setIdentificacaoLaudo] = useState(analisador?.identificacaoLaudo ?? '')
 
   useEffect(() => {
     if (!analisador) return
@@ -25,10 +26,11 @@ export function AnalisadorLaudoModal({
     setLoading(true)
     setError(null)
     setPdfUrl(null)
+    setIdentificacaoLaudo(analisador.identificacaoLaudo)
 
     api
       .fetchAnalisadorLaudo(analisador.id, ensaioId)
-      .then(({ blob, filename: downloadedName }) => {
+      .then(({ blob, filename: downloadedName, identificacaoLaudo: issued }) => {
         const url = URL.createObjectURL(blob)
         if (!active) {
           URL.revokeObjectURL(url)
@@ -37,6 +39,7 @@ export function AnalisadorLaudoModal({
         objectUrl = url
         setPdfUrl(url)
         setFilename(downloadedName)
+        if (issued) setIdentificacaoLaudo(issued)
       })
       .catch((err) => {
         if (!active) return
@@ -103,7 +106,7 @@ export function AnalisadorLaudoModal({
 
         <h3 id="analisador-laudo-modal-title">Certificado de calibração</h3>
         <p className="ensaios-block-modal-date">
-          {analisador.identificacaoLaudo || 'Sem identificação de certificado'} · {analisador.numeroSerie}
+          {identificacaoLaudo || analisador.identificacaoLaudo || 'Sem identificação de certificado'} · {analisador.numeroSerie}
         </p>
 
         {loading ? (

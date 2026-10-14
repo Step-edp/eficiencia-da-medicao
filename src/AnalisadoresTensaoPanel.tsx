@@ -488,7 +488,10 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
 
       const serieList = ensaiarQueue.map((item) => item.numeroSerie).join(', ')
       const resultados = updated
-        .map((item) => `${item.numeroSerie}: ${item.resultadoUltimaCalibracao || 'sem resultado'}`)
+        .map(
+          (item) =>
+            `${item.numeroSerie}: ${item.identificacaoLaudo} (${item.resultadoUltimaCalibracao || 'sem resultado'})`,
+        )
         .join(', ')
       resetEnsaiarForm()
       setShowEnsaiarForm(false)
@@ -500,7 +503,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
         type: 'success',
         message:
           updated.length === 1
-            ? `Ensaio registrado para o analisador ${serieList}. Certificado: ${updated[0].resultadoUltimaCalibracao || 'sem resultado'}.`
+            ? `Ensaio registrado para o analisador ${serieList}. Laudo ${updated[0].identificacaoLaudo}. Resultado: ${updated[0].resultadoUltimaCalibracao || 'sem resultado'}.`
             : `Ensaio registrado para ${updated.length} analisadores (${resultados}). O certificado de cada um está na lista.`,
       })
     } catch (error) {
