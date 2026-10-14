@@ -2930,7 +2930,9 @@ export function EntradaPanel({
                             ) : null}
                             <button
                               type="button"
-                              className="secondary-button"
+                              className={
+                                analyzedView || blockedView ? 'secondary-button' : 'wpa-analisar-button'
+                              }
                               onClick={() =>
                                 setInspectionDocumentTarget({
                                   meter: item.meter,

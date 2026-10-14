@@ -2223,6 +2223,33 @@ button {
   gap: 8px;
 }
 
+.wpa-analisar-button {
+  width: auto;
+  margin: 0;
+  padding: 8px 16px;
+  border: 1px solid rgba(190, 255, 90, 0.95);
+  border-radius: 999px;
+  color: #04140a;
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  background: linear-gradient(135deg, #e4ff8a 0%, #5bf000 42%, #2dff9a 100%);
+  box-shadow:
+    0 0 0 1px rgba(91, 240, 0, 0.28),
+    0 0 18px rgba(91, 240, 0, 0.55);
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+.wpa-analisar-button:hover,
+.wpa-analisar-button:focus-visible {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow:
+    0 0 0 1px rgba(190, 255, 90, 0.7),
+    0 0 26px rgba(91, 240, 0, 0.8);
+}
+
 .inspection-analysis-block-label {
   display: grid;
   gap: 6px;
