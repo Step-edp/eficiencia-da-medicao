@@ -15,6 +15,7 @@ type RatmAprovacaoPanelProps = {
   approvedOnly?: boolean
   approverUserId?: string
   approverIsLab?: boolean
+  loading?: boolean
 }
 
 export function RatmAprovacaoPanel({
@@ -27,6 +28,7 @@ export function RatmAprovacaoPanel({
   approvedOnly = false,
   approverUserId,
   approverIsLab = false,
+  loading = false,
 }: RatmAprovacaoPanelProps) {
   const [viewingLaudo, setViewingLaudo] = useState<RatmLaudo | null>(null)
   const [viewerMode, setViewerMode] = useState<'view' | 'edit'>('view')
@@ -158,7 +160,9 @@ export function RatmAprovacaoPanel({
       {!approvedOnly && tab === 'pending' ? (
       <section className="approval-section">
         <div className="approval-list" aria-label="Laudos de RATM pendentes">
-          {pendingLaudos.length === 0 ? (
+          {loading && pendingLaudos.length === 0 ? (
+            <p className="generated-password-empty">Carregando laudos...</p>
+          ) : pendingLaudos.length === 0 ? (
             <p className="generated-password-empty">
               Nenhum laudo de RATM aguardando aprovação.
             </p>
@@ -233,7 +237,9 @@ export function RatmAprovacaoPanel({
       ) : (
       <section className="approval-section">
         <div className="approval-list" aria-label="Relatórios RATM aprovados">
-          {approvedLaudos.length === 0 ? (
+          {loading && approvedLaudos.length === 0 ? (
+            <p className="generated-password-empty">Carregando laudos...</p>
+          ) : approvedLaudos.length === 0 ? (
             <p className="generated-password-empty">Nenhum relatório aprovado.</p>
           ) : visibleApproved.length === 0 ? (
             <p className="generated-password-empty">

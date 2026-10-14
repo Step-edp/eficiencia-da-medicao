@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { EdpLogo } from './EdpLogo'
 import { ScheduleAgendarForm } from './ScheduleAgendarForm'
@@ -2280,6 +2280,8 @@ function HomePanel({
   }, [currentUser.role, savedNav?.selectedOrgAreaId, savedNav?.selectedOrgCell])
   const [trailStepCounts, setTrailStepCounts] = useState<Record<string, number>>({})
   const [ratmLaudos, setRatmLaudos] = useState<RatmLaudo[]>([])
+  const [ratmLaudosLoading, setRatmLaudosLoading] = useState(true)
+  const ratmLaudosLoads = useRef(0)
   const [meterNumbersInput, setMeterNumbersInput] = useState('')
   const [passwordDigitsInput, setPasswordDigitsInput] = useState('')
   const [passwordType, setPasswordType] = useState<PasswordTypeSelection>('')
@@ -3313,7 +3315,18 @@ function HomePanel({
     setSelectedLabMeasurementSection('Aprovação de RATM')
   }
 
+  const beginRatmLaudosLoad = () => {
+    ratmLaudosLoads.current += 1
+    setRatmLaudosLoading(true)
+  }
+
+  const endRatmLaudosLoad = () => {
+    ratmLaudosLoads.current = Math.max(0, ratmLaudosLoads.current - 1)
+    if (ratmLaudosLoads.current === 0) setRatmLaudosLoading(false)
+  }
+
   const loadRatmLaudos = async () => {
+    beginRatmLaudosLoad()
     try {
       const response = await api.listRatmLaudos()
       setRatmLaudos(response.laudos.map(mapRatmLaudoFromApi))
@@ -3322,6 +3335,8 @@ function HomePanel({
         type: 'error',
         message: 'Não foi possível carregar os laudos de RATM.',
       })
+    } finally {
+      endRatmLaudosLoad()
     }
   }
 
@@ -3353,6 +3368,7 @@ function HomePanel({
     let cancelled = false
 
     async function loadOperationalData() {
+      beginRatmLaudosLoad()
       try {
         const [passwordsResult, manufacturersResult, materialsResult, ratmLaudosResult] =
           await Promise.allSettled([
@@ -3398,6 +3414,7 @@ function HomePanel({
           })
         }
       } finally {
+        endRatmLaudosLoad()
         if (!cancelled) {
           setDataLoading(false)
         }
@@ -5747,6 +5764,7 @@ function HomePanel({
               <RatmAprovacaoPanel
                 approvedOnly
                 readOnly
+                loading={ratmLaudosLoading}
                 laudos={ratmLaudos}
                 onLaudoUpdated={() => undefined}
                 onLaudoApproved={() => undefined}
@@ -5839,6 +5857,7 @@ function HomePanel({
                 isAdmin={isAdmin}
                 approverUserId={currentUser.id}
                 approverIsLab={!isAdmin && isLabMedicaoOperator(currentUser)}
+                loading={ratmLaudosLoading}
                 laudos={ratmLaudos}
                 onLaudoDeleted={(laudoId) => {
                   setRatmLaudos((prev) => prev.filter((item) => item.id !== laudoId))
