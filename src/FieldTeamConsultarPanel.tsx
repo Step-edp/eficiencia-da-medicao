@@ -428,18 +428,6 @@ function ScheduleDetailModal({
         </button>
       </header>
       <div className="inspection-analysis-screen-body">
-        {allowCancel ? (
-          <div className="schedule-detail-toolbar">
-            <button
-              type="button"
-              className="danger-button"
-              onClick={() => onRequestCancel?.()}
-            >
-              Excluir agendamento
-            </button>
-          </div>
-        ) : null}
-
         <dl className="user-detail-grid schedule-detail-grid">
           <div>
             <dt>Medidor</dt>

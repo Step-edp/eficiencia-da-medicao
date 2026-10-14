@@ -2073,8 +2073,51 @@ button {
   overflow: hidden;
 }
 
-.schedule-detail-toolbar {
-  margin: 4px 0 12px;
+.inspection-analysis-screen.schedule-detail-modal .inspection-analysis-screen-bar .secondary-button,
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions .primary-button,
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions .secondary-button,
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions .danger-button {
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  background: transparent;
+}
+
+.inspection-analysis-screen.schedule-detail-modal .inspection-analysis-screen-bar .secondary-button,
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions .secondary-button {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #d5e4ee;
+}
+
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions .primary-button {
+  border: 1px solid rgba(24, 216, 240, 0.4);
+  color: #d7fbff;
+  background: rgba(24, 216, 240, 0.1);
+}
+
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions .danger-button {
+  border: 1px solid rgba(255, 150, 150, 0.35);
+  color: #ffc9c9;
+  background: transparent;
+}
+
+.inspection-analysis-screen.schedule-detail-modal .inspection-analysis-screen-bar .secondary-button:hover,
+.inspection-analysis-screen.schedule-detail-modal .inspection-analysis-screen-bar .secondary-button:focus-visible,
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions .secondary-button:hover,
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions .secondary-button:focus-visible,
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions .primary-button:hover,
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions .primary-button:focus-visible {
+  background: rgba(24, 216, 240, 0.16);
+}
+
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions .danger-button:hover,
+.inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions .danger-button:focus-visible {
+  background: rgba(255, 120, 120, 0.12);
 }
 
 .inspection-analysis-screen.schedule-detail-modal .ensaios-block-modal-actions {
