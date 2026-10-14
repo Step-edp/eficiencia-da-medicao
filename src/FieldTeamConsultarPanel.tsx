@@ -42,6 +42,7 @@ type EnvelopePreview = {
   src: string
   meter: string
   caption?: string
+  downloadName?: string
 }
 
 type ConsultPhoto = {
@@ -155,6 +156,62 @@ function meterBaseStatusLabel(
   if (item.inspectionAnalysisCompleted) return 'Analisado'
   if (hasDocument) return 'Aguardando análise'
   return 'Agendado'
+}
+
+function imageExtension(src: string) {
+  const match = /^data:image\/([\w.+-]+)/i.exec(src)
+  const subtype = match?.[1]?.toLowerCase().split('+')[0] ?? ''
+  if (subtype === 'png') return 'png'
+  if (subtype === 'webp') return 'webp'
+  if (subtype === 'gif') return 'gif'
+  return 'jpg'
+}
+
+function safeFilePart(value: string) {
+  const cleaned = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w.-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase()
+  return cleaned.slice(0, 60) || 'foto'
+}
+
+function photoDownloadName(meter: string, label: string, src: string) {
+  return `medidor-${safeFilePart(meter)}-${safeFilePart(label)}.${imageExtension(src)}`
+}
+
+function triggerFileDownload(url: string, filename: string) {
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.rel = 'noopener'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+}
+
+async function downloadImage(src: string, filename: string) {
+  try {
+    const response = await fetch(src)
+    if (!response.ok) throw new Error('Não foi possível ler a foto.')
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    triggerFileDownload(url, filename)
+    window.setTimeout(() => URL.revokeObjectURL(url), 1500)
+  } catch {
+    triggerFileDownload(src, filename)
+  }
+}
+
+async function downloadImages(photos: Array<{ src: string; filename: string }>) {
+  for (const [index, photo] of photos.entries()) {
+    if (index > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, 250))
+    }
+    await downloadImage(photo.src, photo.filename)
+  }
 }
 
 async function downloadMetersExcel(
@@ -577,28 +634,62 @@ function ScheduleDetailModal({
               ) : consultPhotos.length === 0 ? (
                 <p className="field-hint">Nenhuma foto registrada.</p>
               ) : (
-                <div className="inspection-photo-grid consult-photo-grid">
-                  {consultPhotos.map((photo) => (
-                    <figure key={photo.id} className="inspection-photo-item">
+                <>
+                  {consultPhotos.length > 1 && !photosLoading ? (
+                    <div className="consult-photo-actions">
                       <button
                         type="button"
-                        className="inspection-photo-thumb-button"
-                        onClick={() =>
-                          onPreviewEnvelope({
-                            src: photo.src,
-                            meter: schedule.meter,
-                            caption: `${photo.label} · medidor ${schedule.meter}`,
-                          })
-                        }
-                        aria-label={`Ampliar ${photo.label} do medidor ${schedule.meter}`}
-                        title="Clique para ampliar"
+                        className="consult-photo-download"
+                        onClick={() => {
+                          void downloadImages(
+                            consultPhotos.map((photo) => ({
+                              src: photo.src,
+                              filename: photoDownloadName(schedule.meter, photo.label, photo.src),
+                            })),
+                          )
+                        }}
                       >
-                        <img src={photo.src} alt={photo.label} />
+                        Baixar todas
                       </button>
-                      <figcaption className="consult-photo-caption">{photo.label}</figcaption>
-                    </figure>
-                  ))}
-                </div>
+                    </div>
+                  ) : null}
+                  <div className="inspection-photo-grid consult-photo-grid">
+                    {consultPhotos.map((photo) => (
+                      <figure key={photo.id} className="inspection-photo-item">
+                        <button
+                          type="button"
+                          className="inspection-photo-thumb-button"
+                          onClick={() =>
+                            onPreviewEnvelope({
+                              src: photo.src,
+                              meter: schedule.meter,
+                              caption: `${photo.label} · medidor ${schedule.meter}`,
+                              downloadName: photoDownloadName(schedule.meter, photo.label, photo.src),
+                            })
+                          }
+                          aria-label={`Ampliar ${photo.label} do medidor ${schedule.meter}`}
+                          title="Clique para ampliar"
+                        >
+                          <img src={photo.src} alt={photo.label} />
+                        </button>
+                        <figcaption className="consult-photo-caption">{photo.label}</figcaption>
+                        <button
+                          type="button"
+                          className="consult-photo-download"
+                          aria-label={`Baixar ${photo.label}`}
+                          onClick={() => {
+                            void downloadImage(
+                              photo.src,
+                              photoDownloadName(schedule.meter, photo.label, photo.src),
+                            )
+                          }}
+                        >
+                          Baixar
+                        </button>
+                      </figure>
+                    ))}
+                  </div>
+                </>
               )}
             </dd>
           </div>
@@ -1175,6 +1266,7 @@ export function FieldTeamConsultarPanel({
                           setEnvelopePreview({
                             src: photo,
                             meter: item.meter,
+                            downloadName: photoDownloadName(item.meter, 'Invólucro', photo),
                           })
                         }}
                         aria-label={`Ampliar foto do invólucro do medidor ${item.meter}`}
@@ -1410,6 +1502,25 @@ export function FieldTeamConsultarPanel({
             <p className="envelope-photo-lightbox-caption">
               {envelopePreview.caption ?? `Invólucro · medidor ${envelopePreview.meter}`}
             </p>
+            <div className="consult-photo-actions">
+              <button
+                type="button"
+                className="consult-photo-download"
+                onClick={() => {
+                  void downloadImage(
+                    envelopePreview.src,
+                    envelopePreview.downloadName ??
+                      photoDownloadName(
+                        envelopePreview.meter,
+                        envelopePreview.caption ?? 'foto',
+                        envelopePreview.src,
+                      ),
+                  )
+                }}
+              >
+                Baixar foto
+              </button>
+            </div>
             <img
               className="envelope-photo-lightbox-image"
               src={envelopePreview.src}

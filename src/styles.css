@@ -2547,6 +2547,30 @@ button {
   word-break: break-word;
 }
 
+.consult-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.consult-photo-download {
+  justify-self: start;
+  padding: 4px 10px;
+  border: 1px solid rgba(24, 216, 240, 0.35);
+  border-radius: 8px;
+  background: rgba(24, 216, 240, 0.12);
+  color: #d7fbff;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.consult-photo-download:hover,
+.consult-photo-download:focus-visible {
+  background: rgba(24, 216, 240, 0.22);
+}
+
 .inspection-photo-item {
   margin: 0;
   display: grid;
