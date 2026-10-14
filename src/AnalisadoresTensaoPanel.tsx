@@ -212,7 +212,6 @@ function GerarEtiquetaModal({
   onConfirm: (ensaios: EnsaioSessaoRecord[]) => void
 }) {
   const [selected, setSelected] = useState<string[]>([])
-  const allSelected = ensaios.length > 0 && selected.length === ensaios.length
 
   const toggle = (key: string) => {
     setSelected((current) =>
@@ -221,23 +220,15 @@ function GerarEtiquetaModal({
   }
 
   return createPortal(
-    <div
-      className="ensaios-block-modal-overlay confirm-delete-overlay"
-      role="presentation"
-      onClick={() => {
-        if (!submitting) onClose()
-      }}
-    >
-      <div
-        className="ensaios-block-modal etiqueta-picker-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="gerar-etiqueta-title"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <div className="etiqueta-screen" role="dialog" aria-modal="true" aria-labelledby="gerar-etiqueta-title">
+      <header className="etiqueta-screen-header">
+        <div>
+          <h2 id="gerar-etiqueta-title">Gerar etiqueta</h2>
+          <p>Selecione os ensaios. As etiquetas saem juntas em um PDF e o QR Code abre o certificado.</p>
+        </div>
         <button
           type="button"
-          className="icon-button schedule-slot-modal-close"
+          className="icon-button"
           onClick={onClose}
           disabled={submitting}
           aria-label="Fechar"
@@ -253,46 +244,49 @@ function GerarEtiquetaModal({
             />
           </svg>
         </button>
-        <h3 id="gerar-etiqueta-title">Gerar etiqueta</h3>
-        <p className="demm-modal-intro">
-          Selecione os ensaios. As etiquetas saem juntas em um PDF e o QR Code abre o certificado.
-        </p>
-        <label className="etiqueta-picker-all">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            disabled={submitting || !ensaios.length}
-            onChange={() =>
-              setSelected(allSelected ? [] : ensaios.map((sessao) => etiquetaKey(sessao)))
-            }
-          />
-          Selecionar todos
-        </label>
-        <ul className="etiqueta-picker-list">
-          {ensaios.map((sessao) => {
-            const key = etiquetaKey(sessao)
-            return (
-              <li key={key}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(key)}
-                    disabled={submitting}
-                    onChange={() => toggle(key)}
-                  />
-                  <span>
-                    <strong>{sessao.numeroSerie}</strong>
-                    <small>
-                      {sessao.createdByName || sessao.createdByRegistration || '—'} ·{' '}
-                      {formatAuditDate(sessao.createdAt)}
-                    </small>
-                  </span>
-                </label>
-              </li>
-            )
-          })}
-        </ul>
-        <div className="ensaios-block-modal-actions">
+      </header>
+
+      <div className="entrada-table-wrap etiqueta-screen-table">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Número de série</th>
+              <th>Registrado por</th>
+              <th>Em</th>
+              <th>Selecionar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ensaios.map((sessao) => {
+              const key = etiquetaKey(sessao)
+              const isSelected = selected.includes(key)
+              return (
+                <tr key={key} className={isSelected ? 'is-selected' : undefined}>
+                  <td>{sessao.numeroSerie}</td>
+                  <td>{sessao.createdByName || sessao.createdByRegistration || '—'}</td>
+                  <td>{formatAuditDate(sessao.createdAt)}</td>
+                  <td className="received-select-cell">
+                    <button
+                      type="button"
+                      className={`received-select-dot${isSelected ? ' is-selected' : ''}`}
+                      aria-pressed={isSelected}
+                      aria-label={`Selecionar ensaio ${sessao.numeroSerie}`}
+                      disabled={submitting}
+                      onClick={() => toggle(key)}
+                    >
+                      <span className="ratm-choice-dot" aria-hidden="true" />
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <footer className="etiqueta-screen-actions">
+        <p>{selected.length === 1 ? '1 ensaio selecionado' : `${selected.length} ensaios selecionados`}</p>
+        <div>
           <button type="button" className="secondary-button" disabled={submitting} onClick={onClose}>
             Cancelar
           </button>
@@ -304,10 +298,10 @@ function GerarEtiquetaModal({
               onConfirm(ensaios.filter((sessao) => selected.includes(etiquetaKey(sessao))))
             }
           >
-            {submitting ? 'Gerando...' : `Gerar PDF (${selected.length})`}
+            {submitting ? 'Gerando...' : 'Gerar PDF'}
           </button>
         </div>
-      </div>
+      </footer>
     </div>,
     document.body,
   )
