@@ -6,8 +6,8 @@ import { writeAuditLog } from '../audit.js'
 import {
   APROVACAO_TRAIL_STEP,
   ENSAIAR_TRAIL_STEP,
+  ENTRADA_TRAIL_STEP,
   SUCATA_TRAIL_STEP,
-  isMeterReadyForEnsaio,
   normalizedMeterColumnSql,
 } from '../lab-trail-status.js'
 import { normalizeScheduleMeter } from '../numeric-field-validation.js'
@@ -259,37 +259,61 @@ export async function createRatmLaudos(req: Request, res: Response) {
     form.client = clientName
     const client = clientName || 'Não informado'
 
-    const meterState = await query<{
-      registry_status: string | null
-      trail_step: string | null
-      demm_id: string | null
-    }>(
-      `SELECT mr.status AS registry_status,
-              ms.trail_step,
-              d.id AS demm_id
-       FROM meter_schedules ms
-       LEFT JOIN meter_registry mr ON mr.meter = ms.meter
-       LEFT JOIN LATERAL (
-         SELECT id
-         FROM demm_documents
-         WHERE meter_schedule_id = ms.id
-         ORDER BY created_at DESC
-         LIMIT 1
-       ) d ON true
-       WHERE ms.meter = $1
-       ORDER BY ms.created_at DESC
-       LIMIT 1`,
-      [meter],
-    )
+    const meterKey = normalizeScheduleMeter(meter)
+    const meterState = meterKey
+      ? await query<{ received: boolean }>(
+          `SELECT (
+             EXISTS (
+               SELECT 1
+               FROM meter_registry mr
+               WHERE ${normalizedMeterColumnSql('mr')} = $1
+                 AND (
+                   mr.received_at IS NOT NULL
+                   OR BTRIM(COALESCE(mr.status, '')) IN ('Recebido', 'Ensaiado', 'Aprovado')
+                 )
+             )
+             OR EXISTS (
+               SELECT 1
+               FROM meter_schedules ms
+               WHERE ${normalizedMeterColumnSql('ms')} = $1
+                 AND (
+                   ms.received_at IS NOT NULL
+                   OR (
+                     ms.delay_dismissed_at IS NULL
+                     AND BTRIM(COALESCE(ms.trail_step, '')) <> ''
+                     AND BTRIM(ms.trail_step) IS DISTINCT FROM $2
+                   )
+                 )
+             )
+             OR EXISTS (
+               SELECT 1
+               FROM demm_documents demm
+               WHERE demm.rejected_at IS NULL
+                 AND (
+                   ${normalizedMeterColumnSql('demm')} = $1
+                   OR EXISTS (
+                     SELECT 1
+                     FROM meter_schedules linked
+                     WHERE linked.id = demm.meter_schedule_id
+                       AND ${normalizedMeterColumnSql('linked')} = $1
+                   )
+                   OR EXISTS (
+                     SELECT 1
+                     FROM jsonb_array_elements(COALESCE(demm.extracted_meters, '[]'::jsonb)) AS elem
+                     WHERE LPAD(
+                       RIGHT(REGEXP_REPLACE(COALESCE(elem->>'meter', ''), '[^0-9]', '', 'g'), 8),
+                       8,
+                       '0'
+                     ) = $1
+                   )
+                 )
+             )
+           ) AS received`,
+          [meterKey, ENTRADA_TRAIL_STEP],
+        )
+      : { rows: [{ received: false }] }
 
-    const state = meterState.rows[0]
-    const readyForEnsaio = isMeterReadyForEnsaio({
-      registryStatus: state?.registry_status,
-      trailStep: state?.trail_step,
-      hasDemmEntry: Boolean(state?.demm_id),
-    })
-
-    if (!readyForEnsaio) {
+    if (!meterState.rows[0]?.received) {
       res.status(409).json({
         error: `O medidor ${meter} ainda não foi recebido na Entrada. Registre a DEMM antes de iniciar o ensaio.`,
       })

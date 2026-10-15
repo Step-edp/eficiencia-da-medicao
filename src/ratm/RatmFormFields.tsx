@@ -1124,16 +1124,14 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
 
     try {
       const { schedules } = await api.listMeterSchedules(undefined, { meter })
-      const schedule = schedules[0]
+      const schedule = schedules.find((item) => isMeterReadyForEnsaio(item))
       if (!schedule) {
         onChange(emptyScheduleFields())
-        setMeterLookupError(`Nenhum agendamento encontrado para o medidor ${meter}.`)
-        return
-      }
-
-      if (!isMeterReadyForEnsaio(schedule)) {
-        onChange(emptyScheduleFields())
-        setMeterLookupError(METER_NOT_RECEIVED_MESSAGE)
+        setMeterLookupError(
+          schedules.length
+            ? METER_NOT_RECEIVED_MESSAGE
+            : `Nenhum agendamento encontrado para o medidor ${meter}.`,
+        )
         return
       }
 
