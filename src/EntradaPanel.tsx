@@ -3260,9 +3260,16 @@ export function EntradaPanel({
   if (view === 'weekMeters' || view === 'entradaFisica') {
     const physicalEntry = view === 'entradaFisica'
     const searchQuery = normalizeWpaSearch(weekMetersSearchQuery)
+    const listedMeters = physicalEntry
+      ? weekMeters.filter((item) => item.status === 'liberado')
+      : weekMeters
 
-    const filteredWeekMeters = weekMeters.filter((item) => {
-      if (weekMetersStatusFilter !== 'todos' && item.status !== weekMetersStatusFilter) {
+    const filteredWeekMeters = listedMeters.filter((item) => {
+      if (
+        !physicalEntry &&
+        weekMetersStatusFilter !== 'todos' &&
+        item.status !== weekMetersStatusFilter
+      ) {
         return false
       }
       if (!weekMeterMatchesSearch(item, weekMetersSearchQuery)) {
@@ -3271,9 +3278,9 @@ export function EntradaPanel({
       return true
     })
 
-    const hasActiveWeekMeterFilters = Boolean(
-      weekMetersStatusFilter !== 'todos' || searchQuery,
-    )
+    const hasActiveWeekMeterFilters = physicalEntry
+      ? Boolean(searchQuery)
+      : Boolean(weekMetersStatusFilter !== 'todos' || searchQuery)
 
     return (
       <>
@@ -3293,7 +3300,11 @@ export function EntradaPanel({
               <p className="demm-analysis-summary">
                 {weekMetersLoading
                   ? 'Carregando medidores...'
-                  : `${filteredWeekMeters.length} de ${weekMeters.length} medidor(es) aguardando entrada`}
+                  : physicalEntry
+                    ? hasActiveWeekMeterFilters
+                      ? `${filteredWeekMeters.length} de ${listedMeters.length} medidor(es) liberado(s) para receber`
+                      : `${listedMeters.length} medidor(es) liberado(s) para receber`
+                    : `${filteredWeekMeters.length} de ${weekMeters.length} medidor(es) aguardando entrada`}
               </p>
             </div>
 
@@ -3328,6 +3339,7 @@ export function EntradaPanel({
                   onChange={(event) => setWeekMetersSearchQuery(event.target.value)}
                 />
               </label>
+              {physicalEntry ? null : (
               <label className="week-meters-filter">
                 Status
                 <select
@@ -3343,6 +3355,7 @@ export function EntradaPanel({
                   <option value="liberado">Liberado</option>
                 </select>
               </label>
+              )}
               {hasActiveWeekMeterFilters ? (
                 <button
                   type="button"
@@ -3357,15 +3370,17 @@ export function EntradaPanel({
               ) : null}
             </div>
 
-            {weekMetersLoading && weekMeters.length === 0 ? (
+            {weekMetersLoading && listedMeters.length === 0 ? (
               <p className="entrada-panel-empty">Carregando medidores...</p>
             ) : filteredWeekMeters.length === 0 ? (
               <p className="entrada-panel-empty">
-                {weekMeters.length === 0
-                  ? 'Nenhum medidor aguardando entrada.'
-                  : hasActiveWeekMeterFilters
-                    ? 'Nenhum medidor encontrado para os filtros informados.'
-                    : 'Nenhum medidor encontrado para esse filtro.'}
+                {physicalEntry && listedMeters.length === 0
+                  ? 'Nenhum medidor liberado para entrada física.'
+                  : listedMeters.length === 0
+                    ? 'Nenhum medidor aguardando entrada.'
+                    : hasActiveWeekMeterFilters
+                      ? 'Nenhum medidor encontrado para os filtros informados.'
+                      : 'Nenhum medidor encontrado para esse filtro.'}
               </p>
             ) : (
               <div className="entrada-table-wrap">
