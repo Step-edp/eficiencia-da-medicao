@@ -1109,6 +1109,7 @@ export type EntradaPanelView =
   | 'csdPendencias'
   | 'inspectionPendencias'
   | 'weekMeters'
+  | 'entradaFisica'
   | 'demmHistorico'
 
 type EntradaPanelProps = {
@@ -1803,6 +1804,12 @@ export function EntradaPanel({
     void loadWeekMeters()
   }
 
+  const openEntradaFisica = () => {
+    setView('entradaFisica')
+    setFeedback(null)
+    void loadWeekMeters()
+  }
+
   const openOverview = () => {
     setView('overview')
     setFeedback(null)
@@ -1895,6 +1902,7 @@ export function EntradaPanel({
     else if (target === 'wpaAnalyzed') openWpaAnalyzed()
     else if (target === 'wpaBlocked') openWpaBlocked()
     else if (target === 'weekMeters') openWeekMeters()
+    else if (target === 'entradaFisica') openEntradaFisica()
     else if (target === 'receivedMetersBase') setView('receivedMetersBase')
     else openWeekMeters()
   }
@@ -1913,6 +1921,7 @@ export function EntradaPanel({
     else if (target === 'metersWithoutDemm') openMetersWithoutDemm()
     else if (target === 'demmHistorico') openDemmHistorico()
     else if (target === 'weekMeters') openWeekMeters()
+    else if (target === 'entradaFisica') openEntradaFisica()
     else if (target === 'receivedMetersBase') setView('receivedMetersBase')
     else openWeekMeters()
   }
@@ -1925,6 +1934,17 @@ export function EntradaPanel({
         role="tablist"
         aria-label="Ações da entrada"
       >
+        {!demmMenuOpen && !analysisMenuOpen ? (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'entradaFisica'}
+            className={view === 'entradaFisica' ? 'active' : ''}
+            onClick={() => openEntradaFisica()}
+          >
+            Entrada física
+          </button>
+        ) : null}
         {demmMenuOpen ? (
           <>
             <button type="button" onClick={leaveDemmMenu}>
@@ -3237,7 +3257,8 @@ export function EntradaPanel({
     )
   }
 
-  if (view === 'weekMeters') {
+  if (view === 'weekMeters' || view === 'entradaFisica') {
+    const physicalEntry = view === 'entradaFisica'
     const searchQuery = normalizeWpaSearch(weekMetersSearchQuery)
 
     const filteredWeekMeters = weekMeters.filter((item) => {
@@ -3261,9 +3282,14 @@ export function EntradaPanel({
 
           {renderFixedFeedback()}
 
-          <section className="entrada-section" aria-label="Medidores da semana">
+          <section
+            className="entrada-section"
+            aria-label={physicalEntry ? 'Entrada física' : 'Medidores da semana'}
+          >
             <div className="entrada-section-heading">
-              <h3 className="entrada-section-title">Medidores da semana</h3>
+              <h3 className="entrada-section-title">
+                {physicalEntry ? 'Entrada física' : 'Medidores da semana'}
+              </h3>
               <p className="demm-analysis-summary">
                 {weekMetersLoading
                   ? 'Carregando medidores...'
