@@ -866,7 +866,7 @@ function drawResultado(
   irregularityCodes: Record<string, string>,
   irregularityDescriptions: Record<string, string> = {},
 ) {
-  drawSectionTitle(doc, 8, 'RESULTADO DA PERÍCIA')
+  drawSectionTitle(doc, 8, 'RESULTADO DO ENSAIO')
   const form = laudo.formData
   const code = String(form.irregularityCode ?? '').trim()
   const writtenName = code ? irregularityCodes[code]?.trim() || '' : ''
