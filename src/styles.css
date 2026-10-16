@@ -2451,6 +2451,10 @@ button {
 }
 
 .inspection-missing-docs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin: 0 0 1rem;
   padding: 0.7rem 0.9rem;
   border-radius: 8px;
@@ -2458,6 +2462,15 @@ button {
   background: rgba(241, 196, 15, 0.12);
   color: #f8e08e;
   font-size: 0.92rem;
+}
+
+.inspection-missing-docs p {
+  margin: 0;
+}
+
+.inspection-missing-docs-import {
+  flex: 0 0 auto;
+  padding: 8px 14px;
 }
 
 .inspection-csm-physical-flag {

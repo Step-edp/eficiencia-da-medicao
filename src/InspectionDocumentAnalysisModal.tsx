@@ -1011,7 +1011,9 @@ export function InspectionDocumentAnalysisModal({
   const photoInputId = useId()
   const photoInputRef = useRef<HTMLInputElement | null>(null)
   const reprocessInputRef = useRef<HTMLInputElement | null>(null)
+  const csmInputRef = useRef<HTMLInputElement | null>(null)
   const [reprocessingDocument, setReprocessingDocument] = useState(false)
+  const [uploadingCsm, setUploadingCsm] = useState(false)
   const [deletingDocType, setDeletingDocType] = useState<InspectionDocumentType | null>(null)
   const [adjustingDocType, setAdjustingDocType] = useState<InspectionDocumentType | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
@@ -1680,6 +1682,38 @@ export function InspectionDocumentAnalysisModal({
     }
   }
 
+  const handleImportCsm = async (file: File | undefined) => {
+    if (!file || uploadingCsm) return
+    const isPdf =
+      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+    if (!isPdf) {
+      setFeedback({ type: 'error', message: 'Envie um arquivo PDF.' })
+      if (csmInputRef.current) csmInputRef.current.value = ''
+      return
+    }
+
+    setUploadingCsm(true)
+    setFeedback(null)
+    try {
+      const fileBase64 = await readFileAsBase64(file)
+      await api.uploadInspectionDocument(scheduleId, {
+        fileName: file.name,
+        fileBase64,
+      })
+      await loadDocuments({ silent: true })
+      onDocumentsChanged?.()
+      setFeedback({ type: 'success', message: 'CSM importado.' })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: error instanceof ApiError ? error.message : 'Não foi possível importar o CSM.',
+      })
+    } finally {
+      setUploadingCsm(false)
+      if (csmInputRef.current) csmInputRef.current.value = ''
+    }
+  }
+
   const handleReprocessDocument = async (file: File | undefined) => {
     if (!file || reprocessingDocument) return
     const isPdf =
@@ -1787,13 +1821,39 @@ export function InspectionDocumentAnalysisModal({
         ) : null}
 
         {!loading && documents.length > 0 && (!hasToi || (!hasComunicado && !csmWaived)) ? (
-          <p className="inspection-missing-docs" role="status">
-            {!hasToi && !hasComunicado
-              ? 'Faltam o TOI e o CSM.'
-              : !hasToi
-                ? 'Falta o TOI. O arquivo anexado é o Comunicado de Substituição (CSM).'
-                : 'Falta o Comunicado de Substituição (CSM).'}
-          </p>
+          <div className="inspection-missing-docs" role="status">
+            <p>
+              {!hasToi && !hasComunicado
+                ? 'Faltam o TOI e o CSM.'
+                : !hasToi
+                  ? 'Falta o TOI. O arquivo anexado é o Comunicado de Substituição (CSM).'
+                  : 'Falta o Comunicado de Substituição (CSM).'}
+            </p>
+            {!hasComunicado && !csmWaived && !viewOnly ? (
+              <>
+                <input
+                  ref={csmInputRef}
+                  className="file-picker-input"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  hidden
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    event.target.value = ''
+                    void handleImportCsm(file)
+                  }}
+                />
+                <button
+                  type="button"
+                  className="file-picker-button inspection-missing-docs-import"
+                  disabled={uploadingCsm}
+                  onClick={() => csmInputRef.current?.click()}
+                >
+                  {uploadingCsm ? 'Importando...' : 'Importar CSM'}
+                </button>
+              </>
+            ) : null}
+          </div>
         ) : null}
 
         {!loading && hasToi && !hasComunicado && documents.length > 0 && (csmPhysicalOnly || (canEditWpa && !analysisCompleted)) ? (
