@@ -67,7 +67,7 @@ const EMPTY_TOI_READING_BEFORE_CONSTANTE =
   /lei[tr]ur[aeo](?:\s*k\s*w\s*h)?\s*[:\-]?\s+constante\b/i
 
 function normalizeInspectionText(text: string): string {
-  return text.replace(/\s+/g, ' ').trim()
+  return text.replace(/\u0000/g, '').replace(/\s+/g, ' ').trim()
 }
 
 function compactInspectionText(text: string): string {
@@ -1023,6 +1023,7 @@ export function isLegalObservationNoise(value: string): boolean {
 
 function cleanObservationText(value: string): string | null {
   const cleaned = value
+    .replace(/\u0000/g, '')
     .replace(/\s+/g, ' ')
     .replace(/^[:\-–—\s]+/, '')
     .trim()

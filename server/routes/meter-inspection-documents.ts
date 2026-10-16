@@ -1906,6 +1906,12 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
     previousImporters = previous.rows
   }
 
+  const pgText = (value: string | null) => {
+    if (!value) return null
+    const cleaned = value.replace(/\u0000/g, '').trim()
+    return cleaned || null
+  }
+
   const id = `inspdoc-${Date.now()}-${meterScheduleId}-${docType}`
 
   const insert = await query<Omit<InspectionDocumentRow, 'created_by_registration'>>(
@@ -1948,20 +1954,20 @@ export async function uploadInspectionDocument(req: Request, res: Response) {
       id,
       meterScheduleId,
       docType,
-      fileName.trim(),
+      fileName.trim().replace(/\u0000/g, ''),
       fileBuffer,
-      extractedMeter,
-      extractedMeterRetirado,
-      extractedLacre,
-      extractedCoverSeal,
-      extractedCoverSeal2,
-      extractedReading,
-      extractedScheduledAt,
-      extractedInstallation,
-      extractedToi,
-      extractedNote,
-      extractedClient,
-      extractedObservations,
+      pgText(extractedMeter),
+      pgText(extractedMeterRetirado),
+      pgText(extractedLacre),
+      pgText(extractedCoverSeal),
+      pgText(extractedCoverSeal2),
+      pgText(extractedReading),
+      pgText(extractedScheduledAt),
+      pgText(extractedInstallation),
+      pgText(extractedToi),
+      pgText(extractedNote),
+      pgText(extractedClient),
+      pgText(extractedObservations),
       evaluation.blocked,
       evaluation.reason,
       req.user?.id ?? null,
