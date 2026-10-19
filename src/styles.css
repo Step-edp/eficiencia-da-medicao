@@ -9479,32 +9479,129 @@ input[type='file'] {
   }
 }
 
+.alinhamento-padroes-panel {
+  min-width: 0;
+  width: 100%;
+  display: grid;
+  gap: 16px;
+}
+
+.shell:has(.alinhamento-padroes-panel) > .home-card {
+  min-width: 0;
+  max-width: min(1280px, 100%);
+}
+
+.alinhamento-padroes-panel .entrada-table-wrap {
+  max-height: none;
+}
+
 .alinhamento-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 16px;
+}
+
+.alinhamento-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .alinhamento-ano {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: 8px;
-  margin-right: auto;
+  width: 120px;
 }
 
 .alinhamento-ano input {
-  width: 96px;
+  width: 100%;
 }
 
-.alinhamento-ano-table td,
-.alinhamento-ano-table th {
+.alinhamento-registrar {
+  width: auto;
+  margin-top: 0;
+  grid-column: auto;
+}
+
+.alinhamento-legenda {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.alinhamento-ano-table {
+  min-width: 0;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.alinhamento-ano-table th,
+.alinhamento-ano-table td {
+  padding: 8px 6px;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.alinhamento-ano-table th:first-child,
+.alinhamento-ano-table td:first-child {
+  width: 168px;
+  text-align: left;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: rgba(8, 39, 66, 0.98);
+}
+
+.alinhamento-ano-table thead th:first-child {
+  z-index: 3;
+}
+
+.alinhamento-ano-table .link-button {
+  display: inline;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.alinhamento-leitura {
+  display: grid;
+  gap: 1px;
+  justify-items: center;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.alinhamento-leitura span {
   white-space: nowrap;
 }
 
+.alinhamento-vazio {
+  color: var(--text-soft);
+}
+
 .alinhamento-manutencao {
-  color: #8a5a00;
+  color: #e2b15a;
   font-weight: 600;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.alinhamento-posicoes-table {
+  min-width: 0;
+  width: 100%;
+}
+
+.alinhamento-posicoes-table th:first-child,
+.alinhamento-posicoes-table td:first-child {
+  width: 72px;
+}
+
+.alinhamento-posicoes-table input {
+  min-height: 40px;
+  padding: 8px 10px;
 }
 
 .alinhamento-medicao-form {

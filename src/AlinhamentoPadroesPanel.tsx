@@ -91,12 +91,18 @@ function draftFromMedicao(medicao: AlinhamentoMedicaoRecord | undefined, equipam
   }
 }
 
-function cellText(medicao: AlinhamentoMedicaoRecord | undefined) {
-  if (!medicao) return ''
-  if (medicao.emManutencao) return 'Em manutenção'
+function MedicaoResumo({ medicao }: { medicao: AlinhamentoMedicaoRecord | undefined }) {
+  if (!medicao) return <span className="alinhamento-vazio">—</span>
+  if (medicao.emManutencao) return <>Em manutenção</>
   const primeira = medicao.posicoes.find((item) => item.posicao === 1) ?? medicao.posicoes[0]
-  if (!primeira) return ''
-  return `N ${formatErro(primeira.nominal)} · I ${formatErro(primeira.indutiva)} · P ${formatErro(primeira.pequena)}`
+  if (!primeira) return <span className="alinhamento-vazio">—</span>
+  return (
+    <span className="alinhamento-leitura">
+      <span>N {formatErro(primeira.nominal)}</span>
+      <span>I {formatErro(primeira.indutiva)}</span>
+      <span>P {formatErro(primeira.pequena)}</span>
+    </span>
+  )
 }
 
 export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boolean }) {
@@ -341,7 +347,7 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
 
       {!loading && tab === 'medicoes' ? (
         <>
-          <div className="area-actions right-aligned-actions">
+          <div className="alinhamento-toolbar">
             <label className="alinhamento-ano">
               Ano
               <input
@@ -358,7 +364,7 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
             {readOnly ? null : (
               <button
                 type="button"
-                className="primary-button"
+                className="primary-button alinhamento-registrar"
                 disabled={!equipamentos.length}
                 onClick={() => abrirMes(mesAberto ?? new Date().getMonth() + 1)}
               >
@@ -366,6 +372,10 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
               </button>
             )}
           </div>
+          <p className="alinhamento-legenda">
+            A grade mostra a posição 1 de cada mês. N é nominal, I é indutiva e P é pequena. Clique no mês
+            para registrar as posições ou marcar em manutenção.
+          </p>
 
           {!equipamentos.length ? (
             <p>Cadastre os equipamentos antes de registrar as medições do mês.</p>
@@ -394,10 +404,9 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
                       <td>{equipamentoLabel(equipamento)}</td>
                       {MESES.map((nome, index) => {
                         const medicao = medicoesPorChave.get(medicaoKey(equipamento.id, ano, index + 1))
-                        const texto = cellText(medicao)
                         return (
                           <td key={nome} className={medicao?.emManutencao ? 'alinhamento-manutencao' : undefined}>
-                            {texto || '—'}
+                            <MedicaoResumo medicao={medicao} />
                           </td>
                         )
                       })}
@@ -436,8 +445,8 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
                       </button>
                     </div>
                     {draft.modo === 'medir' ? (
-                      <div className="entrada-table-wrap">
-                        <table className="data-table">
+                      <div className="entrada-table-wrap alinhamento-posicoes-wrap">
+                        <table className="data-table alinhamento-posicoes-table">
                           <thead>
                             <tr>
                               <th>Posição</th>
