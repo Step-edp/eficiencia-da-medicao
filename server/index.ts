@@ -65,6 +65,7 @@ import { processAssignmentRoutes } from './routes/process-assignments.js'
 import { orgCellRoutes } from './routes/org-cells.js'
 import { vacationRoutes } from './routes/vacation.js'
 import { listAuditLogs } from './routes/audit-logs.js'
+import { getLabVisaoDashboard } from './routes/lab-dashboard.js'
 import { rejectLabMedicaoViewOnlyMutations } from './lab-view-only.js'
 import {
   countMeterSchedules,
@@ -448,6 +449,7 @@ async function start() {
   app.get('/api/meter-schedules/history', requireAuth, listMeterScheduleHistory)
   app.get('/api/meter-schedules/ponto-focal-dashboard', requireAuth, getPontoFocalDashboard)
   app.get('/api/meter-schedules/agendamento-dashboard', requireAuth, getAgendamentoDashboard)
+  app.get('/api/meter-schedules/lab-dashboard', requireAuth, getLabVisaoDashboard)
   app.post('/api/meter-schedules', requireAuth, createMeterSchedule)
   app.post(
     '/api/meter-schedules/bulk-import',

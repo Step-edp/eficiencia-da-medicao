@@ -487,6 +487,36 @@ export type AgendamentoDashboardData = {
   }>
 }
 
+export type LabVisaoMonth = {
+  month: number
+  agendado: number
+  ensaiado: number
+  prazoSum: number
+  prazoCount: number
+  tmaSum: number
+  tmaCount: number
+  atrasados: number
+  aReceber: number
+  recebidoComAtraso: number
+  recebidoSemAtraso: number
+}
+
+export type LabVisaoDashboardData = {
+  year: number
+  years: number[]
+  next30: {
+    scheduled: number
+    availabilityPercent: number | null
+  }
+  prazoAtendimento: {
+    days: number | null
+    label: string | null
+  }
+  monthly: LabVisaoMonth[]
+  inspecoes: Array<{ date: string; total: number }>
+  filaEspera: Array<{ date: string; total: number }>
+}
+
 export type PontoFocalDashboardData = {
   csdNames: string[]
   current: {
@@ -1816,6 +1846,8 @@ export const api = {
   },
   getAgendamentoDashboard: () =>
     request<AgendamentoDashboardData>('/api/meter-schedules/agendamento-dashboard'),
+  getLabVisaoDashboard: (year: number) =>
+    request<LabVisaoDashboardData>(`/api/meter-schedules/lab-dashboard?year=${year}`),
   getPontoFocalDashboard: (forUserId?: string, options?: { fromToday?: boolean }) => {
     const search = new URLSearchParams()
     if (forUserId) search.set('forUserId', forUserId)

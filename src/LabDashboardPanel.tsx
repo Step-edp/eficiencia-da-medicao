@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { AgendamentoDashPanel } from './AgendamentoDashPanel'
 import { EntradaCsdDashboard } from './EntradaCsdDashboard'
+import { LabVisaoDashboard } from './LabVisaoDashboard'
 
-type LabDashTab = 'agendamento' | 'entrada'
+type LabDashTab = 'visao' | 'agendamento' | 'entrada'
 
 export function LabDashboardPanel() {
-  const [tab, setTab] = useState<LabDashTab>('agendamento')
+  const [tab, setTab] = useState<LabDashTab>('visao')
 
   return (
     <>
@@ -14,6 +15,15 @@ export function LabDashboardPanel() {
         role="tablist"
         aria-label="Dashboards do laboratório"
       >
+        <button
+          className={tab === 'visao' ? 'active' : ''}
+          type="button"
+          role="tab"
+          aria-selected={tab === 'visao'}
+          onClick={() => setTab('visao')}
+        >
+          Laboratório
+        </button>
         <button
           className={tab === 'agendamento' ? 'active' : ''}
           type="button"
@@ -34,7 +44,13 @@ export function LabDashboardPanel() {
         </button>
       </div>
 
-      {tab === 'entrada' ? <EntradaCsdDashboard /> : <AgendamentoDashPanel />}
+      {tab === 'visao' ? (
+        <LabVisaoDashboard />
+      ) : tab === 'entrada' ? (
+        <EntradaCsdDashboard />
+      ) : (
+        <AgendamentoDashPanel />
+      )}
     </>
   )
 }

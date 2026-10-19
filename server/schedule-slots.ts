@@ -196,3 +196,37 @@ export function findNextAvailableSlot(
 
   return null
 }
+
+export function summarizeUpcomingCapacity(
+  manualBlocks: Set<string>,
+  occupiedSlots: Set<string>,
+  from: Date = new Date(),
+  days = 30,
+) {
+  const start = brazilYmd(from)
+  const daySlots = getDaySlots()
+  let totalSlots = 0
+  let freeSlots = 0
+
+  for (let offset = 0; offset < days; offset += 1) {
+    const day = addBrazilCalendarDays(start.year, start.month, start.day, offset)
+    if (!day) continue
+    const noon = fromBrazilWallClock(day.year, day.month, day.day, 12, 0)
+    if (!noon || isScheduleDayBlocked(noon, manualBlocks)) continue
+
+    for (const slotMinutes of daySlots) {
+      const slot = fromBrazilWallClock(
+        day.year,
+        day.month,
+        day.day,
+        Math.floor(slotMinutes / 60),
+        slotMinutes % 60,
+      )
+      if (!slot) continue
+      totalSlots += 1
+      if (!occupiedSlots.has(scheduleSlotKey(slot))) freeSlots += 1
+    }
+  }
+
+  return { totalSlots, freeSlots }
+}

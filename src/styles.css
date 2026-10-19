@@ -9673,3 +9673,251 @@ input[type='file'] {
   cursor: pointer;
   text-decoration: underline;
 }
+
+.shell:has(.lab-bi) > .home-card {
+  width: min(1480px, 100%);
+  max-width: min(1480px, 100%);
+  min-width: 0;
+}
+
+.lab-bi {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.lab-bi-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.lab-bi-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: auto;
+}
+
+.lab-bi-title h3 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.lab-bi-title .edp-logo-compact {
+  width: 72px;
+}
+
+.lab-bi-year {
+  display: grid;
+  gap: 4px;
+  width: 140px;
+  font-size: 0.78rem;
+  color: var(--text-soft);
+}
+
+.lab-bi-year select {
+  min-height: 38px;
+  padding: 6px 10px;
+}
+
+.lab-bi-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid rgba(158, 183, 203, 0.22);
+  border-radius: 12px;
+  background: rgba(8, 32, 54, 0.72);
+}
+
+.lab-bi-next span,
+.lab-bi-next small {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+}
+
+.lab-bi-next strong {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.lab-bi-next-split {
+  opacity: 0.45;
+}
+
+.lab-bi-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 168px;
+  gap: 12px;
+  align-items: start;
+}
+
+.lab-bi-main {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.lab-bi-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(250px, 1.5fr);
+  gap: 10px;
+}
+
+.lab-bi-kpis article {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(158, 183, 203, 0.2);
+  border-radius: 12px;
+  background: rgba(8, 32, 54, 0.72);
+}
+
+.lab-bi-kpis p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+}
+
+.lab-bi-kpis strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.lab-bi-kpis strong small {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-soft);
+}
+
+.lab-bi-kpis article > span {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-soft);
+}
+
+.lab-bi-recebimento > div {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 6px 10px;
+  align-items: baseline;
+  margin-top: 8px;
+}
+
+.lab-bi-recebimento strong {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.lab-bi-recebimento span {
+  color: var(--text-soft);
+  font-size: 0.75rem;
+}
+
+.lab-bi-card {
+  min-width: 0;
+  padding: 12px 14px 8px;
+  border: 1px solid rgba(158, 183, 203, 0.2);
+  border-radius: 12px;
+  background: rgba(8, 32, 54, 0.55);
+}
+
+.lab-bi-card h4 {
+  margin: 0;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.lab-bi-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 6px;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+}
+
+.lab-bi-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lab-bi-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.lab-bi-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.lab-bi-grid {
+  stroke: rgba(158, 183, 203, 0.16);
+  stroke-width: 1;
+}
+
+.lab-bi-axis,
+.lab-bi-point {
+  font-size: 11px;
+  fill: #9eb7cb;
+}
+
+.lab-bi-empty {
+  margin: 28px 0;
+  text-align: center;
+  color: var(--text-soft);
+}
+
+.lab-bi-bottom {
+  display: grid;
+  grid-template-columns: 0.8fr 0.9fr 1.3fr;
+  gap: 12px;
+}
+
+.lab-bi-months {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid rgba(158, 183, 203, 0.2);
+  border-radius: 12px;
+  background: rgba(8, 32, 54, 0.72);
+  position: sticky;
+  top: 12px;
+}
+
+.lab-bi-months p {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+}
+
+.lab-bi-months label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-soft);
+}
+
+.lab-bi-months input {
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  accent-color: #3ec6e0;
+}
+
+@media (max-width: 1100px) {
+  .lab-bi-kpis,
+  .lab-bi-bottom,
+  .lab-bi-layout {
+    grid-template-columns: 1fr;
+  }
+}
