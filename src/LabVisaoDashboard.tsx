@@ -246,9 +246,6 @@ export function LabVisaoDashboard() {
     label: SHORT_MONTHS[item.month - 1],
     values: [item.agendado, item.ensaiado],
   }))
-  const filaPoints = (data?.filaEspera ?? [])
-    .filter((item) => selected.has(monthOf(item.date)))
-    .map((item) => ({ label: dayLabel(item.date), values: [item.total] }))
   const inspectionPoints = (data?.inspecoes ?? [])
     .filter((item) => selected.has(monthOf(item.date)))
     .map((item) => ({ label: dayLabel(item.date), value: item.total }))
@@ -360,12 +357,17 @@ export function LabVisaoDashboard() {
             <div className="lab-bi-bottom">
               <section className="lab-bi-card">
                 <h4>Fila de espera</h4>
-                {filaPoints.length ? (
-                  <TrendChart
-                    points={filaPoints}
-                    series={[{ name: 'Fila', color: TMA_COLOR }]}
-                    ariaLabel="Medidores recebidos aguardando ensaio"
-                  />
+                {data.filaEspera.length ? (
+                  <ol className="lab-bi-fila">
+                    {data.filaEspera.map((item) => (
+                      <li key={item.meter}>
+                        <span>{item.meter}</span>
+                        <strong>
+                          {item.days.toLocaleString('pt-BR')} {item.days === 1 ? 'dia' : 'dias'}
+                        </strong>
+                      </li>
+                    ))}
+                  </ol>
                 ) : (
                   <p className="lab-bi-empty">Nenhum medidor aguardando ensaio.</p>
                 )}

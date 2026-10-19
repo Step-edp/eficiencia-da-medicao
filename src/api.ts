@@ -514,7 +514,7 @@ export type LabVisaoDashboardData = {
   }
   monthly: LabVisaoMonth[]
   inspecoes: Array<{ date: string; total: number }>
-  filaEspera: Array<{ date: string; total: number }>
+  filaEspera: Array<{ meter: string; days: number }>
 }
 
 export type PontoFocalDashboardData = {

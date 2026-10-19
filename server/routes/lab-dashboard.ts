@@ -196,23 +196,36 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
          ORDER BY 1`,
         [year],
       ),
-      query<{ day: string; total: string }>(
-        `SELECT ${SCHEDULED_DATE}::text AS day,
-                COUNT(*)::int AS total
-         FROM meter_schedules ms
-         LEFT JOIN meter_registry mr ON ${REGISTRY_NORM} = ${SCHEDULE_NORM}
-         WHERE ms.delay_dismissed_at IS NULL
-           AND EXTRACT(YEAR FROM ${SCHEDULED_DATE}) = $1
-           AND BTRIM(ms.trail_step) = 'Ensaiar'
-           AND BTRIM(COALESCE(mr.status, '')) NOT IN ('Ensaiado', 'Aprovado')
-           AND NOT EXISTS (
-             SELECT 1 FROM ratm_laudos rl
-             WHERE rl.revoked_at IS NULL
-               AND ${LAUDO_NORM} = ${SCHEDULE_NORM}
-           )
-         GROUP BY 1
-         ORDER BY 1`,
-        [year],
+      query<{ meter: string; days: number }>(
+        `SELECT meter, days
+         FROM (
+           SELECT DISTINCT ON (${SCHEDULE_NORM})
+                  ms.meter,
+                  GREATEST(
+                    0,
+                    (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date
+                      - COALESCE(
+                          ms.scheduling_date,
+                          (ms.created_at AT TIME ZONE 'America/Sao_Paulo')::date
+                        )
+                  )::int AS days
+           FROM meter_schedules ms
+           LEFT JOIN meter_registry mr ON ${REGISTRY_NORM} = ${SCHEDULE_NORM}
+           WHERE ms.delay_dismissed_at IS NULL
+             AND BTRIM(ms.trail_step) = 'Ensaiar'
+             AND BTRIM(COALESCE(mr.status, '')) NOT IN ('Ensaiado', 'Aprovado')
+             AND NOT EXISTS (
+               SELECT 1 FROM ratm_laudos rl
+               WHERE rl.revoked_at IS NULL
+                 AND ${LAUDO_NORM} = ${SCHEDULE_NORM}
+             )
+           ORDER BY ${SCHEDULE_NORM},
+                    COALESCE(
+                      ms.scheduling_date,
+                      (ms.created_at AT TIME ZONE 'America/Sao_Paulo')::date
+                    ) ASC
+         ) fila
+         ORDER BY days DESC, meter ASC`,
       ),
       query<{ total: string }>(
         `SELECT COUNT(*)::int AS total
@@ -273,8 +286,8 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
       total: asNumber(row.total),
     })),
     filaEspera: filaResult.rows.map((row) => ({
-      date: row.day.slice(0, 10),
-      total: asNumber(row.total),
+      meter: row.meter,
+      days: asNumber(row.days),
     })),
   })
 }
