@@ -2498,6 +2498,7 @@ function HomePanel({
     'Inventário',
     'Aferição de Padrões BT',
     'Grandes Clientes',
+    'Alinhamento de Padrões',
   ]
   const labOtherSections = [
     'Dashboard',

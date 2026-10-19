@@ -47,6 +47,7 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Inventário',
     'Aferição de Padrões BT',
     'Grandes Clientes',
+    'Alinhamento de Padrões',
     'Criar Modelo',
     'Galeria',
     'Apresentação',
