@@ -310,29 +310,45 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
 
   return (
     <div className="alinhamento-padroes-panel">
-      <div className="alinhamento-tabs" role="tablist">
-        {(
-          [
-            ['medicoes', 'Medições'],
-            ['equipamentos', 'Equipamentos'],
-            ['referencia', 'Medidor referência'],
-          ] as const
-        ).map(([id, label]) => (
+      <div className="alinhamento-tabs">
+        <div className="alinhamento-tab-group" role="tablist">
+          {(
+            [
+              ['medicoes', 'Medições'],
+              ['equipamentos', 'Equipamentos'],
+              ['referencia', 'Medidor referência'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              className={`alinhamento-chip${tab === id ? ' is-selected' : ''}`}
+              onClick={() => {
+                setTab(id)
+                setMesAberto(null)
+                setFeedback(null)
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {readOnly ? null : (
           <button
-            key={id}
             type="button"
-            role="tab"
-            aria-selected={tab === id}
-            className={tab === id ? 'primary-button' : 'secondary-button'}
+            className="alinhamento-chip alinhamento-chip-action"
+            disabled={!equipamentos.length}
             onClick={() => {
-              setTab(id)
-              setMesAberto(null)
+              setTab('medicoes')
               setFeedback(null)
+              abrirMes(new Date().getMonth() + 1)
             }}
           >
-            {label}
+            Registrar medições
           </button>
-        ))}
+        )}
       </div>
 
       {feedback ? (
@@ -361,16 +377,6 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
                 }}
               />
             </label>
-            {readOnly ? null : (
-              <button
-                type="button"
-                className="primary-button alinhamento-registrar"
-                disabled={!equipamentos.length}
-                onClick={() => abrirMes(mesAberto ?? new Date().getMonth() + 1)}
-              >
-                Registrar medições
-              </button>
-            )}
           </div>
           <p className="alinhamento-legenda">
             A grade mostra a posição 1 de cada mês. N é nominal, I é indutiva e P é pequena. Clique no mês
@@ -428,17 +434,17 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
                 return (
                   <fieldset key={draft.equipamentoId} className="full-width alinhamento-equipamento-fieldset">
                     <legend>{equipamentoLabel(equipamento)}</legend>
-                    <div className="ratm-choice-group">
+                    <div className="alinhamento-tab-group">
                       <button
                         type="button"
-                        className={`ratm-choice-btn${draft.modo === 'medir' ? ' is-selected' : ''}`}
+                        className={`alinhamento-chip${draft.modo === 'medir' ? ' is-selected' : ''}`}
                         onClick={() => updateDraft(draft.equipamentoId, { modo: 'medir' })}
                       >
                         Medir
                       </button>
                       <button
                         type="button"
-                        className={`ratm-choice-btn${draft.modo === 'manutencao' ? ' is-selected' : ''}`}
+                        className={`alinhamento-chip${draft.modo === 'manutencao' ? ' is-selected' : ''}`}
                         onClick={() => updateDraft(draft.equipamentoId, { modo: 'manutencao' })}
                       >
                         Em manutenção
@@ -483,10 +489,10 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
                 )
               })}
               <div className="agenda-form-actions full-width">
-                <button type="button" className="secondary-button" onClick={() => setMesAberto(null)}>
+                <button type="button" className="alinhamento-chip" onClick={() => setMesAberto(null)}>
                   Cancelar
                 </button>
-                <button type="submit" className="primary-button" disabled={saving}>
+                <button type="submit" className="alinhamento-chip alinhamento-chip-action" disabled={saving}>
                   {saving ? 'Salvando...' : 'Salvar medições'}
                 </button>
               </div>
@@ -522,7 +528,7 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
                 />
               </label>
               <div className="agenda-form-actions">
-                <button type="submit" className="primary-button" disabled={saving}>
+                <button type="submit" className="alinhamento-chip alinhamento-chip-action" disabled={saving}>
                   {saving ? 'Salvando...' : 'Cadastrar equipamento'}
                 </button>
               </div>
@@ -547,7 +553,7 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
                         <td>
                           <button
                             type="button"
-                            className="danger-button"
+                            className="alinhamento-chip alinhamento-chip-danger"
                             disabled={saving}
                             onClick={() => void removerEquipamento(item)}
                           >
@@ -597,7 +603,7 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
           ))}
           {readOnly ? null : (
             <div className="agenda-form-actions">
-              <button type="submit" className="primary-button" disabled={saving}>
+              <button type="submit" className="alinhamento-chip alinhamento-chip-action" disabled={saving}>
                 {saving ? 'Salvando...' : 'Salvar medidor referência'}
               </button>
             </div>
