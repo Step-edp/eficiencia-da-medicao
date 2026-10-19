@@ -63,15 +63,16 @@ function TrendChart({
   series,
   ariaLabel,
   showPointLabels = true,
+  height = 250,
 }: {
   points: Point[]
   series: Array<{ name: string; color: string }>
   ariaLabel: string
   showPointLabels?: boolean
+  height?: number
 }) {
   const width = 760
-  const height = 250
-  const pad = { left: 40, right: 16, top: 28, bottom: 32 }
+  const pad = { left: 40, right: 16, top: 22, bottom: 28 }
   const values = points.flatMap((point) => point.values.filter((value): value is number => value != null))
   const yMax = niceMax(Math.max(1, ...values))
   const innerW = width - pad.left - pad.right
@@ -335,7 +336,7 @@ export function LabVisaoDashboard() {
               </article>
             </div>
 
-            <section className="lab-bi-card">
+            <section className="lab-bi-card lab-bi-card-tma">
               <h4>TMA mensal</h4>
               <div className="lab-bi-legend">
                 <span><i style={{ background: TMA_COLOR }} /> TMA</span>
@@ -349,6 +350,7 @@ export function LabVisaoDashboard() {
                     { name: 'Prazo de agendamento', color: PRAZO_COLOR },
                   ]}
                   ariaLabel="TMA e prazo de agendamento por mês"
+                  height={150}
                 />
               ) : (
                 <p className="lab-bi-empty">Sem medições de prazo neste período.</p>

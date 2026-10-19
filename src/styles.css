@@ -9860,6 +9860,11 @@ input[type='file'] {
   display: block;
 }
 
+.lab-bi-card-tma .lab-bi-chart {
+  height: 168px;
+  max-height: 168px;
+}
+
 .lab-bi-grid {
   stroke: rgba(158, 183, 203, 0.16);
   stroke-width: 1;
