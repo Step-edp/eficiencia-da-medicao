@@ -156,6 +156,13 @@ import {
   deleteEnsaioRealizado,
   exportEnsaiosExcel,
 } from './routes/analisadores-tensao.js'
+import {
+  getAlinhamentoPadroes,
+  saveAlinhamentoReferencia,
+  createAlinhamentoEquipamento,
+  deleteAlinhamentoEquipamento,
+  saveAlinhamentoMedicoes,
+} from './routes/alinhamento-padroes.js'
 import { requireAuth, optionalAuth, requireAdmin } from './auth.js'
 import { mailRoutes } from './routes/mail.js'
 
@@ -723,6 +730,32 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     deleteEnsaioRealizado,
+  )
+
+  app.get('/api/alinhamento-padroes', requireAuth, getAlinhamentoPadroes)
+  app.put(
+    '/api/alinhamento-padroes/referencia',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    saveAlinhamentoReferencia,
+  )
+  app.post(
+    '/api/alinhamento-padroes/equipamentos',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    createAlinhamentoEquipamento,
+  )
+  app.delete(
+    '/api/alinhamento-padroes/equipamentos/:id',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    deleteAlinhamentoEquipamento,
+  )
+  app.put(
+    '/api/alinhamento-padroes/medicoes',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    saveAlinhamentoMedicoes,
   )
 
   const distPath = path.resolve(__dirname, '../../dist')

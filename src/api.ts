@@ -659,6 +659,49 @@ export type EnsaioSessaoMedicaoRecord = EnsaioMedicaoRecord & {
   realizadoPor?: string
 }
 
+export type AlinhamentoReferenciaRecord = {
+  id: string
+  fabricante: string
+  modelo: string
+  classe: string
+  tensaoNominal: string
+  correnteNominal: string
+  frequencia: string
+  khKe: string
+  portariaInmetro: string
+  numeroSerie: string
+  updatedAt: string
+}
+
+export type AlinhamentoEquipamentoRecord = {
+  id: string
+  identificacao: string
+  codigo: string
+  createdAt: string
+}
+
+export type AlinhamentoPosicaoRecord = {
+  posicao: number
+  nominal: string
+  indutiva: string
+  pequena: string
+}
+
+export type AlinhamentoMedicaoRecord = {
+  id: string
+  equipamentoId: string
+  ano: number
+  mes: number
+  emManutencao: boolean
+  posicoes: AlinhamentoPosicaoRecord[]
+}
+
+export type AlinhamentoPadroesSnapshot = {
+  referencia: AlinhamentoReferenciaRecord | null
+  equipamentos: AlinhamentoEquipamentoRecord[]
+  medicoes: AlinhamentoMedicaoRecord[]
+}
+
 export type DemmDocumentRecord = {
   id: string
   meterScheduleId: string | null
@@ -2415,6 +2458,34 @@ export const api = {
       { method: 'DELETE' },
     )
   },
+  getAlinhamentoPadroes: () => request<AlinhamentoPadroesSnapshot>('/api/alinhamento-padroes'),
+  saveAlinhamentoReferencia: (payload: Omit<AlinhamentoReferenciaRecord, 'id' | 'updatedAt'>) =>
+    request<{ referencia: AlinhamentoReferenciaRecord }>('/api/alinhamento-padroes/referencia', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  createAlinhamentoEquipamento: (payload: { identificacao: string; codigo: string }) =>
+    request<{ equipamento: AlinhamentoEquipamentoRecord }>('/api/alinhamento-padroes/equipamentos', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  deleteAlinhamentoEquipamento: (id: string) =>
+    request<{ ok: true; id: string }>(`/api/alinhamento-padroes/equipamentos/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+  saveAlinhamentoMedicoes: (payload: {
+    ano: number
+    mes: number
+    itens: Array<{
+      equipamentoId: string
+      emManutencao: boolean
+      posicoes: Array<{ posicao: number; nominal: string; indutiva: string; pequena: string }>
+    }>
+  }) =>
+    request<AlinhamentoPadroesSnapshot>('/api/alinhamento-padroes/medicoes', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
 }
 
 export { ApiError }

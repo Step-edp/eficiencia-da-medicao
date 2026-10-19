@@ -1,6 +1,7 @@
 import { query } from './db.js'
 import { alignSchedulesCsdFromExistingDemms } from './demm-csd-alignment.js'
 import { ensureFillingDeviationsFromSchedules } from './filling-deviations.js'
+import { seedAlinhamentoPadroes } from './alinhamento-padroes-seed.js'
 
 export async function migrate() {
   await query(`
@@ -1387,4 +1388,58 @@ export async function migrate() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS alinhamento_medidor_referencia (
+      id TEXT PRIMARY KEY,
+      fabricante TEXT NOT NULL DEFAULT '',
+      modelo TEXT NOT NULL DEFAULT '',
+      classe TEXT NOT NULL DEFAULT '',
+      tensao_nominal TEXT NOT NULL DEFAULT '',
+      corrente_nominal TEXT NOT NULL DEFAULT '',
+      frequencia TEXT NOT NULL DEFAULT '',
+      kh_ke TEXT NOT NULL DEFAULT '',
+      portaria_inmetro TEXT NOT NULL DEFAULT '',
+      numero_serie TEXT NOT NULL DEFAULT '',
+      updated_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS alinhamento_equipamentos (
+      id TEXT PRIMARY KEY,
+      identificacao TEXT NOT NULL,
+      codigo TEXT NOT NULL,
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_alinhamento_equipamentos_codigo
+      ON alinhamento_equipamentos (codigo)
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS alinhamento_medicoes (
+      id TEXT PRIMARY KEY,
+      equipamento_id TEXT NOT NULL REFERENCES alinhamento_equipamentos(id) ON DELETE CASCADE,
+      ano INTEGER NOT NULL,
+      mes INTEGER NOT NULL CHECK (mes BETWEEN 1 AND 12),
+      em_manutencao BOOLEAN NOT NULL DEFAULT FALSE,
+      updated_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (equipamento_id, ano, mes)
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS alinhamento_medicao_posicoes (
+      medicao_id TEXT NOT NULL REFERENCES alinhamento_medicoes(id) ON DELETE CASCADE,
+      posicao INTEGER NOT NULL CHECK (posicao BETWEEN 1 AND 10),
+      nominal NUMERIC NOT NULL,
+      indutiva NUMERIC NOT NULL,
+      pequena NUMERIC NOT NULL,
+      PRIMARY KEY (medicao_id, posicao)
+    )
+  `)
+
+  await seedAlinhamentoPadroes()
 }

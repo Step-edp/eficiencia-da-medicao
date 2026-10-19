@@ -9478,3 +9478,56 @@ input[type='file'] {
     max-width: 100%;
   }
 }
+
+.alinhamento-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.alinhamento-ano {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.alinhamento-ano input {
+  width: 96px;
+}
+
+.alinhamento-ano-table td,
+.alinhamento-ano-table th {
+  white-space: nowrap;
+}
+
+.alinhamento-manutencao {
+  color: #8a5a00;
+  font-weight: 600;
+}
+
+.alinhamento-medicao-form {
+  margin-top: 20px;
+}
+
+.alinhamento-equipamento-fieldset {
+  border: 1px solid #d7dce3;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.alinhamento-equipamento-fieldset legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+.link-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}

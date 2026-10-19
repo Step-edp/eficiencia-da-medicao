@@ -54,6 +54,7 @@ import { CertificadosPadroesPanel } from './CertificadosPadroesPanel'
 import { SoftwaresPanel } from './SoftwaresPanel'
 import { IrregularityCodesPanel } from './IrregularityCodesPanel'
 import { AnalisadoresTensaoPanel } from './AnalisadoresTensaoPanel'
+import { AlinhamentoPadroesPanel } from './AlinhamentoPadroesPanel'
 import { ReagendarPanel } from './ReagendarPanel'
 import { MinhaProdutividadePanel } from './MinhaProdutividadePanel'
 import { InventarioPanel } from './InventarioPanel'
@@ -5895,6 +5896,8 @@ function HomePanel({
               <LabDashboardPanel />
             ) : selectedLabMeasurementSection === 'Analisadores de Tensão' ? (
               <AnalisadoresTensaoPanel readOnly={labMedicaoReadOnly} />
+            ) : selectedLabMeasurementSection === 'Alinhamento de Padrões' ? (
+              <AlinhamentoPadroesPanel readOnly={labMedicaoReadOnly} />
             ) : (
               <p>
                 Página dedicada da área {selectedLabMeasurementSection}. Aqui você
