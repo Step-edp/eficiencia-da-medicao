@@ -1073,9 +1073,17 @@ function RejectDemmConfirmModal({
 
         <h3 id="reject-demm-confirm-title">Rejeitar DEMM</h3>
         <p className="demm-modal-intro">
-          A DEMM <strong>{label}</strong> possui{' '}
-          {blockedCount === 1 ? '1 medidor bloqueado' : `${blockedCount} medidores bloqueados`} e
-          não pode dar entrada. Rejeitar e enviar para a aba DEMMs rejeitadas?
+          {blockedCount > 0 ? (
+            <>
+              A DEMM <strong>{label}</strong> possui{' '}
+              {blockedCount === 1 ? '1 medidor bloqueado' : `${blockedCount} medidores bloqueados`} e
+              não pode dar entrada. Rejeitar e enviar para a aba DEMMs rejeitadas?
+            </>
+          ) : (
+            <>
+              Rejeitar a DEMM <strong>{label}</strong> e enviar para a aba DEMMs rejeitadas?
+            </>
+          )}
         </p>
 
         <div className="ensaios-block-modal-actions">
@@ -2431,17 +2439,7 @@ export function EntradaPanel({
                     ) : null}
                     <td>
                       <div className="entrada-demm-actions" onClick={(event) => event.stopPropagation()}>
-                        {options.showBulkReceive && !readOnly && document.hasBlockedMeters ? (
-                          <button
-                            type="button"
-                            className="entrada-demm-bulk-button danger-button"
-                            disabled={rejectingDemmId === document.id}
-                            onClick={() => setRejectConfirmDocument(document)}
-                            title="Esta DEMM possui medidor bloqueado e não pode dar entrada"
-                          >
-                            {rejectingDemmId === document.id ? 'Rejeitando...' : 'Rejeitar DEMM'}
-                          </button>
-                        ) : options.showBulkReceive && !readOnly ? (
+                        {options.showBulkReceive && !readOnly && !document.hasBlockedMeters ? (
                           <button
                             type="button"
                             className="entrada-demm-bulk-button primary-button"
@@ -2460,6 +2458,17 @@ export function EntradaPanel({
                             {bulkReceivingDemmId === document.id
                               ? 'Entrando...'
                               : 'Entrada em massa'}
+                          </button>
+                        ) : null}
+                        {options.showBulkReceive && !readOnly ? (
+                          <button
+                            type="button"
+                            className="entrada-demm-bulk-button danger-button"
+                            disabled={rejectingDemmId === document.id}
+                            onClick={() => setRejectConfirmDocument(document)}
+                            title="Rejeitar esta DEMM"
+                          >
+                            {rejectingDemmId === document.id ? 'Rejeitando...' : 'Rejeitar'}
                           </button>
                         ) : null}
                         <a

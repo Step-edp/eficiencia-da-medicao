@@ -626,13 +626,6 @@ export async function rejectDemmDocument(req: Request, res: Response) {
     (meter) => analysisStatusByNorm.get(normalizeScheduleMeter(meter))?.analysisBlocked,
   )
 
-  if (!blockedMeters.length) {
-    res.status(409).json({
-      error: 'Só é possível rejeitar uma DEMM que possua medidor bloqueado.',
-    })
-    return
-  }
-
   const profile = await query<{ name: string }>(
     `SELECT name FROM users WHERE id = $1`,
     [req.user?.id ?? null],
@@ -653,7 +646,7 @@ export async function rejectDemmDocument(req: Request, res: Response) {
     action: 'update',
     entityType: 'demm_document',
     entityId: id,
-    summary: `DEMM ${document.document_number ?? document.file_name} rejeitada por medidor bloqueado`,
+    summary: `DEMM ${document.document_number ?? document.file_name} rejeitada`,
     newData: {
       rejectedAt: rejectedAt.toISOString(),
       rejectedByName,
