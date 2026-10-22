@@ -83,6 +83,77 @@ function irregularityNotesOf(form: { irregularityNotes?: unknown }) {
   return typeof form.irregularityNotes === 'string' ? form.irregularityNotes.trim() : ''
 }
 
+async function meterWasReceived(meterKey: string) {
+  const registry = await query(
+    `SELECT 1
+     FROM meter_registry mr
+     WHERE ${normalizedMeterColumnSql('mr')} = $1
+       AND (
+         mr.received_at IS NOT NULL
+         OR BTRIM(COALESCE(mr.status, '')) IN ('Recebido', 'Ensaiado', 'Aprovado')
+       )
+     LIMIT 1`,
+    [meterKey],
+  )
+  if (registry.rows[0]) return true
+
+  const schedule = await query(
+    `SELECT 1
+     FROM meter_schedules ms
+     WHERE ${normalizedMeterColumnSql('ms')} = $1
+       AND (
+         ms.received_at IS NOT NULL
+         OR (
+           ms.delay_dismissed_at IS NULL
+           AND BTRIM(COALESCE(ms.trail_step, '')) <> ''
+           AND BTRIM(ms.trail_step) IS DISTINCT FROM $2
+         )
+       )
+     LIMIT 1`,
+    [meterKey, ENTRADA_TRAIL_STEP],
+  )
+  if (schedule.rows[0]) return true
+
+  const demm = await query(
+    `SELECT 1
+     FROM demm_documents demm
+     WHERE demm.rejected_at IS NULL
+       AND ${normalizedMeterColumnSql('demm')} = $1
+     LIMIT 1`,
+    [meterKey],
+  )
+  if (demm.rows[0]) return true
+
+  const linked = await query(
+    `SELECT 1
+     FROM meter_schedules linked
+     JOIN demm_documents demm ON demm.meter_schedule_id = linked.id
+     WHERE demm.rejected_at IS NULL
+       AND ${normalizedMeterColumnSql('linked')} = $1
+     LIMIT 1`,
+    [meterKey],
+  )
+  if (linked.rows[0]) return true
+
+  const extracted = await query(
+    `SELECT 1
+     FROM demm_documents demm
+     WHERE demm.rejected_at IS NULL
+       AND EXISTS (
+         SELECT 1
+         FROM jsonb_array_elements(COALESCE(demm.extracted_meters, '[]'::jsonb)) AS elem
+         WHERE LPAD(
+           RIGHT(REGEXP_REPLACE(COALESCE(elem->>'meter', ''), '[^0-9]', '', 'g'), 8),
+           8,
+           '0'
+         ) = $1
+       )
+     LIMIT 1`,
+    [meterKey],
+  )
+  return Boolean(extracted.rows[0])
+}
+
 async function setMeterProcessStatus(meter: string, status: 'Ensaiado' | 'Aprovado' | 'Recebido') {
   const meterKey = normalizeScheduleMeter(meter)
   if (!meterKey) return
@@ -260,60 +331,9 @@ export async function createRatmLaudos(req: Request, res: Response) {
     const client = clientName || 'Não informado'
 
     const meterKey = normalizeScheduleMeter(meter)
-    const meterState = meterKey
-      ? await query<{ received: boolean }>(
-          `SELECT (
-             EXISTS (
-               SELECT 1
-               FROM meter_registry mr
-               WHERE ${normalizedMeterColumnSql('mr')} = $1
-                 AND (
-                   mr.received_at IS NOT NULL
-                   OR BTRIM(COALESCE(mr.status, '')) IN ('Recebido', 'Ensaiado', 'Aprovado')
-                 )
-             )
-             OR EXISTS (
-               SELECT 1
-               FROM meter_schedules ms
-               WHERE ${normalizedMeterColumnSql('ms')} = $1
-                 AND (
-                   ms.received_at IS NOT NULL
-                   OR (
-                     ms.delay_dismissed_at IS NULL
-                     AND BTRIM(COALESCE(ms.trail_step, '')) <> ''
-                     AND BTRIM(ms.trail_step) IS DISTINCT FROM $2
-                   )
-                 )
-             )
-             OR EXISTS (
-               SELECT 1
-               FROM demm_documents demm
-               WHERE demm.rejected_at IS NULL
-                 AND (
-                   ${normalizedMeterColumnSql('demm')} = $1
-                   OR EXISTS (
-                     SELECT 1
-                     FROM meter_schedules linked
-                     WHERE linked.id = demm.meter_schedule_id
-                       AND ${normalizedMeterColumnSql('linked')} = $1
-                   )
-                   OR EXISTS (
-                     SELECT 1
-                     FROM jsonb_array_elements(COALESCE(demm.extracted_meters, '[]'::jsonb)) AS elem
-                     WHERE LPAD(
-                       RIGHT(REGEXP_REPLACE(COALESCE(elem->>'meter', ''), '[^0-9]', '', 'g'), 8),
-                       8,
-                       '0'
-                     ) = $1
-                   )
-                 )
-             )
-           ) AS received`,
-          [meterKey, ENTRADA_TRAIL_STEP],
-        )
-      : { rows: [{ received: false }] }
+    const received = meterKey ? await meterWasReceived(meterKey) : false
 
-    if (!meterState.rows[0]?.received) {
+    if (!received) {
       res.status(409).json({
         error: `O medidor ${meter} ainda não foi recebido na Entrada. Registre a DEMM antes de iniciar o ensaio.`,
       })

@@ -1723,11 +1723,13 @@ export const api = {
     request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos', {
       method: 'POST',
       body: JSON.stringify({ forms, replacePending }),
+      timeoutMs: 3 * 60 * 1000,
     }),
   updateRatmLaudo: (id: string, formData: Record<string, unknown>) =>
     request<{ laudo: RatmLaudoRecord }>(`/api/ratm-laudos/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ formData }),
+      timeoutMs: 3 * 60 * 1000,
     }),
   redoRatmLaudo: (id: string, formData: Record<string, unknown>) =>
     request<{ laudo: RatmLaudoRecord; revokedLaudo: RatmLaudoRecord }>(
@@ -1735,6 +1737,7 @@ export const api = {
       {
         method: 'POST',
         body: JSON.stringify({ formData }),
+        timeoutMs: 3 * 60 * 1000,
       },
     ),
   approveRatmLaudo: (

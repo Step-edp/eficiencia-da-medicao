@@ -1442,4 +1442,23 @@ export async function migrate() {
   `)
 
   await seedAlinhamentoPadroes()
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_meter_registry_meter_norm
+      ON meter_registry ((LPAD(RIGHT(REGEXP_REPLACE(meter, '[^0-9]', '', 'g'), 8), 8, '0')))
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_meter_schedules_meter_norm
+      ON meter_schedules ((LPAD(RIGHT(REGEXP_REPLACE(meter, '[^0-9]', '', 'g'), 8), 8, '0')))
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_ratm_laudos_meter_norm
+      ON ratm_laudos ((LPAD(RIGHT(REGEXP_REPLACE(meter, '[^0-9]', '', 'g'), 8), 8, '0')))
+      WHERE revoked_at IS NULL
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_demm_documents_meter_norm
+      ON demm_documents ((LPAD(RIGHT(REGEXP_REPLACE(meter, '[^0-9]', '', 'g'), 8), 8, '0')))
+      WHERE rejected_at IS NULL
+  `)
 }
