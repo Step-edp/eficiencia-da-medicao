@@ -14,7 +14,10 @@ type RatmWorkflowProps = {
   initialMeter?: string
   initialMeters?: string[]
   onBack: () => void
-  onFinish: (forms: RatmFormData[], options?: { replacePending?: boolean }) => void | Promise<void>
+  onFinish: (
+    forms: RatmFormData[],
+    options?: { replacePending?: boolean; keepOpen?: boolean },
+  ) => void | Promise<void>
 }
 
 function formsForMeters(meters: string[]) {
@@ -68,8 +71,8 @@ export function RatmWorkflow({
   } | null>(null)
   const [scanMessage, setScanMessage] = useState<string | null>(null)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
-  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [replaceIndex, setReplaceIndex] = useState<number | null>(null)
   const [draftReady, setDraftReady] = useState(false)
   const [serverDraftNotice, setServerDraftNotice] = useState(false)
   const formsRef = useRef(forms)
@@ -115,7 +118,7 @@ export function RatmWorkflow({
     if (!draftReady) return
 
     saveRatmDraft({
-      count,
+      count: forms.length,
       activeIndex,
       forms,
       updatedAt: new Date().toISOString(),
@@ -129,7 +132,7 @@ export function RatmWorkflow({
     }, 700)
 
     return () => window.clearTimeout(timer)
-  }, [count, activeIndex, forms, draftReady])
+  }, [activeIndex, forms, draftReady])
 
   useEffect(() => {
     if (!draftReady) return
@@ -192,7 +195,7 @@ export function RatmWorkflow({
     }
 
     setFeedback(null)
-    setActiveIndex((prev) => Math.min(prev + 1, count - 1))
+    setActiveIndex((prev) => Math.min(prev + 1, forms.length - 1))
   }
 
   const discardRatmAndExit = () => {
@@ -201,47 +204,60 @@ export function RatmWorkflow({
     onBack()
   }
 
-  const saveAssay = async (replacePending: boolean) => {
+  const saveAssay = async (index: number, replacePending: boolean) => {
+    const form = formsRef.current[index]
+    if (!form) return
+    const remaining = formsRef.current.filter((_, formIndex) => formIndex !== index)
     setSaving(true)
     setFeedback(null)
     try {
-      await onFinish(forms, replacePending ? { replacePending: true } : undefined)
-      await Promise.all(
-        forms.map((form) =>
-          form.meter.trim() ? api.deleteRatmAssayDraft(form.meter).catch(() => undefined) : undefined,
-        ),
-      )
-      clearRatmDraft()
+      await onFinish([form], {
+        replacePending: replacePending || undefined,
+        keepOpen: remaining.length > 0,
+      })
+      if (form.meter.trim()) {
+        await api.deleteRatmAssayDraft(form.meter).catch(() => undefined)
+      }
+      if (!remaining.length) {
+        clearRatmDraft()
+        return
+      }
+      setForms(remaining)
+      setActiveIndex((current) => {
+        if (index < current) return current - 1
+        return Math.min(current, remaining.length - 1)
+      })
+      setFeedback({
+        type: 'success',
+        message: `RATM do medidor ${form.meter.trim()} finalizado. ${remaining.length === 1 ? 'Resta 1 RATM.' : `Restam ${remaining.length} RATMs.`}`,
+      })
     } catch (error) {
       setFeedback({
         type: 'error',
         message:
           error instanceof ApiError
             ? error.message
-            : 'Não foi possível salvar os laudos. Tente novamente.',
+            : 'Não foi possível salvar o laudo. Tente novamente.',
       })
     } finally {
       setSaving(false)
-      setReplaceConfirmOpen(false)
+      setReplaceIndex(null)
     }
   }
 
   const handleFinish = async () => {
-    const invalidIndex = forms.findIndex((form) => !form.meter.trim())
+    const current = forms[activeIndex]
+    if (!current) return
 
-    if (invalidIndex >= 0) {
-      setActiveIndex(invalidIndex)
+    if (!current.meter.trim()) {
       setFeedback({
         type: 'error',
-        message: `Preencha o medidor no RATM ${invalidIndex + 1} antes de finalizar.`,
+        message: `Informe o medidor no RATM ${activeIndex + 1}.`,
       })
       return
     }
 
-    const notReceivedIndex = forms.findIndex((form) => !isMeterReadyForEnsaioFromForm(form))
-
-    if (notReceivedIndex >= 0) {
-      setActiveIndex(notReceivedIndex)
+    if (!isMeterReadyForEnsaioFromForm(current)) {
       setFeedback({
         type: 'error',
         message: METER_NOT_RECEIVED_MESSAGE,
@@ -249,9 +265,7 @@ export function RatmWorkflow({
       return
     }
 
-    const missingNotesIndex = forms.findIndex((form) => !form.irregularityNotes.trim())
-    if (missingNotesIndex >= 0) {
-      setActiveIndex(missingNotesIndex)
+    if (!current.irregularityNotes.trim()) {
       setFeedback({
         type: 'error',
         message: 'Preencha as observações da irregularidade antes de seguir.',
@@ -263,33 +277,20 @@ export function RatmWorkflow({
     setSaving(true)
 
     try {
-      const approvedMeters: string[] = []
-      const pendingMeters: string[] = []
-
-      for (const form of forms) {
-        const response = await api.listRatmLaudos(form.meter.trim())
-        const active = response.laudos.filter((laudo) => !laudo.revokedAt)
-        if (active.some((laudo) => laudo.status === 'Aprovado')) {
-          approvedMeters.push(form.meter.trim())
-        } else if (active.some((laudo) => laudo.status === 'Pendente')) {
-          pendingMeters.push(form.meter.trim())
-        }
-      }
-
-      if (approvedMeters.length) {
+      const response = await api.listRatmLaudos(current.meter.trim())
+      const active = response.laudos.filter((laudo) => !laudo.revokedAt)
+      if (active.some((laudo) => laudo.status === 'Aprovado')) {
         setFeedback({
           type: 'error',
-          message: `O medidor ${approvedMeters.join(', ')} já possui laudo aprovado e não pode ser substituído.`,
+          message: `O medidor ${current.meter.trim()} já possui laudo aprovado e não pode ser substituído.`,
         })
         return
       }
-
-      if (pendingMeters.length) {
-        setReplaceConfirmOpen(true)
+      if (active.some((laudo) => laudo.status === 'Pendente')) {
+        setReplaceIndex(activeIndex)
         return
       }
-
-      await saveAssay(false)
+      await saveAssay(activeIndex, false)
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -354,7 +355,7 @@ export function RatmWorkflow({
           className="ratm-nav-button"
           type="button"
           onClick={handleNext}
-          disabled={activeIndex >= count - 1}
+          disabled={activeIndex >= forms.length - 1}
           aria-label="Próximo RATM"
         >
           ›
@@ -373,7 +374,7 @@ export function RatmWorkflow({
       {draftReady ? (
       <RatmFormFields
         index={activeIndex}
-        total={count}
+        total={forms.length}
         data={forms[activeIndex]}
         onChange={(patch) => updateForm(activeIndex, patch)}
         onScan={handleScan}
@@ -383,18 +384,19 @@ export function RatmWorkflow({
       )}
 
       <div className="ratm-workflow-actions">
-        {activeIndex < count - 1 ? (
-          <button className="primary-button" type="button" onClick={handleNext}>
+        {activeIndex < forms.length - 1 ? (
+          <button className="secondary-button" type="button" onClick={handleNext} disabled={saving}>
             Próximo RATM
           </button>
         ) : (
-          <button className="reserve-button" type="button" onClick={handleFinish} disabled={saving}>
-            {saving ? 'Salvando...' : 'Finalizar'}
-          </button>
+          <span />
         )}
+        <button className="reserve-button" type="button" onClick={() => void handleFinish()} disabled={saving}>
+          {saving ? 'Salvando...' : 'Finalizar'}
+        </button>
       </div>
 
-      {replaceConfirmOpen ? (
+      {replaceIndex != null ? (
         <div className="ensaios-block-modal-overlay" role="presentation">
           <div
             className="ensaios-block-modal"
@@ -404,14 +406,15 @@ export function RatmWorkflow({
           >
             <h3 id="ratm-replace-title">Substituir relatório</h3>
             <p className="ensaios-unblock-message">
-              Esse medidor já foi ensaiado, deseja substituir o relatório?
+              O medidor {forms[replaceIndex]?.meter.trim()} já foi ensaiado, deseja substituir o
+              relatório?
             </p>
             <div className="ensaios-block-modal-actions">
               <button
                 type="button"
                 className="secondary-button"
                 disabled={saving}
-                onClick={() => setReplaceConfirmOpen(false)}
+                onClick={() => setReplaceIndex(null)}
               >
                 Cancelar
               </button>
@@ -419,7 +422,7 @@ export function RatmWorkflow({
                 type="button"
                 className="reserve-button"
                 disabled={saving}
-                onClick={() => void saveAssay(true)}
+                onClick={() => void saveAssay(replaceIndex, true)}
               >
                 Substituir
               </button>

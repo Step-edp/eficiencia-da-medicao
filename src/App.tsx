@@ -3290,7 +3290,7 @@ function HomePanel({
 
   const handleRatmFinish = async (
     forms: RatmFormData[],
-    options?: { replacePending?: boolean },
+    options?: { replacePending?: boolean; keepOpen?: boolean },
   ) => {
     const response = await api.createRatmLaudos(forms, Boolean(options?.replacePending))
     const laudos = response.laudos.map(mapRatmLaudoFromApi)
@@ -3314,7 +3314,9 @@ function HomePanel({
           return item
         }),
     ])
-    setSelectedLabMeasurementSection('Aprovação de RATM')
+    if (!options?.keepOpen) {
+      setSelectedLabMeasurementSection('Aprovação de RATM')
+    }
   }
 
   const beginRatmLaudosLoad = () => {
@@ -5848,9 +5850,9 @@ function HomePanel({
                   key={ensaiarPrefillMeter ?? 'ensaiar'}
                   initialMeter={ensaiarPrefillMeter ?? undefined}
                   receivedRequest={ensaiarReceivedRequest}
-                  onFinish={async (forms) => {
-                    setEnsaiarPrefillMeter(null)
-                    await handleRatmFinish(forms)
+                  onFinish={async (forms, options) => {
+                    if (!options?.keepOpen) setEnsaiarPrefillMeter(null)
+                    await handleRatmFinish(forms, options)
                   }}
                 />
               )

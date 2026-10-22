@@ -9139,6 +9139,13 @@ input[type='file'] {
   gap: 12px;
   flex-wrap: wrap;
   justify-content: space-between;
+  align-items: center;
+}
+
+.ratm-workflow-actions .reserve-button,
+.ratm-workflow-actions .secondary-button {
+  width: auto;
+  margin-top: 0;
 }
 
 .ratm-doc-fab {
