@@ -607,8 +607,9 @@ export function LabVisaoDashboard() {
               </section>
             </div>
 
-            <section className="lab-bi-card">
+            <section className="lab-bi-card lab-bi-card-ensaios">
               <h4>Ensaios por dia</h4>
+              <p className="lab-bi-note">Medidores e analisadores de tensão, empilhados por colaborador.</p>
               {ensaioPoints.length ? (
                 <>
                   <div className="lab-bi-legend">

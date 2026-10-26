@@ -9880,9 +9880,17 @@ input[type='file'] {
   max-height: 168px;
 }
 
-.lab-bi-card-outliers .lab-bi-chart {
-  height: 200px;
-  max-height: 200px;
+.lab-bi-card-outliers .lab-bi-chart,
+.lab-bi-card-ensaios .lab-bi-chart {
+  height: 220px;
+  max-height: 220px;
+}
+
+.lab-bi-note {
+  margin: 4px 0 0;
+  text-align: center;
+  color: var(--text-soft);
+  font-size: 0.78rem;
 }
 
 .produtividade-chart {

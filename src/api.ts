@@ -685,6 +685,7 @@ export type EnsaioSessaoRecord = {
   analisadorId: string
   numeroSerie: string
   createdAt: string
+  createdByUserId: string | null
   createdByName: string | null
   createdByRegistration: string | null
 }

@@ -764,6 +764,7 @@ type EnsaioSessaoDbRow = {
   analisador_id: string
   numero_serie: string
   created_at: Date
+  created_by_user_id: string | null
   created_by_name: string | null
   created_by_registration: string | null
 }
@@ -774,12 +775,13 @@ export async function listEnsaiosRealizados(_req: Request, res: Response) {
             a.id AS analisador_id,
             a.numero_serie,
             MIN(m.created_at) AS created_at,
+            m.created_by_user_id,
             u.name AS created_by_name,
             u.registration AS created_by_registration
      FROM analisador_tensao_ensaio_medicoes m
      JOIN analisadores_tensao a ON a.id = m.analisador_id
      LEFT JOIN users u ON u.id = m.created_by_user_id
-     GROUP BY m.ensaio_id, a.id, a.numero_serie, u.name, u.registration
+     GROUP BY m.ensaio_id, a.id, a.numero_serie, m.created_by_user_id, u.name, u.registration
      ORDER BY MIN(m.created_at) DESC, a.numero_serie ASC`,
   )
 
@@ -789,6 +791,7 @@ export async function listEnsaiosRealizados(_req: Request, res: Response) {
       analisadorId: row.analisador_id,
       numeroSerie: row.numero_serie,
       createdAt: row.created_at.toISOString(),
+      createdByUserId: row.created_by_user_id,
       createdByName: row.created_by_name,
       createdByRegistration: row.created_by_registration,
     })),

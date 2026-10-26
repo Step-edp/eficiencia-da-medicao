@@ -207,16 +207,26 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
         [year],
       ),
       query<{ day: string; user_id: string; name: string; total: string }>(
-        `SELECT (r.created_at AT TIME ZONE 'America/Sao_Paulo')::date::text AS day,
-                COALESCE(r.created_by_user_id, '') AS user_id,
-                COALESCE(NULLIF(BTRIM(u.name), ''), 'Não identificado') AS name,
-                COUNT(*)::int AS total
-         FROM ratm_laudos r
-         LEFT JOIN users u ON u.id = r.created_by_user_id
-         WHERE r.revoked_at IS NULL
-           AND EXTRACT(YEAR FROM r.created_at AT TIME ZONE 'America/Sao_Paulo') = $1
-         GROUP BY 1, 2, 3
-         ORDER BY 1, 3`,
+        `SELECT day, user_id, name, COUNT(*)::int AS total
+         FROM (
+           SELECT (r.created_at AT TIME ZONE 'America/Sao_Paulo')::date::text AS day,
+                  COALESCE(r.created_by_user_id, '') AS user_id,
+                  COALESCE(NULLIF(BTRIM(u.name), ''), 'Não identificado') AS name
+           FROM ratm_laudos r
+           LEFT JOIN users u ON u.id = r.created_by_user_id
+           WHERE r.revoked_at IS NULL
+             AND EXTRACT(YEAR FROM r.created_at AT TIME ZONE 'America/Sao_Paulo') = $1
+           UNION ALL
+           SELECT (MIN(m.created_at) AT TIME ZONE 'America/Sao_Paulo')::date::text AS day,
+                  COALESCE(m.created_by_user_id, '') AS user_id,
+                  COALESCE(NULLIF(BTRIM(u.name), ''), 'Não identificado') AS name
+           FROM analisador_tensao_ensaio_medicoes m
+           LEFT JOIN users u ON u.id = m.created_by_user_id
+           GROUP BY m.ensaio_id, m.analisador_id, m.created_by_user_id, u.name
+           HAVING EXTRACT(YEAR FROM MIN(m.created_at) AT TIME ZONE 'America/Sao_Paulo') = $1
+         ) ensaios
+         GROUP BY day, user_id, name
+         ORDER BY day, name`,
         [year],
       ),
       query<{ meter: string; assay_date: string; days: number }>(
