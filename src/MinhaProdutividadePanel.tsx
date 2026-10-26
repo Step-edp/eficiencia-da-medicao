@@ -134,25 +134,23 @@ export function MinhaProdutividadePanel({
 }: MinhaProdutividadePanelProps) {
   const [ensaios, setEnsaios] = useState<EnsaioSessaoRecord[]>([])
   const [loadedLaudos, setLoadedLaudos] = useState<RatmLaudo[] | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
-    api
-      .listEnsaiosRealizados()
-      .then((response) => {
-        if (!cancelled) setEnsaios(response.ensaios)
-      })
-      .catch(() => {
-        if (!cancelled) setEnsaios([])
-      })
-    api
-      .listRatmLaudos()
-      .then((response) => {
-        if (!cancelled) setLoadedLaudos(response.laudos.map(mapRatmLaudoFromApi))
-      })
-      .catch(() => {
-        if (!cancelled) setLoadedLaudos(null)
-      })
+    setLoading(true)
+    Promise.allSettled([api.listEnsaiosRealizados(), api.listRatmLaudos()]).then(
+      ([ensaiosResult, laudosResult]) => {
+        if (cancelled) return
+        setEnsaios(ensaiosResult.status === 'fulfilled' ? ensaiosResult.value.ensaios : [])
+        setLoadedLaudos(
+          laudosResult.status === 'fulfilled'
+            ? laudosResult.value.laudos.map(mapRatmLaudoFromApi)
+            : [],
+        )
+        setLoading(false)
+      },
+    )
     return () => {
       cancelled = true
     }
@@ -275,19 +273,19 @@ export function MinhaProdutividadePanel({
       <div className="produtividade-stats" aria-label="Indicadores de produtividade">
         <article className="produtividade-stat">
           <span className="produtividade-stat-label">RATMs</span>
-          <strong className="produtividade-stat-value">{stats.total}</strong>
+          <strong className="produtividade-stat-value">{loading ? '…' : stats.total}</strong>
         </article>
         <article className="produtividade-stat">
           <span className="produtividade-stat-label">Pendentes</span>
-          <strong className="produtividade-stat-value">{stats.pendentes}</strong>
+          <strong className="produtividade-stat-value">{loading ? '…' : stats.pendentes}</strong>
         </article>
         <article className="produtividade-stat">
           <span className="produtividade-stat-label">Aprovados</span>
-          <strong className="produtividade-stat-value">{stats.aprovados}</strong>
+          <strong className="produtividade-stat-value">{loading ? '…' : stats.aprovados}</strong>
         </article>
         <article className="produtividade-stat">
           <span className="produtividade-stat-label">Reprovados</span>
-          <strong className="produtividade-stat-value">{stats.reprovados}</strong>
+          <strong className="produtividade-stat-value">{loading ? '…' : stats.reprovados}</strong>
         </article>
       </div>
 
@@ -300,7 +298,9 @@ export function MinhaProdutividadePanel({
             </span>
           ))}
         </div>
-        {dailyPoints.length ? (
+        {loading ? (
+          <p className="lab-bi-empty">Carregando...</p>
+        ) : dailyPoints.length ? (
           <ProdutividadeChart points={dailyPoints} />
         ) : (
           <p className="lab-bi-empty">Nenhuma atividade no período selecionado.</p>
@@ -319,7 +319,11 @@ export function MinhaProdutividadePanel({
             </tr>
           </thead>
           <tbody>
-            {filtered.length ? (
+            {loading ? (
+              <tr>
+                <td colSpan={5}>Carregando...</td>
+              </tr>
+            ) : filtered.length ? (
               filtered.slice(0, 100).map((laudo) => (
                 <tr key={laudo.id}>
                   <td>{laudo.ratmNumber}</td>
