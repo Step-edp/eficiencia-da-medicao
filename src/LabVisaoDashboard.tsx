@@ -538,24 +538,6 @@ export function LabVisaoDashboard() {
               )}
             </section>
 
-            <section className="lab-bi-card lab-bi-card-outliers">
-              <h4>Pontos fora da curva</h4>
-              <div className="lab-bi-legend">
-                <span><i style={{ background: TMA_COLOR }} /> Até 9 dias</span>
-                <span><i style={{ background: FORA_CURVA_COLOR }} /> Acima da meta</span>
-                <span>
-                  {tmaAssays.length
-                    ? `${formatCount(tmaFora)} de ${formatCount(tmaAssays.length)} ensaios acima de 9 dias`
-                    : 'Meta de 9 dias a partir da data do ensaio'}
-                </span>
-              </div>
-              {tmaAssays.length ? (
-                <TmaOutlierChart points={tmaAssays} />
-              ) : (
-                <p className="lab-bi-empty">Nenhum ensaio com recebimento neste período.</p>
-              )}
-            </section>
-
             <div className="lab-bi-bottom">
               <section className="lab-bi-card">
                 <h4>Fila de espera</h4>
@@ -606,6 +588,24 @@ export function LabVisaoDashboard() {
                 )}
               </section>
             </div>
+
+            <section className="lab-bi-card lab-bi-card-outliers">
+              <h4>Pontos fora da curva</h4>
+              <div className="lab-bi-legend">
+                <span><i style={{ background: TMA_COLOR }} /> Até 9 dias</span>
+                <span><i style={{ background: FORA_CURVA_COLOR }} /> Acima da meta</span>
+                <span>
+                  {tmaAssays.length
+                    ? `${formatCount(tmaFora)} de ${formatCount(tmaAssays.length)} ensaios acima de 9 dias`
+                    : 'Meta de 9 dias a partir da data do ensaio'}
+                </span>
+              </div>
+              {tmaAssays.length ? (
+                <TmaOutlierChart points={tmaAssays} />
+              ) : (
+                <p className="lab-bi-empty">Nenhum ensaio com recebimento neste período.</p>
+              )}
+            </section>
 
             <section className="lab-bi-card lab-bi-card-ensaios">
               <h4>Ensaios por dia</h4>
