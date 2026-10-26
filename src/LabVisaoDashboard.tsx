@@ -25,16 +25,14 @@ const PRAZO_COLOR = '#f08a3c'
 const AGENDADO_COLOR = '#c5d0dc'
 const ANTECIPADO_COLOR = '#ff5d5d'
 const COLLAB_COLORS = [
-  '#3ec6e0',
-  '#f08a3c',
-  '#7dff3a',
-  '#c084fc',
-  '#f472b6',
-  '#facc15',
-  '#60a5fa',
-  '#fb7185',
-  '#34d399',
-  '#e879f9',
+  '#18d8f0',
+  '#5bf000',
+  '#34df9a',
+  '#7ecbff',
+  '#b6f56a',
+  '#2ee6c7',
+  '#9adfff',
+  '#8dffc2',
 ]
 
 type Point = { label: string; values: Array<number | null> }
@@ -242,9 +240,8 @@ function StackedBarChart({
                     <text
                       x={x + barWidth / 2}
                       y={y + barH / 2 + 3}
-                      className="lab-bi-point"
+                      className="lab-bi-point lab-bi-in-stack"
                       textAnchor="middle"
-                      fill="#062033"
                     >
                       {formatCount(value)}
                     </text>

@@ -9924,6 +9924,11 @@ input[type='file'] {
   font-weight: 700;
 }
 
+.lab-bi-point.lab-bi-in-stack {
+  fill: #031424;
+  font-weight: 700;
+}
+
 .lab-bi-axis.lab-bi-meta-label {
   fill: #ff5d5d;
 }
