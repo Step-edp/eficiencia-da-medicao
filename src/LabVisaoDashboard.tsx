@@ -197,7 +197,7 @@ function BarChart({
   )
 }
 
-function GroupedBarChart({
+function StackedBarChart({
   points,
   series,
   ariaLabel,
@@ -209,46 +209,42 @@ function GroupedBarChart({
   const width = 760
   const height = 220
   const pad = { left: 32, right: 12, top: 16, bottom: 36 }
-  const max = Math.max(1, ...points.flatMap((point) => point.values))
+  const totals = points.map((point) => point.values.reduce((sum, value) => sum + value, 0))
+  const max = Math.max(1, ...totals)
   const innerW = width - pad.left - pad.right
   const innerH = height - pad.top - pad.bottom
   const slot = innerW / Math.max(points.length, 1)
-  const gap = Math.min(6, slot * 0.15)
-  const groupWidth = Math.max(slot - gap, 4)
-  const barWidth = groupWidth / Math.max(series.length, 1)
+  const gap = Math.min(8, slot * 0.28)
+  const barWidth = Math.max(slot - gap, 4)
   const labelStep = points.length > 10 ? Math.ceil(points.length / 8) : 1
-  const showValues = points.length * series.length <= 48
+  const showValues = points.length <= 24
 
   return (
     <svg className="lab-bi-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel}>
       {points.map((point, index) => {
-        const groupX = pad.left + index * slot + gap / 2
+        const x = pad.left + index * slot + gap / 2
+        let stacked = 0
         return (
           <g key={`${point.label}-${index}`}>
             {point.values.map((value, seriesIndex) => {
               if (!value) return null
               const barH = (value / max) * innerH
-              const x = groupX + seriesIndex * barWidth
-              const y = pad.top + innerH - barH
+              const y = pad.top + innerH - ((stacked + value) / max) * innerH
+              stacked += value
+              const name = series[seriesIndex]?.name ?? ''
+              const color = series[seriesIndex]?.color ?? TMA_COLOR
               return (
-                <g key={series[seriesIndex]?.name ?? seriesIndex}>
-                  <rect
-                    x={x + 1}
-                    y={y}
-                    width={Math.max(barWidth - 2, 1)}
-                    height={barH}
-                    rx="1.5"
-                    fill={series[seriesIndex]?.color ?? TMA_COLOR}
-                  >
-                    <title>{`${series[seriesIndex]?.name ?? ''}: ${value}`}</title>
+                <g key={name || seriesIndex}>
+                  <rect x={x} y={y} width={barWidth} height={barH} fill={color}>
+                    <title>{`${name}: ${value}`}</title>
                   </rect>
-                  {showValues ? (
+                  {showValues && barH >= 14 ? (
                     <text
                       x={x + barWidth / 2}
-                      y={y - 3}
+                      y={y + barH / 2 + 3}
                       className="lab-bi-point"
                       textAnchor="middle"
-                      fill={series[seriesIndex]?.color ?? TMA_COLOR}
+                      fill="#062033"
                     >
                       {formatCount(value)}
                     </text>
@@ -257,7 +253,7 @@ function GroupedBarChart({
               )
             })}
             {index % labelStep === 0 ? (
-              <text x={groupX + groupWidth / 2} y={height - 10} className="lab-bi-axis" textAnchor="middle">
+              <text x={x + barWidth / 2} y={height - 10} className="lab-bi-axis" textAnchor="middle">
                 {point.label}
               </text>
             ) : null}
@@ -519,7 +515,7 @@ export function LabVisaoDashboard() {
                       </span>
                     ))}
                   </div>
-                  <GroupedBarChart
+                  <StackedBarChart
                     points={ensaioPoints}
                     series={ensaioSeries}
                     ariaLabel="Ensaios por dia e por colaborador"
