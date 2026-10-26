@@ -9898,8 +9898,8 @@ input[type='file'] {
 }
 
 .produtividade-chart .lab-bi-chart {
-  height: 200px;
-  max-height: 200px;
+  height: 230px;
+  max-height: 230px;
 }
 
 .lab-bi-grid {
@@ -9917,6 +9917,11 @@ input[type='file'] {
 .lab-bi-point {
   font-size: 11px;
   fill: #9eb7cb;
+}
+
+.lab-bi-point.lab-bi-on-bar {
+  fill: #f4fbff;
+  font-weight: 700;
 }
 
 .lab-bi-axis.lab-bi-meta-label {

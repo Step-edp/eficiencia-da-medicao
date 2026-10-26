@@ -35,11 +35,22 @@ function dayKey(iso: string): string {
   return `${year}-${month}-${day}`
 }
 
-function dayLabel(key: string): string {
+function dayLabel(key: string, fullMonth = false): string {
   const [year, month, day] = key.split('-').map(Number)
+  if (!fullMonth) return String(day)
   const date = new Date(year, month - 1, day)
-  const short = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
-  return `${day} de ${short}`
+  const longMonth = date.toLocaleDateString('pt-BR', { month: 'long' }).replace('.', '')
+  return `${day} de ${longMonth}`
+}
+
+function daysOfMonth(key: string): string[] {
+  const [year, month] = key.split('-').map(Number)
+  const total = new Date(year, month, 0).getDate()
+  const monthText = String(month).padStart(2, '0')
+  return Array.from({ length: total }, (_, index) => {
+    const day = String(index + 1).padStart(2, '0')
+    return `${year}-${monthText}-${day}`
+  })
 }
 
 function monthLabel(key: string): string {
@@ -58,12 +69,14 @@ function samePerson(userId: string, userName: string, id?: string | null, name?:
 
 function ProdutividadeChart({
   points,
+  showMonthName,
 }: {
   points: Array<{ label: string; medidores: number; analisadores: number; aprovacoes: number }>
+  showMonthName: boolean
 }) {
   const width = 760
-  const height = 200
-  const pad = { left: 32, right: 12, top: 16, bottom: 36 }
+  const height = 230
+  const pad = { left: 28, right: 12, top: 22, bottom: 32 }
   const max = Math.max(
     1,
     ...points.flatMap((point) => [point.medidores, point.analisadores, point.aprovacoes]),
@@ -71,22 +84,25 @@ function ProdutividadeChart({
   const innerW = width - pad.left - pad.right
   const innerH = height - pad.top - pad.bottom
   const slot = innerW / Math.max(points.length, 1)
-  const gap = Math.min(8, slot * 0.18)
+  const gap = Math.min(10, slot * 0.22)
   const groupWidth = Math.max(slot - gap, 8)
   const barWidth = groupWidth / ACTIVITY_SERIES.length
-  const labelStep = points.length > 12 ? Math.ceil(points.length / 8) : 1
-  const showValues = points.length <= 16
+  const radius = Math.min(8, barWidth / 2)
+  const labelStep = showMonthName ? Math.ceil(points.length / 6) : points.length > 16 ? 2 : 1
 
   return (
     <svg className="lab-bi-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Atividades por dia">
       {points.map((point, index) => {
         const groupX = pad.left + index * slot + gap / 2
+        const total = point.medidores + point.analisadores + point.aprovacoes
+        const tallest = Math.max(point.medidores, point.analisadores, point.aprovacoes)
+        const totalY = pad.top + innerH - (tallest / max) * innerH - 6
         return (
           <g key={`${point.label}-${index}`}>
             {ACTIVITY_SERIES.map((item, seriesIndex) => {
               const value = point[item.key]
               if (!value) return null
-              const barH = (value / max) * innerH
+              const barH = Math.max((value / max) * innerH, radius * 2)
               const x = groupX + seriesIndex * barWidth
               const y = pad.top + innerH - barH
               return (
@@ -94,29 +110,38 @@ function ProdutividadeChart({
                   <rect
                     x={x + 1}
                     y={y}
-                    width={Math.max(barWidth - 2, 2)}
+                    width={Math.max(barWidth - 2, 3)}
                     height={barH}
-                    rx="1.5"
+                    rx={radius}
                     fill={item.color}
                   >
                     <title>{`${item.label}: ${value}`}</title>
                   </rect>
-                  {showValues ? (
-                    <text
-                      x={x + barWidth / 2}
-                      y={Math.max(12, y - 3)}
-                      className="lab-bi-point"
-                      textAnchor="middle"
-                      fill={item.color}
-                    >
-                      {value}
-                    </text>
-                  ) : null}
+                  <text
+                    x={x + barWidth / 2}
+                    y={y + barH / 2 + 4}
+                    className="lab-bi-point lab-bi-on-bar"
+                    textAnchor="middle"
+                    fill="#f4fbff"
+                  >
+                    {value}
+                  </text>
                 </g>
               )
             })}
+            {total > 0 ? (
+              <text
+                x={groupX + groupWidth / 2}
+                y={Math.max(12, totalY)}
+                className="lab-bi-point lab-bi-on-bar"
+                textAnchor="middle"
+                fill="#f4fbff"
+              >
+                {total}
+              </text>
+            ) : null}
             {index % labelStep === 0 ? (
-              <text x={groupX + groupWidth / 2} y={height - 10} className="lab-bi-axis" textAnchor="middle">
+              <text x={groupX + groupWidth / 2} y={height - 8} className="lab-bi-axis" textAnchor="middle">
                 {point.label}
               </text>
             ) : null}
@@ -228,14 +253,23 @@ export function MinhaProdutividadePanel({
     for (const ensaio of myEnsaios) {
       if (inPeriod(ensaio.createdAt)) bump(ensaio.createdAt, 'analisadores')
     }
-    return [...days.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, value]) => ({
-        label: dayLabel(key),
-        medidores: value.medidores,
-        analisadores: value.analisadores,
-        aprovacoes: value.aprovacoes,
-      }))
+    const empty = { medidores: 0, analisadores: 0, aprovacoes: 0 }
+    const months =
+      selectedMonth === 'Todos'
+        ? [...new Set([...days.keys()].map((key) => key.slice(0, 7)))].sort()
+        : [selectedMonth]
+    const showMonthName = months.length > 1
+    return months.flatMap((month) =>
+      daysOfMonth(month).map((key) => {
+        const value = days.get(key) ?? empty
+        return {
+          label: dayLabel(key, showMonthName),
+          medidores: value.medidores,
+          analisadores: value.analisadores,
+          aprovacoes: value.aprovacoes,
+        }
+      }),
+    )
   }, [sourceLaudos, myEnsaios, selectedMonth, userId, userName])
 
   const stats = useMemo(() => {
@@ -291,6 +325,11 @@ export function MinhaProdutividadePanel({
 
       <section className="lab-bi-card produtividade-chart">
         <h4>Atividades por dia</h4>
+        {selectedMonth !== 'Todos' ? (
+          <p className="lab-bi-note">{monthLabel(selectedMonth)}</p>
+        ) : monthOptions.length === 1 ? (
+          <p className="lab-bi-note">{monthLabel(monthOptions[0])}</p>
+        ) : null}
         <div className="lab-bi-legend">
           {ACTIVITY_SERIES.map((item) => (
             <span key={item.key}>
@@ -301,7 +340,10 @@ export function MinhaProdutividadePanel({
         {loading ? (
           <p className="lab-bi-empty">Carregando...</p>
         ) : dailyPoints.length ? (
-          <ProdutividadeChart points={dailyPoints} />
+          <ProdutividadeChart
+            points={dailyPoints}
+            showMonthName={selectedMonth === 'Todos' && monthOptions.length > 1}
+          />
         ) : (
           <p className="lab-bi-empty">Nenhuma atividade no período selecionado.</p>
         )}
