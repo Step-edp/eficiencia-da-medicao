@@ -888,6 +888,14 @@ export type ScheduleEntryComparisons = {
   excludeCollaboratorChecks: boolean
 }
 
+export type InspectionAnalysisActivity = {
+  id: string
+  meter: string
+  completedAt: string
+  completedByUserId: string | null
+  completedByName: string | null
+}
+
 export type MeterInspectionPendenciaRecord = {
   id: string
   meter: string
@@ -2279,6 +2287,8 @@ export const api = {
       `/api/meter-schedules/${meterScheduleId}/extracted-client`,
       { timeoutMs: 30_000 },
     ),
+  listCompletedInspectionAnalyses: () =>
+    request<{ analyses: InspectionAnalysisActivity[] }>('/api/meter-schedules/inspection-analyses'),
   listInspectionPendencias: (forUserId?: string) => {
     const search = new URLSearchParams()
     if (forUserId) search.set('forUserId', forUserId)

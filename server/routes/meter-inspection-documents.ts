@@ -4868,3 +4868,34 @@ export async function markScheduleDatePhysicallyAdjusted(req: Request, res: Resp
 
   res.json({ ok: true, adjustment })
 }
+
+export async function listCompletedInspectionAnalyses(_req: Request, res: Response) {
+  const result = await query<{
+    id: string
+    meter: string
+    completed_at: Date
+    completed_by_user_id: string | null
+    completed_by_name: string | null
+  }>(
+    `SELECT ms.id,
+            ms.meter,
+            ms.inspection_analysis_completed_at AS completed_at,
+            ms.inspection_analysis_completed_by_user_id AS completed_by_user_id,
+            u.name AS completed_by_name
+     FROM meter_schedules ms
+     LEFT JOIN users u ON u.id = ms.inspection_analysis_completed_by_user_id
+     WHERE ms.delay_dismissed_at IS NULL
+       AND ms.inspection_analysis_completed_at IS NOT NULL
+     ORDER BY ms.inspection_analysis_completed_at DESC`,
+  )
+
+  res.json({
+    analyses: result.rows.map((row) => ({
+      id: row.id,
+      meter: row.meter,
+      completedAt: row.completed_at.toISOString(),
+      completedByUserId: row.completed_by_user_id,
+      completedByName: row.completed_by_name,
+    })),
+  })
+}

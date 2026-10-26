@@ -126,6 +126,7 @@ import {
   getScheduleExtractedClient,
   listInspectionPendencias,
   listWpaAnalysisMeters,
+  listCompletedInspectionAnalyses,
   updateInspectionWpa,
   updateInspectionObservations,
   updateInspectionExtracted,
@@ -529,6 +530,11 @@ async function start() {
 
   app.get('/api/meter-schedules/inspection-pendencias', requireAuth, listInspectionPendencias)
   app.get('/api/meter-schedules/wpa-analysis', requireAuth, listWpaAnalysisMeters)
+  app.get(
+    '/api/meter-schedules/inspection-analyses',
+    requireAuth,
+    listCompletedInspectionAnalyses,
+  )
   app.get('/api/meter-schedules/date-adjustments', requireAuth, listScheduleDateAdjustments)
   app.get('/api/meter-schedules/exclusions', requireAuth, listScheduleExclusions)
   app.post(

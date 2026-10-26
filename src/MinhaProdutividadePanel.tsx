@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { api, type EnsaioSessaoRecord } from './api'
+import { api, type EnsaioSessaoRecord, type InspectionAnalysisActivity } from './api'
 import { mapRatmLaudoFromApi, type RatmLaudo } from './ratm/laudos'
 
 type MinhaProdutividadePanelProps = {
@@ -10,11 +10,22 @@ type MinhaProdutividadePanelProps = {
 
 const MEDIDOR_COLOR = '#3ec6e0'
 const ANALISADOR_COLOR = '#7dff3a'
+const DOCUMENTAL_COLOR = '#c084fc'
 const APROVACAO_COLOR = '#f08a3c'
+
+type DayCounts = {
+  medidores: number
+  analisadores: number
+  documentais: number
+  aprovacoes: number
+}
+
+const EMPTY_DAY: DayCounts = { medidores: 0, analisadores: 0, documentais: 0, aprovacoes: 0 }
 
 const ACTIVITY_SERIES = [
   { key: 'medidores' as const, label: 'Medidores', color: MEDIDOR_COLOR },
   { key: 'analisadores' as const, label: 'Analisadores', color: ANALISADOR_COLOR },
+  { key: 'documentais' as const, label: 'Análise documental', color: DOCUMENTAL_COLOR },
   { key: 'aprovacoes' as const, label: 'Aprovações', color: APROVACAO_COLOR },
 ]
 
@@ -71,7 +82,7 @@ function ProdutividadeChart({
   points,
   showMonthName,
 }: {
-  points: Array<{ label: string; medidores: number; analisadores: number; aprovacoes: number }>
+  points: Array<{ label: string } & DayCounts>
   showMonthName: boolean
 }) {
   const width = 760
@@ -79,7 +90,7 @@ function ProdutividadeChart({
   const pad = { left: 28, right: 12, top: 22, bottom: 32 }
   const max = Math.max(
     1,
-    ...points.flatMap((point) => [point.medidores, point.analisadores, point.aprovacoes]),
+    ...points.flatMap((point) => ACTIVITY_SERIES.map((item) => point[item.key])),
   )
   const innerW = width - pad.left - pad.right
   const innerH = height - pad.top - pad.bottom
@@ -94,8 +105,8 @@ function ProdutividadeChart({
     <svg className="lab-bi-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Atividades por dia">
       {points.map((point, index) => {
         const groupX = pad.left + index * slot + gap / 2
-        const total = point.medidores + point.analisadores + point.aprovacoes
-        const tallest = Math.max(point.medidores, point.analisadores, point.aprovacoes)
+        const total = ACTIVITY_SERIES.reduce((sum, item) => sum + point[item.key], 0)
+        const tallest = Math.max(...ACTIVITY_SERIES.map((item) => point[item.key]))
         const totalY = pad.top + innerH - (tallest / max) * innerH - 6
         return (
           <g key={`${point.label}-${index}`}>
@@ -158,24 +169,28 @@ export function MinhaProdutividadePanel({
   laudos,
 }: MinhaProdutividadePanelProps) {
   const [ensaios, setEnsaios] = useState<EnsaioSessaoRecord[]>([])
+  const [analises, setAnalises] = useState<InspectionAnalysisActivity[]>([])
   const [loadedLaudos, setLoadedLaudos] = useState<RatmLaudo[] | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    Promise.allSettled([api.listEnsaiosRealizados(), api.listRatmLaudos()]).then(
-      ([ensaiosResult, laudosResult]) => {
-        if (cancelled) return
-        setEnsaios(ensaiosResult.status === 'fulfilled' ? ensaiosResult.value.ensaios : [])
-        setLoadedLaudos(
-          laudosResult.status === 'fulfilled'
-            ? laudosResult.value.laudos.map(mapRatmLaudoFromApi)
-            : [],
-        )
-        setLoading(false)
-      },
-    )
+    Promise.allSettled([
+      api.listEnsaiosRealizados(),
+      api.listRatmLaudos(),
+      api.listCompletedInspectionAnalyses(),
+    ]).then(([ensaiosResult, laudosResult, analisesResult]) => {
+      if (cancelled) return
+      setEnsaios(ensaiosResult.status === 'fulfilled' ? ensaiosResult.value.ensaios : [])
+      setLoadedLaudos(
+        laudosResult.status === 'fulfilled'
+          ? laudosResult.value.laudos.map(mapRatmLaudoFromApi)
+          : [],
+      )
+      setAnalises(analisesResult.status === 'fulfilled' ? analisesResult.value.analyses : [])
+      setLoading(false)
+    })
     return () => {
       cancelled = true
     }
@@ -200,6 +215,11 @@ export function MinhaProdutividadePanel({
     [ensaios, userId, userName],
   )
 
+  const myAnalises = useMemo(
+    () => analises.filter((item) => mine(item.completedByUserId, item.completedByName)),
+    [analises, userId, userName],
+  )
+
   const monthOptions = useMemo(() => {
     const keys = new Set<string>()
     for (const laudo of sourceLaudos) {
@@ -217,8 +237,12 @@ export function MinhaProdutividadePanel({
       const key = monthKey(ensaio.createdAt)
       if (key) keys.add(key)
     }
+    for (const analise of myAnalises) {
+      const key = monthKey(analise.completedAt)
+      if (key) keys.add(key)
+    }
     return [...keys].sort((a, b) => b.localeCompare(a))
-  }, [sourceLaudos, myEnsaios, userId, userName])
+  }, [sourceLaudos, myEnsaios, myAnalises, userId, userName])
 
   const [selectedMonth, setSelectedMonth] = useState('Todos')
 
@@ -233,11 +257,11 @@ export function MinhaProdutividadePanel({
       if (selectedMonth === 'Todos') return true
       return monthKey(iso) === selectedMonth
     }
-    const days = new Map<string, { medidores: number; analisadores: number; aprovacoes: number }>()
-    const bump = (iso: string, field: 'medidores' | 'analisadores' | 'aprovacoes') => {
+    const days = new Map<string, DayCounts>()
+    const bump = (iso: string, field: keyof DayCounts) => {
       const key = dayKey(iso)
       if (!key) return
-      const current = days.get(key) ?? { medidores: 0, analisadores: 0, aprovacoes: 0 }
+      const current = days.get(key) ?? { ...EMPTY_DAY }
       current[field] += 1
       days.set(key, current)
     }
@@ -253,7 +277,9 @@ export function MinhaProdutividadePanel({
     for (const ensaio of myEnsaios) {
       if (inPeriod(ensaio.createdAt)) bump(ensaio.createdAt, 'analisadores')
     }
-    const empty = { medidores: 0, analisadores: 0, aprovacoes: 0 }
+    for (const analise of myAnalises) {
+      if (inPeriod(analise.completedAt)) bump(analise.completedAt, 'documentais')
+    }
     const months =
       selectedMonth === 'Todos'
         ? [...new Set([...days.keys()].map((key) => key.slice(0, 7)))].sort()
@@ -261,16 +287,14 @@ export function MinhaProdutividadePanel({
     const showMonthName = months.length > 1
     return months.flatMap((month) =>
       daysOfMonth(month).map((key) => {
-        const value = days.get(key) ?? empty
+        const value = days.get(key) ?? EMPTY_DAY
         return {
           label: dayLabel(key, showMonthName),
-          medidores: value.medidores,
-          analisadores: value.analisadores,
-          aprovacoes: value.aprovacoes,
+          ...value,
         }
       }),
     )
-  }, [sourceLaudos, myEnsaios, selectedMonth, userId, userName])
+  }, [sourceLaudos, myEnsaios, myAnalises, selectedMonth, userId, userName])
 
   const stats = useMemo(() => {
     const total = filtered.length
