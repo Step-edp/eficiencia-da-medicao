@@ -50,7 +50,7 @@ export function ScheduleDateAdjustmentsPanel({
 }: {
   scope: 'all' | 'mine'
   title: string
-  intro: string
+  intro?: string
   allowPhysicalAdjust?: boolean
   includeFillingDeviations?: boolean
   forUserId?: string
@@ -146,11 +146,11 @@ export function ScheduleDateAdjustmentsPanel({
             </h3>
             <p className="demm-analysis-summary">{summary}</p>
           </div>
-          <p className="entrada-panel-intro">{intro}</p>
+          {intro?.trim() ? <p className="entrada-panel-intro">{intro}</p> : null}
         </>
       ) : (
         <>
-          <p className="entrada-panel-intro">{intro}</p>
+          {intro?.trim() ? <p className="entrada-panel-intro">{intro}</p> : null}
           <p className="demm-analysis-summary">{summary}</p>
         </>
       )}
