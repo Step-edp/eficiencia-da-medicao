@@ -24,6 +24,21 @@ function formatDateTime(isoDate: string) {
   }).format(new Date(isoDate))
 }
 
+function saoPauloDateKey(date: Date) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(date)
+}
+
+function scheduleStillAhead(isoDate: string) {
+  const scheduled = new Date(isoDate)
+  if (Number.isNaN(scheduled.getTime())) return false
+  return saoPauloDateKey(scheduled) > saoPauloDateKey(new Date())
+}
+
+function earlyAssayMessage(item: MeterScheduleRecord) {
+  const when = item.scheduledAtLabel || formatDateTime(item.scheduledAt)
+  return `O medidor ${item.meter} está agendado para ${when}. O ensaio só pode ser realizado quando essa data chegar.`
+}
+
 function daysAfterAssay(isoDate: string) {
   const assay = new Date(isoDate)
   if (Number.isNaN(assay.getTime())) return null
@@ -122,9 +137,13 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
     setStartedCount(selectedCount)
   }
 
-  const handleEnsaiarMeter = (meter: string) => {
+  const handleEnsaiarMeter = (item: MeterScheduleRecord) => {
+    if (scheduleStillAhead(item.scheduledAt)) {
+      setFeedback({ type: 'error', message: earlyAssayMessage(item) })
+      return
+    }
     setWorkflowMeters(null)
-    setWorkflowMeter(meter)
+    setWorkflowMeter(item.meter)
     setRatmCount('1')
     setStartedCount(1)
     setShowReceived(false)
@@ -164,6 +183,13 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
         type: 'error',
         message: 'Selecione pelo menos um medidor para ensaiar.',
       })
+      return
+    }
+    const ahead = receivedMeters.filter(
+      (item) => selectedMeters.includes(item.meter) && scheduleStillAhead(item.scheduledAt),
+    )
+    if (ahead.length) {
+      setFeedback({ type: 'error', message: earlyAssayMessage(ahead[0]) })
       return
     }
     setWorkflowMeters(selectedMeters)
@@ -305,7 +331,7 @@ export function EnsaiarForm({ onFinish, initialMeter, receivedRequest = 0 }: Ens
                         <button
                           type="button"
                           className="primary-button"
-                          onClick={() => handleEnsaiarMeter(item.meter)}
+                          onClick={() => handleEnsaiarMeter(item)}
                         >
                           Ensaiar
                         </button>

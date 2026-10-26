@@ -38,6 +38,16 @@ function formatDisplayDate(dateKey: string) {
   return `${day}/${month}/${year}`
 }
 
+function saoPauloDateKey(date: Date) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(date)
+}
+
+function scheduleStillAhead(isoDate: string) {
+  const scheduled = new Date(isoDate)
+  if (Number.isNaN(scheduled.getTime())) return false
+  return saoPauloDateKey(scheduled) > saoPauloDateKey(new Date())
+}
+
 function blocksToMap(blocks: EnsaiosManualBlock[]) {
   return new Map(blocks.map((block) => [block.date, block.reason]))
 }
@@ -438,7 +448,14 @@ export function EnsaiosCalendar({
                             <button
                               type="button"
                               className="ensaios-day-ensaiar-button"
+                              disabled={scheduleStillAhead(meter.scheduledAt)}
+                              title={
+                                scheduleStillAhead(meter.scheduledAt)
+                                  ? 'O ensaio só pode ser realizado quando a data do agendamento chegar.'
+                                  : undefined
+                              }
                               onClick={() => {
+                                if (scheduleStillAhead(meter.scheduledAt)) return
                                 closeDayModal()
                                 onEnsaiar(meter)
                               }}

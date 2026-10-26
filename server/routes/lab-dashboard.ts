@@ -89,6 +89,7 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
         month: number
         agendado: string
         ensaiado: string
+        ensaiado_antecipado: string
         prazo_sum: string | null
         prazo_count: string
         tma_sum: string | null
@@ -100,7 +101,16 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
       }>(
         `SELECT EXTRACT(MONTH FROM ${SCHEDULED_DATE})::int AS month,
                 COUNT(*) FILTER (WHERE ms.delay_dismissed_at IS NULL)::int AS agendado,
-                COUNT(*) FILTER (WHERE ms.delay_dismissed_at IS NULL AND ensaiado.ok)::int AS ensaiado,
+                COUNT(*) FILTER (
+                  WHERE ms.delay_dismissed_at IS NULL
+                    AND ensaiado.ok
+                    AND ${SCHEDULED_DATE} <= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date
+                )::int AS ensaiado,
+                COUNT(*) FILTER (
+                  WHERE ms.delay_dismissed_at IS NULL
+                    AND ensaiado.ok
+                    AND ${SCHEDULED_DATE} > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date
+                )::int AS ensaiado_antecipado,
                 COALESCE(SUM(prazo.days) FILTER (WHERE ms.delay_dismissed_at IS NULL), 0) AS prazo_sum,
                 COUNT(prazo.days) FILTER (WHERE ms.delay_dismissed_at IS NULL)::int AS prazo_count,
                 COALESCE(SUM(tma.days) FILTER (WHERE ms.delay_dismissed_at IS NULL), 0) AS tma_sum,
@@ -261,6 +271,7 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
       month,
       agendado: asNumber(row?.agendado),
       ensaiado: asNumber(row?.ensaiado),
+      ensaiadoAntecipado: asNumber(row?.ensaiado_antecipado),
       prazoSum: asNumber(row?.prazo_sum),
       prazoCount: asNumber(row?.prazo_count),
       tmaSum: asNumber(row?.tma_sum),

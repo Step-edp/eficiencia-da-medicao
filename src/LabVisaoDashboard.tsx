@@ -23,6 +23,7 @@ const SHORT_MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'S
 const TMA_COLOR = '#3ec6e0'
 const PRAZO_COLOR = '#f08a3c'
 const AGENDADO_COLOR = '#c5d0dc'
+const ANTECIPADO_COLOR = '#ff5d5d'
 const COLLAB_COLORS = [
   '#3ec6e0',
   '#f08a3c',
@@ -301,7 +302,7 @@ export function LabVisaoDashboard() {
   const totals = monthly.reduce(
     (acc, item) => ({
       agendado: acc.agendado + item.agendado,
-      ensaiado: acc.ensaiado + item.ensaiado,
+      ensaiado: acc.ensaiado + item.ensaiado + (item.ensaiadoAntecipado ?? 0),
       tmaSum: acc.tmaSum + item.tmaSum,
       tmaCount: acc.tmaCount + item.tmaCount,
       atrasados: acc.atrasados + item.atrasados,
@@ -327,8 +328,13 @@ export function LabVisaoDashboard() {
   }))
   const volumePoints: Point[] = monthly.map((item) => ({
     label: SHORT_MONTHS[item.month - 1],
-    values: [item.agendado, item.ensaiado],
+    values: [
+      item.agendado,
+      item.ensaiado,
+      (item.ensaiadoAntecipado ?? 0) > 0 ? item.ensaiadoAntecipado : null,
+    ],
   }))
+  const hasEnsaioAntecipado = volumePoints.some((point) => (point.values[2] ?? 0) > 0)
   const inspectionPoints = (data?.inspecoes ?? [])
     .filter((item) => selected.has(monthOf(item.date)))
     .map((item) => ({ label: dayLabel(item.date), value: item.total }))
@@ -482,6 +488,9 @@ export function LabVisaoDashboard() {
                 <div className="lab-bi-legend">
                   <span><i style={{ background: AGENDADO_COLOR }} /> Agendado</span>
                   <span><i style={{ background: TMA_COLOR }} /> Ensaiado</span>
+                  {hasEnsaioAntecipado ? (
+                    <span><i style={{ background: ANTECIPADO_COLOR }} /> Ensaiado antes da data</span>
+                  ) : null}
                 </div>
                 {volumePoints.some((point) => point.values.some((value) => (value ?? 0) > 0)) ? (
                   <TrendChart
@@ -489,6 +498,7 @@ export function LabVisaoDashboard() {
                     series={[
                       { name: 'Agendado', color: AGENDADO_COLOR },
                       { name: 'Ensaiado', color: TMA_COLOR },
+                      { name: 'Ensaiado antes da data', color: ANTECIPADO_COLOR },
                     ]}
                     ariaLabel="Agendados e ensaiados por mês"
                   />

@@ -493,6 +493,7 @@ export type LabVisaoMonth = {
   month: number
   agendado: number
   ensaiado: number
+  ensaiadoAntecipado: number
   prazoSum: number
   prazoCount: number
   tmaSum: number

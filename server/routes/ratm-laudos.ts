@@ -158,6 +158,26 @@ async function meterWasReceived(meterKey: string) {
   return Boolean(extracted.rows[0])
 }
 
+async function assayBeforeScheduleMessage(meter: string) {
+  const meterKey = normalizeScheduleMeter(meter)
+  if (!meterKey) return null
+  const result = await query<{ label: string }>(
+    `SELECT to_char((ms.scheduled_at AT TIME ZONE 'America/Sao_Paulo')::date, 'DD/MM/YYYY') AS label
+     FROM meter_schedules ms
+     WHERE ${normalizedMeterColumnSql('ms')} = $1
+       AND ms.delay_dismissed_at IS NULL
+       AND (ms.scheduled_at AT TIME ZONE 'America/Sao_Paulo')::date
+         > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date
+       AND BTRIM(COALESCE(ms.trail_step, '')) NOT IN ($2, $3, 'Pesquisa de satisfação')
+     ORDER BY ms.scheduled_at ASC
+     LIMIT 1`,
+    [meterKey, APROVACAO_TRAIL_STEP, SUCATA_TRAIL_STEP],
+  )
+  const label = result.rows[0]?.label
+  if (!label) return null
+  return `O medidor ${meter} está agendado para ${label}. O ensaio só pode ser realizado quando essa data chegar.`
+}
+
 async function setMeterProcessStatus(meter: string, status: 'Ensaiado' | 'Aprovado' | 'Recebido') {
   const meterKey = normalizeScheduleMeter(meter)
   if (!meterKey) return
@@ -341,6 +361,12 @@ export async function createRatmLaudos(req: Request, res: Response) {
       res.status(409).json({
         error: `O medidor ${meter} ainda não foi recebido na Entrada. Registre a DEMM antes de iniciar o ensaio.`,
       })
+      return
+    }
+
+    const earlyAssay = await assayBeforeScheduleMessage(meter)
+    if (earlyAssay) {
+      res.status(409).json({ error: earlyAssay })
       return
     }
 
@@ -532,6 +558,12 @@ export async function redoRatmLaudo(req: Request, res: Response) {
   const normalized = normalizeScheduleMeter(meter)
   if (!normalized) {
     res.status(400).json({ error: 'Informe o medidor antes de gerar o novo RATM.' })
+    return
+  }
+
+  const earlyAssay = await assayBeforeScheduleMessage(meter)
+  if (earlyAssay) {
+    res.status(409).json({ error: earlyAssay })
     return
   }
 
