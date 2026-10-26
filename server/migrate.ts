@@ -1461,4 +1461,23 @@ export async function migrate() {
       ON demm_documents ((LPAD(RIGHT(REGEXP_REPLACE(meter, '[^0-9]', '', 'g'), 8), 8, '0')))
       WHERE rejected_at IS NULL
   `)
+
+  await query(`ALTER TABLE ratm_laudos ADD COLUMN IF NOT EXISTS approved_by_user_id TEXT`)
+  await query(`ALTER TABLE ratm_laudos ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ`)
+  await query(`
+    UPDATE ratm_laudos AS laudo
+    SET approved_by_user_id = log.user_id,
+        approved_at = log.occurred_at
+    FROM (
+      SELECT DISTINCT ON (entity_id) entity_id, user_id, occurred_at
+      FROM audit_logs
+      WHERE action = 'approve'
+        AND entity_type = 'ratm_laudo'
+        AND entity_id IS NOT NULL
+      ORDER BY entity_id, occurred_at DESC
+    ) AS log
+    WHERE laudo.id = log.entity_id
+      AND laudo.status = 'Aprovado'
+      AND laudo.approved_at IS NULL
+  `)
 }

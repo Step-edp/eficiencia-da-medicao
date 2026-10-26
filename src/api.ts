@@ -365,6 +365,8 @@ export type RatmLaudoRecord = {
   toi?: string
   note?: string
   revokedAt?: string | null
+  approvedAt?: string | null
+  approvedByUserId?: string | null
 }
 
 export type CsdRecord = {

@@ -28,6 +28,8 @@ type RatmLaudoRow = {
   note?: string | null
   meter_reading?: string | null
   revoked_at?: Date | null
+  approved_at?: Date | null
+  approved_by_user_id?: string | null
 }
 
 function mapRatmLaudo(row: RatmLaudoRow) {
@@ -47,6 +49,8 @@ function mapRatmLaudo(row: RatmLaudoRow) {
     note: row.note || '',
     meterReading: row.meter_reading || '',
     revokedAt: row.revoked_at ? row.revoked_at.toISOString() : null,
+    approvedAt: row.approved_at ? row.approved_at.toISOString() : null,
+    approvedByUserId: row.approved_by_user_id ?? null,
   }
 }
 
@@ -748,10 +752,12 @@ export async function approveRatmLaudo(req: Request, res: Response) {
   const result = await query<RatmLaudoRow>(
     `UPDATE ratm_laudos
      SET status = 'Aprovado',
-         form_data = $1::jsonb
-     WHERE id = $2 AND status = 'Pendente'
+         form_data = $1::jsonb,
+         approved_by_user_id = $2,
+         approved_at = NOW()
+     WHERE id = $3 AND status = 'Pendente'
      RETURNING *`,
-    [JSON.stringify(formData), id],
+    [JSON.stringify(formData), approver.id, id],
   )
 
   const laudo = mapRatmLaudo(result.rows[0])

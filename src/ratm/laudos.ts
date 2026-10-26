@@ -17,6 +17,8 @@ export type RatmLaudo = {
   toi?: string
   note?: string
   revokedAt?: string | null
+  approvedAt?: string | null
+  approvedByUserId?: string | null
 }
 
 export function mapRatmLaudoFromApi(record: {
@@ -34,6 +36,8 @@ export function mapRatmLaudoFromApi(record: {
   toi?: string
   note?: string
   revokedAt?: string | null
+  approvedAt?: string | null
+  approvedByUserId?: string | null
 }): RatmLaudo {
   return {
     id: record.id,
@@ -50,6 +54,8 @@ export function mapRatmLaudoFromApi(record: {
     toi: record.toi || '',
     note: record.note || '',
     revokedAt: record.revokedAt ?? null,
+    approvedAt: record.approvedAt ?? null,
+    approvedByUserId: record.approvedByUserId ?? null,
   }
 }
 

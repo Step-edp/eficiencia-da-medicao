@@ -9873,6 +9873,15 @@ input[type='file'] {
   max-height: 168px;
 }
 
+.produtividade-chart {
+  margin: 16px 0 18px;
+}
+
+.produtividade-chart .lab-bi-chart {
+  height: 200px;
+  max-height: 200px;
+}
+
 .lab-bi-grid {
   stroke: rgba(158, 183, 203, 0.16);
   stroke-width: 1;
