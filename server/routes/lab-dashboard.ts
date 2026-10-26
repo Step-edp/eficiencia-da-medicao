@@ -78,7 +78,7 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
     ? requested
     : today.year
 
-  const [yearsResult, monthlyResult, inspectionsResult, ensaiosResult, filaResult, upcomingResult, blocksResult, occupiedResult] =
+  const [yearsResult, monthlyResult, inspectionsResult, ensaiosResult, tmaAssayResult, filaResult, upcomingResult, blocksResult, occupiedResult] =
     await Promise.all([
       query<{ year: number }>(
         `SELECT DISTINCT EXTRACT(YEAR FROM scheduled_at AT TIME ZONE 'America/Sao_Paulo')::int AS year
@@ -219,6 +219,47 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
          ORDER BY 1, 3`,
         [year],
       ),
+      query<{ meter: string; assay_date: string; days: number }>(
+        `SELECT meter, assay_date, days
+         FROM (
+           SELECT DISTINCT ON (rl.id)
+                  rl.meter,
+                  (rl.created_at AT TIME ZONE 'America/Sao_Paulo')::date::text AS assay_date,
+                  GREATEST(
+                    0,
+                    (rl.created_at AT TIME ZONE 'America/Sao_Paulo')::date - receipt.day
+                  )::int AS days
+           FROM ratm_laudos rl
+           CROSS JOIN LATERAL (
+             SELECT COALESCE(
+               (
+                 SELECT (ms.received_at AT TIME ZONE 'America/Sao_Paulo')::date
+                 FROM meter_schedules ms
+                 WHERE ${normalizedMeterColumnSql('ms')} = ${normalizedMeterColumnSql('rl')}
+                   AND ms.received_at IS NOT NULL
+                   AND (ms.received_at AT TIME ZONE 'America/Sao_Paulo')::date
+                     <= (rl.created_at AT TIME ZONE 'America/Sao_Paulo')::date
+                 ORDER BY ms.received_at DESC
+                 LIMIT 1
+               ),
+               (
+                 SELECT (mr.received_at AT TIME ZONE 'America/Sao_Paulo')::date
+                 FROM meter_registry mr
+                 WHERE ${normalizedMeterColumnSql('mr')} = ${normalizedMeterColumnSql('rl')}
+                   AND mr.received_at IS NOT NULL
+                 ORDER BY mr.received_at ASC
+                 LIMIT 1
+               )
+             ) AS day
+           ) receipt
+           WHERE rl.revoked_at IS NULL
+             AND receipt.day IS NOT NULL
+             AND EXTRACT(YEAR FROM rl.created_at AT TIME ZONE 'America/Sao_Paulo') = $1
+           ORDER BY rl.id
+         ) assays
+         ORDER BY assay_date, meter`,
+        [year],
+      ),
       query<{ meter: string; days: number }>(
         `SELECT meter, days
          FROM (
@@ -314,6 +355,11 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
       userId: row.user_id,
       name: row.name,
       total: asNumber(row.total),
+    })),
+    tmaEnsaios: tmaAssayResult.rows.map((row) => ({
+      meter: row.meter,
+      date: row.assay_date.slice(0, 10),
+      days: asNumber(row.days),
     })),
     filaEspera: filaResult.rows.map((row) => ({
       meter: row.meter,

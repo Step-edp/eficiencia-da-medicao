@@ -9873,6 +9873,11 @@ input[type='file'] {
   max-height: 168px;
 }
 
+.lab-bi-card-outliers .lab-bi-chart {
+  height: 200px;
+  max-height: 200px;
+}
+
 .produtividade-chart {
   margin: 16px 0 18px;
 }
@@ -9887,10 +9892,20 @@ input[type='file'] {
   stroke-width: 1;
 }
 
+.lab-bi-meta {
+  stroke: #ff5d5d;
+  stroke-width: 1.4;
+  stroke-dasharray: 4 4;
+}
+
 .lab-bi-axis,
 .lab-bi-point {
   font-size: 11px;
   fill: #9eb7cb;
+}
+
+.lab-bi-axis.lab-bi-meta-label {
+  fill: #ff5d5d;
 }
 
 .lab-bi-fila {

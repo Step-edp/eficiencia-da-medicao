@@ -264,6 +264,87 @@ function StackedBarChart({
   )
 }
 
+const TMA_META_DAYS = 9
+const FORA_CURVA_COLOR = '#ff5d5d'
+
+function TmaOutlierChart({
+  points,
+}: {
+  points: Array<{ meter: string; date: string; days: number }>
+}) {
+  const width = 760
+  const height = 200
+  const pad = { left: 36, right: 16, top: 16, bottom: 32 }
+  const yMax = niceMax(Math.max(TMA_META_DAYS, ...points.map((point) => point.days)))
+  const times = points.map((point) => Date.parse(`${point.date}T12:00:00`))
+  const min = Math.min(...times)
+  const max = Math.max(...times)
+  const span = Math.max(max - min, 86_400_000)
+  const innerW = width - pad.left - pad.right
+  const innerH = height - pad.top - pad.bottom
+  const xAt = (time: number) => pad.left + ((time - min) / span) * innerW
+  const yAt = (value: number) => pad.top + innerH - (value / yMax) * innerH
+  const perDay = new Map<string, number>()
+  for (const point of points) perDay.set(point.date, (perDay.get(point.date) ?? 0) + 1)
+  const seen = new Map<string, number>()
+  const ticks = [0, TMA_META_DAYS, yMax].filter((value, index, list) => list.indexOf(value) === index)
+  const labelIndexes = [
+    ...new Set(points.length <= 1 ? [0] : [0, Math.floor((points.length - 1) / 2), points.length - 1]),
+  ]
+
+  return (
+    <svg className="lab-bi-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="TMA de cada ensaio e meta de 9 dias">
+      {ticks.map((value) => {
+        const y = yAt(value)
+        const meta = value === TMA_META_DAYS
+        return (
+          <g key={value}>
+            <line
+              x1={pad.left}
+              x2={width - pad.right}
+              y1={y}
+              y2={y}
+              className={meta ? 'lab-bi-meta' : 'lab-bi-grid'}
+            />
+            <text
+              x={pad.left - 8}
+              y={y + 4}
+              className={meta ? 'lab-bi-axis lab-bi-meta-label' : 'lab-bi-axis'}
+              textAnchor="end"
+            >
+              {formatCount(value)}
+            </text>
+          </g>
+        )
+      })}
+      {points.map((point, index) => {
+        const order = seen.get(point.date) ?? 0
+        seen.set(point.date, order + 1)
+        const total = perDay.get(point.date) ?? 1
+        const jitter = total <= 1 ? 0 : ((order + 0.5) / total - 0.5) * Math.min(span * 0.06, 86_400_000 * 0.7)
+        const outside = point.days > TMA_META_DAYS
+        const color = outside ? FORA_CURVA_COLOR : TMA_COLOR
+        const cx = xAt(times[index] + jitter)
+        const cy = yAt(point.days)
+        return (
+          <circle key={`${point.meter}-${point.date}-${index}`} cx={cx} cy={cy} r={outside ? 4.2 : 3.4} fill={color}>
+            <title>{`${point.meter} · ${dayLabel(point.date)} · ${point.days} ${point.days === 1 ? 'dia' : 'dias'}`}</title>
+          </circle>
+        )
+      })}
+      {labelIndexes.map((index) => {
+        const point = points[index]
+        if (!point) return null
+        return (
+          <text key={`${point.date}-${index}`} x={xAt(times[index])} y={height - 8} className="lab-bi-axis" textAnchor="middle">
+            {dayLabel(point.date)}
+          </text>
+        )
+      })}
+    </svg>
+  )
+}
+
 export function LabVisaoDashboard() {
   const [year, setYear] = useState(() => new Date().getFullYear())
   const [data, setData] = useState<LabVisaoDashboardData | null>(null)
@@ -348,6 +429,10 @@ export function LabVisaoDashboard() {
     label: dayLabel(date),
     values: ensaioSeries.map((series) => ensaioTotals.get(`${date}:${series.userId}`) ?? 0),
   }))
+  const tmaAssays = (data?.tmaEnsaios ?? [])
+    .filter((item) => selected.has(monthOf(item.date)))
+    .sort((left, right) => left.date.localeCompare(right.date) || left.meter.localeCompare(right.meter))
+  const tmaFora = tmaAssays.filter((item) => item.days > TMA_META_DAYS).length
 
   function toggleMonth(month: number) {
     setMonths((current) =>
@@ -450,6 +535,24 @@ export function LabVisaoDashboard() {
                 />
               ) : (
                 <p className="lab-bi-empty">Sem medições de prazo neste período.</p>
+              )}
+            </section>
+
+            <section className="lab-bi-card lab-bi-card-outliers">
+              <h4>Pontos fora da curva</h4>
+              <div className="lab-bi-legend">
+                <span><i style={{ background: TMA_COLOR }} /> Até 9 dias</span>
+                <span><i style={{ background: FORA_CURVA_COLOR }} /> Acima da meta</span>
+                <span>
+                  {tmaAssays.length
+                    ? `${formatCount(tmaFora)} de ${formatCount(tmaAssays.length)} ensaios acima de 9 dias`
+                    : 'Meta de 9 dias a partir da data do ensaio'}
+                </span>
+              </div>
+              {tmaAssays.length ? (
+                <TmaOutlierChart points={tmaAssays} />
+              ) : (
+                <p className="lab-bi-empty">Nenhum ensaio com recebimento neste período.</p>
               )}
             </section>
 

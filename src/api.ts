@@ -518,6 +518,7 @@ export type LabVisaoDashboardData = {
   monthly: LabVisaoMonth[]
   inspecoes: Array<{ date: string; total: number }>
   ensaiosPorDia: Array<{ date: string; userId: string; name: string; total: number }>
+  tmaEnsaios: Array<{ meter: string; date: string; days: number }>
   filaEspera: Array<{ meter: string; days: number }>
 }
 
