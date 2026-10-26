@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { LAB_TRAIL_STEPS, type LabTrailStep } from './labTrailSteps'
+import { ENTRADA_TRAIL_STEP, LAB_TRAIL_STEPS, type LabTrailStep } from './labTrailSteps'
 
 type LabMeasurementTrailProps = {
   activeStep: string | null
@@ -77,7 +77,8 @@ export function LabMeasurementTrail({
             ? completedSet.has(step.key) && !isActive
             : activeIndex >= 0 && index < activeIndex
           const enabled = isStepEnabled ? isStepEnabled(step.key, index) : true
-          const count = stepCounts?.[step.key] ?? 0
+          const count =
+            step.key === ENTRADA_TRAIL_STEP ? 0 : (stepCounts?.[step.key] ?? 0)
 
           return (
             <li key={step.key} className="lab-trail-step-item">
