@@ -3353,6 +3353,19 @@ function HomePanel({
     }
   }, [])
 
+  const pendingRatmApprovalCount = useMemo(
+    () => ratmLaudos.filter((laudo) => laudo.status === 'Pendente' && !laudo.revokedAt).length,
+    [ratmLaudos],
+  )
+
+  const labTrailStepCounts = useMemo(
+    () => ({
+      ...trailStepCounts,
+      [APROVACAO_TRAIL_STEP]: pendingRatmApprovalCount,
+    }),
+    [trailStepCounts, pendingRatmApprovalCount],
+  )
+
   const loadEntradaCount = useCallback(async () => {
     await refreshTrailStepCounts()
   }, [refreshTrailStepCounts])
@@ -5661,7 +5674,7 @@ function HomePanel({
                 }
                 onSelect={setSelectedLabMeasurementSection}
                 renderIcon={(title) => <ItemIcon title={title} />}
-                stepCounts={trailStepCounts}
+                stepCounts={labTrailStepCounts}
                 onOpenCalendar={() =>
                   setSelectedLabMeasurementSection(ENSAIOS_CALENDAR_SECTION)
                 }
@@ -6351,6 +6364,7 @@ function HomePanel({
                   activeStep={null}
                   onSelect={setSelectedLabMeasurementSection}
                   renderIcon={(title) => <ItemIcon title={title} />}
+                  stepCounts={labTrailStepCounts}
                   onOpenCalendar={() =>
                     setSelectedLabMeasurementSection(ENSAIOS_CALENDAR_SECTION)
                   }

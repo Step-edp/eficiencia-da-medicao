@@ -1816,6 +1816,7 @@ button {
 }
 
 .lab-trail-step {
+  position: relative;
   flex: 1;
   align-self: stretch;
   display: flex;
@@ -1901,6 +1902,12 @@ button {
   color: #ffd7d7;
   font-size: 0.72rem;
   font-weight: 700;
+}
+
+.lab-trail-step .lab-trail-step-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
 }
 
 .entrada-panel {

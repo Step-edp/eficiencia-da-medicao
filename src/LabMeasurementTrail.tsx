@@ -101,7 +101,14 @@ export function LabMeasurementTrail({
                   {renderIcon(step.key)}
                   <span className="lab-trail-step-label">{step.label}</span>
                   {count > 0 ? (
-                    <span className="lab-trail-step-badge" aria-label={`${count} pendente(s)`}>
+                    <span
+                      className="lab-trail-step-badge"
+                      aria-label={
+                        step.key === 'Aprovação de RATM'
+                          ? `${count} ${count === 1 ? 'laudo para aprovar' : 'laudos para aprovar'}`
+                          : `${count} pendente(s)`
+                      }
+                    >
                       {count}
                     </span>
                   ) : null}
