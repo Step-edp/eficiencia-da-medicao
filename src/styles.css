@@ -9902,6 +9902,25 @@ input[type='file'] {
   max-height: 230px;
 }
 
+.exclusion-justification-chart {
+  margin: 4px 0 16px;
+}
+
+.exclusion-justification-scroll {
+  max-height: 280px;
+  overflow: auto;
+}
+
+.exclusion-justification-chart .lab-bi-chart {
+  height: auto;
+  max-height: none;
+}
+
+.exclusion-justification-chart .lab-bi-axis,
+.exclusion-justification-chart .lab-bi-point {
+  font-size: 13px;
+}
+
 .lab-bi-grid {
   stroke: rgba(158, 183, 203, 0.16);
   stroke-width: 1;
