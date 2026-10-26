@@ -9842,6 +9842,7 @@ input[type='file'] {
 
 .lab-bi-legend {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 16px;
   margin-top: 6px;

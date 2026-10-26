@@ -78,7 +78,7 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
     ? requested
     : today.year
 
-  const [yearsResult, monthlyResult, inspectionsResult, filaResult, upcomingResult, blocksResult, occupiedResult] =
+  const [yearsResult, monthlyResult, inspectionsResult, ensaiosResult, filaResult, upcomingResult, blocksResult, occupiedResult] =
     await Promise.all([
       query<{ year: number }>(
         `SELECT DISTINCT EXTRACT(YEAR FROM scheduled_at AT TIME ZONE 'America/Sao_Paulo')::int AS year
@@ -196,6 +196,19 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
          ORDER BY 1`,
         [year],
       ),
+      query<{ day: string; user_id: string; name: string; total: string }>(
+        `SELECT (r.created_at AT TIME ZONE 'America/Sao_Paulo')::date::text AS day,
+                COALESCE(r.created_by_user_id, '') AS user_id,
+                COALESCE(NULLIF(BTRIM(u.name), ''), 'Não identificado') AS name,
+                COUNT(*)::int AS total
+         FROM ratm_laudos r
+         LEFT JOIN users u ON u.id = r.created_by_user_id
+         WHERE r.revoked_at IS NULL
+           AND EXTRACT(YEAR FROM r.created_at AT TIME ZONE 'America/Sao_Paulo') = $1
+         GROUP BY 1, 2, 3
+         ORDER BY 1, 3`,
+        [year],
+      ),
       query<{ meter: string; days: number }>(
         `SELECT meter, days
          FROM (
@@ -283,6 +296,12 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
     })),
     inspecoes: inspectionsResult.rows.map((row) => ({
       date: row.day.slice(0, 10),
+      total: asNumber(row.total),
+    })),
+    ensaiosPorDia: ensaiosResult.rows.map((row) => ({
+      date: row.day.slice(0, 10),
+      userId: row.user_id,
+      name: row.name,
       total: asNumber(row.total),
     })),
     filaEspera: filaResult.rows.map((row) => ({

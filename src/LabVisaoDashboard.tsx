@@ -23,6 +23,18 @@ const SHORT_MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'S
 const TMA_COLOR = '#3ec6e0'
 const PRAZO_COLOR = '#f08a3c'
 const AGENDADO_COLOR = '#c5d0dc'
+const COLLAB_COLORS = [
+  '#3ec6e0',
+  '#f08a3c',
+  '#7dff3a',
+  '#c084fc',
+  '#f472b6',
+  '#facc15',
+  '#60a5fa',
+  '#fb7185',
+  '#34d399',
+  '#e879f9',
+]
 
 type Point = { label: string; values: Array<number | null> }
 
@@ -184,6 +196,77 @@ function BarChart({
   )
 }
 
+function GroupedBarChart({
+  points,
+  series,
+  ariaLabel,
+}: {
+  points: Array<{ label: string; values: number[] }>
+  series: Array<{ name: string; color: string }>
+  ariaLabel: string
+}) {
+  const width = 760
+  const height = 220
+  const pad = { left: 32, right: 12, top: 16, bottom: 36 }
+  const max = Math.max(1, ...points.flatMap((point) => point.values))
+  const innerW = width - pad.left - pad.right
+  const innerH = height - pad.top - pad.bottom
+  const slot = innerW / Math.max(points.length, 1)
+  const gap = Math.min(6, slot * 0.15)
+  const groupWidth = Math.max(slot - gap, 4)
+  const barWidth = groupWidth / Math.max(series.length, 1)
+  const labelStep = points.length > 10 ? Math.ceil(points.length / 8) : 1
+  const showValues = points.length * series.length <= 48
+
+  return (
+    <svg className="lab-bi-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel}>
+      {points.map((point, index) => {
+        const groupX = pad.left + index * slot + gap / 2
+        return (
+          <g key={`${point.label}-${index}`}>
+            {point.values.map((value, seriesIndex) => {
+              if (!value) return null
+              const barH = (value / max) * innerH
+              const x = groupX + seriesIndex * barWidth
+              const y = pad.top + innerH - barH
+              return (
+                <g key={series[seriesIndex]?.name ?? seriesIndex}>
+                  <rect
+                    x={x + 1}
+                    y={y}
+                    width={Math.max(barWidth - 2, 1)}
+                    height={barH}
+                    rx="1.5"
+                    fill={series[seriesIndex]?.color ?? TMA_COLOR}
+                  >
+                    <title>{`${series[seriesIndex]?.name ?? ''}: ${value}`}</title>
+                  </rect>
+                  {showValues ? (
+                    <text
+                      x={x + barWidth / 2}
+                      y={y - 3}
+                      className="lab-bi-point"
+                      textAnchor="middle"
+                      fill={series[seriesIndex]?.color ?? TMA_COLOR}
+                    >
+                      {formatCount(value)}
+                    </text>
+                  ) : null}
+                </g>
+              )
+            })}
+            {index % labelStep === 0 ? (
+              <text x={groupX + groupWidth / 2} y={height - 10} className="lab-bi-axis" textAnchor="middle">
+                {point.label}
+              </text>
+            ) : null}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
 export function LabVisaoDashboard() {
   const [year, setYear] = useState(() => new Date().getFullYear())
   const [data, setData] = useState<LabVisaoDashboardData | null>(null)
@@ -249,6 +332,20 @@ export function LabVisaoDashboard() {
   const inspectionPoints = (data?.inspecoes ?? [])
     .filter((item) => selected.has(monthOf(item.date)))
     .map((item) => ({ label: dayLabel(item.date), value: item.total }))
+  const ensaioRows = (data?.ensaiosPorDia ?? []).filter((item) => selected.has(monthOf(item.date)))
+  const ensaioSeries = [...new Map(ensaioRows.map((item) => [item.userId, item.name])).entries()]
+    .sort((left, right) => left[1].localeCompare(right[1], 'pt-BR'))
+    .map(([userId, name], index) => ({
+      userId,
+      name,
+      color: COLLAB_COLORS[index % COLLAB_COLORS.length],
+    }))
+  const ensaioDays = [...new Set(ensaioRows.map((item) => item.date))].sort()
+  const ensaioTotals = new Map(ensaioRows.map((item) => [`${item.date}:${item.userId}`, item.total]))
+  const ensaioPoints = ensaioDays.map((date) => ({
+    label: dayLabel(date),
+    values: ensaioSeries.map((series) => ensaioTotals.get(`${date}:${series.userId}`) ?? 0),
+  }))
 
   function toggleMonth(month: number) {
     setMonths((current) =>
@@ -400,6 +497,28 @@ export function LabVisaoDashboard() {
                 )}
               </section>
             </div>
+
+            <section className="lab-bi-card">
+              <h4>Ensaios por dia</h4>
+              {ensaioPoints.length ? (
+                <>
+                  <div className="lab-bi-legend">
+                    {ensaioSeries.map((series) => (
+                      <span key={series.userId || series.name}>
+                        <i style={{ background: series.color }} /> {series.name}
+                      </span>
+                    ))}
+                  </div>
+                  <GroupedBarChart
+                    points={ensaioPoints}
+                    series={ensaioSeries}
+                    ariaLabel="Ensaios por dia e por colaborador"
+                  />
+                </>
+              ) : (
+                <p className="lab-bi-empty">Nenhum ensaio neste período.</p>
+              )}
+            </section>
           </div>
 
           <aside className="lab-bi-months">
