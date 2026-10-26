@@ -60,6 +60,37 @@ function scheduleSourceLabel(source: string) {
   return source || '—'
 }
 
+function statusFromSchedule(schedule: MeterScheduleRecord) {
+  const known = schedule.registryStatus?.trim()
+  if (known) return known
+  const step = schedule.trailStep.trim()
+  if (step === 'Sucata' || step === 'Pesquisa de satisfação') return 'Aprovado'
+  if (step === 'Aprovação de RATM') return 'Ensaiado'
+  if (step === 'Ensaiar') return 'Recebido'
+  return 'Agendado'
+}
+
+function registryFromSchedule(schedule: MeterScheduleRecord): MeterRegistryRecord {
+  return {
+    meter: schedule.meter,
+    installation: schedule.installation,
+    toi: schedule.toi,
+    note: schedule.note,
+    csd: schedule.csd,
+    client: '',
+    status: statusFromSchedule(schedule),
+    trailStep: schedule.trailStep,
+    manufacturer: '',
+    model: '',
+    ratmNumber: null,
+    deliveredBy: null,
+    schedulingNotes: schedule.schedulingNotes,
+    availableAt: null,
+    scheduledAt: schedule.scheduledAt,
+    receivedAt: null,
+  }
+}
+
 export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysisCompleted, onAnalysisBlocked, onAnalysisUnblocked }: MeterDetailModalProps) {
   const [loading, setLoading] = useState(true)
   const [registry, setRegistry] = useState<MeterRegistryRecord | null>(null)
@@ -106,6 +137,7 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
   }, [meter])
 
   const latestSchedule = schedules[0] ?? null
+  const cadastro = registry ?? (latestSchedule ? registryFromSchedule(latestSchedule) : null)
 
   return (
     <>
@@ -145,20 +177,20 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
           <>
             <section className="meter-detail-section" aria-label="Cadastro do medidor">
               <h4 className="meter-detail-section-title">Cadastro</h4>
-              {registry ? (
+              {cadastro ? (
                 <dl className="user-detail-grid schedule-detail-grid">
                   <div>
                     <dt>Status</dt>
-                    <dd>{displayValue(registry.status)}</dd>
+                    <dd>{displayValue(cadastro.status)}</dd>
                   </div>
                   <div>
                     <dt>Etapa na trilha</dt>
-                    <dd>{displayValue(registry.trailStep)}</dd>
+                    <dd>{displayValue(cadastro.trailStep)}</dd>
                   </div>
                   <div>
                     <dt>Instalação</dt>
                     <dd>
-                      {displayValue(registry.installation)}
+                      {displayValue(cadastro.installation)}
                       <FillingCorrectionNote
                         field="installation"
                         mark={latestSchedule?.installationMark}
@@ -169,7 +201,7 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
                   <div>
                     <dt>TOI</dt>
                     <dd>
-                      {displayValue(registry.toi)}
+                      {displayValue(cadastro.toi)}
                       <FillingCorrectionNote
                         field="toi"
                         mark={latestSchedule?.toiMark}
@@ -180,7 +212,7 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
                   <div>
                     <dt>Nota</dt>
                     <dd>
-                      {displayValue(registry.note)}
+                      {displayValue(cadastro.note)}
                       <FillingCorrectionNote
                         field="note"
                         mark={latestSchedule?.noteMark}
@@ -191,7 +223,7 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
                   <div>
                     <dt>CSD</dt>
                     <dd>
-                      {displayValue(registry.csd)}
+                      {displayValue(cadastro.csd)}
                       <FillingCorrectionNote
                         field="csd"
                         mark={latestSchedule?.csdMark}
@@ -201,40 +233,40 @@ export function MeterDetailModal({ meter, onClose, onDocumentsChanged, onAnalysi
                   </div>
                   <div>
                     <dt>Cliente</dt>
-                    <dd>{displayValue(registry.client)}</dd>
+                    <dd>{displayValue(cadastro.client)}</dd>
                   </div>
                   <div>
                     <dt>Fabricante</dt>
-                    <dd>{displayValue(registry.manufacturer)}</dd>
+                    <dd>{displayValue(cadastro.manufacturer)}</dd>
                   </div>
                   <div>
                     <dt>Modelo</dt>
-                    <dd>{displayValue(registry.model)}</dd>
+                    <dd>{displayValue(cadastro.model)}</dd>
                   </div>
                   <div>
                     <dt>Nº RATM</dt>
-                    <dd>{displayValue(registry.ratmNumber)}</dd>
+                    <dd>{displayValue(cadastro.ratmNumber)}</dd>
                   </div>
                   <div>
                     <dt>Entregue por</dt>
-                    <dd>{displayValue(registry.deliveredBy)}</dd>
+                    <dd>{displayValue(cadastro.deliveredBy)}</dd>
                   </div>
                   <div>
                     <dt>Disponível em</dt>
-                    <dd>{formatDateTime(registry.availableAt)}</dd>
+                    <dd>{formatDateTime(cadastro.availableAt)}</dd>
                   </div>
                   <div>
                     <dt>Agendado em</dt>
-                    <dd>{formatDateTime(registry.scheduledAt)}</dd>
+                    <dd>{formatDateTime(cadastro.scheduledAt)}</dd>
                   </div>
                   <div>
                     <dt>Recebido em</dt>
-                    <dd>{formatDateTime(registry.receivedAt)}</dd>
+                    <dd>{formatDateTime(cadastro.receivedAt)}</dd>
                   </div>
-                  {registry.schedulingNotes?.trim() ? (
+                  {cadastro.schedulingNotes?.trim() ? (
                     <div className="user-detail-full">
                       <dt>Observações</dt>
-                      <dd>{registry.schedulingNotes.trim()}</dd>
+                      <dd>{cadastro.schedulingNotes.trim()}</dd>
                     </div>
                   ) : null}
                 </dl>

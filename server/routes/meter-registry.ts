@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express'
 import { query } from '../db.js'
+import { ensureMeterRegistryFromSchedules } from '../ensure-meter-registry.js'
 import {
   APROVACAO_TRAIL_STEP,
   ENTRADA_TRAIL_STEP,
@@ -196,16 +197,27 @@ export async function getMeterRegistry(req: Request, res: Response) {
     return
   }
 
-  const result = await query<MeterRegistryRow>(
-    `SELECT meter, installation, toi, note, csd, client, status, trail_step,
-            manufacturer, model, ratm_number, delivered_by, scheduling_notes,
-            available_at, scheduled_at, received_at
-     FROM meter_registry
-     WHERE ${normalizedMeterColumnSql()} = $1
-     ORDER BY CASE WHEN meter = $2 THEN 0 ELSE 1 END, received_at DESC NULLS LAST
-     LIMIT 1`,
-    [meterKey, meter],
-  )
+  const loadRegistry = () =>
+    query<MeterRegistryRow>(
+      `SELECT meter, installation, toi, note, csd, client, status, trail_step,
+              manufacturer, model, ratm_number, delivered_by, scheduling_notes,
+              available_at, scheduled_at, received_at
+       FROM meter_registry
+       WHERE ${normalizedMeterColumnSql()} = $1
+       ORDER BY CASE WHEN meter = $2 THEN 0 ELSE 1 END, received_at DESC NULLS LAST
+       LIMIT 1`,
+      [meterKey, meter],
+    )
+
+  let result = await loadRegistry()
+  if (!result.rows[0]) {
+    try {
+      await ensureMeterRegistryFromSchedules(meterKey)
+      result = await loadRegistry()
+    } catch (error) {
+      console.error('Não foi possível criar o cadastro a partir do agendamento.', error)
+    }
+  }
 
   res.json({
     meter,

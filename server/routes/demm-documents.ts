@@ -7,6 +7,7 @@ import { loadInspectionSummariesByNorm, loadInspectionAnalysisStatusByMeter, typ
 import { normalizeScheduleMeter } from '../numeric-field-validation.js'
 import { validateDemmUploadMeters, applyDemmReplacements } from '../demm-upload-validation.js'
 import { alignSchedulesCsdFromDemm } from '../demm-csd-alignment.js'
+import { ensureMeterRegistryFromSchedules } from '../ensure-meter-registry.js'
 import { resolvePontoFocalCsdNames } from '../ponto-focal-csds.js'
 import {
   ENTRADA_TRAIL_STEP,
@@ -1239,6 +1240,12 @@ async function applyWeekMeterReceive(
       schedule.meter,
     ],
   )
+
+  try {
+    await ensureMeterRegistryFromSchedules(normalizeScheduleMeter(schedule.meter))
+  } catch (error) {
+    console.error('Não foi possível criar o cadastro a partir do recebimento.', error)
+  }
 
   await writeAuditLog(req, {
     action: 'update',

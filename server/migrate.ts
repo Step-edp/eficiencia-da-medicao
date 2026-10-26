@@ -1,5 +1,6 @@
 import { query } from './db.js'
 import { alignSchedulesCsdFromExistingDemms } from './demm-csd-alignment.js'
+import { ensureMeterRegistryFromSchedules } from './ensure-meter-registry.js'
 import { ensureFillingDeviationsFromSchedules } from './filling-deviations.js'
 import { seedAlinhamentoPadroes } from './alinhamento-padroes-seed.js'
 
@@ -1480,4 +1481,6 @@ export async function migrate() {
       AND laudo.status = 'Aprovado'
       AND laudo.approved_at IS NULL
   `)
+
+  await ensureMeterRegistryFromSchedules()
 }
