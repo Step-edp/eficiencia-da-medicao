@@ -1483,4 +1483,39 @@ export async function migrate() {
   `)
 
   await ensureMeterRegistryFromSchedules()
+
+  await query(`
+    UPDATE toi_schedule_deviations AS deviation
+    SET collaborator1_name = CASE
+          WHEN BTRIM(COALESCE(schedule.toi_collaborator1_registration, '')) <> ''
+            OR BTRIM(COALESCE(schedule.toi_collaborator2_registration, '')) <> ''
+          THEN COALESCE(schedule.toi_collaborator1_name, '')
+          ELSE COALESCE(creator.name, '')
+        END,
+        collaborator1_registration = CASE
+          WHEN BTRIM(COALESCE(schedule.toi_collaborator1_registration, '')) <> ''
+            OR BTRIM(COALESCE(schedule.toi_collaborator2_registration, '')) <> ''
+          THEN COALESCE(schedule.toi_collaborator1_registration, '')
+          ELSE COALESCE(creator.registration, '')
+        END,
+        collaborator2_name = CASE
+          WHEN BTRIM(COALESCE(schedule.toi_collaborator1_registration, '')) <> ''
+            OR BTRIM(COALESCE(schedule.toi_collaborator2_registration, '')) <> ''
+          THEN COALESCE(schedule.toi_collaborator2_name, '')
+          ELSE COALESCE(schedule.partner_name, '')
+        END,
+        collaborator2_registration = CASE
+          WHEN BTRIM(COALESCE(schedule.toi_collaborator1_registration, '')) <> ''
+            OR BTRIM(COALESCE(schedule.toi_collaborator2_registration, '')) <> ''
+          THEN COALESCE(schedule.toi_collaborator2_registration, '')
+          ELSE COALESCE(schedule.partner_registration, '')
+        END
+    FROM meter_schedules AS schedule
+    LEFT JOIN users AS creator ON creator.id = schedule.created_by_user_id
+    WHERE deviation.meter_schedule_id = schedule.id
+      AND BTRIM(COALESCE(deviation.collaborator1_name, '')) = ''
+      AND BTRIM(COALESCE(deviation.collaborator1_registration, '')) = ''
+      AND BTRIM(COALESCE(deviation.collaborator2_name, '')) = ''
+      AND BTRIM(COALESCE(deviation.collaborator2_registration, '')) = ''
+  `)
 }

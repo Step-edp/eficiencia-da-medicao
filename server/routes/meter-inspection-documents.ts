@@ -1046,8 +1046,8 @@ function collaboratorsFromSchedule(row: {
   toi_collaborator2_registration: string
   partner_name: string
   partner_registration: string
-  created_by_name?: string
-  created_by_registration?: string
+  created_by_name?: string | null
+  created_by_registration?: string | null
 }) {
   const collaborator1Name = row.toi_collaborator1_name.trim()
   const collaborator1Registration = row.toi_collaborator1_registration.trim()
@@ -1376,9 +1376,22 @@ async function syncWpaPhotoDeviations(params: {
         `UPDATE toi_schedule_deviations
          SET scheduled_label = $1,
              document_label = $2,
-             description = $3
+             description = $3,
+             collaborator1_name = $5,
+             collaborator1_registration = $6,
+             collaborator2_name = $7,
+             collaborator2_registration = $8
          WHERE id = $4`,
-        [fieldLabel, spec.documentLabel, spec.description, existing.rows[0].id],
+        [
+          fieldLabel,
+          spec.documentLabel,
+          spec.description,
+          existing.rows[0].id,
+          params.collaborator1Name,
+          params.collaborator1Registration,
+          params.collaborator2Name,
+          params.collaborator2Registration,
+        ],
       )
       continue
     }
@@ -4139,11 +4152,20 @@ export async function updateInspectionWpa(req: Request, res: Response) {
     toi_collaborator1_registration: string
     toi_collaborator2_name: string
     toi_collaborator2_registration: string
+    partner_name: string
+    partner_registration: string
+    created_by_name: string | null
+    created_by_registration: string | null
   }>(
-    `SELECT id, meter,
-            toi_collaborator1_name, toi_collaborator1_registration,
-            toi_collaborator2_name, toi_collaborator2_registration
-     FROM meter_schedules WHERE id = $1`,
+    `SELECT ms.id, ms.meter,
+            ms.toi_collaborator1_name, ms.toi_collaborator1_registration,
+            ms.toi_collaborator2_name, ms.toi_collaborator2_registration,
+            ms.partner_name, ms.partner_registration,
+            u.name AS created_by_name,
+            u.registration AS created_by_registration
+     FROM meter_schedules ms
+     LEFT JOIN users u ON u.id = ms.created_by_user_id
+     WHERE ms.id = $1`,
     [meterScheduleId],
   )
   if (!existing.rows[0]) {
@@ -4210,13 +4232,11 @@ export async function updateInspectionWpa(req: Request, res: Response) {
     ],
   )
 
+  const schedulePeople = collaboratorsFromSchedule(existing.rows[0])
   await syncWpaPhotoDeviations({
     scheduleId: meterScheduleId,
     meter: nextScheduleMeter,
-    collaborator1Name: existing.rows[0].toi_collaborator1_name ?? '',
-    collaborator1Registration: existing.rows[0].toi_collaborator1_registration ?? '',
-    collaborator2Name: existing.rows[0].toi_collaborator2_name ?? '',
-    collaborator2Registration: existing.rows[0].toi_collaborator2_registration ?? '',
+    ...schedulePeople,
     createdByUserId: req.user?.id ?? null,
     wpa: { meter, lacre, coverSeal, coverSeal2, reading, scheduleLacre },
   })
