@@ -52,54 +52,62 @@ function ExclusionJustificationChart({ exclusions }: { exclusions: ScheduleExclu
   }, [exclusions])
 
   const width = 760
-  const rowHeight = 36
-  const pad = { left: 248, right: 46, top: 8, bottom: 8 }
+  const maxChartHeight = 200
+  const pad = { left: 236, right: 40, top: 4, bottom: 4 }
+  const rowHeight = Math.min(22, (maxChartHeight - pad.top - pad.bottom) / groups.length)
   const height = pad.top + pad.bottom + groups.length * rowHeight
+  const barHeight = Math.min(10, rowHeight * 0.62)
+  const fontSize = Math.min(11, rowHeight * 0.7)
   const max = Math.max(1, ...groups.map((group) => group.count))
   const innerWidth = width - pad.left - pad.right
 
   return (
     <article className="lab-bi-card exclusion-justification-chart">
       <h4>Justificativas de exclusão</h4>
-      <div className="exclusion-justification-scroll">
-        <svg
-          className="lab-bi-chart"
-          viewBox={`0 0 ${width} ${height}`}
-          role="img"
-          aria-label="Quantidade de exclusões por justificativa"
-        >
-          {groups.map((group, index) => {
-            const y = pad.top + index * rowHeight
-            const barWidth = Math.max((group.count / max) * innerWidth, 8)
-            return (
-              <g key={group.label}>
-                <title>
-                  {group.label}: {group.count}
-                </title>
-                <text
-                  className="lab-bi-axis"
-                  x={pad.left - 12}
-                  y={y + 22}
-                  textAnchor="end"
-                >
-                  {truncateLabel(group.label, 32)}
-                </text>
-                <rect
-                  x={pad.left}
-                  y={y + 8}
-                  width={barWidth}
-                  height={18}
-                  rx={8}
-                  fill={JUSTIFICATION_COLORS[index % JUSTIFICATION_COLORS.length]}
-                />
-                <text className="lab-bi-point" x={pad.left + barWidth + 8} y={y + 22}>
-                  {group.count}
-                </text>
-              </g>
-            )
-          })}
-        </svg>
-      </div>
+      <svg
+        className="lab-bi-chart"
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label="Quantidade de exclusões por justificativa"
+      >
+        {groups.map((group, index) => {
+          const y = pad.top + index * rowHeight
+          const barWidth = Math.max((group.count / max) * innerWidth, 6)
+          const textY = y + rowHeight * 0.74
+          return (
+            <g key={group.label}>
+              <title>
+                {group.label}: {group.count}
+              </title>
+              <text
+                className="lab-bi-axis"
+                x={pad.left - 8}
+                y={textY}
+                textAnchor="end"
+                style={{ fontSize }}
+              >
+                {truncateLabel(group.label, 34)}
+              </text>
+              <rect
+                x={pad.left}
+                y={y + (rowHeight - barHeight) / 2}
+                width={barWidth}
+                height={barHeight}
+                rx={Math.min(6, barHeight / 2)}
+                fill={JUSTIFICATION_COLORS[index % JUSTIFICATION_COLORS.length]}
+              />
+              <text
+                className="lab-bi-point"
+                x={pad.left + barWidth + 6}
+                y={textY}
+                style={{ fontSize }}
+              >
+                {group.count}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
     </article>
   )
 }
