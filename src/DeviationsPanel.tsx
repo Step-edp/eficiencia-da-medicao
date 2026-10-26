@@ -146,10 +146,6 @@ export function DeviationsPanel({
       <div className="entrada-section-heading">
         <h3 className="entrada-section-title">Desvios</h3>
       </div>
-      <p className="entrada-panel-intro">
-        Consulte os apontamentos de desvio gerados para os colaboradores do TOI e os registros de
-        exclusão de agendamentos ou da lista de medidores atrasados.
-      </p>
 
       <div
         className="panel-switch users-view-switch"
@@ -182,7 +178,6 @@ export function DeviationsPanel({
           embedded
           scope="all"
           title="Apontamentos de desvio"
-          intro="Desvios de preenchimento (instalação, TOI, nota ou CSD corrigidos), medidor cadastrado no CSD errado, medidor agendado errado, data/horário de agendamento diferente do documento, medidor não agendado no ato da inspeção, documento de inspeção inserido errado, documento importado errado, documento de inspeção importado pelo laboratório, ausência de registro fotográfico e registro fotográfico com baixa qualidade."
           includeFillingDeviations
           readOnly={readOnly}
           onPendingCountChange={onPendingCountChange}
