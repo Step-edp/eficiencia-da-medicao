@@ -24,7 +24,12 @@ const MESES = [
   'Dezembro',
 ]
 
-const POSICOES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+const POSICOES_PADRAO = 10
+const UMA_POSICAO = new Set(['49093', '49107'])
+
+function quantidadePosicoes(codigo: string) {
+  return UMA_POSICAO.has(codigo.trim()) ? 1 : POSICOES_PADRAO
+}
 
 type Tab = 'medicoes' | 'equipamentos' | 'referencia'
 type Modo = 'medir' | 'manutencao'
@@ -55,8 +60,8 @@ const emptyReferencia: ReferenciaDraft = {
   numeroSerie: '',
 }
 
-function emptyPosicoes(): PosicaoDraft[] {
-  return POSICOES.map(() => ({ nominal: '', indutiva: '', pequena: '' }))
+function emptyPosicoes(total: number): PosicaoDraft[] {
+  return Array.from({ length: total }, () => ({ nominal: '', indutiva: '', pequena: '' }))
 }
 
 function equipamentoLabel(item: Pick<AlinhamentoEquipamentoRecord, 'identificacao' | 'codigo'>) {
@@ -72,8 +77,12 @@ function medicaoKey(equipamentoId: string, ano: number, mes: number) {
   return `${equipamentoId}:${ano}:${mes}`
 }
 
-function draftFromMedicao(medicao: AlinhamentoMedicaoRecord | undefined, equipamentoId: string): EquipamentoDraft {
-  const posicoes = emptyPosicoes()
+function draftFromMedicao(
+  medicao: AlinhamentoMedicaoRecord | undefined,
+  equipamentoId: string,
+  totalPosicoes: number,
+): EquipamentoDraft {
+  const posicoes = emptyPosicoes(totalPosicoes)
   if (!medicao) return { equipamentoId, modo: 'medir', posicoes }
   for (const item of medicao.posicoes) {
     const index = item.posicao - 1
@@ -156,7 +165,11 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
     setMesAberto(mes)
     setDrafts(
       equipamentos.map((item) =>
-        draftFromMedicao(medicoesPorChave.get(medicaoKey(item.id, ano, mes)), item.id),
+        draftFromMedicao(
+          medicoesPorChave.get(medicaoKey(item.id, ano, mes)),
+          item.id,
+          quantidadePosicoes(item.codigo),
+        ),
       ),
     )
     setFeedback(null)

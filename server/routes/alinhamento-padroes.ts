@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import { pool, query } from '../db.js'
 
 const MESES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+const UMA_POSICAO = new Set(['49093', '49107'])
 
 type ReferenciaRow = {
   id: string
@@ -286,13 +287,25 @@ export async function saveAlinhamentoMedicoes(req: Request, res: Response) {
     return
   }
 
-  const equipamentos = await query<{ id: string }>(
-    `SELECT id FROM alinhamento_equipamentos WHERE id = ANY($1::text[])`,
+  const equipamentos = await query<{ id: string; codigo: string }>(
+    `SELECT id, codigo FROM alinhamento_equipamentos WHERE id = ANY($1::text[])`,
     [itens.map((item) => item.equipamentoId)],
   )
   if (equipamentos.rows.length !== new Set(itens.map((item) => item.equipamentoId)).size) {
     res.status(400).json({ error: 'Há equipamento não cadastrado na medição.' })
     return
+  }
+  const codigoById = new Map(equipamentos.rows.map((row) => [row.id, row.codigo.trim()]))
+  for (const item of itens) {
+    const codigo = codigoById.get(item.equipamentoId) ?? ''
+    if (
+      !item.emManutencao &&
+      UMA_POSICAO.has(codigo) &&
+      (item.posicoes.length !== 1 || item.posicoes[0]?.posicao !== 1)
+    ) {
+      res.status(400).json({ error: `O equipamento ${codigo} registra apenas uma posição.` })
+      return
+    }
   }
 
   const client = await pool.connect()
