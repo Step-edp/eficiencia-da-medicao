@@ -9522,6 +9522,10 @@ input[type='file'] {
   gap: 6px;
 }
 
+.alinhamento-referencia-leitura {
+  margin: 4px 0 16px;
+}
+
 .alinhamento-chip {
   width: auto;
   margin: 0;

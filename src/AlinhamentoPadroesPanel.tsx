@@ -60,6 +60,18 @@ const emptyReferencia: ReferenciaDraft = {
   numeroSerie: '',
 }
 
+const REFERENCIA_CAMPOS = [
+  ['fabricante', 'Fabricante'],
+  ['modelo', 'Modelo'],
+  ['classe', 'Classe'],
+  ['tensaoNominal', 'Tensão nominal'],
+  ['correnteNominal', 'Corrente nominal'],
+  ['frequencia', 'Frequência'],
+  ['khKe', 'Kh/Ke'],
+  ['portariaInmetro', 'Portaria do INMETRO'],
+  ['numeroSerie', 'Número de série'],
+] as const
+
 function emptyPosicoes(total: number): PosicaoDraft[] {
   return Array.from({ length: total }, () => ({ nominal: '', indutiva: '', pequena: '' }))
 }
@@ -125,6 +137,7 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
   const [drafts, setDrafts] = useState<EquipamentoDraft[]>([])
   const [equipamentoForm, setEquipamentoForm] = useState({ identificacao: '', codigo: '' })
   const [referencia, setReferencia] = useState<ReferenciaDraft>(emptyReferencia)
+  const [editandoReferencia, setEditandoReferencia] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -300,6 +313,15 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
     }
   }
 
+  function referenciaSalva(): ReferenciaDraft {
+    return snapshot?.referencia ? { ...emptyReferencia, ...snapshot.referencia } : emptyReferencia
+  }
+
+  function cancelarEdicaoReferencia() {
+    setReferencia(referenciaSalva())
+    setEditandoReferencia(false)
+  }
+
   async function salvarReferencia(event: FormEvent) {
     event.preventDefault()
     setSaving(true)
@@ -310,6 +332,7 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
         current ? { ...current, referencia: saved } : { referencia: saved, equipamentos: [], medicoes: [] },
       )
       setReferencia({ ...emptyReferencia, ...saved })
+      setEditandoReferencia(false)
       setFeedback({ type: 'success', message: 'Medidor referência salvo.' })
     } catch (error) {
       setFeedback({
@@ -339,6 +362,10 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
               aria-selected={tab === id}
               className={`alinhamento-chip${tab === id ? ' is-selected' : ''}`}
               onClick={() => {
+                if (tab === 'referencia' && id !== 'referencia' && editandoReferencia) {
+                  setReferencia(referenciaSalva())
+                  setEditandoReferencia(false)
+                }
                 setTab(id)
                 setMesAberto(null)
                 setFeedback(null)
@@ -588,40 +615,57 @@ export function AlinhamentoPadroesPanel({ readOnly = false }: { readOnly?: boole
       ) : null}
 
       {!loading && tab === 'referencia' ? (
-        <form className="material-form-grid" onSubmit={salvarReferencia}>
-          {(
-            [
-              ['fabricante', 'Fabricante'],
-              ['modelo', 'Modelo'],
-              ['classe', 'Classe'],
-              ['tensaoNominal', 'Tensão nominal'],
-              ['correnteNominal', 'Corrente nominal'],
-              ['frequencia', 'Frequência'],
-              ['khKe', 'Kh/Ke'],
-              ['portariaInmetro', 'Portaria do INMETRO'],
-              ['numeroSerie', 'Número de série'],
-            ] as const
-          ).map(([field, label]) => (
-            <label key={field}>
-              {label}
-              <input
-                value={referencia[field]}
-                onChange={(event) =>
-                  setReferencia((current) => ({ ...current, [field]: event.target.value }))
-                }
-                required={field === 'numeroSerie'}
-                readOnly={readOnly}
-              />
-            </label>
-          ))}
-          {readOnly ? null : (
+        editandoReferencia && !readOnly ? (
+          <form className="material-form-grid" onSubmit={salvarReferencia}>
+            {REFERENCIA_CAMPOS.map(([field, label]) => (
+              <label key={field}>
+                {label}
+                <input
+                  value={referencia[field]}
+                  onChange={(event) =>
+                    setReferencia((current) => ({ ...current, [field]: event.target.value }))
+                  }
+                  required={field === 'numeroSerie'}
+                />
+              </label>
+            ))}
             <div className="agenda-form-actions">
+              <button
+                type="button"
+                className="alinhamento-chip"
+                disabled={saving}
+                onClick={cancelarEdicaoReferencia}
+              >
+                Cancelar
+              </button>
               <button type="submit" className="alinhamento-chip alinhamento-chip-action" disabled={saving}>
                 {saving ? 'Salvando...' : 'Salvar medidor referência'}
               </button>
             </div>
-          )}
-        </form>
+          </form>
+        ) : (
+          <>
+            <dl className="user-detail-grid alinhamento-referencia-leitura">
+              {REFERENCIA_CAMPOS.map(([field, label]) => (
+                <div key={field}>
+                  <dt>{label}</dt>
+                  <dd>{referencia[field].trim() || '—'}</dd>
+                </div>
+              ))}
+            </dl>
+            {readOnly ? null : (
+              <div className="agenda-form-actions">
+                <button
+                  type="button"
+                  className="alinhamento-chip alinhamento-chip-action"
+                  onClick={() => setEditandoReferencia(true)}
+                >
+                  Editar
+                </button>
+              </div>
+            )}
+          </>
+        )
       ) : null}
     </div>
   )
