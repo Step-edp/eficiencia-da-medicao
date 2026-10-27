@@ -3049,6 +3049,16 @@ button {
   color: #ffd4cc;
 }
 
+.ensaio-resultado.is-aprovado {
+  background: rgba(85, 219, 136, 0.16);
+  color: #d6ffe7;
+}
+
+.ensaio-resultado.is-reprovado {
+  background: rgba(255, 93, 93, 0.2);
+  color: #ffd0d0;
+}
+
 .week-meters-filters {
   display: flex;
   flex-wrap: wrap;

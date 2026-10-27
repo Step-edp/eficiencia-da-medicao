@@ -688,6 +688,7 @@ export type EnsaioSessaoRecord = {
   createdByUserId: string | null
   createdByName: string | null
   createdByRegistration: string | null
+  resultado: 'Aprovado' | 'Reprovado' | null
 }
 
 export type EnsaioSessaoMedicaoRecord = EnsaioMedicaoRecord & {

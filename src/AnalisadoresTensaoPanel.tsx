@@ -1250,6 +1250,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                   <th>Número de série</th>
                   <th>Registrado por</th>
                   <th>Em</th>
+                  <th>Resultado</th>
                   <th aria-label="Ações" />
                 </tr>
               </thead>
@@ -1259,6 +1260,19 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                     <td>{sessao.numeroSerie}</td>
                     <td>{sessao.createdByName || sessao.createdByRegistration || '—'}</td>
                     <td>{formatAuditDate(sessao.createdAt)}</td>
+                    <td>
+                      {sessao.resultado ? (
+                        <span
+                          className={`demm-status-badge ensaio-resultado ${
+                            sessao.resultado === 'Aprovado' ? 'is-aprovado' : 'is-reprovado'
+                          }`}
+                        >
+                          {sessao.resultado}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td className="ensaios-realizados-actions">
                       <button
                         type="button"

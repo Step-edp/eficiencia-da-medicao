@@ -785,16 +785,47 @@ export async function listEnsaiosRealizados(_req: Request, res: Response) {
      ORDER BY MIN(m.created_at) DESC, a.numero_serie ASC`,
   )
 
+  const medicoes = await query<
+    EnsaioMedicaoDbRow & { ensaio_id: string; analisador_id: string }
+  >(
+    `SELECT ensaio_id, analisador_id, voltage, teste_numero,
+            padrao_fase_a, padrao_fase_b, padrao_fase_c,
+            equipamento_fase_a, equipamento_fase_b, equipamento_fase_c
+     FROM analisador_tensao_ensaio_medicoes`,
+  )
+  const medicoesPorEnsaio = new Map<string, EnsaioMedicaoDbRow[]>()
+  for (const row of medicoes.rows) {
+    const key = `${row.ensaio_id}:${row.analisador_id}`
+    const list = medicoesPorEnsaio.get(key) ?? []
+    list.push(row)
+    medicoesPorEnsaio.set(key, list)
+  }
+
   res.json({
-    ensaios: result.rows.map((row) => ({
-      ensaioId: row.ensaio_id,
-      analisadorId: row.analisador_id,
-      numeroSerie: row.numero_serie,
-      createdAt: row.created_at.toISOString(),
-      createdByUserId: row.created_by_user_id,
-      createdByName: row.created_by_name,
-      createdByRegistration: row.created_by_registration,
-    })),
+    ensaios: result.rows.map((row) => {
+      const certificado = buildCertificado(
+        (medicoesPorEnsaio.get(`${row.ensaio_id}:${row.analisador_id}`) ?? []).map((medicao) => ({
+          voltage: medicao.voltage,
+          testeNumero: medicao.teste_numero,
+          padraoFaseA: medicao.padrao_fase_a,
+          padraoFaseB: medicao.padrao_fase_b,
+          padraoFaseC: medicao.padrao_fase_c,
+          equipamentoFaseA: medicao.equipamento_fase_a,
+          equipamentoFaseB: medicao.equipamento_fase_b,
+          equipamentoFaseC: medicao.equipamento_fase_c,
+        })),
+      )
+      return {
+        ensaioId: row.ensaio_id,
+        analisadorId: row.analisador_id,
+        numeroSerie: row.numero_serie,
+        createdAt: row.created_at.toISOString(),
+        createdByUserId: row.created_by_user_id,
+        createdByName: row.created_by_name,
+        createdByRegistration: row.created_by_registration,
+        resultado: certificado?.resultado ?? null,
+      }
+    }),
   })
 }
 
