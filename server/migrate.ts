@@ -1518,4 +1518,16 @@ export async function migrate() {
       AND BTRIM(COALESCE(deviation.collaborator2_name, '')) = ''
       AND BTRIM(COALESCE(deviation.collaborator2_registration, '')) = ''
   `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS analisador_tensao_ensaio_aprovacoes (
+      ensaio_id TEXT NOT NULL,
+      analisador_id TEXT NOT NULL REFERENCES analisadores_tensao(id) ON DELETE CASCADE,
+      status TEXT NOT NULL CHECK (status IN ('Aprovado', 'Reprovado')),
+      justification TEXT NOT NULL DEFAULT '',
+      decided_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      decided_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (ensaio_id, analisador_id)
+    )
+  `)
 }

@@ -767,6 +767,11 @@ type EnsaioSessaoDbRow = {
   created_by_user_id: string | null
   created_by_name: string | null
   created_by_registration: string | null
+  approval_status: 'Aprovado' | 'Reprovado' | null
+  approval_justification: string | null
+  decided_at: Date | null
+  decided_by_user_id: string | null
+  decided_by_name: string | null
 }
 
 export async function listEnsaiosRealizados(_req: Request, res: Response) {
@@ -777,11 +782,20 @@ export async function listEnsaiosRealizados(_req: Request, res: Response) {
             MIN(m.created_at) AS created_at,
             m.created_by_user_id,
             u.name AS created_by_name,
-            u.registration AS created_by_registration
+            u.registration AS created_by_registration,
+            ap.status AS approval_status,
+            ap.justification AS approval_justification,
+            ap.decided_at,
+            ap.decided_by_user_id,
+            decider.name AS decided_by_name
      FROM analisador_tensao_ensaio_medicoes m
      JOIN analisadores_tensao a ON a.id = m.analisador_id
      LEFT JOIN users u ON u.id = m.created_by_user_id
-     GROUP BY m.ensaio_id, a.id, a.numero_serie, m.created_by_user_id, u.name, u.registration
+     LEFT JOIN analisador_tensao_ensaio_aprovacoes ap
+       ON ap.ensaio_id = m.ensaio_id AND ap.analisador_id = a.id
+     LEFT JOIN users decider ON decider.id = ap.decided_by_user_id
+     GROUP BY m.ensaio_id, a.id, a.numero_serie, m.created_by_user_id, u.name, u.registration,
+              ap.status, ap.justification, ap.decided_at, ap.decided_by_user_id, decider.name
      ORDER BY MIN(m.created_at) DESC, a.numero_serie ASC`,
   )
 
@@ -824,8 +838,143 @@ export async function listEnsaiosRealizados(_req: Request, res: Response) {
         createdByName: row.created_by_name,
         createdByRegistration: row.created_by_registration,
         resultado: certificado?.resultado ?? null,
+        approvalStatus: row.approval_status ?? 'Pendente',
+        approvalJustification: row.approval_justification ?? '',
+        decidedAt: row.decided_at?.toISOString() ?? null,
+        decidedByUserId: row.decided_by_user_id,
+        decidedByName: row.decided_by_name,
       }
     }),
+  })
+}
+
+async function loadLaboratorioMedicaoUser(userId: string | null | undefined) {
+  if (!userId) return null
+  const result = await query<{
+    id: string
+    name: string
+    registration: string
+    work_area: string
+    work_subtype: string
+    approval_status: string
+  }>(
+    `SELECT id, name, registration, work_area, work_subtype, approval_status
+     FROM users
+     WHERE id = $1`,
+    [userId],
+  )
+  const user = result.rows[0]
+  if (!user || user.approval_status !== 'approved') return null
+  const subtype = (user.work_subtype ?? '').trim().replace(/\u2013/g, '-').replace(/\u2014/g, '-')
+  if (user.work_area?.trim() !== 'Medição' || subtype !== 'Laboratório de Medição') return null
+  return user
+}
+
+export async function decidirEnsaioAnalisador(req: Request, res: Response) {
+  const ensaioId = typeof req.params.ensaioId === 'string' ? req.params.ensaioId.trim() : ''
+  const analisadorId =
+    typeof req.body?.analisadorId === 'string' ? req.body.analisadorId.trim() : ''
+  const decision = req.body?.decision
+  const justification =
+    typeof req.body?.justification === 'string' ? req.body.justification.trim() : ''
+
+  if (!ensaioId || !analisadorId) {
+    res.status(400).json({ error: 'Informe o ensaio e o analisador.' })
+    return
+  }
+  if (decision !== 'Aprovado' && decision !== 'Reprovado') {
+    res.status(400).json({ error: 'Informe se o laudo será aprovado ou reprovado.' })
+    return
+  }
+  if (decision === 'Reprovado' && justification.length < 5) {
+    res.status(400).json({ error: 'Informe a justificativa da reprovação (mínimo de 5 caracteres).' })
+    return
+  }
+  if (req.user?.role === 'admin') {
+    res.status(403).json({ error: 'O administrador não pode aprovar o laudo.' })
+    return
+  }
+
+  const approver = await loadLaboratorioMedicaoUser(req.user?.id)
+  if (!approver) {
+    res.status(403).json({
+      error: 'Somente usuários do Laboratório de Medição podem decidir o laudo.',
+    })
+    return
+  }
+
+  const sessao = await query<{ created_by_user_id: string | null; numero_serie: string }>(
+    `SELECT m.created_by_user_id, a.numero_serie
+     FROM analisador_tensao_ensaio_medicoes m
+     JOIN analisadores_tensao a ON a.id = m.analisador_id
+     WHERE m.ensaio_id = $1 AND m.analisador_id = $2
+     LIMIT 1`,
+    [ensaioId, analisadorId],
+  )
+  const row = sessao.rows[0]
+  if (!row) {
+    res.status(404).json({ error: 'Ensaio não encontrado para aprovação.' })
+    return
+  }
+  if (row.created_by_user_id && row.created_by_user_id === approver.id) {
+    res.status(403).json({
+      error: 'Quem realizou o ensaio não pode aprovar o próprio laudo.',
+    })
+    return
+  }
+
+  const existing = await query<{ status: string }>(
+    `SELECT status
+     FROM analisador_tensao_ensaio_aprovacoes
+     WHERE ensaio_id = $1 AND analisador_id = $2`,
+    [ensaioId, analisadorId],
+  )
+  if (existing.rows[0]) {
+    res.status(409).json({ error: 'Este laudo já foi decidido.' })
+    return
+  }
+
+  const saved = await query<{
+    status: 'Aprovado' | 'Reprovado'
+    justification: string
+    decided_at: Date
+    decided_by_user_id: string | null
+    decided_by_name: string | null
+  }>(
+    `INSERT INTO analisador_tensao_ensaio_aprovacoes (
+       ensaio_id, analisador_id, status, justification, decided_by_user_id
+     ) VALUES ($1, $2, $3, $4, $5)
+     RETURNING status, justification, decided_at, decided_by_user_id,
+       (SELECT name FROM users WHERE id = decided_by_user_id) AS decided_by_name`,
+    [ensaioId, analisadorId, decision, decision === 'Reprovado' ? justification : '', approver.id],
+  )
+  const decisionRow = saved.rows[0]
+
+  await writeAuditLog(req, {
+    action: decision === 'Aprovado' ? 'approve' : 'reject',
+    entityType: 'analisador_tensao',
+    entityId: ensaioId,
+    summary:
+      decision === 'Aprovado'
+        ? `Laudo do analisador ${row.numero_serie} aprovado`
+        : `Laudo do analisador ${row.numero_serie} reprovado`,
+    newData: {
+      ensaioId,
+      analisadorId,
+      numeroSerie: row.numero_serie,
+      status: decision,
+      justification: decision === 'Reprovado' ? justification : '',
+    },
+  })
+
+  res.json({
+    ensaioId,
+    analisadorId,
+    approvalStatus: decisionRow.status,
+    approvalJustification: decisionRow.justification,
+    decidedAt: decisionRow.decided_at.toISOString(),
+    decidedByUserId: decisionRow.decided_by_user_id,
+    decidedByName: decisionRow.decided_by_name,
   })
 }
 
@@ -899,6 +1048,11 @@ export async function deleteEnsaioRealizado(req: Request, res: Response) {
 
   await ensureIdentificacaoLaudos([analisador.id])
 
+  await query(
+    `DELETE FROM analisador_tensao_ensaio_aprovacoes
+     WHERE ensaio_id = $1 AND analisador_id = $2`,
+    [ensaioId, analisador.id],
+  )
   await query(
     `DELETE FROM analisador_tensao_ensaio_medicoes
      WHERE ensaio_id = $1 AND analisador_id = $2`,

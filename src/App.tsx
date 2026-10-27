@@ -5909,7 +5909,11 @@ function HomePanel({
             ) : selectedLabMeasurementSection === 'Dashboard' ? (
               <LabDashboardPanel />
             ) : selectedLabMeasurementSection === 'Analisadores de Tensão' ? (
-              <AnalisadoresTensaoPanel readOnly={labMedicaoReadOnly} />
+              <AnalisadoresTensaoPanel
+                readOnly={labMedicaoReadOnly}
+                currentUserId={currentUser.id}
+                isAdmin={isAdmin}
+              />
             ) : selectedLabMeasurementSection === 'Alinhamento de Padrões' ? (
               <AlinhamentoPadroesPanel readOnly={labMedicaoReadOnly} />
             ) : (

@@ -154,6 +154,7 @@ import {
   downloadAnalisadorEtiquetas,
   downloadPublicAnalisadorCertificado,
   listEnsaiosRealizados,
+  decidirEnsaioAnalisador,
   getEnsaioSessaoMedicoes,
   deleteEnsaioRealizado,
   exportEnsaiosExcel,
@@ -731,6 +732,12 @@ async function start() {
     downloadAnalisadorEtiquetas,
   )
   app.get('/api/analisadores-tensao/ensaios', requireAuth, listEnsaiosRealizados)
+  app.post(
+    '/api/analisadores-tensao/ensaios/:ensaioId/decisao',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    decidirEnsaioAnalisador,
+  )
   app.get('/api/analisadores-tensao/ensaios/excel', requireAuth, exportEnsaiosExcel)
   app.get('/api/analisadores-tensao/ensaios/:ensaioId', requireAuth, getEnsaioSessaoMedicoes)
   app.delete(

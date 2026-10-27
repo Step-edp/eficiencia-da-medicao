@@ -314,7 +314,15 @@ function GerarEtiquetaModal({
   )
 }
 
-export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boolean }) {
+export function AnalisadoresTensaoPanel({
+  readOnly = false,
+  currentUserId = null,
+  isAdmin = false,
+}: {
+  readOnly?: boolean
+  currentUserId?: string | null
+  isAdmin?: boolean
+}) {
   const [analisadores, setAnalisadores] = useState<AnalisadorTensaoRecord[]>([])
   const [modelos, setModelos] = useState<AnalisadorModeloCatalogEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -342,6 +350,12 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
 
   const [showEnsaiosRealizados, setShowEnsaiosRealizados] = useState(false)
   const [searchEnsaio, setSearchEnsaio] = useState('')
+  const [ensaioListaTab, setEnsaioListaTab] = useState<'pendente' | 'aprovado' | 'reprovado'>(
+    'pendente',
+  )
+  const [decidingEnsaioKey, setDecidingEnsaioKey] = useState<string | null>(null)
+  const [reprovarTarget, setReprovarTarget] = useState<EnsaioSessaoRecord | null>(null)
+  const [reprovarJustificativa, setReprovarJustificativa] = useState('')
   const [ensaiosSessoes, setEnsaiosSessoes] = useState<EnsaioSessaoRecord[]>([])
   const [loadingEnsaiosSessoes, setLoadingEnsaiosSessoes] = useState(false)
   const [selectedEnsaio, setSelectedEnsaio] = useState<{
@@ -471,16 +485,20 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
 
   const filteredEnsaios = useMemo(() => {
     const query = searchEnsaio.trim().toLowerCase()
-    if (!query) return ensaiosSessoes
     return ensaiosSessoes.filter((sessao) => {
-      const responsavel = `${sessao.createdByName ?? ''} ${sessao.createdByRegistration ?? ''}`
+      const status = sessao.approvalStatus ?? 'Pendente'
+      if (ensaioListaTab === 'pendente' && status !== 'Pendente') return false
+      if (ensaioListaTab === 'aprovado' && status !== 'Aprovado') return false
+      if (ensaioListaTab === 'reprovado' && status !== 'Reprovado') return false
+      if (!query) return true
+      const responsavel = `${sessao.createdByName ?? ''} ${sessao.createdByRegistration ?? ''} ${sessao.approvalJustification ?? ''}`
       return (
         sessao.numeroSerie.toLowerCase().includes(query) ||
         responsavel.toLowerCase().includes(query) ||
         formatAuditDate(sessao.createdAt).toLowerCase().includes(query)
       )
     })
-  }, [ensaiosSessoes, searchEnsaio])
+  }, [ensaiosSessoes, searchEnsaio, ensaioListaTab])
 
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault()
@@ -695,6 +713,60 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
       if (next) void loadEnsaiosRealizados()
       return next
     })
+  }
+
+  const applyEnsaioDecisao = (
+    sessao: EnsaioSessaoRecord,
+    decision: {
+      approvalStatus: 'Aprovado' | 'Reprovado'
+      approvalJustification: string
+      decidedAt: string
+      decidedByUserId: string | null
+      decidedByName: string | null
+    },
+  ) => {
+    setEnsaiosSessoes((current) =>
+      current.map((item) =>
+        item.ensaioId === sessao.ensaioId && item.analisadorId === sessao.analisadorId
+          ? { ...item, ...decision }
+          : item,
+      ),
+    )
+  }
+
+  const decidirEnsaio = async (
+    sessao: EnsaioSessaoRecord,
+    decision: 'Aprovado' | 'Reprovado',
+    justification = '',
+  ) => {
+    const key = `${sessao.ensaioId}-${sessao.analisadorId}`
+    setDecidingEnsaioKey(key)
+    setFeedback(null)
+    try {
+      const saved = await api.decidirEnsaioAnalisador(sessao.ensaioId, {
+        analisadorId: sessao.analisadorId,
+        decision,
+        justification,
+      })
+      applyEnsaioDecisao(sessao, saved)
+      setReprovarTarget(null)
+      setReprovarJustificativa('')
+      setEnsaioListaTab(decision === 'Aprovado' ? 'aprovado' : 'reprovado')
+      setFeedback({
+        type: 'success',
+        message:
+          decision === 'Aprovado'
+            ? `Laudo do analisador ${sessao.numeroSerie} aprovado.`
+            : `Laudo do analisador ${sessao.numeroSerie} reprovado.`,
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: error instanceof ApiError ? error.message : 'Não foi possível decidir o laudo.',
+      })
+    } finally {
+      setDecidingEnsaioKey(null)
+    }
   }
 
   const handleDownloadExcel = async () => {
@@ -1237,10 +1309,42 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
               />
             </label>
             <p className="consultar-count" aria-live="polite">
-              {filteredEnsaios.length === ensaiosSessoes.length
-                ? `${ensaiosSessoes.length} ensaio(s)`
-                : `${filteredEnsaios.length} de ${ensaiosSessoes.length} ensaio(s)`}
+              {filteredEnsaios.length} ensaio(s)
             </p>
+          </div>
+          <div
+            className="panel-switch users-view-switch lab-agendar-switch"
+            role="tablist"
+            aria-label="Aprovação dos laudos"
+          >
+            {(
+              [
+                ['pendente', 'Pendente aprovação'],
+                ['aprovado', 'Aprovados'],
+                ['reprovado', 'Reprovados'],
+              ] as const
+            ).map(([id, label]) => {
+              const total = ensaiosSessoes.filter((sessao) => {
+                const status = sessao.approvalStatus ?? 'Pendente'
+                return (
+                  (id === 'pendente' && status === 'Pendente') ||
+                  (id === 'aprovado' && status === 'Aprovado') ||
+                  (id === 'reprovado' && status === 'Reprovado')
+                )
+              }).length
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={ensaioListaTab === id}
+                  className={ensaioListaTab === id ? 'active' : ''}
+                  onClick={() => setEnsaioListaTab(id)}
+                >
+                  {label} ({total})
+                </button>
+              )
+            })}
           </div>
           {filteredEnsaios.length ? (
           <div className="entrada-table-wrap">
@@ -1251,6 +1355,7 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                   <th>Registrado por</th>
                   <th>Em</th>
                   <th>Resultado</th>
+                  {ensaioListaTab === 'reprovado' ? <th>Justificativa</th> : null}
                   <th aria-label="Ações" />
                 </tr>
               </thead>
@@ -1273,6 +1378,9 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                         '—'
                       )}
                     </td>
+                    {ensaioListaTab === 'reprovado' ? (
+                      <td>{sessao.approvalJustification?.trim() || '—'}</td>
+                    ) : null}
                     <td className="ensaios-realizados-actions">
                       <button
                         type="button"
@@ -1318,6 +1426,51 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
                       >
                         Certificado
                       </button>
+                      {ensaioListaTab === 'pendente' && !readOnly ? (
+                        <>
+                          <button
+                            type="button"
+                            className="success-button compact-button"
+                            disabled={
+                              decidingEnsaioKey === `${sessao.ensaioId}-${sessao.analisadorId}` ||
+                              isAdmin ||
+                              Boolean(currentUserId && sessao.createdByUserId === currentUserId)
+                            }
+                            title={
+                              currentUserId && sessao.createdByUserId === currentUserId
+                                ? 'Quem realizou o ensaio não pode aprovar o próprio laudo.'
+                                : isAdmin
+                                  ? 'O administrador não pode aprovar o laudo.'
+                                  : 'Aprovar laudo'
+                            }
+                            onClick={() => void decidirEnsaio(sessao, 'Aprovado')}
+                          >
+                            Aprovar
+                          </button>
+                          <button
+                            type="button"
+                            className="danger-button compact-button"
+                            disabled={
+                              decidingEnsaioKey === `${sessao.ensaioId}-${sessao.analisadorId}` ||
+                              isAdmin ||
+                              Boolean(currentUserId && sessao.createdByUserId === currentUserId)
+                            }
+                            title={
+                              currentUserId && sessao.createdByUserId === currentUserId
+                                ? 'Quem realizou o ensaio não pode aprovar o próprio laudo.'
+                                : isAdmin
+                                  ? 'O administrador não pode aprovar o laudo.'
+                                  : 'Reprovar laudo'
+                            }
+                            onClick={() => {
+                              setReprovarTarget(sessao)
+                              setReprovarJustificativa('')
+                            }}
+                          >
+                            Reprovar
+                          </button>
+                        </>
+                      ) : null}
                       {readOnly ? null : (
                         <button
                           type="button"
@@ -1346,7 +1499,15 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
             </table>
           </div>
           ) : (
-            <p className="entrada-panel-empty">Nenhum ensaio encontrado com essa pesquisa.</p>
+            <p className="entrada-panel-empty">
+              {searchEnsaio.trim()
+                ? 'Nenhum ensaio encontrado com essa pesquisa.'
+                : ensaioListaTab === 'pendente'
+                  ? 'Nenhum laudo aguardando aprovação.'
+                  : ensaioListaTab === 'aprovado'
+                    ? 'Nenhum laudo aprovado.'
+                    : 'Nenhum laudo reprovado.'}
+            </p>
           )}
           </>
         ) : (
@@ -1570,6 +1731,68 @@ export function AnalisadoresTensaoPanel({ readOnly = false }: { readOnly?: boole
       ) : (
         <p className="entrada-panel-empty">Nenhum analisador cadastrado.</p>
       )}
+
+      {reprovarTarget
+        ? createPortal(
+            <div
+              className="ensaios-block-modal-overlay"
+              role="presentation"
+              onClick={() => {
+                if (!decidingEnsaioKey) setReprovarTarget(null)
+              }}
+            >
+              <div
+                className="ensaios-block-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="reprovar-ensaio-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="reprovar-ensaio-title">Reprovar laudo</h3>
+                <div className="approval-reject-form">
+                  <p className="approval-reject-notice">
+                    Analisador {reprovarTarget.numeroSerie}. A justificativa fica registrada na aba
+                    Reprovados.
+                  </p>
+                  <label>
+                    Justificativa da reprovação
+                    <textarea
+                      rows={4}
+                      maxLength={2000}
+                      value={reprovarJustificativa}
+                      onChange={(event) => setReprovarJustificativa(event.target.value)}
+                      placeholder="Descreva o motivo da reprovação (mínimo de 5 caracteres)"
+                      disabled={Boolean(decidingEnsaioKey)}
+                    />
+                  </label>
+                </div>
+                <div className="ensaios-block-modal-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={Boolean(decidingEnsaioKey)}
+                    onClick={() => setReprovarTarget(null)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={
+                      Boolean(decidingEnsaioKey) || reprovarJustificativa.trim().length < 5
+                    }
+                    onClick={() =>
+                      void decidirEnsaio(reprovarTarget, 'Reprovado', reprovarJustificativa.trim())
+                    }
+                  >
+                    {decidingEnsaioKey ? 'Salvando...' : 'Reprovar'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       <AnalisadorLaudoModal
         analisador={laudoAnalisador}

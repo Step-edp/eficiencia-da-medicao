@@ -689,6 +689,11 @@ export type EnsaioSessaoRecord = {
   createdByName: string | null
   createdByRegistration: string | null
   resultado: 'Aprovado' | 'Reprovado' | null
+  approvalStatus: 'Pendente' | 'Aprovado' | 'Reprovado'
+  approvalJustification: string
+  decidedAt: string | null
+  decidedByUserId: string | null
+  decidedByName: string | null
 }
 
 export type EnsaioSessaoMedicaoRecord = EnsaioMedicaoRecord & {
@@ -2475,6 +2480,26 @@ export const api = {
   },
   listEnsaiosRealizados: () =>
     request<{ ensaios: EnsaioSessaoRecord[] }>('/api/analisadores-tensao/ensaios'),
+  decidirEnsaioAnalisador: (
+    ensaioId: string,
+    body: {
+      analisadorId: string
+      decision: 'Aprovado' | 'Reprovado'
+      justification?: string
+    },
+  ) =>
+    request<{
+      ensaioId: string
+      analisadorId: string
+      approvalStatus: 'Aprovado' | 'Reprovado'
+      approvalJustification: string
+      decidedAt: string
+      decidedByUserId: string | null
+      decidedByName: string | null
+    }>(`/api/analisadores-tensao/ensaios/${encodeURIComponent(ensaioId)}/decisao`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   downloadEnsaiosAnalisadoresExcel: async () => {
     const response = await fetch('/api/analisadores-tensao/ensaios/excel', {
       credentials: 'include',
