@@ -6353,6 +6353,18 @@ button {
   padding: 10px 12px;
 }
 
+.ensaio-medicao-fora {
+  background: rgba(255, 93, 93, 0.22);
+  color: #ffd0d0;
+  font-weight: 700;
+}
+
+.ensaio-medicao-fora-nota {
+  margin: 0 0 12px;
+  color: #ffb4b4;
+  font-size: 0.92rem;
+}
+
 .data-table td.ensaio-analise-merged {
   background: rgba(24, 216, 240, 0.08);
   text-align: center;

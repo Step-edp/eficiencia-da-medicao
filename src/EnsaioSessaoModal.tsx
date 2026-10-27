@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api, ApiError, type EnsaioSessaoMedicaoRecord } from './api'
 
@@ -12,6 +12,23 @@ function formatFase(value: string) {
   const number = Number(value)
   if (!Number.isFinite(number)) return value
   return number.toFixed(2).replace('.', ',')
+}
+
+const LIMITE_ERRO = 0.01
+
+const FASES_EQUIPAMENTO = [
+  { label: 'Equip. A', padrao: 'padraoFaseA', equipamento: 'equipamentoFaseA' },
+  { label: 'Equip. B', padrao: 'padraoFaseB', equipamento: 'equipamentoFaseB' },
+  { label: 'Equip. C', padrao: 'padraoFaseC', equipamento: 'equipamentoFaseC' },
+] as const
+
+function leituraForaDoLimite(padrao: string, equipamento: string) {
+  const padraoNumero = Number(padrao)
+  const equipamentoNumero = Number(equipamento)
+  if (!Number.isFinite(padraoNumero) || padraoNumero === 0 || !Number.isFinite(equipamentoNumero)) {
+    return false
+  }
+  return Math.abs((equipamentoNumero - padraoNumero) / padraoNumero) > LIMITE_ERRO
 }
 
 export function EnsaioSessaoModal({ ensaioId, numeroSerie, onClose }: EnsaioSessaoModalProps) {
@@ -46,6 +63,18 @@ export function EnsaioSessaoModal({ ensaioId, numeroSerie, onClose }: EnsaioSess
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [ensaioId, onClose])
+
+  const medicoesFora = useMemo(
+    () =>
+      medicoes.flatMap((row) =>
+        FASES_EQUIPAMENTO.filter((fase) => leituraForaDoLimite(row[fase.padrao], row[fase.equipamento])).map(
+          (fase) => ({
+            texto: `${row.voltage}, teste ${row.testeNumero}, ${fase.label}`,
+          }),
+        ),
+      ),
+    [medicoes],
+  )
 
   if (!ensaioId) return null
 
@@ -87,7 +116,14 @@ export function EnsaioSessaoModal({ ensaioId, numeroSerie, onClose }: EnsaioSess
             {error}
           </div>
         ) : medicoes.length ? (
-          <div className="entrada-table-wrap">
+          <>
+            {medicoesFora.length ? (
+              <p className="ensaio-medicao-fora-nota" role="status">
+                Fora do limite de ±1% em relação ao padrão:{' '}
+                {medicoesFora.map((item) => item.texto).join('; ')}.
+              </p>
+            ) : null}
+            <div className="entrada-table-wrap">
             <table className="data-table ensaio-medicao-table">
               <thead>
                 <tr>
@@ -111,14 +147,24 @@ export function EnsaioSessaoModal({ ensaioId, numeroSerie, onClose }: EnsaioSess
                     <td>{formatFase(row.padraoFaseA)}</td>
                     <td>{formatFase(row.padraoFaseB)}</td>
                     <td>{formatFase(row.padraoFaseC)}</td>
-                    <td>{formatFase(row.equipamentoFaseA)}</td>
-                    <td>{formatFase(row.equipamentoFaseB)}</td>
-                    <td>{formatFase(row.equipamentoFaseC)}</td>
+                    {FASES_EQUIPAMENTO.map((fase) => {
+                      const fora = leituraForaDoLimite(row[fase.padrao], row[fase.equipamento])
+                      return (
+                        <td
+                          key={fase.label}
+                          className={fora ? 'ensaio-medicao-fora' : undefined}
+                          title={fora ? 'Fora do limite de ±1% em relação ao padrão desta fase' : undefined}
+                        >
+                          {formatFase(row[fase.equipamento])}
+                        </td>
+                      )
+                    })}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <p className="entrada-panel-empty">Nenhuma medição encontrada.</p>
         )}
