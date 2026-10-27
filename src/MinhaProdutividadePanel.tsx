@@ -6,6 +6,16 @@ type MinhaProdutividadePanelProps = {
   userId: string
   userName: string
   laudos: RatmLaudo[]
+  team?: boolean
+}
+
+type TeamRow = {
+  key: string
+  name: string
+  ratms: number
+  analisadores: number
+  documentais: number
+  aprovacoes: number
 }
 
 const MEDIDOR_COLOR = '#3ec6e0'
@@ -163,10 +173,22 @@ function ProdutividadeChart({
   )
 }
 
+function personKey(id?: string | null, name?: string | null) {
+  if (id) return `id:${id}`
+  const label = (name ?? '').trim().toLocaleLowerCase('pt-BR')
+  return label ? `name:${label}` : ''
+}
+
+function personLabel(name?: string | null) {
+  const text = (name ?? '').trim()
+  return text || 'Sem identificação'
+}
+
 export function MinhaProdutividadePanel({
   userId,
   userName,
   laudos,
+  team = false,
 }: MinhaProdutividadePanelProps) {
   const [ensaios, setEnsaios] = useState<EnsaioSessaoRecord[]>([])
   const [analises, setAnalises] = useState<InspectionAnalysisActivity[]>([])
@@ -197,38 +219,39 @@ export function MinhaProdutividadePanel({
   }, [userId])
 
   const sourceLaudos = loadedLaudos ?? laudos
-  const mine = (id?: string | null, name?: string | null) => samePerson(userId, userName, id, name)
+  const includePerson = (id?: string | null, name?: string | null) =>
+    team || samePerson(userId, userName, id, name)
 
   const myLaudos = useMemo(
     () =>
       sourceLaudos
-        .filter((laudo) => !laudo.revokedAt && mine(laudo.createdByUserId, laudo.createdByName))
+        .filter((laudo) => !laudo.revokedAt && includePerson(laudo.createdByUserId, laudo.createdByName))
         .sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         ),
-    [sourceLaudos, userId, userName],
+    [sourceLaudos, userId, userName, team],
   )
 
   const myEnsaios = useMemo(
-    () => ensaios.filter((ensaio) => mine(ensaio.createdByUserId, ensaio.createdByName)),
-    [ensaios, userId, userName],
+    () => ensaios.filter((ensaio) => includePerson(ensaio.createdByUserId, ensaio.createdByName)),
+    [ensaios, userId, userName, team],
   )
 
   const myAnalises = useMemo(
-    () => analises.filter((item) => mine(item.completedByUserId, item.completedByName)),
-    [analises, userId, userName],
+    () => analises.filter((item) => includePerson(item.completedByUserId, item.completedByName)),
+    [analises, userId, userName, team],
   )
 
   const monthOptions = useMemo(() => {
     const keys = new Set<string>()
     for (const laudo of sourceLaudos) {
       if (laudo.revokedAt) continue
-      if (mine(laudo.createdByUserId, laudo.createdByName)) {
+      if (includePerson(laudo.createdByUserId, laudo.createdByName)) {
         const key = monthKey(laudo.createdAt)
         if (key) keys.add(key)
       }
-      if (mine(laudo.approvedByUserId, null) && laudo.approvedAt) {
+      if (includePerson(laudo.approvedByUserId, null) && laudo.approvedAt) {
         const key = monthKey(laudo.approvedAt)
         if (key) keys.add(key)
       }
@@ -242,7 +265,7 @@ export function MinhaProdutividadePanel({
       if (key) keys.add(key)
     }
     return [...keys].sort((a, b) => b.localeCompare(a))
-  }, [sourceLaudos, myEnsaios, myAnalises, userId, userName])
+  }, [sourceLaudos, myEnsaios, myAnalises, userId, userName, team])
 
   const [selectedMonth, setSelectedMonth] = useState('Todos')
 
@@ -267,10 +290,10 @@ export function MinhaProdutividadePanel({
     }
     for (const laudo of sourceLaudos) {
       if (laudo.revokedAt) continue
-      if (mine(laudo.createdByUserId, laudo.createdByName) && inPeriod(laudo.createdAt)) {
+      if (includePerson(laudo.createdByUserId, laudo.createdByName) && inPeriod(laudo.createdAt)) {
         bump(laudo.createdAt, 'medidores')
       }
-      if (mine(laudo.approvedByUserId, null) && laudo.approvedAt && inPeriod(laudo.approvedAt)) {
+      if (includePerson(laudo.approvedByUserId, null) && laudo.approvedAt && inPeriod(laudo.approvedAt)) {
         bump(laudo.approvedAt, 'aprovacoes')
       }
     }
@@ -294,7 +317,7 @@ export function MinhaProdutividadePanel({
         }
       }),
     )
-  }, [sourceLaudos, myEnsaios, myAnalises, selectedMonth, userId, userName])
+  }, [sourceLaudos, myEnsaios, myAnalises, selectedMonth, userId, userName, team])
 
   const stats = useMemo(() => {
     const total = filtered.length
@@ -304,11 +327,90 @@ export function MinhaProdutividadePanel({
     return { total, pendentes, aprovados, reprovados }
   }, [filtered])
 
+  const teamRows = useMemo(() => {
+    if (!team) return []
+    const inPeriod = (iso: string | null | undefined) => {
+      if (!iso) return false
+      if (selectedMonth === 'Todos') return true
+      return monthKey(iso) === selectedMonth
+    }
+    const names = new Map<string, string>()
+    const remember = (id?: string | null, name?: string | null) => {
+      const key = personKey(id, name)
+      if (!key) return ''
+      const label = personLabel(name)
+      const current = names.get(key)
+      if (!current || current === 'Sem identificação') names.set(key, label)
+      return key
+    }
+    for (const laudo of sourceLaudos) {
+      remember(laudo.createdByUserId, laudo.createdByName)
+      remember(laudo.approvedByUserId, null)
+    }
+    for (const ensaio of ensaios) remember(ensaio.createdByUserId, ensaio.createdByName)
+    for (const analise of analises) remember(analise.completedByUserId, analise.completedByName)
+
+    const rows = new Map<string, TeamRow>()
+    const rowFor = (key: string) => {
+      const current = rows.get(key)
+      if (current) return current
+      const created: TeamRow = {
+        key,
+        name: names.get(key) || 'Sem identificação',
+        ratms: 0,
+        analisadores: 0,
+        documentais: 0,
+        aprovacoes: 0,
+      }
+      rows.set(key, created)
+      return created
+    }
+
+    for (const laudo of sourceLaudos) {
+      if (laudo.revokedAt) continue
+      if (inPeriod(laudo.createdAt)) {
+        const key = personKey(laudo.createdByUserId, laudo.createdByName)
+        if (key) rowFor(key).ratms += 1
+      }
+      if (laudo.approvedAt && inPeriod(laudo.approvedAt)) {
+        const key = personKey(laudo.approvedByUserId, null)
+        if (key) rowFor(key).aprovacoes += 1
+      }
+    }
+    for (const ensaio of ensaios) {
+      if (!inPeriod(ensaio.createdAt)) continue
+      const key = personKey(ensaio.createdByUserId, ensaio.createdByName)
+      if (key) rowFor(key).analisadores += 1
+    }
+    for (const analise of analises) {
+      if (!inPeriod(analise.completedAt)) continue
+      const key = personKey(analise.completedByUserId, analise.completedByName)
+      if (key) rowFor(key).documentais += 1
+    }
+
+    return [...rows.values()]
+      .filter((row) => row.ratms + row.analisadores + row.documentais + row.aprovacoes > 0)
+      .sort((a, b) => {
+        const totalA = a.ratms + a.analisadores + a.documentais + a.aprovacoes
+        const totalB = b.ratms + b.analisadores + b.documentais + b.aprovacoes
+        return totalB - totalA || a.name.localeCompare(b.name, 'pt-BR')
+      })
+  }, [team, selectedMonth, sourceLaudos, ensaios, analises])
+
   return (
     <div className="produtividade-panel">
       <p className="produtividade-intro">
-        Acompanhe os ensaios/RATMs registrados por <strong>{userName}</strong> no
-        Laboratório de Medição.
+        {team ? (
+          <>
+            Acompanhe os ensaios, RATMs, análises e aprovações da equipe do Laboratório de
+            Medição.
+          </>
+        ) : (
+          <>
+            Acompanhe os ensaios/RATMs registrados por <strong>{userName}</strong> no
+            Laboratório de Medição.
+          </>
+        )}
       </p>
 
       <div className="produtividade-filters">
@@ -373,6 +475,42 @@ export function MinhaProdutividadePanel({
         )}
       </section>
 
+      {team ? (
+        <section className="lab-bi-card produtividade-chart">
+          <h4>Por pessoa</h4>
+          {loading ? (
+            <p className="lab-bi-empty">Carregando...</p>
+          ) : teamRows.length ? (
+            <div className="entrada-table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Pessoa</th>
+                    <th>RATMs</th>
+                    <th>Analisadores</th>
+                    <th>Análise documental</th>
+                    <th>Aprovações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamRows.map((row) => (
+                    <tr key={row.key}>
+                      <td>{row.name}</td>
+                      <td>{row.ratms}</td>
+                      <td>{row.analisadores}</td>
+                      <td>{row.documentais}</td>
+                      <td>{row.aprovacoes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="lab-bi-empty">Nenhuma atividade da equipe no período selecionado.</p>
+          )}
+        </section>
+      ) : null}
+
       <div className="entrada-table-wrap">
         <table className="data-table">
           <thead>
@@ -380,6 +518,7 @@ export function MinhaProdutividadePanel({
               <th>RATM</th>
               <th>Medidor</th>
               <th>Cliente</th>
+              {team ? <th>Registrado por</th> : null}
               <th>Status</th>
               <th>Data</th>
             </tr>
@@ -387,7 +526,7 @@ export function MinhaProdutividadePanel({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5}>Carregando...</td>
+                <td colSpan={team ? 6 : 5}>Carregando...</td>
               </tr>
             ) : filtered.length ? (
               filtered.slice(0, 100).map((laudo) => (
@@ -395,13 +534,16 @@ export function MinhaProdutividadePanel({
                   <td>{laudo.ratmNumber}</td>
                   <td>{laudo.meter}</td>
                   <td>{laudo.client || '—'}</td>
+                  {team ? (
+                    <td>{laudo.createdByName || laudo.createdByRegistration || '—'}</td>
+                  ) : null}
                   <td>{laudo.status}</td>
                   <td>{new Date(laudo.createdAt).toLocaleString('pt-BR')}</td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={5}>Nenhum RATM encontrado para o período selecionado.</td>
+                <td colSpan={team ? 6 : 5}>Nenhum RATM encontrado para o período selecionado.</td>
               </tr>
             )}
           </tbody>

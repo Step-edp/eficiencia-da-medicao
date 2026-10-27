@@ -1112,6 +1112,7 @@ function ItemIcon({ title }: { title: string }) {
     'Alteração de data': 'clock',
     Desvios: 'shield',
     'Minha produtividade': 'chart',
+    'Produtividade da equipe': 'users',
     'Adicionar passivo': 'calendar',
     'Entrada de medidores': 'inbox',
     'Criar Modelo': 'cube',
@@ -2616,6 +2617,11 @@ function HomePanel({
     currentUser.jobTitle
   const showMinhaProdutividade =
     (effectiveLabJobTitle?.trim() ?? '') !== 'Engenheiro'
+  const labSectionTitle = (section: string) => {
+    if (isAdminFullPreview && section === 'Minha produtividade') return 'Produtividade da equipe'
+    if (showConsumoIrregularLab && section === 'Consultar Medidor') return 'Consulta de Medidores'
+    return section
+  }
 
   const visibleLabHighlightedSections = showConsumoIrregularLab
     ? []
@@ -5648,9 +5654,7 @@ function HomePanel({
                   ? selectedAuditArea
                   : LAB_TRAIL_KEYS.has(selectedLabMeasurementSection)
                     ? getLabTrailLabel(selectedLabMeasurementSection)
-                    : showConsumoIrregularLab && selectedLabMeasurementSection === 'Consultar Medidor'
-                      ? 'Consulta de Medidores'
-                      : selectedLabMeasurementSection}
+                    : labSectionTitle(selectedLabMeasurementSection)}
             </h2>
             {labMedicaoReadOnly ? (
               <div className="agenda-alert agenda-alert-ok" role="status">
@@ -5735,6 +5739,7 @@ function HomePanel({
                   'Usuário'
                 }
                 laudos={ratmLaudos}
+                team={isAdminFullPreview}
               />
             ) : selectedLabMeasurementSection === 'CSDs' ? (
               <CsdsPanel readOnly={labMedicaoReadOnly} />
@@ -6424,12 +6429,8 @@ function HomePanel({
                       }}
                     >
                       <span className="item-with-icon measurement-item-row">
-                        <ItemIcon title={section} />
-                        <span>
-                          {showConsumoIrregularLab && section === 'Consultar Medidor'
-                            ? 'Consulta de Medidores'
-                            : section}
-                        </span>
+                        <ItemIcon title={labSectionTitle(section)} />
+                        <span>{labSectionTitle(section)}</span>
                         {section === 'Suporte' ? (
                           <LateMetersCountBadge
                             count={openSupportCount}
