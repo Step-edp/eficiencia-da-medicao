@@ -324,19 +324,6 @@ export async function createDemmDocument(req: Request, res: Response) {
       })
       return
     }
-
-    const existingRetro = await query<{ id: string }>(
-      `SELECT id FROM demm_documents
-       WHERE csd_id = $1 AND target_week_start = $2::date
-       LIMIT 1`,
-      [normalizedCsdId, normalizedTargetWeekStart],
-    )
-    if (existingRetro.rows[0]) {
-      res.status(409).json({
-        error: 'Já existe DEMM retroativa registrada para este CSD nesta semana.',
-      })
-      return
-    }
   }
 
   if (!fileName.trim().toLowerCase().endsWith('.pdf')) {

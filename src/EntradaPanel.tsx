@@ -127,6 +127,12 @@ function formatWeekLabel(dateKey: string) {
   return `${day}/${month}`
 }
 
+function weekDeadlinePassed(weekDeadline: string) {
+  const [year, month, day] = weekDeadline.split('-').map(Number)
+  if (!year || !month || !day) return false
+  return Date.now() > new Date(year, month - 1, day, 23, 59, 59, 999).getTime()
+}
+
 function hasWpaDocument(item: MeterInspectionDocumentadoRecord) {
   return Boolean(item.hasToi || item.hasComunicado || item.hasDocument)
 }
@@ -2557,8 +2563,8 @@ export function EntradaPanel({
             </h3>
             {demmTargetWeekStart ? (
               <p className="demm-modal-intro">
-                Semana com prazo em {formatWeekLabel(demmTargetWeekStart)} (sexta-feira). O ícone
-                ficará com check amarelo após o envio.
+                Semana com prazo em {formatWeekLabel(demmTargetWeekStart)} (sexta-feira). A DEMM
+                pode ser importada mesmo que a semana já esteja marcada como entregue.
               </p>
             ) : null}
 
@@ -3606,15 +3612,26 @@ export function EntradaPanel({
                             onOpenProfile={(userId) => void openUserProfile(userId)}
                           />
                         </td>
-                        {csd.weeks.map((week) => (
+                        {csd.weeks.map((week) => {
+                          const deadline = demmHistoricoWeeks.find(
+                            (item) => item.weekStart === week.weekStart,
+                          )?.weekDeadline
+                          const canImport = !readOnly && week.status !== 'pendente'
+                          const retroactive = deadline ? weekDeadlinePassed(deadline) : week.status !== 'entregue'
+                          return (
                           <td key={week.weekStart} className="demm-status-cell">
-                            {!readOnly && week.status === 'nao_entregue' ? (
+                            {canImport ? (
                               <button
                                 type="button"
                                 className="demm-status-clickable"
-                                onClick={() => openDemmModal(csd.id, week.weekStart)}
-                                aria-label={`Importar DEMM retroativa de ${csd.name} na semana de ${formatWeekLabel(week.weekStart)}`}
-                                title="Importar DEMM retroativa"
+                                onClick={() =>
+                                  openDemmModal(
+                                    csd.id,
+                                    retroactive ? week.weekStart : undefined,
+                                  )
+                                }
+                                aria-label={`Importar DEMM de ${csd.name} na semana de ${formatWeekLabel(week.weekStart)}`}
+                                title="Importar DEMM"
                               >
                                 <DemmStatusIcon status={week.status} />
                               </button>
@@ -3622,7 +3639,8 @@ export function EntradaPanel({
                               <DemmStatusIcon status={week.status} />
                             )}
                           </td>
-                        ))}
+                          )
+                        })}
                       </tr>
                     ))}
                   </tbody>

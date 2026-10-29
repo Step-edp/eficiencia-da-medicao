@@ -3566,6 +3566,18 @@ button {
   box-shadow: 0 0 0 2px rgba(255, 124, 106, 0.25);
 }
 
+.demm-status-clickable:hover .demm-status-icon.is-ok,
+.demm-status-clickable:focus-visible .demm-status-icon.is-ok {
+  color: #7dffb8;
+  box-shadow: 0 0 0 2px rgba(63, 214, 143, 0.28);
+}
+
+.demm-status-clickable:hover .demm-status-icon.is-retroactive,
+.demm-status-clickable:focus-visible .demm-status-icon.is-retroactive {
+  color: #ffd56a;
+  box-shadow: 0 0 0 2px rgba(230, 180, 60, 0.28);
+}
+
 .lab-trail-connector {
   flex: 0 0 18px;
   align-self: center;
