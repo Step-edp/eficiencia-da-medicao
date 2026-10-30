@@ -212,7 +212,6 @@ export function GrandesClientesPanel({
   const [medidores, setMedidores] = useState<GcEnsaioMeter[]>([])
   const [meterSearch, setMeterSearch] = useState('')
   const [importOpen, setImportOpen] = useState(false)
-  const [sealsOpen, setSealsOpen] = useState(false)
   const [photoMeter, setPhotoMeter] = useState<GcEnsaioMeter | null>(null)
   const [laudo, setLaudo] = useState<GcLaudo | null>(null)
   const [laudoLoading, setLaudoLoading] = useState(false)
@@ -335,9 +334,6 @@ export function GrandesClientesPanel({
             </p>
             {readOnly ? null : (
               <div className="consultar-toolbar-end">
-                <button type="button" className="secondary-button" onClick={() => setSealsOpen(true)}>
-                  Importar lacres
-                </button>
                 <button type="button" className="primary-button" onClick={() => setImportOpen(true)}>
                   Registrar ensaio
                 </button>
@@ -550,29 +546,6 @@ export function GrandesClientesPanel({
           onError={(message) => setFeedback({ type: 'error', message })}
         />
       ) : null}
-      {sealsOpen ? (
-        <ImportFileModal
-          title="Importar lacres"
-          description="A planilha de lacres é separada do ensaio. Os lacres entram no laudo pelo número do medidor."
-          acceptLabel="Planilha de lacres"
-          submitLabel="Importar lacres"
-          onClose={() => setSealsOpen(false)}
-          onSubmit={async (file) => {
-            const dataUrl = await readFileAsBase64(file)
-            const response = await api.importGcLacres({
-              fileName: file.name,
-              fileBase64: dataUrl,
-            })
-            setSealsOpen(false)
-            setFeedback({
-              type: 'success',
-              message: `${response.sealCount} medidor(es) com lacre atualizados.`,
-            })
-            if (selectedId) await loadEnsaio(selectedId)
-          }}
-          onError={(message) => setFeedback({ type: 'error', message })}
-        />
-      ) : null}
       {photoMeter && selectedId ? (
         <PhotoModal
           meter={photoMeter}
@@ -766,6 +739,7 @@ function ImportAssayModal({
   onError: (message: string) => void
 }) {
   const [assay, setAssay] = useState<File | null>(null)
+  const [seals, setSeals] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   async function submit(event: FormEvent) {
@@ -777,12 +751,18 @@ function ImportAssayModal({
     setSubmitting(true)
     try {
       const assayBase64 = await readFileAsBase64(assay)
+      const sealsBase64 = seals ? await readFileAsBase64(seals) : undefined
       const response = await api.importGcEnsaio({
         assayFileName: assay.name,
         assayBase64,
+        sealsFileName: seals?.name,
+        sealsBase64,
       })
+      const sealsText = response.sealCount
+        ? ` ${response.sealCount} lacre(s) vinculados pelo número do medidor.`
+        : ''
       await onDone(
-        `Ensaio registrado com ${response.meterCount} medidor(es). Importe a planilha de lacres para completar o laudo.`,
+        `Ensaio registrado com ${response.meterCount} medidor(es).${sealsText}`,
         response.id,
       )
     } catch (error) {
@@ -806,8 +786,8 @@ function ImportAssayModal({
         </button>
         <h3>Registrar ensaio</h3>
         <p>
-          A planilha da bancada traz um medidor por coluna. A planilha de lacres é outra importação: use Importar
-          lacres. Os lacres entram no laudo pelo número do medidor.
+          A planilha da bancada traz um medidor por coluna. A planilha de lacres é outro arquivo e entra no mesmo
+          laudo pelo número do medidor.
         </p>
         <label className="gc-file-field">
           Planilha de ensaio
@@ -816,6 +796,14 @@ function ImportAssayModal({
             accept=".xlsx,.xls"
             required
             onChange={(event) => setAssay(event.target.files?.[0] ?? null)}
+          />
+        </label>
+        <label className="gc-file-field">
+          Planilha de lacres
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={(event) => setSeals(event.target.files?.[0] ?? null)}
           />
         </label>
         <div className="ensaios-block-modal-actions">
