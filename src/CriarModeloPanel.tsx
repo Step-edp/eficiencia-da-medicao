@@ -574,6 +574,7 @@ export function CriarModeloPanel({
     null,
   )
 
+  const [modelSearch, setModelSearch] = useState('')
   const [name, setName] = useState('')
   const [manufacturer, setManufacturer] = useState('')
   const [meterType, setMeterType] = useState(METER_TYPE_OPTIONS[0])
@@ -582,6 +583,34 @@ export function CriarModeloPanel({
   const [wiresElements, setWiresElements] = useState('')
   const [accuracyClass, setAccuracyClass] = useState('')
   const [constant, setConstant] = useState('')
+
+  const filteredModels = useMemo(() => {
+    const query = modelSearch.trim().toLocaleLowerCase('pt-BR')
+    if (!query) return models
+    return models.filter((model) => {
+      const haystack = [
+        model.name,
+        model.meterType,
+        model.manufacturer,
+        model.voltage,
+        model.current,
+        model.wiresElements,
+        model.accuracyClass,
+        model.constant,
+        model.description,
+        model.createdByName,
+        model.createdByRegistration,
+        model.updatedByName,
+        model.updatedByRegistration,
+        new Date(model.createdAt).toLocaleString('pt-BR'),
+        model.updatedAt ? new Date(model.updatedAt).toLocaleString('pt-BR') : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase('pt-BR')
+      return haystack.includes(query)
+    })
+  }, [models, modelSearch])
 
   const previewRows = useMemo(() => {
     const existingKeys = new Set(
@@ -1526,11 +1555,38 @@ export function CriarModeloPanel({
         <p className="entrada-panel-empty">Carregando modelos...</p>
       ) : (
         <>
-          <p className="field-hint criar-modelo-count">
-            {models.length === 1
-              ? '1 modelo cadastrado'
-              : `${models.length} modelos cadastrados`}
-          </p>
+          <div className="consultar-toolbar ensaios-realizados-toolbar">
+            <label className="consultar-search">
+              <span className="sr-only">Pesquisar modelos</span>
+              <span className="consultar-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+                  <path
+                    d="M20 20l-3.5-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <input
+                type="search"
+                value={modelSearch}
+                onChange={(event) => setModelSearch(event.target.value)}
+                placeholder="Pesquisar por modelo, fabricante, tensão ou corrente"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            <p className="consultar-count" aria-live="polite">
+              {modelSearch.trim()
+                ? `${filteredModels.length} de ${models.length} modelo(s)`
+                : models.length === 1
+                  ? '1 modelo cadastrado'
+                  : `${models.length} modelos cadastrados`}
+            </p>
+          </div>
         <div className="entrada-table-wrap">
           <table className="data-table">
             <thead>
@@ -1551,8 +1607,8 @@ export function CriarModeloPanel({
               </tr>
             </thead>
             <tbody>
-              {models.length ? (
-                models.map((model) => (
+              {filteredModels.length ? (
+                filteredModels.map((model) => (
                   <tr key={model.id}>
                     {readOnly ? null : (
                       <td>
@@ -1606,7 +1662,9 @@ export function CriarModeloPanel({
               ) : (
                 <tr>
                   <td colSpan={readOnly ? 12 : 13}>
-                    Nenhum modelo de medidor cadastrado ainda.
+                    {models.length
+                      ? 'Nenhum modelo encontrado para essa pesquisa.'
+                      : 'Nenhum modelo de medidor cadastrado ainda.'}
                   </td>
                 </tr>
               )}
