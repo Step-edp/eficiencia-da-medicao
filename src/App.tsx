@@ -55,6 +55,7 @@ import { SoftwaresPanel } from './SoftwaresPanel'
 import { IrregularityCodesPanel } from './IrregularityCodesPanel'
 import { AnalisadoresTensaoPanel } from './AnalisadoresTensaoPanel'
 import { AlinhamentoPadroesPanel } from './AlinhamentoPadroesPanel'
+import { GrandesClientesPanel } from './GrandesClientesPanel'
 import { ReagendarPanel } from './ReagendarPanel'
 import { MinhaProdutividadePanel } from './MinhaProdutividadePanel'
 import { InventarioPanel } from './InventarioPanel'
@@ -1121,6 +1122,7 @@ function ItemIcon({ title }: { title: string }) {
     'Analisadores de Tensão': 'bolt',
     'Aferição de Padrões BT': 'ruler',
     'Grandes Clientes': 'building',
+    'Retirada Grandes Clientes': 'building',
     'Padrões': 'ruler',
     'Pesquisa de satisfação': 'smile',
     'Pesquisa de Satisfação': 'smile',
@@ -2598,6 +2600,15 @@ function HomePanel({
     resolvedPreviewProfileId !== ADMIN_PREVIEW_PROFILE_ID
       ? getCadastroProfile(resolvedPreviewProfileId) ?? null
       : null
+
+  const gcWorkArea = (
+    previewUser?.workArea ??
+    previewProfile?.match.workArea ??
+    currentUser.workArea ??
+    ''
+  ).trim()
+  const showGcRetirada = gcWorkArea === 'Grandes Clientes'
+  const gcSignerName = previewUser?.name ?? currentUser.name
 
   const showConsumoIrregularLab =
     (!isAdmin && isConsumoIrregular(currentUser)) ||
@@ -5465,11 +5476,20 @@ function HomePanel({
                 ? selectedMemoryMassStep
                 : selectedMeasurementSection}
             </h2>
-            <p>
-              {selectedMeasurementSection === 'Memória de massa'
-                ? `Etapa ${selectedMemoryMassStep} da subárea Memória de massa.`
-                : `Página dedicada da subárea ${selectedMeasurementSection}. Aqui você poderá concentrar funcionalidades, filtros e relatórios específicos.`}
-            </p>
+            {selectedMeasurementSection === 'Retirada Grandes Clientes' ? (
+              <GrandesClientesPanel
+                readOnly
+                signerName={gcSignerName}
+                canReleaseSab
+                initialTab="destinacao"
+              />
+            ) : (
+              <p>
+                {selectedMeasurementSection === 'Memória de massa'
+                  ? `Etapa ${selectedMemoryMassStep} da subárea Memória de massa.`
+                  : `Página dedicada da subárea ${selectedMeasurementSection}. Aqui você poderá concentrar funcionalidades, filtros e relatórios específicos.`}
+              </p>
+            )}
             {selectedMeasurementSection === 'Memória de massa' ? (
               <LabMeasurementTrail
                 activeStep={selectedMemoryMassStep}
@@ -5921,6 +5941,12 @@ function HomePanel({
               />
             ) : selectedLabMeasurementSection === 'Alinhamento de Padrões' ? (
               <AlinhamentoPadroesPanel readOnly={labMedicaoReadOnly} />
+            ) : selectedLabMeasurementSection === 'Grandes Clientes' ? (
+              <GrandesClientesPanel
+                readOnly={labMedicaoReadOnly}
+                signerName={gcSignerName}
+                canReleaseSab={isAdmin || showGcRetirada}
+              />
             ) : (
               <p>
                 Página dedicada da área {selectedLabMeasurementSection}. Aqui você
@@ -6363,6 +6389,22 @@ function HomePanel({
                   </span>
                 </button>
               ))}
+              {showGcRetirada ? (
+                <button
+                  className="measurement-item"
+                  type="button"
+                  onClick={() => {
+                    setSelectedPasswordAction(null)
+                    setSelectedFaturamentoLivresAction(null)
+                    setSelectedMeasurementSection('Retirada Grandes Clientes')
+                  }}
+                >
+                  <span className="item-with-icon">
+                    <ItemIcon title="Retirada Grandes Clientes" />
+                    <span>Retirada Grandes Clientes</span>
+                  </span>
+                </button>
+              ) : null}
             </div>
           ) : null}
           {selectedArea.title === 'Laboratório de Medição' ? (

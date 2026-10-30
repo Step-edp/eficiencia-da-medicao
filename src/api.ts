@@ -1060,6 +1060,81 @@ export type DemmAnalysisResponse = {
   }
 }
 
+export type GcTestPoint = { test: string; energy: string; value: string }
+
+export type GcEnsaioRecord = {
+  id: string
+  title: string
+  operatorName: string
+  sourceFile: string
+  createdAt: string | null
+  createdByName: string | null
+  meterCount: number
+}
+
+export type GcEnsaioMeter = {
+  id: string
+  meter: string
+  meterName: string
+  position: number
+  validation: string
+  tests: GcTestPoint[]
+  seal1: string
+  seal2: string
+  photos: Array<'medidor' | 'tampa' | 'extra'>
+}
+
+export type GcLaudo = {
+  id: string
+  meter: string
+  meterName: string
+  position: number
+  validation: string
+  tests: GcTestPoint[]
+  seal1: string
+  seal2: string
+  sealSourceFile: string
+  title: string
+  operatorName: string
+  sourceFile: string
+  createdAt: string | null
+  createdByName: string | null
+  photos: Array<{ kind: 'medidor' | 'tampa' | 'extra'; label: string; fileName: string; dataUrl: string }>
+}
+
+export type GcWithdrawalStatus = 'disponivel' | 'aguardando_sab' | 'retirada'
+
+export type GcDestinacaoRecord = {
+  id: string
+  clientName: string
+  installation: string
+  ns: string
+  meter: string
+  calibratedOn: string
+  simplified: string
+  category: string
+  voltage: string
+  rtp: string
+  rtc: string
+  maxDemand: string
+  address: string
+  city: string
+  remotas: string
+  remoteCollection: string
+  withdrawnByNote: string
+  sourceFile: string
+  withdrawalStatus: GcWithdrawalStatus
+  signerName: string
+  signedAt: string | null
+  signedByUserId: string | null
+  releasedAt: string | null
+  releasedByName: string
+  withdrawnAt: string | null
+  importedAt: string | null
+  hasSignature: boolean
+  signatureData?: string
+}
+
 class ApiError extends Error {
   status: number
   conflicts?: DemmUploadConflictRecord[]
@@ -2566,6 +2641,65 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
+  listGcEnsaios: () => request<{ ensaios: GcEnsaioRecord[] }>('/api/grandes-clientes/ensaios'),
+  getGcEnsaio: (id: string) =>
+    request<{
+      ensaio: Omit<GcEnsaioRecord, 'meterCount'>
+      medidores: GcEnsaioMeter[]
+    }>(`/api/grandes-clientes/ensaios/${encodeURIComponent(id)}`),
+  importGcEnsaio: (payload: {
+    assayFileName: string
+    assayBase64: string
+    sealsFileName?: string
+    sealsBase64?: string
+  }) =>
+    request<{ id: string; title: string; meterCount: number; sealCount: number }>(
+      '/api/grandes-clientes/ensaios',
+      { method: 'POST', body: JSON.stringify(payload), timeoutMs: 120_000 },
+    ),
+  importGcLacres: (payload: { fileName: string; fileBase64: string }) =>
+    request<{ sealCount: number }>('/api/grandes-clientes/lacres', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      timeoutMs: 120_000,
+    }),
+  saveGcFoto: (
+    ensaioId: string,
+    meterId: string,
+    payload: { kind: 'medidor' | 'tampa' | 'extra'; fileName: string; dataUrl: string },
+  ) =>
+    request<{ ok: true; kind: string; label: string }>(
+      `/api/grandes-clientes/ensaios/${encodeURIComponent(ensaioId)}/medidores/${encodeURIComponent(meterId)}/fotos`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  getGcLaudo: (ensaioId: string, meterId: string) =>
+    request<{ laudo: GcLaudo }>(
+      `/api/grandes-clientes/ensaios/${encodeURIComponent(ensaioId)}/medidores/${encodeURIComponent(meterId)}/laudo`,
+    ),
+  listGcDestinacoes: (q?: string) => {
+    const search = q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''
+    return request<{ destinacoes: GcDestinacaoRecord[] }>(`/api/grandes-clientes/destinacoes${search}`)
+  },
+  getGcDestinacao: (id: string) =>
+    request<{ destinacao: GcDestinacaoRecord }>(
+      `/api/grandes-clientes/destinacoes/${encodeURIComponent(id)}`,
+    ),
+  importGcDestinacoes: (payload: { fileName: string; fileBase64: string }) =>
+    request<{ count: number }>('/api/grandes-clientes/destinacoes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      timeoutMs: 120_000,
+    }),
+  signGcTermo: (id: string, payload: { signatureData: string; signerName: string }) =>
+    request<{ ok: true; withdrawalStatus: GcWithdrawalStatus }>(
+      `/api/grandes-clientes/destinacoes/${encodeURIComponent(id)}/termo`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  releaseGcRetirada: (id: string) =>
+    request<{ ok: true; withdrawalStatus: GcWithdrawalStatus }>(
+      `/api/grandes-clientes/destinacoes/${encodeURIComponent(id)}/liberar`,
+      { method: 'POST', body: JSON.stringify({}) },
+    ),
 }
 
 export { ApiError }

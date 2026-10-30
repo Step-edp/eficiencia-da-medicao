@@ -1554,4 +1554,93 @@ export async function migrate() {
           AND BTRIM(COALESCE(latest.trail_step, '')) = 'Entrada de medidores'
       )
   `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS gc_ensaios (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL DEFAULT '',
+      operator_name TEXT NOT NULL DEFAULT '',
+      source_file TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS gc_ensaio_medidores (
+      id TEXT PRIMARY KEY,
+      ensaio_id TEXT NOT NULL REFERENCES gc_ensaios(id) ON DELETE CASCADE,
+      meter TEXT NOT NULL,
+      meter_name TEXT NOT NULL DEFAULT '',
+      position INTEGER NOT NULL DEFAULT 0,
+      validation TEXT NOT NULL DEFAULT '',
+      tests JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_gc_ensaio_medidores_ensaio
+    ON gc_ensaio_medidores (ensaio_id)
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS gc_lacres (
+      meter TEXT PRIMARY KEY,
+      seal1 TEXT NOT NULL DEFAULT '',
+      seal2 TEXT NOT NULL DEFAULT '',
+      source_file TEXT NOT NULL DEFAULT '',
+      imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      imported_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS gc_fotos (
+      id TEXT PRIMARY KEY,
+      ensaio_medidor_id TEXT NOT NULL REFERENCES gc_ensaio_medidores(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK (kind IN ('medidor', 'tampa', 'extra')),
+      file_name TEXT NOT NULL DEFAULT '',
+      data_url TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      UNIQUE (ensaio_medidor_id, kind)
+    )
+  `)
+  await query(`
+    CREATE TABLE IF NOT EXISTS gc_destinacoes (
+      id TEXT PRIMARY KEY,
+      client_name TEXT NOT NULL DEFAULT '',
+      installation TEXT NOT NULL DEFAULT '',
+      ns TEXT NOT NULL DEFAULT '',
+      meter TEXT NOT NULL,
+      calibrated_on TEXT NOT NULL DEFAULT '',
+      simplified TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT '',
+      voltage TEXT NOT NULL DEFAULT '',
+      rtp TEXT NOT NULL DEFAULT '',
+      rtc TEXT NOT NULL DEFAULT '',
+      max_demand TEXT NOT NULL DEFAULT '',
+      address TEXT NOT NULL DEFAULT '',
+      city TEXT NOT NULL DEFAULT '',
+      remotas TEXT NOT NULL DEFAULT '',
+      remote_collection TEXT NOT NULL DEFAULT '',
+      withdrawn_by_note TEXT NOT NULL DEFAULT '',
+      source_file TEXT NOT NULL DEFAULT '',
+      withdrawal_status TEXT NOT NULL DEFAULT 'disponivel'
+        CHECK (withdrawal_status IN ('disponivel', 'aguardando_sab', 'retirada')),
+      signature_data TEXT NOT NULL DEFAULT '',
+      signer_name TEXT NOT NULL DEFAULT '',
+      signed_at TIMESTAMPTZ,
+      signed_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      released_at TIMESTAMPTZ,
+      released_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      released_by_name TEXT NOT NULL DEFAULT '',
+      withdrawn_at TIMESTAMPTZ,
+      imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      imported_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_gc_destinacoes_meter ON gc_destinacoes (meter)
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_gc_destinacoes_imported ON gc_destinacoes (imported_at DESC)
+  `)
 }

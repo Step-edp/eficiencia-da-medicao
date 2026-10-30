@@ -38,6 +38,7 @@ export type AuditEntityType =
   | 'standard_certificate'
   | 'iq09_run'
   | 'consolidacao_carga_cliente'
+  | 'grandes_clientes'
 
 export type AuditLogEntry = {
   action: AuditAction

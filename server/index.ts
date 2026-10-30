@@ -167,6 +167,19 @@ import {
   deleteAlinhamentoEquipamento,
   saveAlinhamentoMedicoes,
 } from './routes/alinhamento-padroes.js'
+import {
+  getGcDestinacao,
+  getGcEnsaio,
+  getGcLaudo,
+  importGcDestinacoes,
+  importGcEnsaio,
+  importGcLacres,
+  listGcDestinacoes,
+  listGcEnsaios,
+  releaseGcRetirada,
+  saveGcFoto,
+  signGcTermo,
+} from './routes/grandes-clientes.js'
 import { requireAuth, optionalAuth, requireAdmin } from './auth.js'
 import { mailRoutes } from './routes/mail.js'
 
@@ -773,6 +786,51 @@ async function start() {
     requireAuth,
     rejectLabMedicaoViewOnlyMutations,
     saveAlinhamentoMedicoes,
+  )
+
+  app.get('/api/grandes-clientes/ensaios', requireAuth, listGcEnsaios)
+  app.post(
+    '/api/grandes-clientes/ensaios',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    importGcEnsaio,
+  )
+  app.post(
+    '/api/grandes-clientes/lacres',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    importGcLacres,
+  )
+  app.get('/api/grandes-clientes/ensaios/:id', requireAuth, getGcEnsaio)
+  app.post(
+    '/api/grandes-clientes/ensaios/:ensaioId/medidores/:meterId/fotos',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    saveGcFoto,
+  )
+  app.get(
+    '/api/grandes-clientes/ensaios/:ensaioId/medidores/:meterId/laudo',
+    requireAuth,
+    getGcLaudo,
+  )
+  app.get('/api/grandes-clientes/destinacoes', requireAuth, listGcDestinacoes)
+  app.post(
+    '/api/grandes-clientes/destinacoes',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    importGcDestinacoes,
+  )
+  app.get('/api/grandes-clientes/destinacoes/:id', requireAuth, getGcDestinacao)
+  app.post(
+    '/api/grandes-clientes/destinacoes/:id/termo',
+    requireAuth,
+    rejectLabMedicaoViewOnlyMutations,
+    signGcTermo,
+  )
+  app.post(
+    '/api/grandes-clientes/destinacoes/:id/liberar',
+    requireAuth,
+    releaseGcRetirada,
   )
 
   const distPath = path.resolve(__dirname, '../../dist')
