@@ -88,7 +88,7 @@ export function GalleryPanel() {
     try {
       const [{ schedules }, { laudos }] = await Promise.all([
         api.listMeterSchedules(undefined, { gallery: true }),
-        api.listRatmLaudos(),
+        api.listRatmLaudos(undefined, { includeForm: true }),
       ])
       setItems(buildItems(schedules, laudos))
     } catch (error) {

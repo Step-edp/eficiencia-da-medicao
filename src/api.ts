@@ -1731,14 +1731,17 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ meter, formData }),
     }),
-  listRatmLaudos: (meter?: string) => {
+  listRatmLaudos: (meter?: string, options?: { includeForm?: boolean }) => {
     const search = new URLSearchParams()
     if (meter?.trim()) search.set('meter', meter.trim())
+    if (options?.includeForm) search.set('includeForm', '1')
     const queryString = search.toString()
     return request<{ laudos: RatmLaudoRecord[] }>(
       `/api/ratm-laudos${queryString ? `?${queryString}` : ''}`,
     )
   },
+  getRatmLaudo: (id: string) =>
+    request<{ laudo: RatmLaudoRecord }>(`/api/ratm-laudos/${encodeURIComponent(id)}`),
   createRatmLaudos: (forms: Record<string, unknown>[], replacePending = false) =>
     request<{ laudos: RatmLaudoRecord[] }>('/api/ratm-laudos', {
       method: 'POST',

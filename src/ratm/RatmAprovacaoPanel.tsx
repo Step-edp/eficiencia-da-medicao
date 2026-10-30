@@ -214,8 +214,15 @@ export function RatmAprovacaoPanel({
                       className="secondary-button approval-action-button"
                       type="button"
                       onClick={() => {
-                        setViewerMode('edit')
-                        setViewingLaudo(laudo)
+                        void api
+                          .getRatmLaudo(laudo.id)
+                          .then((response) => {
+                            setViewerMode('edit')
+                            setViewingLaudo(mapRatmLaudoFromApi(response.laudo))
+                          })
+                          .catch(() => {
+                            setDeleteError('Não foi possível abrir o laudo para edição.')
+                          })
                       }}
                     >
                       Editar
@@ -282,10 +289,17 @@ export function RatmAprovacaoPanel({
                       className="secondary-button approval-action-button"
                       type="button"
                       onClick={() => {
-                        setRedoingLaudo(true)
-                        setViewerMode('edit')
-                        setViewingLaudo(laudo)
                         setDeleteError('')
+                        void api
+                          .getRatmLaudo(laudo.id)
+                          .then((response) => {
+                            setRedoingLaudo(true)
+                            setViewerMode('edit')
+                            setViewingLaudo(mapRatmLaudoFromApi(response.laudo))
+                          })
+                          .catch(() => {
+                            setDeleteError('Não foi possível abrir o laudo para refazer.')
+                          })
                       }}
                     >
                       Refazer RATM

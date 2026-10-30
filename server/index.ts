@@ -36,6 +36,7 @@ import { getIq09Export, runIq09Script } from './routes/inventario-iq09.js'
 import {
   ratmLaudoRoutes,
   createRatmLaudos,
+  getRatmLaudo,
   updateRatmLaudo,
   redoRatmLaudo,
   approveRatmLaudo,
@@ -362,6 +363,7 @@ async function start() {
   )
 
   app.get('/api/ratm-laudos', ...wrap(ratmLaudoRoutes.list))
+  app.get('/api/ratm-laudos/:id', requireAuth, getRatmLaudo)
   app.post(
     '/api/ratm-laudos',
     requireAuth,

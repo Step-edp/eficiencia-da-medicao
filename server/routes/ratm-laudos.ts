@@ -32,15 +32,22 @@ type RatmLaudoRow = {
   approved_by_user_id?: string | null
 }
 
+function isoTimestamp(value: Date | string | null | undefined) {
+  if (value instanceof Date) return value.toISOString()
+  if (!value) return new Date(0).toISOString()
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? new Date(0).toISOString() : parsed.toISOString()
+}
+
 function mapRatmLaudo(row: RatmLaudoRow) {
   return {
     id: row.id,
     ratmNumber: row.ratm_number,
     meter: row.meter,
     client: row.client,
-    createdAt: row.created_at.toISOString(),
+    createdAt: isoTimestamp(row.created_at),
     status: row.status,
-    formData: row.form_data,
+    formData: row.form_data ?? {},
     createdByUserId: row.created_by_user_id,
     createdByName: row.created_by_name || '',
     createdByRegistration: row.created_by_registration || '',
@@ -282,6 +289,7 @@ export async function listRatmLaudos(req: Request, res: Response) {
     typeof req.query.meter === 'string' && req.query.meter.trim()
       ? req.query.meter.trim()
       : ''
+  const includeForm = Boolean(meter) || req.query.includeForm === '1'
   const params: unknown[] = []
   let meterFilter = ''
   if (meter) {
@@ -289,8 +297,10 @@ export async function listRatmLaudos(req: Request, res: Response) {
     meterFilter = `WHERE ${normalizedMeterSql('r.meter')} = $1`
   }
 
-  const result = await query<RatmLaudoRow>(
-    `SELECT r.*,
+  const formSelect = includeForm ? 'r.form_data' : `'{}'::jsonb`
+  const sql = `SELECT r.id, r.ratm_number, r.meter, r.client, r.created_at, r.status,
+            r.created_by_user_id, r.revoked_at, r.approved_at, r.approved_by_user_id,
+            ${formSelect} AS form_data,
             u.name AS created_by_name,
             u.registration AS created_by_registration,
             ms.installation,
@@ -299,18 +309,64 @@ export async function listRatmLaudos(req: Request, res: Response) {
      FROM ratm_laudos r
      LEFT JOIN users u ON u.id = r.created_by_user_id
      LEFT JOIN LATERAL (
-       SELECT installation, toi, note, meter_reading
+       SELECT installation, toi, note
        FROM meter_schedules
-       WHERE meter = r.meter
+       WHERE ${normalizedMeterSql('meter')} = ${normalizedMeterSql('r.meter')}
        ORDER BY created_at DESC
        LIMIT 1
      ) ms ON true
      ${meterFilter}
-     ORDER BY r.created_at DESC`,
-    params,
-  )
+     ORDER BY r.created_at DESC`
+  let result
+  try {
+    result = await query<RatmLaudoRow>(sql, params)
+  } catch (error) {
+    console.error('Falha ao listar laudos de RATM com o agendamento.', error)
+    result = await query<RatmLaudoRow>(
+      `SELECT r.id, r.ratm_number, r.meter, r.client, r.created_at, r.status,
+              r.created_by_user_id, r.revoked_at, r.approved_at, r.approved_by_user_id,
+              ${formSelect} AS form_data,
+              u.name AS created_by_name,
+              u.registration AS created_by_registration
+       FROM ratm_laudos r
+       LEFT JOIN users u ON u.id = r.created_by_user_id
+       ${meterFilter}
+       ORDER BY r.created_at DESC`,
+      params,
+    )
+  }
 
   res.json({ laudos: result.rows.map(mapRatmLaudo) })
+}
+
+export async function getRatmLaudo(req: Request, res: Response) {
+  const id = typeof req.params.id === 'string' ? req.params.id : ''
+  const result = await query<RatmLaudoRow>(
+    `SELECT r.id, r.ratm_number, r.meter, r.client, r.created_at, r.status, r.form_data,
+            r.created_by_user_id, r.revoked_at, r.approved_at, r.approved_by_user_id,
+            u.name AS created_by_name,
+            u.registration AS created_by_registration,
+            ms.installation,
+            ms.toi,
+            ms.note
+     FROM ratm_laudos r
+     LEFT JOIN users u ON u.id = r.created_by_user_id
+     LEFT JOIN LATERAL (
+       SELECT installation, toi, note
+       FROM meter_schedules
+       WHERE ${normalizedMeterSql('meter')} = ${normalizedMeterSql('r.meter')}
+       ORDER BY created_at DESC
+       LIMIT 1
+     ) ms ON true
+     WHERE r.id = $1`,
+    [id],
+  )
+  const row = result.rows[0]
+  if (!row) {
+    res.status(404).json({ error: 'Laudo não encontrado.' })
+    return
+  }
+  res.json({ laudo: mapRatmLaudo(row) })
 }
 
 export async function createRatmLaudos(req: Request, res: Response) {
@@ -830,9 +886,9 @@ export async function downloadRatmLaudoPdf(req: Request, res: Response) {
        FROM ratm_laudos r
        LEFT JOIN users u ON u.id = r.created_by_user_id
        LEFT JOIN LATERAL (
-         SELECT installation, toi, note, meter_reading
+         SELECT installation, toi, note
          FROM meter_schedules
-         WHERE meter = r.meter
+         WHERE ${normalizedMeterSql('meter')} = ${normalizedMeterSql('r.meter')}
          ORDER BY created_at DESC
          LIMIT 1
        ) ms ON true
