@@ -37,6 +37,34 @@ function formatWhen(isoDate: string) {
   }).format(new Date(isoDate))
 }
 
+function normalizePersonQuery(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function deviationPersonText(item: ScheduleDateAdjustmentRecord) {
+  return [
+    item.collaborator1Name,
+    item.collaborator1Registration,
+    item.collaborator2Name,
+    item.collaborator2Registration,
+    item.createdByName,
+    item.createdByRegistration,
+    item.physicallyAdjustedByName,
+    item.physicallyAdjustedByRegistration,
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+function matchesPerson(item: ScheduleDateAdjustmentRecord, query: string) {
+  if (!query) return true
+  return normalizePersonQuery(deviationPersonText(item)).includes(query)
+}
+
 export function ScheduleDateAdjustmentsPanel({
   scope,
   title,
@@ -65,7 +93,9 @@ export function ScheduleDateAdjustmentsPanel({
   const [error, setError] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
   const [meterDetail, setMeterDetail] = useState<string | null>(null)
+  const [personQuery, setPersonQuery] = useState('')
   const dateOnly = !includeFillingDeviations
+  const normalizedPersonQuery = normalizePersonQuery(personQuery)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -122,19 +152,37 @@ export function ScheduleDateAdjustmentsPanel({
     }
   }
 
-  const visibleItems = listTab === 'pending' ? items : history
+  const pendingItems = normalizedPersonQuery
+    ? items.filter((item) => matchesPerson(item, normalizedPersonQuery))
+    : items
+  const historyItems = normalizedPersonQuery
+    ? history.filter((item) => matchesPerson(item, normalizedPersonQuery))
+    : history
+  const visibleItems = listTab === 'pending' ? pendingItems : historyItems
+  const personNames = dateOnly
+    ? []
+    : [...new Set(
+        [...items, ...history].flatMap((item) =>
+          [item.collaborator1Name, item.collaborator2Name, item.createdByName]
+            .map((name) => name?.trim() ?? '')
+            .filter(Boolean),
+        ),
+      )].sort((a, b) => a.localeCompare(b, 'pt-BR'))
   const showPhysicalButton = allowPhysicalAdjust && !readOnly && listTab === 'pending'
   const showPhysicalColumns = listTab === 'history'
+  const totalInTab = listTab === 'pending' ? items.length : history.length
   const summary =
     loading
       ? 'Carregando...'
-      : listTab === 'pending'
-        ? dateOnly
-          ? `${items.length} medidor(es) com data de agendamento alterada`
-          : `${items.length} apontamento(s) de desvio`
-        : dateOnly
-          ? `${history.length} medidor(es) ajustado(s) fisicamente`
-          : `${history.length} apontamento(s) no histórico`
+      : normalizedPersonQuery
+        ? `${visibleItems.length} de ${totalInTab} apontamento(s) para este nome`
+        : listTab === 'pending'
+          ? dateOnly
+            ? `${items.length} medidor(es) com data de agendamento alterada`
+            : `${items.length} apontamento(s) de desvio`
+          : dateOnly
+            ? `${history.length} medidor(es) ajustado(s) fisicamente`
+            : `${history.length} apontamento(s) no histórico`
 
   const content = (
     <>
@@ -168,7 +216,9 @@ export function ScheduleDateAdjustmentsPanel({
           onClick={() => setListTab('pending')}
         >
           Pendentes
-          {items.length > 0 ? ` (${items.length})` : ''}
+          {(normalizedPersonQuery ? pendingItems.length : items.length) > 0 || normalizedPersonQuery
+            ? ` (${normalizedPersonQuery ? pendingItems.length : items.length})`
+            : ''}
         </button>
         <button
           type="button"
@@ -178,9 +228,30 @@ export function ScheduleDateAdjustmentsPanel({
           onClick={() => setListTab('history')}
         >
           Histórico
-          {history.length > 0 ? ` (${history.length})` : ''}
+          {(normalizedPersonQuery ? historyItems.length : history.length) > 0 || normalizedPersonQuery
+            ? ` (${normalizedPersonQuery ? historyItems.length : history.length})`
+            : ''}
         </button>
       </div>
+
+      {dateOnly ? null : (
+        <label className="deviation-person-filter">
+          Filtrar por nome
+          <input
+            type="search"
+            value={personQuery}
+            onChange={(event) => setPersonQuery(event.target.value)}
+            placeholder="Nome ou matrícula do colaborador"
+            list="deviation-person-names"
+            aria-label="Filtrar desvios por nome ou matrícula"
+          />
+          <datalist id="deviation-person-names">
+            {personNames.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+        </label>
+      )}
 
       {error ? <LoginFeedback type="error" message={error} /> : null}
 
@@ -188,13 +259,15 @@ export function ScheduleDateAdjustmentsPanel({
         <p className="entrada-panel-empty">Carregando alterações...</p>
       ) : visibleItems.length === 0 ? (
         <p className="entrada-panel-empty">
-          {listTab === 'history'
-            ? dateOnly
-              ? 'Nenhum ajuste físico registrado.'
-              : 'Nenhum apontamento no histórico.'
-            : dateOnly
-              ? 'Nenhuma alteração de data pendente.'
-              : 'Nenhum apontamento de desvio pendente.'}
+          {normalizedPersonQuery
+            ? 'Nenhum apontamento para este nome.'
+            : listTab === 'history'
+              ? dateOnly
+                ? 'Nenhum ajuste físico registrado.'
+                : 'Nenhum apontamento no histórico.'
+              : dateOnly
+                ? 'Nenhuma alteração de data pendente.'
+                : 'Nenhum apontamento de desvio pendente.'}
         </p>
       ) : (
         <div className="entrada-table-wrap">

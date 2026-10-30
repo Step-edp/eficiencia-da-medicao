@@ -9940,6 +9940,13 @@ input[type='file'] {
   max-height: 230px;
 }
 
+.deviation-person-filter {
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+  margin: 4px 0 8px;
+}
+
 .exclusion-justification-chart {
   margin: 4px 0 16px;
 }

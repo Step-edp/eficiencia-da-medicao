@@ -31,6 +31,14 @@ const JUSTIFICATION_COLORS = [
   '#8dffc2',
 ]
 
+function normalizePersonQuery(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
 function truncateLabel(value: string, max: number) {
   if (value.length <= max) return value
   return `${value.slice(0, max - 1).trimEnd()}…`
@@ -124,6 +132,20 @@ export function DeviationsPanel({
   const [exclusionsLoading, setExclusionsLoading] = useState(false)
   const [exclusionsError, setExclusionsError] = useState('')
   const [meterDetail, setMeterDetail] = useState<string | null>(null)
+  const [personQuery, setPersonQuery] = useState('')
+  const normalizedPersonQuery = normalizePersonQuery(personQuery)
+  const visibleExclusions = normalizedPersonQuery
+    ? exclusions.filter((item) =>
+        normalizePersonQuery(
+          `${item.excludedByName ?? ''} ${item.excludedByRegistration ?? ''}`,
+        ).includes(normalizedPersonQuery),
+      )
+    : exclusions
+  const exclusionNames = [...new Set(
+    exclusions
+      .map((item) => item.excludedByName?.trim() ?? '')
+      .filter(Boolean),
+  )].sort((a, b) => a.localeCompare(b, 'pt-BR'))
 
   const loadExclusions = useCallback(async () => {
     setExclusionsLoading(true)
@@ -193,15 +215,37 @@ export function DeviationsPanel({
       ) : (
         <>
           {exclusionsError ? <LoginFeedback type="error" message={exclusionsError} /> : null}
+          <label className="deviation-person-filter">
+            Filtrar por nome
+            <input
+              type="search"
+              value={personQuery}
+              onChange={(event) => setPersonQuery(event.target.value)}
+              placeholder="Nome ou matrícula de quem excluiu"
+              list="exclusion-person-names"
+              aria-label="Filtrar exclusões por nome ou matrícula"
+            />
+            <datalist id="exclusion-person-names">
+              {exclusionNames.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          </label>
           {exclusionsLoading && exclusions.length === 0 ? (
             <p className="entrada-panel-empty">Carregando exclusões...</p>
           ) : exclusions.length === 0 ? (
             <p className="entrada-panel-empty">Nenhum registro de exclusão encontrado.</p>
+          ) : visibleExclusions.length === 0 ? (
+            <p className="entrada-panel-empty">Nenhuma exclusão para este nome.</p>
           ) : (
             <>
-            <ExclusionJustificationChart exclusions={exclusions} />
+            <ExclusionJustificationChart exclusions={visibleExclusions} />
             <div className="entrada-table-wrap">
-              <p className="demm-analysis-summary">{exclusions.length} registro(s) de exclusão</p>
+              <p className="demm-analysis-summary">
+                {normalizedPersonQuery
+                  ? `${visibleExclusions.length} de ${exclusions.length} registro(s) de exclusão`
+                  : `${exclusions.length} registro(s) de exclusão`}
+              </p>
               <table className="data-table entrada-table">
                 <thead>
                   <tr>
@@ -215,7 +259,7 @@ export function DeviationsPanel({
                   </tr>
                 </thead>
                 <tbody>
-                  {exclusions.map((item) => (
+                  {visibleExclusions.map((item) => (
                     <tr key={item.id}>
                       <td>
                         <button
