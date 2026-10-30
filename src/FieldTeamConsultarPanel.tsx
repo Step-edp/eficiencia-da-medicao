@@ -150,11 +150,7 @@ function meterBaseStatusLabel(
   if (summary?.analysisBlocked) return 'Bloqueado'
   if (item.registryStatus === 'Aprovado' || item.trailStep === 'Sucata') return 'Aprovado'
   if (item.registryStatus === 'Ensaiado' || item.trailStep === 'Aprovação de RATM') return 'Ensaiado'
-  const hasEntry =
-    item.registryStatus === 'Recebido' ||
-    item.trailStep === 'Ensaiar' ||
-    Boolean(item.demmDocumentId)
-  if (hasEntry) return 'Recebido'
+  if (item.registryStatus === 'Recebido' || item.trailStep === 'Ensaiar') return 'Recebido'
   const hasDocument = Boolean(summary?.hasToi || summary?.hasComunicado)
   if (item.inspectionAnalysisCompleted) return 'Analisado'
   if (hasDocument) return 'Aguardando análise'
