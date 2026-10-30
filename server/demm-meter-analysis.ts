@@ -22,12 +22,15 @@ function resolveDemmMeterAppStatus(
   schedule: { trail_step: string; received_at: Date | null } | undefined,
   registryStatus: string | null | undefined,
 ): DemmMeterAppStatus {
-  if (!schedule) return 'nao_agendado'
+  if (schedule && schedule.trail_step.trim() === ENTRADA_TRAIL_STEP && !schedule.received_at) {
+    return 'agendado'
+  }
 
   const status = registryStatus?.trim()
   if (status === 'Aprovado') return 'aprovado'
   if (status === 'Ensaiado') return 'ensaiado'
   if (status === 'Recebido' || hasMeterEntradaGiven(status ?? '')) return 'recebido'
+  if (!schedule) return 'nao_agendado'
   if (schedule.received_at) return 'recebido'
   if (schedule.trail_step.trim() !== ENTRADA_TRAIL_STEP) return 'recebido'
   return 'agendado'

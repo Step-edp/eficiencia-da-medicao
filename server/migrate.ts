@@ -1530,4 +1530,28 @@ export async function migrate() {
       PRIMARY KEY (ensaio_id, analisador_id)
     )
   `)
+
+  await query(`
+    UPDATE meter_registry AS registry
+    SET status = 'Agendado', trail_step = 'Entrada de medidores'
+    WHERE registry.received_at IS NULL
+      AND BTRIM(COALESCE(registry.status, '')) = 'Recebido'
+      AND BTRIM(COALESCE(registry.trail_step, '')) = 'Ensaiar'
+      AND EXISTS (
+        SELECT 1
+        FROM (
+          SELECT DISTINCT ON (LPAD(RIGHT(REGEXP_REPLACE(ms.meter, '[^0-9]', '', 'g'), 8), 8, '0'))
+                 ms.trail_step,
+                 ms.received_at,
+                 LPAD(RIGHT(REGEXP_REPLACE(ms.meter, '[^0-9]', '', 'g'), 8), 8, '0') AS norm
+          FROM meter_schedules ms
+          WHERE ms.delay_dismissed_at IS NULL
+          ORDER BY LPAD(RIGHT(REGEXP_REPLACE(ms.meter, '[^0-9]', '', 'g'), 8), 8, '0'),
+                   ms.created_at DESC
+        ) latest
+        WHERE latest.norm = LPAD(RIGHT(REGEXP_REPLACE(registry.meter, '[^0-9]', '', 'g'), 8), 8, '0')
+          AND latest.received_at IS NULL
+          AND BTRIM(COALESCE(latest.trail_step, '')) = 'Entrada de medidores'
+      )
+  `)
 }

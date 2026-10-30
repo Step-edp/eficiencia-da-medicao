@@ -114,12 +114,14 @@ async function loadMetersWithEntradaGiven(meters: string[]): Promise<Set<string>
 
   const normalized = [...new Set(meters.map((meter) => normalizeScheduleMeter(meter)))]
   const [scheduleRows, registryRows] = await Promise.all([
-    query<{ norm: string }>(
-      `SELECT DISTINCT ${NORMALIZED_METER_SQL} AS norm
+    query<{ norm: string; trail_step: string; received_at: Date | null }>(
+      `SELECT DISTINCT ON (${NORMALIZED_METER_SQL})
+              ${NORMALIZED_METER_SQL} AS norm, trail_step, received_at
        FROM meter_schedules
-       WHERE ${NORMALIZED_METER_SQL} = ANY($1::text[])
-         AND (trail_step <> $2 OR received_at IS NOT NULL)`,
-      [normalized, ENTRADA_TRAIL_STEP],
+       WHERE delay_dismissed_at IS NULL
+         AND ${NORMALIZED_METER_SQL} = ANY($1::text[])
+       ORDER BY ${NORMALIZED_METER_SQL}, created_at DESC`,
+      [normalized],
     ),
     query<{ status: string; norm: string }>(
       `SELECT status, ${NORMALIZED_METER_SQL} AS norm
@@ -129,8 +131,19 @@ async function loadMetersWithEntradaGiven(meters: string[]): Promise<Set<string>
     ),
   ])
 
-  const givenNorms = new Set(scheduleRows.rows.map((row) => row.norm))
+  const awaitingNorms = new Set(
+    scheduleRows.rows
+      .filter(
+        (row) =>
+          row.trail_step.trim() === ENTRADA_TRAIL_STEP && !row.received_at,
+      )
+      .map((row) => row.norm),
+  )
+  const givenNorms = new Set(
+    scheduleRows.rows.filter((row) => !awaitingNorms.has(row.norm)).map((row) => row.norm),
+  )
   for (const row of registryRows.rows) {
+    if (awaitingNorms.has(row.norm)) continue
     if (hasMeterEntradaGiven(row.status)) givenNorms.add(row.norm)
   }
 
@@ -442,16 +455,6 @@ export async function createDemmDocument(req: Request, res: Response) {
       replacedDemmCount,
     },
   })
-
-  const meterNumbers = extractedMeters.map((item) => item.meter)
-  if (meterNumbers.length) {
-    await query(
-      `UPDATE meter_registry
-       SET status = $1, trail_step = $2
-       WHERE meter = ANY($3::text[]) AND status = 'Agendado'`,
-      [getNextStatusAfterEntrada(), ENSAIAR_TRAIL_STEP, meterNumbers],
-    )
-  }
 
   res.status(201).json({
     document,
@@ -918,12 +921,10 @@ function meterAwaitingEntrada(
   registryStatus: string | null | undefined,
   scheduleTrailStep: string | null | undefined,
 ): boolean {
-  if (registryStatus && hasMeterEntradaGiven(registryStatus)) {
-    return false
-  }
-  if (scheduleTrailStep && scheduleTrailStep.trim() !== ENTRADA_TRAIL_STEP) {
-    return false
-  }
+  const step = scheduleTrailStep?.trim()
+  if (step === ENTRADA_TRAIL_STEP) return true
+  if (step) return false
+  if (registryStatus && hasMeterEntradaGiven(registryStatus)) return false
   return true
 }
 
@@ -1153,16 +1154,6 @@ async function weekMeterReceiveValidationError(
   schedule: WeekMeterScheduleRow,
 ): Promise<string | null> {
   if (schedule.trail_step.trim() !== ENTRADA_TRAIL_STEP) {
-    return 'Este medidor já teve entrada registrada.'
-  }
-
-  const registry = await query<{ status: string }>(
-    `SELECT status FROM meter_registry
-     WHERE ${NORMALIZED_METER_SQL} = LPAD(RIGHT(REGEXP_REPLACE($1::text, '[^0-9]', '', 'g'), 8), 8, '0')
-     LIMIT 1`,
-    [schedule.meter],
-  )
-  if (registry.rows[0] && hasMeterEntradaGiven(registry.rows[0].status)) {
     return 'Este medidor já teve entrada registrada.'
   }
 
