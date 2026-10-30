@@ -374,15 +374,16 @@ export function GrandesClientesPanel({
               ))}
             </div>
             <div className="gc-meters">
-              <div className="consultar-toolbar">
+              <label className="gc-search">
+                Pesquisar medidor ou lacre
                 <input
                   type="search"
                   value={meterSearch}
                   onChange={(event) => setMeterSearch(event.target.value)}
-                  placeholder="Pesquisar medidor ou lacre"
+                  placeholder="Número do medidor ou do lacre"
                   aria-label="Pesquisar medidor ou lacre"
                 />
-              </div>
+              </label>
               {selectedId ? <h3>{ensaioTitle || 'Medidores do ensaio'}</h3> : null}
               <div className="table-scroll">
                 <table className="data-table">
@@ -434,13 +435,16 @@ export function GrandesClientesPanel({
       ) : (
         <section className="gc-section">
           <div className="consultar-toolbar">
-            <input
-              type="search"
-              value={destSearch}
-              onChange={(event) => setDestSearch(event.target.value)}
-              placeholder="Pesquisar cliente, medidor ou cidade"
-              aria-label="Pesquisar destinação"
-            />
+            <label className="gc-search">
+              Pesquisar destinação
+              <input
+                type="search"
+                value={destSearch}
+                onChange={(event) => setDestSearch(event.target.value)}
+                placeholder="Cliente, medidor ou cidade"
+                aria-label="Pesquisar destinação"
+              />
+            </label>
             {readOnly ? null : (
               <div className="consultar-toolbar-end">
                 <button type="button" className="primary-button" onClick={() => setImportDestOpen(true)}>
@@ -762,7 +766,6 @@ function ImportAssayModal({
   onError: (message: string) => void
 }) {
   const [assay, setAssay] = useState<File | null>(null)
-  const [seals, setSeals] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   async function submit(event: FormEvent) {
@@ -774,18 +777,12 @@ function ImportAssayModal({
     setSubmitting(true)
     try {
       const assayBase64 = await readFileAsBase64(assay)
-      const sealsBase64 = seals ? await readFileAsBase64(seals) : undefined
       const response = await api.importGcEnsaio({
         assayFileName: assay.name,
         assayBase64,
-        sealsFileName: seals?.name,
-        sealsBase64,
       })
-      const sealsText = response.sealCount
-        ? ` ${response.sealCount} lacre(s) vinculados pelo número do medidor.`
-        : ''
       await onDone(
-        `Ensaio registrado com ${response.meterCount} medidor(es).${sealsText}`,
+        `Ensaio registrado com ${response.meterCount} medidor(es). Importe a planilha de lacres para completar o laudo.`,
         response.id,
       )
     } catch (error) {
@@ -809,24 +806,16 @@ function ImportAssayModal({
         </button>
         <h3>Registrar ensaio</h3>
         <p>
-          A planilha da bancada traz um medidor por coluna. A planilha de lacres é opcional neste passo e também pode
-          ser importada depois.
+          A planilha da bancada traz um medidor por coluna. A planilha de lacres é outra importação: use Importar
+          lacres. Os lacres entram no laudo pelo número do medidor.
         </p>
-        <label>
+        <label className="gc-file-field">
           Planilha de ensaio
           <input
             type="file"
             accept=".xlsx,.xls"
             required
             onChange={(event) => setAssay(event.target.files?.[0] ?? null)}
-          />
-        </label>
-        <label>
-          Planilha de lacres
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={(event) => setSeals(event.target.files?.[0] ?? null)}
           />
         </label>
         <div className="ensaios-block-modal-actions">

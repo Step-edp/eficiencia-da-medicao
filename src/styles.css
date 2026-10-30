@@ -9943,8 +9943,12 @@ input[type='file'] {
 .deviation-person-filter {
   display: grid;
   gap: 8px;
-  max-width: 420px;
-  margin: 4px 0 8px;
+  width: min(420px, 100%);
+  margin: 18px 0 22px;
+}
+
+.deviation-person-filter input {
+  width: 100%;
 }
 
 .exclusion-justification-chart {
@@ -10088,9 +10092,41 @@ input[type='file'] {
   align-items: start;
 }
 
-.gc-batch-list {
+.gc-batch-list,
+.gc-meters {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.gc-meters h3 {
+  margin: 0;
+}
+
+.gc-search {
   display: grid;
   gap: 8px;
+  width: min(420px, 100%);
+  margin: 0;
+}
+
+.gc-search input {
+  width: 100%;
+}
+
+.ensaios-block-modal .gc-file-field {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  background: rgba(8, 39, 66, 0.45);
+}
+
+.ensaios-block-modal .gc-file-field input[type='file'] {
+  width: 100%;
+  padding: 10px;
 }
 
 .gc-batch {
