@@ -10178,6 +10178,50 @@ input[type='file'] {
   overflow-x: auto;
 }
 
+.gc-panel .gc-meter-scroll {
+  overflow-x: visible;
+}
+
+.gc-meter-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.gc-meter-table .gc-col-meter {
+  width: 14%;
+}
+
+.gc-meter-table .gc-col-name {
+  width: 18%;
+}
+
+.gc-meter-table .gc-col-seal {
+  width: 16%;
+}
+
+.gc-meter-table .gc-col-photos {
+  width: 12%;
+}
+
+.gc-meter-table .gc-col-actions {
+  width: 28%;
+}
+
+.gc-meter-table .gc-row-actions .primary-button,
+.gc-meter-table .gc-row-actions .secondary-button {
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.gc-meter-table th,
+.gc-meter-table td {
+  overflow-wrap: anywhere;
+}
+
+.gc-meter-table .gc-row-actions {
+  flex-wrap: nowrap;
+}
+
 .gc-status {
   display: inline-flex;
   padding: 4px 8px;

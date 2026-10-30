@@ -381,8 +381,16 @@ export function GrandesClientesPanel({
                 />
               </label>
               {selectedId ? <h3>{ensaioTitle || 'Medidores do ensaio'}</h3> : null}
-              <div className="table-scroll">
-                <table className="data-table">
+              <div className="table-scroll gc-meter-scroll">
+                <table className="data-table gc-meter-table">
+                  <colgroup>
+                    <col className="gc-col-meter" />
+                    <col className="gc-col-name" />
+                    <col className="gc-col-seal" />
+                    <col className="gc-col-seal" />
+                    <col className="gc-col-photos" />
+                    <col className="gc-col-actions" />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th>Medidor</th>
@@ -417,11 +425,6 @@ export function GrandesClientesPanel({
                         </td>
                       </tr>
                     ))}
-                    {selectedId && visibleMeters.length === 0 ? (
-                      <tr>
-                        <td colSpan={6}>Nenhum medidor encontrado neste ensaio.</td>
-                      </tr>
-                    ) : null}
                   </tbody>
                 </table>
               </div>
