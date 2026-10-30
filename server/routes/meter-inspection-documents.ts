@@ -2,7 +2,7 @@ import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 import { NORMALIZED_METER_SQL } from '../demm-meter-analysis.js'
-import { ENTRADA_TRAIL_STEP, hasMeterEntradaGiven } from '../lab-trail-status.js'
+import { ENTRADA_TRAIL_STEP } from '../lab-trail-status.js'
 import {
   classifyInspectionDocument,
   countInspectionPdfPages,
@@ -1602,27 +1602,27 @@ async function canManageInspectionDocuments(req: Request): Promise<boolean> {
 async function assertInspectionDocumentDeletable(
   meterScheduleId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const schedule = await query<{ meter: string; trail_step: string }>(
-    `SELECT meter, trail_step FROM meter_schedules WHERE id = $1`,
+  const schedule = await query<{ meter: string; received_at: Date | null }>(
+    `SELECT meter, received_at FROM meter_schedules WHERE id = $1`,
     [meterScheduleId],
   )
   if (!schedule.rows[0]) {
     return { ok: false, error: 'Agendamento não encontrado.' }
   }
 
-  const { meter, trail_step } = schedule.rows[0]
-  if (trail_step.trim() !== ENTRADA_TRAIL_STEP) {
+  const { meter, received_at } = schedule.rows[0]
+  if (received_at) {
     return {
       ok: false,
       error: 'Não é possível excluir: o medidor já teve entrada no laboratório.',
     }
   }
 
-  const registry = await query<{ status: string }>(
-    `SELECT status FROM meter_registry WHERE meter = $1`,
+  const registry = await query<{ received_at: Date | null }>(
+    `SELECT received_at FROM meter_registry WHERE meter = $1`,
     [meter],
   )
-  if (registry.rows[0] && hasMeterEntradaGiven(registry.rows[0].status)) {
+  if (registry.rows[0]?.received_at) {
     return {
       ok: false,
       error: 'Não é possível excluir: o medidor já teve entrada no laboratório.',
@@ -2739,9 +2739,7 @@ export async function listInspectionDocuments(req: Request, res: Response) {
     [normalizeScheduleMeter(registeredMeter)],
   )
   const labRow = registry.rows[0]
-  const labEntradaGiven = Boolean(
-    labRow && (hasMeterEntradaGiven(labRow.status) || labRow.received_at),
-  )
+  const labEntradaGiven = Boolean(labRow?.received_at)
   const scheduleIds = await listEntradaScheduleIdsForSchedule(meterScheduleId)
   const documentScheduleIds = scheduleIds.length ? scheduleIds : [meterScheduleId]
 

@@ -147,6 +147,7 @@ type MeterScheduleRow = {
   demm_document_number?: string | null
   demm_meter_count?: number | null
   registry_status?: string | null
+  received_at?: Date | null
   inspection_analysis_completed_at?: Date | null
   inspection_analysis_block_reason?: string | null
   delay_justification?: string | null
@@ -311,6 +312,7 @@ function mapMeterSchedule(
     scheduledAt: row.scheduled_at,
     trailStep: row.trail_step,
     entradaTrailStep: ENTRADA_TRAIL_STEP,
+    received: Boolean(row.received_at),
   })
   const viewerIsToiCollaborator = isToiCollaboratorViewer(row, viewer)
   const installationTypedWrong = Boolean(row.installation_wrong)
@@ -355,6 +357,7 @@ function mapMeterSchedule(
     demmDocumentNumber: row.demm_document_number ?? null,
     demmMeterCount: Number(row.demm_meter_count ?? 0),
     registryStatus: row.registry_status || '',
+    receivedAt: row.received_at?.toISOString() ?? null,
     inspectionAnalysisCompleted: Boolean(row.inspection_analysis_completed_at),
     analysisBlockReason: (row.inspection_analysis_block_reason ?? '').trim(),
     delayJustification: (row.delay_justification ?? '').trim(),
@@ -1580,6 +1583,7 @@ export async function saveDelayJustification(req: Request, res: Response) {
     scheduledAt: row.scheduled_at,
     trailStep: row.trail_step,
     entradaTrailStep: ENTRADA_TRAIL_STEP,
+    received: Boolean(row.received_at),
   })
   if (!isLate) {
     res.status(400).json({ error: 'Só é possível justificar medidores atrasados.' })
@@ -1670,6 +1674,7 @@ export async function dismissDelayMeter(req: Request, res: Response) {
     scheduledAt: row.scheduled_at,
     trailStep: row.trail_step,
     entradaTrailStep: ENTRADA_TRAIL_STEP,
+    received: Boolean(row.received_at),
   })
   if (!isLate) {
     res.status(400).json({ error: 'Só é possível excluir medidores atrasados desta lista.' })
@@ -1789,6 +1794,7 @@ export async function cancelMeterSchedule(req: Request, res: Response) {
     scheduledAt: row.scheduled_at,
     trailStep: row.trail_step,
     entradaTrailStep: ENTRADA_TRAIL_STEP,
+    received: Boolean(row.received_at),
   })
   const deadline = lastFridayBeforeAssay(row.scheduled_at)
   const frozenDaysLate = isLate ? calendarDaysBetween(deadline, new Date()) : 0
@@ -2181,15 +2187,8 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
             ms.delay_dismissed_at,
             ms.delay_dismissed_by,
             ms.delay_dismissed_days,
-            d.created_at AS entry_at
+            ms.received_at AS entry_at
      FROM meter_schedules ms
-     LEFT JOIN LATERAL (
-       SELECT created_at
-       FROM demm_documents
-       WHERE meter_schedule_id = ms.id OR meter = ms.meter
-       ORDER BY created_at ASC
-       LIMIT 1
-     ) d ON true
      WHERE ${backofficeAccess ? 'TRUE' : 'UPPER(TRIM(ms.csd)) = ANY($1::text[])'}
        ${fromToday ? `AND ${scheduleCountedFromTodaySql('ms')}` : ''}
      ORDER BY ms.scheduled_at ASC`,
@@ -2239,8 +2238,7 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
   for (const row of result.rows) {
     const deadline = lastFridayBeforeAssay(row.scheduled_at)
     const monthKey = monthKeyFromDate(deadline)
-    const hasEntry =
-      Boolean(row.entry_at) || row.trail_step.trim() !== ENTRADA_TRAIL_STEP
+    const hasEntry = Boolean(row.entry_at)
 
     if (hasEntry) {
       if (row.entry_at) {
@@ -2264,6 +2262,7 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
       scheduledAt: row.scheduled_at,
       trailStep: row.trail_step,
       entradaTrailStep: ENTRADA_TRAIL_STEP,
+      received: Boolean(row.entry_at),
       now,
     })
     const frozenDays =

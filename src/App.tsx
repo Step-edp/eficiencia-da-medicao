@@ -5824,7 +5824,6 @@ function HomePanel({
                 initialView="receivedMetersBase"
                 readOnly={labMedicaoReadOnly}
                 allowUserProfilePhotoEdit={isAdmin && !labMedicaoReadOnly}
-                isAdmin={isAdmin && !labMedicaoReadOnly}
                 onTrailCountsChange={refreshTrailStepCounts}
               />
             ) : selectedLabMeasurementSection === 'Adicionar passivo' ? (
@@ -5868,7 +5867,6 @@ function HomePanel({
               <EntradaPanel
                 readOnly={labMedicaoReadOnly}
                 allowUserProfilePhotoEdit={isAdmin && !labMedicaoReadOnly}
-                isAdmin={isAdmin && !labMedicaoReadOnly}
                 onTrailCountsChange={refreshTrailStepCounts}
               />
             ) : selectedLabMeasurementSection === 'Agendar' ? (

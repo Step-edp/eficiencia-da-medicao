@@ -53,10 +53,7 @@ export const STILL_AWAITING_ENTRADA_SQL = `
     SELECT 1
     FROM meter_registry mr_entrada
     WHERE ${normalizedMeterColumnSql('mr_entrada')} = ${normalizedMeterColumnSql('ms')}
-      AND (
-        mr_entrada.received_at IS NOT NULL
-        OR BTRIM(COALESCE(mr_entrada.status, '')) IN ('Recebido', 'Ensaiado', 'Aprovado')
-      )
+      AND mr_entrada.received_at IS NOT NULL
   )
 `.trim()
 
@@ -64,17 +61,9 @@ export function isMeterReadyForEnsaio(options: {
   registryStatus?: string | null
   trailStep?: string | null
   hasDemmEntry?: boolean
+  receivedAt?: Date | string | null
 }): boolean {
-  if (options.hasDemmEntry) {
-    return true
-  }
-
-  if (options.registryStatus && hasMeterEntradaGiven(options.registryStatus)) {
-    return true
-  }
-
-  const step = options.trailStep?.trim()
-  return Boolean(step && step !== ENTRADA_TRAIL_STEP)
+  return Boolean(options.receivedAt)
 }
 
 export function getNextStatusAfterEntrada(): MeterProcessStatus {
@@ -86,20 +75,19 @@ export type CalendarMeterStatus = 'Agendado' | 'Recebido' | 'Ensaiado'
 export function resolveCalendarMeterStatus(
   registryStatus: string | null | undefined,
   trailStep: string,
+  received: boolean,
 ): CalendarMeterStatus {
   const registry = registryStatus?.trim()
-  if (registry === 'Aprovado' || registry === 'Ensaiado') return 'Ensaiado'
-  if (registry === 'Recebido') return 'Recebido'
-  if (registry === 'Agendado') return 'Agendado'
-
   const step = trailStep.trim()
-  if (step === ENSAIAR_TRAIL_STEP) return 'Recebido'
   if (
+    registry === 'Aprovado' ||
+    registry === 'Ensaiado' ||
     step === APROVACAO_TRAIL_STEP ||
     step === 'Pesquisa de satisfação' ||
     step === SUCATA_TRAIL_STEP
   ) {
     return 'Ensaiado'
   }
+  if (received) return 'Recebido'
   return 'Agendado'
 }

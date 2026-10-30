@@ -34,9 +34,11 @@ export function isMeterDeliveryLate(options: {
   scheduledAt: Date
   trailStep: string
   entradaTrailStep: string
+  received?: boolean
   now?: Date
 }): boolean {
-  if (options.trailStep !== options.entradaTrailStep) {
+  if (options.received) return false
+  if (options.received === undefined && options.trailStep !== options.entradaTrailStep) {
     return false
   }
   const now = options.now ?? new Date()

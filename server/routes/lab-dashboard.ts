@@ -157,10 +157,7 @@ export async function getLabVisaoDashboard(req: Request, res: Response) {
          CROSS JOIN LATERAL (
            SELECT (
              ms.received_at IS NULL
-             AND NOT (
-               mr.received_at IS NOT NULL
-               OR BTRIM(COALESCE(mr.status, '')) IN ('Recebido', 'Ensaiado', 'Aprovado')
-             )
+             AND mr.received_at IS NULL
            ) AS ok
          ) aguardando
          CROSS JOIN LATERAL (

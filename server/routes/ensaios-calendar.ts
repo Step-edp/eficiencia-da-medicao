@@ -33,6 +33,7 @@ type CalendarMeterRow = {
   trail_step: string
   scheduled_at: Date
   registry_status: string | null
+  received: boolean
 }
 
 export async function listCalendarMeters(req: Request, res: Response) {
@@ -46,7 +47,8 @@ export async function listCalendarMeters(req: Request, res: Response) {
 
   const result = await query<CalendarMeterRow>(
     `SELECT ms.id, ms.meter, ms.csd, ms.trail_step, ms.scheduled_at,
-            mr.status AS registry_status
+            mr.status AS registry_status,
+            (ms.received_at IS NOT NULL OR mr.received_at IS NOT NULL) AS received
      FROM meter_schedules ms
      LEFT JOIN meter_registry mr ON mr.meter = ms.meter
      WHERE ms.scheduled_at::date >= $1::date
@@ -64,7 +66,7 @@ export async function listCalendarMeters(req: Request, res: Response) {
       trailStep: row.trail_step,
       scheduledAt: row.scheduled_at.toISOString(),
       scheduledDate: row.scheduled_at.toISOString().slice(0, 10),
-      status: resolveCalendarMeterStatus(row.registry_status, row.trail_step),
+      status: resolveCalendarMeterStatus(row.registry_status, row.trail_step, Boolean(row.received)),
     })),
   })
 }

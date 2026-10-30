@@ -1,38 +1,16 @@
 import type { MeterScheduleRecord } from '../api'
-import { ENTRADA_TRAIL_STEP } from '../labTrailSteps'
 
 export const METER_NOT_RECEIVED_MESSAGE =
-  'Este medidor ainda não foi recebido na Entrada. Registre a DEMM antes de iniciar o ensaio.'
-
-function hasRegistryEntrada(status?: string | null): boolean {
-  return status === 'Recebido' || status === 'Ensaiado' || status === 'Aprovado'
-}
+  'Este medidor ainda não foi recebido pela entrada em massa da DEMM.'
 
 export function isMeterReadyForEnsaio(
-  input: Pick<MeterScheduleRecord, 'trailStep' | 'demmDocumentId'> & {
-    registryStatus?: string | null
-  },
+  input: Pick<MeterScheduleRecord, 'receivedAt'>,
 ): boolean {
-  if (input.demmDocumentId) {
-    return true
-  }
-
-  if (hasRegistryEntrada(input.registryStatus)) {
-    return true
-  }
-
-  const step = input.trailStep?.trim()
-  return Boolean(step && step !== ENTRADA_TRAIL_STEP)
+  return Boolean(input.receivedAt)
 }
 
 export function isMeterReadyForEnsaioFromForm(input: {
-  meterStatus?: string
-  demmDocumentId?: string | null
-  registryStatus?: string | null
+  receivedAt?: string | null
 }): boolean {
-  return isMeterReadyForEnsaio({
-    trailStep: input.meterStatus || '',
-    demmDocumentId: input.demmDocumentId ?? null,
-    registryStatus: input.registryStatus ?? null,
-  })
+  return Boolean(input.receivedAt)
 }

@@ -76,6 +76,7 @@ export type RatmFormData = {
   meterSearch: string
   meter: string
   meterStatus: string
+  receivedAt: string | null
   demmDocumentId: string | null
   registryStatus: string
   scheduleId: string
@@ -185,6 +186,7 @@ export function createEmptyRatmForm(): RatmFormData {
     meterSearch: '',
     meter: '',
     meterStatus: '',
+    receivedAt: null,
     demmDocumentId: null,
     registryStatus: '',
     scheduleId: '',

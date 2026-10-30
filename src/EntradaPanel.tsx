@@ -854,108 +854,6 @@ function QuickScheduleModal({
   )
 }
 
-type PassiveReceiveModalProps = {
-  meter: WeekMeterRecord
-  submitting: boolean
-  feedback: string | null
-  onClose: () => void
-  onSubmit: (payload: { receivedAt: string }) => void
-}
-
-function PassiveReceiveModal({
-  meter,
-  submitting,
-  feedback,
-  onClose,
-  onSubmit,
-}: PassiveReceiveModalProps) {
-  const [receivedDate, setReceivedDate] = useState('')
-  const [receivedTime, setReceivedTime] = useState('08:00')
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!receivedDate) return
-    onSubmit({
-      receivedAt: new Date(`${receivedDate}T${receivedTime}:00`).toISOString(),
-    })
-  }
-
-  return createPortal(
-    <div className="ensaios-block-modal-overlay" role="presentation" onClick={onClose}>
-      <div
-        className="ensaios-block-modal demm-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="passive-receive-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <button
-          type="button"
-          className="icon-button schedule-slot-modal-close"
-          onClick={onClose}
-          aria-label="Fechar"
-          title="Fechar"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M6 6l12 12M18 6L6 18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-
-        <h3 id="passive-receive-title">Receber passivo — medidor {meter.meter}</h3>
-        <p className="demm-modal-intro">
-          Informe a data real em que o medidor foi recebido no laboratório. Essa data será usada
-          no dash do CSD.
-        </p>
-
-        {feedback ? (
-          <div className="demm-modal-feedback error" role="alert">
-            <p>{feedback}</p>
-          </div>
-        ) : null}
-
-        <form className="form-grid demm-form-grid" onSubmit={handleSubmit}>
-          <label>
-            Data de recebimento
-            <input
-              type="date"
-              value={receivedDate}
-              onChange={(event) => setReceivedDate(event.target.value)}
-              disabled={submitting}
-              required
-            />
-          </label>
-          <label>
-            Hora
-            <input
-              type="time"
-              value={receivedTime}
-              onChange={(event) => setReceivedTime(event.target.value)}
-              disabled={submitting}
-              required
-            />
-          </label>
-
-          <div className="ensaios-block-modal-actions full-width">
-            <button type="button" className="secondary-button" onClick={onClose}>
-              Cancelar
-            </button>
-            <button type="submit" className="primary-button" disabled={submitting}>
-              {submitting ? 'Registrando...' : 'Receber passivo'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
-  )
-}
-
 function BulkReceiveConfirmModal({
   demmDocument,
   submitting,
@@ -1130,7 +1028,6 @@ type EntradaPanelProps = {
   onTrailCountsChange?: () => void
   readOnly?: boolean
   allowUserProfilePhotoEdit?: boolean
-  isAdmin?: boolean
   initialView?: EntradaPanelView
 }
 
@@ -1138,7 +1035,6 @@ export function EntradaPanel({
   onTrailCountsChange,
   readOnly = false,
   allowUserProfilePhotoEdit = false,
-  isAdmin = false,
   initialView = 'weekMeters',
 }: EntradaPanelProps) {
   const [view, setView] = useState<EntradaPanelView>(initialView)
@@ -1173,7 +1069,6 @@ export function EntradaPanel({
   const [inspectionPendenciasLoading, setInspectionPendenciasLoading] = useState(false)
   const [inspectionPendenciasSearchQuery, setInspectionPendenciasSearchQuery] = useState('')
   const [uploadingInspectionId, setUploadingInspectionId] = useState<string | null>(null)
-  const [receivingMeter, setReceivingMeter] = useState<string | null>(null)
   const [metersWithoutDemm, setMetersWithoutDemm] = useState<MeterWithoutDemmRecord[]>([])
   const [metersWithoutDemmLoading, setMetersWithoutDemmLoading] = useState(false)
   const [metersWithoutDemmSearchQuery, setMetersWithoutDemmSearchQuery] = useState('')
@@ -1186,9 +1081,6 @@ export function EntradaPanel({
   const [quickScheduleMeter, setQuickScheduleMeter] = useState<WeekMeterRecord | null>(null)
   const [submittingQuickSchedule, setSubmittingQuickSchedule] = useState(false)
   const [quickScheduleFeedback, setQuickScheduleFeedback] = useState<string | null>(null)
-  const [passiveReceiveMeter, setPassiveReceiveMeter] = useState<WeekMeterRecord | null>(null)
-  const [submittingPassiveReceive, setSubmittingPassiveReceive] = useState(false)
-  const [passiveReceiveFeedback, setPassiveReceiveFeedback] = useState<string | null>(null)
   const [meterDetailTarget, setMeterDetailTarget] = useState<string | null>(null)
   const [inspectionDocumentTarget, setInspectionDocumentTarget] = useState<{
     meter: string
@@ -1746,71 +1638,6 @@ export function EntradaPanel({
       setWeekMetersLoading(false)
     }
   }, [])
-
-  const handleReceiveWeekMeter = async (item: WeekMeterRecord) => {
-    setReceivingMeter(item.meter)
-    setFeedback(null)
-
-    try {
-      await api.receiveWeekMeter({
-        meter: item.meter,
-        scheduleId: item.scheduleId,
-      })
-      setWeekMeters((prev) => prev.filter((row) => row.meter !== item.meter))
-      setFeedback({
-        type: 'success',
-        message: `Medidor ${item.meter} recebido no laboratório.`,
-      })
-      refreshTrailCounts()
-      void loadData()
-    } catch (error) {
-      setFeedback({
-        type: 'error',
-        message:
-          error instanceof ApiError
-            ? error.message
-            : 'Não foi possível registrar a entrada do medidor.',
-      })
-    } finally {
-      setReceivingMeter(null)
-    }
-  }
-
-  const closePassiveReceive = () => {
-    setPassiveReceiveMeter(null)
-    setPassiveReceiveFeedback(null)
-  }
-
-  const handlePassiveReceiveSubmit = async (payload: { receivedAt: string }) => {
-    if (!passiveReceiveMeter) return
-
-    setSubmittingPassiveReceive(true)
-    setPassiveReceiveFeedback(null)
-
-    try {
-      await api.receiveWeekMeterPassive({
-        meter: passiveReceiveMeter.meter,
-        scheduleId: passiveReceiveMeter.scheduleId,
-        receivedAt: payload.receivedAt,
-      })
-      setWeekMeters((prev) => prev.filter((row) => row.meter !== passiveReceiveMeter.meter))
-      setFeedback({
-        type: 'success',
-        message: `Medidor ${passiveReceiveMeter.meter} recebido (passivo) com a data informada.`,
-      })
-      refreshTrailCounts()
-      void loadData()
-      closePassiveReceive()
-    } catch (error) {
-      setPassiveReceiveFeedback(
-        error instanceof ApiError
-          ? error.message
-          : 'Não foi possível registrar o recebimento passivo.',
-      )
-    } finally {
-      setSubmittingPassiveReceive(false)
-    }
-  }
 
   const openWeekMeters = () => {
     setView('weekMeters')
@@ -3472,28 +3299,6 @@ export function EntradaPanel({
                                 </label>
                               </>
                             ) : null}
-                            {item.status === 'liberado' ? (
-                              <>
-                                <button
-                                  type="button"
-                                  className="primary-button"
-                                  disabled={readOnly || receivingMeter === item.meter}
-                                  onClick={() => void handleReceiveWeekMeter(item)}
-                                >
-                                  {receivingMeter === item.meter ? 'Recebendo...' : 'Receber'}
-                                </button>
-                                {isAdmin && !readOnly ? (
-                                  <button
-                                    type="button"
-                                    className="secondary-button"
-                                    disabled={submittingPassiveReceive}
-                                    onClick={() => setPassiveReceiveMeter(item)}
-                                  >
-                                    Receber passivo
-                                  </button>
-                                ) : null}
-                              </>
-                            ) : null}
                             {item.scheduleId && item.status !== 'nao_agendado' ? (
                               <button
                                 type="button"
@@ -3526,15 +3331,6 @@ export function EntradaPanel({
             feedback={quickScheduleFeedback}
             onClose={closeQuickSchedule}
             onSubmit={(payload) => void handleQuickScheduleSubmit(payload)}
-          />
-        ) : null}
-        {passiveReceiveMeter ? (
-          <PassiveReceiveModal
-            meter={passiveReceiveMeter}
-            submitting={submittingPassiveReceive}
-            feedback={passiveReceiveFeedback}
-            onClose={closePassiveReceive}
-            onSubmit={(payload) => void handlePassiveReceiveSubmit(payload)}
           />
         ) : null}
         {inspectionDocumentTarget ? (

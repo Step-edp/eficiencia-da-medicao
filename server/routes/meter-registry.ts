@@ -149,7 +149,7 @@ export async function listMeterRegistry(req: Request, res: Response) {
 
   if (receivedOnly) {
     conditions.push(
-      `(received_at IS NOT NULL OR status IN ('Recebido', 'Ensaiado', 'Aprovado'))`,
+      `received_at IS NOT NULL`,
     )
   }
 

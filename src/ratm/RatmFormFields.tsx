@@ -624,6 +624,7 @@ function emptyScheduleFields(): Partial<RatmFormData> {
   return {
     meter: '',
     meterStatus: '',
+    receivedAt: null,
     demmDocumentId: null,
     registryStatus: '',
     scheduleId: '',
@@ -1190,6 +1191,7 @@ export function RatmFormFields({ index, total, data, onChange, onScan }: RatmFor
       onChange({
         meter: schedule.meter,
         meterStatus: schedule.trailStep || 'Agendado',
+        receivedAt: schedule.receivedAt ?? null,
         demmDocumentId: schedule.demmDocumentId,
         registryStatus: schedule.registryStatus || '',
         scheduleId: schedule.id,

@@ -64,8 +64,8 @@ function normalizeSearch(value: string) {
 function deliveryStatusLabel(item: MeterScheduleRecord) {
   if (item.registryStatus === 'Aprovado' || item.trailStep === 'Sucata') return 'Aprovado'
   if (item.registryStatus === 'Ensaiado' || item.trailStep === 'Aprovação de RATM') return 'Ensaiado'
-  if (item.isLate) return 'Atrasado'
-  if (item.trailStep === 'Entrada de medidores') return 'No prazo'
+  if (!item.receivedAt) return item.isLate ? 'Atrasado' : 'No prazo'
+  if (item.trailStep === 'Entrada de medidores') return item.isLate ? 'Atrasado' : 'No prazo'
   return 'Entregue'
 }
 
@@ -150,7 +150,9 @@ function meterBaseStatusLabel(
   if (summary?.analysisBlocked) return 'Bloqueado'
   if (item.registryStatus === 'Aprovado' || item.trailStep === 'Sucata') return 'Aprovado'
   if (item.registryStatus === 'Ensaiado' || item.trailStep === 'Aprovação de RATM') return 'Ensaiado'
-  if (item.registryStatus === 'Recebido' || item.trailStep === 'Ensaiar') return 'Recebido'
+  if (item.receivedAt && (item.registryStatus === 'Recebido' || item.trailStep === 'Ensaiar')) {
+    return 'Recebido'
+  }
   const hasDocument = Boolean(summary?.hasToi || summary?.hasComunicado)
   if (item.inspectionAnalysisCompleted) return 'Analisado'
   if (hasDocument) return 'Aguardando análise'

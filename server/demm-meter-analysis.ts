@@ -21,19 +21,19 @@ export type DemmMeterAnalysis = {
 function resolveDemmMeterAppStatus(
   schedule: { trail_step: string; received_at: Date | null } | undefined,
   registryStatus: string | null | undefined,
+  registryReceivedAt: Date | null | undefined,
 ): DemmMeterAppStatus {
-  if (schedule && schedule.trail_step.trim() === ENTRADA_TRAIL_STEP && !schedule.received_at) {
-    return 'agendado'
+  const entered = Boolean(schedule?.received_at) || Boolean(registryReceivedAt)
+  if (!entered) {
+    return schedule ? 'agendado' : 'nao_agendado'
   }
 
   const status = registryStatus?.trim()
   if (status === 'Aprovado') return 'aprovado'
   if (status === 'Ensaiado') return 'ensaiado'
   if (status === 'Recebido' || hasMeterEntradaGiven(status ?? '')) return 'recebido'
-  if (!schedule) return 'nao_agendado'
-  if (schedule.received_at) return 'recebido'
-  if (schedule.trail_step.trim() !== ENTRADA_TRAIL_STEP) return 'recebido'
-  return 'agendado'
+  if (schedule && schedule.trail_step.trim() !== ENTRADA_TRAIL_STEP) return 'recebido'
+  return 'recebido'
 }
 
 export function countDemmMetersAwaitingEntry(
@@ -65,8 +65,8 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
        ORDER BY ${NORMALIZED_METER_SQL}, created_at DESC`,
       [normalizedMeters],
     ),
-    query<{ norm: string; status: string }>(
-      `SELECT ${NORMALIZED_METER_SQL} AS norm, status
+    query<{ norm: string; status: string; received_at: Date | null }>(
+      `SELECT ${NORMALIZED_METER_SQL} AS norm, status, received_at
        FROM meter_registry
        WHERE ${NORMALIZED_METER_SQL} = ANY($1::text[])`,
       [normalizedMeters],
@@ -86,16 +86,18 @@ export async function analyzeDemmMeters(meters: string[]): Promise<DemmMeterAnal
       },
     ]),
   )
-  const registryByMeter = new Map(registryRows.rows.map((row) => [row.norm, row.status]))
+  const registryByMeter = new Map(registryRows.rows.map((row) => [row.norm, row]))
 
   return meters.map((meter) => {
     const norm = normalizeScheduleMeter(meter)
     const schedule = scheduleByMeter.get(norm)
+    const registry = registryByMeter.get(norm)
     const appStatus = resolveDemmMeterAppStatus(
       schedule
         ? { trail_step: schedule.trailStep, received_at: schedule.receivedAt }
         : undefined,
-      registryByMeter.get(norm),
+      registry?.status,
+      registry?.received_at,
     )
 
     return {

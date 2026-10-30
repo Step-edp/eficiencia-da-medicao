@@ -7,7 +7,7 @@ const STATUS_SQL = `
   CASE
     WHEN trail_step IN ('Sucata', 'Pesquisa de satisfação') THEN 'Aprovado'
     WHEN trail_step = 'Aprovação de RATM' THEN 'Ensaiado'
-    WHEN received_at IS NOT NULL OR trail_step = 'Ensaiar' THEN 'Recebido'
+    WHEN received_at IS NOT NULL THEN 'Recebido'
     ELSE 'Agendado'
   END
 `

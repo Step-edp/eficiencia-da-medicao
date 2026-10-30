@@ -1,5 +1,5 @@
 import { query } from './db.js'
-import { ENTRADA_TRAIL_STEP, getStatusAvailabilityLabel, hasMeterEntradaGiven } from './lab-trail-status.js'
+import { getStatusAvailabilityLabel } from './lab-trail-status.js'
 import { NORMALIZED_METER_SQL } from './demm-meter-analysis.js'
 import { normalizeScheduleMeter } from './numeric-field-validation.js'
 import { loadInspectionAnalysisStatusByMeter } from './routes/meter-inspection-documents.js'
@@ -106,8 +106,9 @@ export async function validateDemmUploadMeters(
   const pastEntrada = await query<{ meter: string; trail_step: string }>(
     `SELECT meter, trail_step
      FROM meter_schedules
-     WHERE meter = ANY($1::text[]) AND trail_step <> $2`,
-    [uniqueMeters, ENTRADA_TRAIL_STEP],
+     WHERE meter = ANY($1::text[])
+       AND received_at IS NOT NULL`,
+    [uniqueMeters],
   )
 
   for (const row of pastEntrada.rows) {
@@ -119,28 +120,14 @@ export async function validateDemmUploadMeters(
     })
   }
 
-  const ratmMeters = await query<{ meter: string }>(
-    `SELECT DISTINCT meter FROM ratm_laudos WHERE meter = ANY($1::text[])`,
-    [uniqueMeters],
-  )
-
-  for (const row of ratmMeters.rows) {
-    entradaMeters.add(row.meter)
-    if (conflicts.has(row.meter)) continue
-    conflicts.set(row.meter, {
-      meter: row.meter,
-      reason: 'entrada_given',
-      detail: 'RATM',
-    })
-  }
-
   const registeredMeters = await query<{ meter: string; status: string }>(
-    `SELECT meter, status FROM meter_registry WHERE meter = ANY($1::text[])`,
+    `SELECT meter, status FROM meter_registry
+     WHERE meter = ANY($1::text[])
+       AND received_at IS NOT NULL`,
     [uniqueMeters],
   )
 
   for (const row of registeredMeters.rows) {
-    if (!hasMeterEntradaGiven(row.status)) continue
     entradaMeters.add(row.meter)
     if (conflicts.has(row.meter)) continue
     conflicts.set(row.meter, {

@@ -13,7 +13,6 @@ import {
   ENTRADA_TRAIL_STEP,
   ENSAIAR_TRAIL_STEP,
   getNextStatusAfterEntrada,
-  hasMeterEntradaGiven,
   normalizedMeterColumnSql,
   STILL_AWAITING_ENTRADA_SQL,
   scheduleCountedFromTodaySql,
@@ -123,28 +122,19 @@ async function loadMetersWithEntradaGiven(meters: string[]): Promise<Set<string>
        ORDER BY ${NORMALIZED_METER_SQL}, created_at DESC`,
       [normalized],
     ),
-    query<{ status: string; norm: string }>(
-      `SELECT status, ${NORMALIZED_METER_SQL} AS norm
+    query<{ status: string; norm: string; received_at: Date | null }>(
+      `SELECT status, ${NORMALIZED_METER_SQL} AS norm, received_at
        FROM meter_registry
        WHERE ${NORMALIZED_METER_SQL} = ANY($1::text[])`,
       [normalized],
     ),
   ])
 
-  const awaitingNorms = new Set(
-    scheduleRows.rows
-      .filter(
-        (row) =>
-          row.trail_step.trim() === ENTRADA_TRAIL_STEP && !row.received_at,
-      )
-      .map((row) => row.norm),
-  )
   const givenNorms = new Set(
-    scheduleRows.rows.filter((row) => !awaitingNorms.has(row.norm)).map((row) => row.norm),
+    scheduleRows.rows.filter((row) => row.received_at).map((row) => row.norm),
   )
   for (const row of registryRows.rows) {
-    if (awaitingNorms.has(row.norm)) continue
-    if (hasMeterEntradaGiven(row.status)) givenNorms.add(row.norm)
+    if (row.received_at) givenNorms.add(row.norm)
   }
 
   for (const meter of meters) {
@@ -917,17 +907,6 @@ function computeWeekMeterStatus(
   return 'liberado'
 }
 
-function meterAwaitingEntrada(
-  registryStatus: string | null | undefined,
-  scheduleTrailStep: string | null | undefined,
-): boolean {
-  const step = scheduleTrailStep?.trim()
-  if (step === ENTRADA_TRAIL_STEP) return true
-  if (step) return false
-  if (registryStatus && hasMeterEntradaGiven(registryStatus)) return false
-  return true
-}
-
 async function buildMeterWeekStatusMap(meters: string[]): Promise<Map<string, WeekMeterStatus>> {
   const uniqueMeters = [...new Set(meters.map((meter) => meter.trim()).filter(Boolean))]
   const statusByMeter = new Map<string, WeekMeterStatus>()
@@ -999,26 +978,6 @@ export async function listWeekMeters(_req: Request, res: Response) {
   const uniqueMeters = [...meterInfo.keys()]
   const analyzed = await analyzeDemmMeters(uniqueMeters)
 
-  const registryRows = uniqueMeters.length
-    ? await query<{ meter: string; status: string; trail_step: string }>(
-        `SELECT meter, status, trail_step FROM meter_registry WHERE meter = ANY($1::text[])`,
-        [uniqueMeters],
-      )
-    : { rows: [] as Array<{ meter: string; status: string; trail_step: string }> }
-  const registryByMeter = new Map(registryRows.rows.map((row) => [row.meter, row]))
-
-  const scheduleTrailRows = uniqueMeters.length
-    ? await query<{ meter: string; trail_step: string }>(
-        `SELECT DISTINCT ON (meter) meter, trail_step
-         FROM meter_schedules
-         WHERE meter = ANY($1::text[])
-           AND delay_dismissed_at IS NULL
-         ORDER BY meter, created_at DESC`,
-        [uniqueMeters],
-      )
-    : { rows: [] as Array<{ meter: string; trail_step: string }> }
-  const scheduleTrailByMeter = new Map(scheduleTrailRows.rows.map((row) => [row.meter, row.trail_step]))
-
   const dismissedOnlyRows = uniqueMeters.length
     ? await query<{ meter: string }>(
         `SELECT DISTINCT ms.meter
@@ -1042,9 +1001,7 @@ export async function listWeekMeters(_req: Request, res: Response) {
   const meters = analyzed
     .filter((item) => {
       if (dismissedOnly.has(item.meter)) return false
-      const registry = registryByMeter.get(item.meter)
-      const scheduleTrailStep = scheduleTrailByMeter.get(item.meter)
-      return meterAwaitingEntrada(registry?.status, scheduleTrailStep)
+      return item.appStatus === 'agendado' || item.appStatus === 'nao_agendado'
     })
     .map((item) => {
     const info = meterInfo.get(item.meter)
@@ -1123,6 +1080,7 @@ type WeekMeterScheduleRow = {
   id: string
   meter: string
   trail_step: string
+  received_at: Date | null
 }
 
 async function resolveWeekMeterSchedule(
@@ -1131,18 +1089,19 @@ async function resolveWeekMeterSchedule(
 ): Promise<WeekMeterScheduleRow | null> {
   const scheduleResult = scheduleId
     ? await query<WeekMeterScheduleRow>(
-        `SELECT id, meter, trail_step FROM meter_schedules WHERE id = $1`,
+        `SELECT id, meter, trail_step, received_at FROM meter_schedules WHERE id = $1`,
         [scheduleId],
       )
     : await query<WeekMeterScheduleRow>(
-        `SELECT id, meter, trail_step
+        `SELECT id, meter, trail_step, received_at
          FROM meter_schedules
          WHERE delay_dismissed_at IS NULL
-           AND trail_step = $2
            AND ${NORMALIZED_METER_SQL} = LPAD(RIGHT(REGEXP_REPLACE($1::text, '[^0-9]', '', 'g'), 8), 8, '0')
-         ORDER BY inspection_analysis_completed_at DESC NULLS LAST, created_at DESC
+         ORDER BY (received_at IS NULL) DESC,
+                  inspection_analysis_completed_at DESC NULLS LAST,
+                  created_at DESC
          LIMIT 1`,
-        [meter, ENTRADA_TRAIL_STEP],
+        [meter],
       )
 
   const schedule = scheduleResult.rows[0]
@@ -1153,7 +1112,7 @@ async function resolveWeekMeterSchedule(
 async function weekMeterReceiveValidationError(
   schedule: WeekMeterScheduleRow,
 ): Promise<string | null> {
-  if (schedule.trail_step.trim() !== ENTRADA_TRAIL_STEP) {
+  if (schedule.received_at) {
     return 'Este medidor já teve entrada registrada.'
   }
 
@@ -1199,22 +1158,34 @@ async function applyWeekMeterReceive(
 ) {
   await query(
     `UPDATE meter_schedules
-     SET trail_step = $1, received_at = COALESCE(received_at, $2::timestamptz)
+     SET received_at = COALESCE(received_at, $2::timestamptz),
+         trail_step = CASE
+           WHEN BTRIM(trail_step) = $3 THEN $1
+           ELSE trail_step
+         END
      WHERE delay_dismissed_at IS NULL
-       AND trail_step = $3
+       AND received_at IS NULL
        AND ${NORMALIZED_METER_SQL} = LPAD(RIGHT(REGEXP_REPLACE($4::text, '[^0-9]', '', 'g'), 8), 8, '0')`,
     [ENSAIAR_TRAIL_STEP, receivedAt.toISOString(), ENTRADA_TRAIL_STEP, schedule.meter],
   )
 
   await query(
     `UPDATE meter_registry
-     SET status = $1, trail_step = $2, received_at = COALESCE(received_at, $3::timestamptz)
-     WHERE ${NORMALIZED_METER_SQL} = LPAD(RIGHT(REGEXP_REPLACE($4::text, '[^0-9]', '', 'g'), 8), 8, '0')
-       AND (status = 'Agendado' OR BTRIM(COALESCE(status, '')) = '')`,
+     SET received_at = COALESCE(received_at, $3::timestamptz),
+         status = CASE
+           WHEN status = 'Agendado' OR BTRIM(COALESCE(status, '')) = '' THEN $1
+           ELSE status
+         END,
+         trail_step = CASE
+           WHEN BTRIM(COALESCE(trail_step, '')) IN ('', $4) THEN $2
+           ELSE trail_step
+         END
+     WHERE ${NORMALIZED_METER_SQL} = LPAD(RIGHT(REGEXP_REPLACE($5::text, '[^0-9]', '', 'g'), 8), 8, '0')`,
     [
       getNextStatusAfterEntrada(),
       ENSAIAR_TRAIL_STEP,
       receivedAt.toISOString(),
+      ENTRADA_TRAIL_STEP,
       schedule.meter,
     ],
   )
@@ -1239,87 +1210,15 @@ async function applyWeekMeterReceive(
   })
 }
 
-function parsePassiveReceivedAt(value: unknown): Date | null {
-  if (typeof value !== 'string' || !value.trim()) {
-    return null
-  }
-  const parsed = new Date(value.trim())
-  if (Number.isNaN(parsed.getTime())) {
-    return null
-  }
-  return parsed
+export async function receiveWeekMeter(_req: Request, res: Response) {
+  res.status(409).json({
+    error: 'O medidor só pode ser recebido pela entrada em massa da DEMM.',
+  })
 }
 
-export async function receiveWeekMeter(req: Request, res: Response) {
-  const meter = typeof req.body?.meter === 'string' ? req.body.meter.trim() : ''
-  const scheduleId =
-    typeof req.body?.scheduleId === 'string' ? req.body.scheduleId.trim() : ''
-
-  if (!meter) {
-    res.status(400).json({ error: 'Informe o medidor para receber.' })
-    return
-  }
-
-  const schedule = await resolveWeekMeterSchedule(meter, scheduleId)
-  if (!schedule) {
-    res.status(404).json({ error: 'Agendamento do medidor não encontrado.' })
-    return
-  }
-
-  if (!(await validateWeekMeterReadyToReceive(schedule, res))) {
-    return
-  }
-
-  const receivedAt = new Date()
-  await applyWeekMeterReceive(schedule, receivedAt, req)
-
-  res.json({ ok: true, meter, scheduleId: schedule.id, receivedAt: receivedAt.toISOString() })
-}
-
-export async function receiveWeekMeterPassive(req: Request, res: Response) {
-  if (req.user?.role !== 'admin') {
-    res.status(403).json({ error: 'Somente administradores podem registrar recebimento passivo.' })
-    return
-  }
-
-  const meter = typeof req.body?.meter === 'string' ? req.body.meter.trim() : ''
-  const scheduleId =
-    typeof req.body?.scheduleId === 'string' ? req.body.scheduleId.trim() : ''
-  const receivedAt = parsePassiveReceivedAt(req.body?.receivedAt)
-
-  if (!meter) {
-    res.status(400).json({ error: 'Informe o medidor para receber.' })
-    return
-  }
-
-  if (!receivedAt) {
-    res.status(400).json({ error: 'Informe a data real em que o medidor foi recebido.' })
-    return
-  }
-
-  if (receivedAt.getTime() > Date.now()) {
-    res.status(400).json({ error: 'A data de recebimento não pode ser no futuro.' })
-    return
-  }
-
-  const schedule = await resolveWeekMeterSchedule(meter, scheduleId)
-  if (!schedule) {
-    res.status(404).json({ error: 'Agendamento do medidor não encontrado.' })
-    return
-  }
-
-  if (!(await validateWeekMeterReadyToReceive(schedule, res))) {
-    return
-  }
-
-  await applyWeekMeterReceive(schedule, receivedAt, req, ' (passivo)')
-
-  res.json({
-    ok: true,
-    meter,
-    scheduleId: schedule.id,
-    receivedAt: receivedAt.toISOString(),
-    passive: true,
+export async function receiveWeekMeterPassive(_req: Request, res: Response) {
+  res.status(409).json({
+    error: 'O medidor só pode ser recebido pela entrada em massa da DEMM.',
   })
 }
 
@@ -1565,16 +1464,9 @@ export async function getEntradaCsdDashboard(_req: Request, res: Response) {
     entry_at: Date | null
   }>(
     `SELECT ms.id, ms.meter, ms.csd, ms.scheduled_at, ms.trail_step, ms.created_at,
-            COALESCE(ms.received_at, mr.received_at, d.created_at) AS entry_at
+            COALESCE(ms.received_at, mr.received_at) AS entry_at
      FROM meter_schedules ms
      LEFT JOIN meter_registry mr ON mr.meter = ms.meter
-     LEFT JOIN LATERAL (
-       SELECT created_at
-       FROM demm_documents
-       WHERE meter_schedule_id = ms.id OR meter = ms.meter
-       ORDER BY created_at ASC
-       LIMIT 1
-     ) d ON true
      WHERE ms.delay_dismissed_at IS NULL
        AND ${scheduleCountedFromTodaySql('ms')}
      ORDER BY ms.scheduled_at ASC`,
@@ -1586,7 +1478,7 @@ export async function getEntradaCsdDashboard(_req: Request, res: Response) {
 
     bucket.scheduledTotal += 1
     const deadline = lastFridayBeforeAssay(row.scheduled_at)
-    const hasEntry = Boolean(row.entry_at) || row.trail_step.trim() !== ENTRADA_TRAIL_STEP
+    const hasEntry = Boolean(row.entry_at)
 
     if (hasEntry) {
       if (row.entry_at) {
@@ -1607,6 +1499,7 @@ export async function getEntradaCsdDashboard(_req: Request, res: Response) {
       scheduledAt: row.scheduled_at,
       trailStep: row.trail_step,
       entradaTrailStep: ENTRADA_TRAIL_STEP,
+      received: Boolean(row.entry_at),
       now,
     })
     if (currentlyLate) {

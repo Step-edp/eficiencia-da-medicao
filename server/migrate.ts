@@ -1556,6 +1556,20 @@ export async function migrate() {
   `)
 
   await query(`
+    UPDATE meter_registry
+    SET status = 'Agendado', trail_step = 'Entrada de medidores'
+    WHERE received_at IS NULL
+      AND BTRIM(COALESCE(status, '')) = 'Recebido'
+  `)
+  await query(`
+    UPDATE meter_schedules
+    SET trail_step = 'Entrada de medidores'
+    WHERE received_at IS NULL
+      AND delay_dismissed_at IS NULL
+      AND BTRIM(COALESCE(trail_step, '')) = 'Ensaiar'
+  `)
+
+  await query(`
     CREATE TABLE IF NOT EXISTS gc_ensaios (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL DEFAULT '',
