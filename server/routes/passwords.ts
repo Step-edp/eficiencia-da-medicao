@@ -515,7 +515,7 @@ export async function deletePasswordRecords(req: Request, res: Response) {
       deletedIds.length === 1
         ? `Senha do medidor ${existing.rows[0]?.meter} excluída`
         : `${deletedIds.length} senha(s) excluída(s)`,
-    previousData: {
+    oldData: {
       records: existing.rows.map((row) => ({
         id: row.id,
         meter: row.meter,
