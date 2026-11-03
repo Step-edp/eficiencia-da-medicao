@@ -255,6 +255,7 @@ async function start() {
   app.post('/api/manufacturers', ...wrap(passwordRoutes.addManufacturer))
   app.post('/api/password-records/generate', ...wrap(passwordRoutes.generate))
   app.post('/api/password-records/passive', ...wrap(passwordRoutes.createPassive))
+  app.post('/api/password-records/delete', ...wrap(passwordRoutes.deleteRecords))
 
   app.get('/api/materials', ...wrap(materialRoutes.list))
   app.post('/api/materials', ...wrap(materialRoutes.create))

@@ -480,10 +480,61 @@ export async function createPassivePasswords(req: Request, res: Response) {
   })
 }
 
+export async function deletePasswordRecords(req: Request, res: Response) {
+  const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : []
+  const ids = [
+    ...new Set(
+      rawIds
+        .map((id: unknown) => (typeof id === 'string' ? id.trim() : ''))
+        .filter(Boolean),
+    ),
+  ]
+
+  if (!ids.length) {
+    res.status(400).json({ error: 'Informe a senha que deseja excluir.' })
+    return
+  }
+
+  const existing = await query<PasswordRow>(
+    'SELECT * FROM password_records WHERE id = ANY($1::text[])',
+    [ids],
+  )
+
+  if (!existing.rows.length) {
+    res.status(404).json({ error: 'Senha não encontrada.' })
+    return
+  }
+
+  const deletedIds = existing.rows.map((row) => row.id)
+  await query('DELETE FROM password_records WHERE id = ANY($1::text[])', [deletedIds])
+
+  await writeAuditLog(req, {
+    action: 'delete',
+    entityType: 'password_record',
+    summary:
+      deletedIds.length === 1
+        ? `Senha do medidor ${existing.rows[0]?.meter} excluída`
+        : `${deletedIds.length} senha(s) excluída(s)`,
+    previousData: {
+      records: existing.rows.map((row) => ({
+        id: row.id,
+        meter: row.meter,
+        manufacturer: row.manufacturer,
+        materialType: row.material_type,
+        orderNumber: row.order_number,
+        source: row.source ?? 'generated',
+      })),
+    },
+  })
+
+  res.json({ deletedIds })
+}
+
 export const passwordRoutes = {
   list: [requireAuth, listPasswordRecords],
   manufacturers: [requireAuth, listManufacturers],
   addManufacturer: [requireAuth, addManufacturer],
   generate: [requireAuth, generatePasswords],
   createPassive: [requireAuth, requireAdmin, createPassivePasswords],
+  deleteRecords: [requireAuth, requireAdmin, deletePasswordRecords],
 }
