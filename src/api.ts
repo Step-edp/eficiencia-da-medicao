@@ -342,6 +342,7 @@ export type MemoriaMassaNotaRecord = {
   instalacao: string
   cliente: string
   observacao: string
+  detalhes?: Record<string, string>
   status: MemoriaMassaNotaStatus
   createdAt: string
   createdByUserId?: string | null
@@ -1751,11 +1752,13 @@ export const api = {
       instalacao?: string
       cliente?: string
       observacao?: string
+      detalhes?: Record<string, string>
     }>,
   ) =>
     request<{
       notas: MemoriaMassaNotaRecord[]
       inserted: number
+      updated?: string[]
       skippedDuplicates: string[]
       errors: string[]
     }>('/api/memoria-massa/notas/bulk', {

@@ -11,7 +11,46 @@ const AGENTE_NOTAS = 'http://127.0.0.1:8765'
 type ExtracaoLocal = {
   estado: 'ocioso' | 'rodando' | 'pronto' | 'erro' | string
   mensagem?: string
-  notas?: Array<{ nota: string; instalacao?: string }>
+  notas?: Array<{ nota: string; instalacao?: string; detalhes?: Record<string, string> }>
+}
+
+const CAMPOS_DETALHE = [
+  { rotulo: 'Data da nota', testes: ['data da nota', 'data'] },
+  { rotulo: 'Cidade', testes: ['cidade'] },
+  { rotulo: 'Centro (CtPl)', testes: ['ctpl', 'centro'] },
+  { rotulo: 'Conclusão desejada', testes: ['conclusao desej', 'concl'] },
+  { rotulo: 'Referência', testes: ['referencia', 'refer'] },
+  { rotulo: 'MMGD', testes: ['mmgd', 'mm/gi', 'mm/g', 'mmgi'] },
+  { rotulo: 'Duas linhas', testes: ['duas linha'] },
+]
+
+function semAcento(texto: string) {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function linhasDetalhe(detalhes: Record<string, string> | undefined) {
+  const entradas = Object.entries(detalhes ?? {}).filter(([chave]) => {
+    const nome = semAcento(chave)
+    return nome !== 'nota' && nome !== 'instalacao'
+  })
+  const usadas = new Set<string>()
+  const linhas = CAMPOS_DETALHE.map((campo) => {
+    const achada = entradas.find(([chave]) => {
+      const nome = semAcento(chave)
+      return campo.testes.some((teste) => nome === teste || nome.startsWith(teste))
+    })
+    if (achada) usadas.add(achada[0])
+    return { rotulo: campo.rotulo, valor: achada?.[1]?.trim() || '—' }
+  })
+  for (const [chave, valor] of entradas) {
+    if (usadas.has(chave)) continue
+    linhas.push({ rotulo: chave, valor: valor.trim() || '—' })
+  }
+  return linhas
 }
 
 function esperar(ms: number) {
@@ -46,6 +85,7 @@ export function NotasPanel() {
   const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [extraindo, setExtraindo] = useState(false)
+  const [notaAberta, setNotaAberta] = useState<MemoriaMassaNotaRecord | null>(null)
   const extraindoRef = useRef(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
@@ -77,6 +117,15 @@ export function NotasPanel() {
   useEffect(() => {
     void load('')
   }, [load])
+
+  useEffect(() => {
+    if (!notaAberta) return
+    const fechar = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setNotaAberta(null)
+    }
+    window.addEventListener('keydown', fechar)
+    return () => window.removeEventListener('keydown', fechar)
+  }, [notaAberta])
 
   const handleExtrair = async () => {
     if (extraindoRef.current) return
@@ -121,15 +170,17 @@ export function NotasPanel() {
         notasExtraidas.map((item) => ({
           nota: item.nota,
           instalacao: item.instalacao ?? '',
+          detalhes: item.detalhes ?? {},
         })),
       )
       await chamarAgente('/extrair/ack', 'POST')
-      const skipMsg = response.skippedDuplicates.length
-        ? ` ${response.skippedDuplicates.length} já estavam pendentes.`
+      const atualizadas = response.updated?.length ?? 0
+      const atualMsg = atualizadas
+        ? ` ${atualizadas} já estavam na fila e receberam os dados do SAP.`
         : ''
       setFeedback({
         type: 'success',
-        message: `${response.inserted} nota(s) importada(s) do SAP.${skipMsg}`,
+        message: `${response.inserted} nota(s) importada(s) do SAP.${atualMsg}`,
       })
       await load(search)
     } catch (error) {
@@ -159,6 +210,7 @@ export function NotasPanel() {
     try {
       await api.updateMemoriaMassaNotaStatus(nota.id, 'executada')
       setNotas((current) => current.filter((item) => item.id !== nota.id))
+      setNotaAberta((aberta) => (aberta?.id === nota.id ? null : aberta))
       setFeedback({
         type: 'success',
         message: `Nota ${nota.nota} marcada como executada.`,
@@ -182,6 +234,7 @@ export function NotasPanel() {
     try {
       await api.deleteMemoriaMassaNota(nota.id)
       setNotas((current) => current.filter((item) => item.id !== nota.id))
+      setNotaAberta((aberta) => (aberta?.id === nota.id ? null : aberta))
       setFeedback({
         type: 'success',
         message: `Nota ${nota.nota} removida.`,
@@ -256,7 +309,15 @@ export function NotasPanel() {
               {notas.length ? (
                 notas.map((nota) => (
                   <tr key={nota.id}>
-                    <td>{nota.nota}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="nota-detalhe-link"
+                        onClick={() => setNotaAberta(nota)}
+                      >
+                        {nota.nota}
+                      </button>
+                    </td>
                     <td>{nota.instalacao || '—'}</td>
                     <td>{formatDateTime(nota.createdAt)}</td>
                     <td>
@@ -298,6 +359,41 @@ export function NotasPanel() {
         <p className="memoria-notas-count" role="status">
           {notas.length} nota(s) para executar
         </p>
+      ) : null}
+
+      {notaAberta ? (
+        <div className="nota-detalhe-fundo" onClick={() => setNotaAberta(null)}>
+          <section
+            className="nota-detalhe"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="nota-detalhe-titulo"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header>
+              <h3 id="nota-detalhe-titulo">Nota {notaAberta.nota}</h3>
+              <button type="button" className="secondary-button" onClick={() => setNotaAberta(null)}>
+                Fechar
+              </button>
+            </header>
+            <p>Instalação {notaAberta.instalacao || '—'}</p>
+            {Object.keys(notaAberta.detalhes ?? {}).length ? (
+              <dl>
+                {linhasDetalhe(notaAberta.detalhes).map((linha) => (
+                  <div key={linha.rotulo}>
+                    <dt>{linha.rotulo}</dt>
+                    <dd>{linha.valor}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p>
+                Esta importação não trouxe data, cidade, centro, conclusão, referência, MMGD nem
+                duas linhas. Elas aparecem depois do próximo Importar notas.
+              </p>
+            )}
+          </section>
+        </div>
       ) : null}
     </div>
   )

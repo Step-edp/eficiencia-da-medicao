@@ -14,6 +14,7 @@ type NotaRow = {
   instalacao: string
   cliente: string
   observacao: string
+  detalhes: Record<string, string> | null
   status: MemoriaMassaNotaStatus
   created_at: Date
   created_by_user_id: string | null
@@ -29,6 +30,17 @@ const VALID_STATUSES: MemoriaMassaNotaStatus[] = [
   'baixada',
 ]
 
+function detalhesDe(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const saida: Record<string, string> = {}
+  for (const [chave, bruto] of Object.entries(value as Record<string, unknown>)) {
+    const nome = chave.trim()
+    if (!nome) continue
+    saida[nome] = normalizeText(bruto)
+  }
+  return saida
+}
+
 function mapNota(row: NotaRow) {
   return {
     id: row.id,
@@ -36,6 +48,7 @@ function mapNota(row: NotaRow) {
     instalacao: row.instalacao || '',
     cliente: row.cliente || '',
     observacao: row.observacao || '',
+    detalhes: detalhesDe(row.detalhes),
     status: row.status,
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
@@ -86,7 +99,7 @@ export async function listMemoriaMassaNotas(req: Request, res: Response) {
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : ''
 
   const result = await query<NotaRow>(
-    `SELECT n.id, n.nota, n.instalacao, n.cliente, n.observacao, n.status,
+    `SELECT n.id, n.nota, n.instalacao, n.cliente, n.observacao, n.detalhes, n.status,
             n.created_at, n.created_by_user_id, n.updated_at,
             u.name AS created_by_name, u.registration AS created_by_registration
      FROM memoria_massa_notas n
@@ -126,6 +139,7 @@ export async function createMemoriaMassaNotasBulk(req: Request, res: Response) {
       instalacao?: string
       cliente?: string
       observacao?: string
+      detalhes?: Record<string, unknown>
     }>
   }
 
@@ -145,6 +159,7 @@ export async function createMemoriaMassaNotasBulk(req: Request, res: Response) {
     instalacao: string
     cliente: string
     observacao: string
+    detalhes: Record<string, string>
   }> = []
   const errors: string[] = []
 
@@ -164,6 +179,7 @@ export async function createMemoriaMassaNotasBulk(req: Request, res: Response) {
       instalacao: normalizeText(item?.instalacao),
       cliente: normalizeText(item?.cliente),
       observacao: normalizeText(item?.observacao),
+      detalhes: detalhesDe(item?.detalhes),
     })
   }
 
@@ -177,6 +193,7 @@ export async function createMemoriaMassaNotasBulk(req: Request, res: Response) {
 
   const inserted: ReturnType<typeof mapNota>[] = []
   const skippedDuplicates: string[] = []
+  const updated: string[] = []
 
   for (const item of prepared) {
     const existing = await query<{ id: number }>(
@@ -186,6 +203,15 @@ export async function createMemoriaMassaNotasBulk(req: Request, res: Response) {
       [item.nota],
     )
     if (existing.rows[0]) {
+      await query(
+        `UPDATE memoria_massa_notas
+         SET instalacao = CASE WHEN $2 <> '' THEN $2 ELSE instalacao END,
+             detalhes = CASE WHEN $3::jsonb = '{}'::jsonb THEN detalhes ELSE $3::jsonb END,
+             updated_at = NOW()
+         WHERE id = $1`,
+        [existing.rows[0].id, item.instalacao, JSON.stringify(item.detalhes)],
+      )
+      updated.push(item.nota)
       skippedDuplicates.push(item.nota)
       continue
     }
@@ -196,21 +222,23 @@ export async function createMemoriaMassaNotasBulk(req: Request, res: Response) {
       instalacao: string
       cliente: string
       observacao: string
+      detalhes: Record<string, string> | null
       status: MemoriaMassaNotaStatus
       created_at: Date
       created_by_user_id: string | null
       updated_at: Date
     }>(
       `INSERT INTO memoria_massa_notas (
-         nota, instalacao, cliente, observacao, status, created_by_user_id
-       ) VALUES ($1,$2,$3,$4,'pendente',$5)
-       RETURNING id, nota, instalacao, cliente, observacao, status,
+         nota, instalacao, cliente, observacao, detalhes, status, created_by_user_id
+       ) VALUES ($1,$2,$3,$4,$5::jsonb,'pendente',$6)
+       RETURNING id, nota, instalacao, cliente, observacao, detalhes, status,
                  created_at, created_by_user_id, updated_at`,
       [
         item.nota,
         item.instalacao,
         item.cliente,
         item.observacao,
+        JSON.stringify(item.detalhes),
         req.user?.id ?? null,
       ],
     )
@@ -240,6 +268,7 @@ export async function createMemoriaMassaNotasBulk(req: Request, res: Response) {
   res.status(201).json({
     notas: inserted,
     inserted: inserted.length,
+    updated,
     skippedDuplicates,
     errors,
   })
@@ -264,6 +293,7 @@ export async function updateMemoriaMassaNotaStatus(req: Request, res: Response) 
     instalacao: string
     cliente: string
     observacao: string
+    detalhes: Record<string, string> | null
     status: MemoriaMassaNotaStatus
     created_at: Date
     created_by_user_id: string | null
@@ -272,7 +302,7 @@ export async function updateMemoriaMassaNotaStatus(req: Request, res: Response) 
     `UPDATE memoria_massa_notas
      SET status = $1, updated_at = NOW()
      WHERE id = $2
-     RETURNING id, nota, instalacao, cliente, observacao, status,
+     RETURNING id, nota, instalacao, cliente, observacao, detalhes, status,
                created_at, created_by_user_id, updated_at`,
     [status, id],
   )

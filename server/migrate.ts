@@ -845,6 +845,10 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_memoria_massa_notas_created_at
       ON memoria_massa_notas (created_at DESC)
   `)
+  await query(`
+    ALTER TABLE memoria_massa_notas
+      ADD COLUMN IF NOT EXISTS detalhes JSONB NOT NULL DEFAULT '{}'::jsonb
+  `)
 
   // Consumo Irregular: Relatórios Aprovados, Consultar Medidor e Reagendar.
   await query(`

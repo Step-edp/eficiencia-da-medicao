@@ -7843,6 +7843,75 @@ input[type='file'] {
   color: var(--text-soft);
 }
 
+.nota-detalhe-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--cyan-500);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.nota-detalhe-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 12, 24, 0.72);
+}
+
+.nota-detalhe {
+  width: min(560px, 100%);
+  max-height: min(80vh, 720px);
+  overflow: auto;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-strong);
+  box-shadow: var(--shadow);
+  color: var(--text-main);
+}
+
+.nota-detalhe header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nota-detalhe h3,
+.nota-detalhe p {
+  margin: 0;
+}
+
+.nota-detalhe p {
+  margin-top: 8px;
+  color: var(--text-soft);
+}
+
+.nota-detalhe dl {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 0;
+}
+
+.nota-detalhe dl div {
+  display: grid;
+  grid-template-columns: minmax(140px, 190px) 1fr;
+  gap: 8px 16px;
+}
+
+.nota-detalhe dt {
+  color: var(--text-soft);
+}
+
+.nota-detalhe dd {
+  margin: 0;
+}
+
 .executadas-intro {
   margin: 0;
   color: var(--text-soft);
