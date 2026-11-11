@@ -243,7 +243,11 @@ export function NotasPanel() {
       {loading ? (
         <p className="entrada-panel-empty">Carregando notas pendentes...</p>
       ) : (
-        <div className="entrada-table-wrap">
+        <>
+          <p className="memoria-notas-count" role="status">
+            {notasVisiveis.length} nota(s) para executar
+          </p>
+          <div className="entrada-table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -280,14 +284,9 @@ export function NotasPanel() {
               )}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
-
-      {!loading ? (
-        <p className="memoria-notas-count" role="status">
-          {notasVisiveis.length} nota(s) para executar
-        </p>
-      ) : null}
 
       {notaAberta ? (
         <div className="nota-detalhe-fundo" onClick={() => setNotaAberta(null)}>
