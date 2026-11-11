@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import {
   api,
   ApiError,
@@ -45,6 +45,34 @@ function parseNotasPaste(text: string): ParsedNota[] {
   return rows
 }
 
+const AGENTE_NOTAS = 'http://127.0.0.1:8765'
+
+type ExtracaoLocal = {
+  estado: 'ocioso' | 'rodando' | 'pronto' | 'erro' | string
+  mensagem?: string
+  notas?: Array<{ nota: string; instalacao?: string }>
+}
+
+function esperar(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+async function chamarAgente(caminho: string, method: 'GET' | 'POST') {
+  const resposta = await fetch(`${AGENTE_NOTAS}${caminho}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Memoria-Massa': '1',
+    },
+    body: method === 'POST' ? '{}' : undefined,
+  })
+  const dados = (await resposta.json()) as ExtracaoLocal
+  if (!resposta.ok) {
+    throw new Error(dados.mensagem || 'O programa deste computador recusou o pedido.')
+  }
+  return dados
+}
+
 function formatDateTime(iso: string) {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
@@ -59,6 +87,8 @@ export function NotasPanel() {
   const [search, setSearch] = useState('')
   const [pasteText, setPasteText] = useState('')
   const [showImport, setShowImport] = useState(false)
+  const [extraindo, setExtraindo] = useState(false)
+  const extraindoRef = useRef(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -89,6 +119,76 @@ export function NotasPanel() {
   useEffect(() => {
     void load('')
   }, [load])
+
+  const handleExtrair = async () => {
+    if (extraindoRef.current) return
+    extraindoRef.current = true
+    setExtraindo(true)
+    setFeedback({
+      type: 'success',
+      message: 'Pedindo a extração ao SAP deste computador...',
+    })
+    try {
+      let dados = await chamarAgente('/extrair', 'POST')
+      const limite = Date.now() + 3 * 60 * 60 * 1000
+      while (dados.estado === 'rodando' && Date.now() < limite) {
+        setFeedback({
+          type: 'success',
+          message: dados.mensagem || 'Extraindo notas no SAP...',
+        })
+        await esperar(2000)
+        dados = await chamarAgente('/extrair', 'GET')
+      }
+      if (dados.estado === 'rodando') {
+        throw new Error('A extração passou do tempo limite.')
+      }
+      if (dados.estado === 'erro') {
+        throw new Error(dados.mensagem || 'A extração no SAP falhou.')
+      }
+      if (dados.estado !== 'pronto') {
+        throw new Error(dados.mensagem || 'A extração não devolveu a lista.')
+      }
+
+      const notasExtraidas = dados.notas ?? []
+      if (!notasExtraidas.length) {
+        await chamarAgente('/extrair/ack', 'POST')
+        setFeedback({
+          type: 'success',
+          message: 'Não existem notas pendentes no SAP.',
+        })
+        return
+      }
+
+      const response = await api.createMemoriaMassaNotasBulk(
+        notasExtraidas.map((item) => ({
+          nota: item.nota,
+          instalacao: item.instalacao ?? '',
+        })),
+      )
+      await chamarAgente('/extrair/ack', 'POST')
+      const skipMsg = response.skippedDuplicates.length
+        ? ` ${response.skippedDuplicates.length} já estavam pendentes.`
+        : ''
+      setFeedback({
+        type: 'success',
+        message: `${response.inserted} nota(s) importada(s) do SAP.${skipMsg}`,
+      })
+      await load(search)
+    } catch (error) {
+      const semPrograma = error instanceof TypeError
+      setFeedback({
+        type: 'error',
+        message: semPrograma
+          ? 'Não encontrei o programa neste computador. Deixe o agente_notas.py aberto. Se o navegador pedir acesso à rede local, permita.'
+          : error instanceof Error
+            ? error.message
+            : 'Não foi possível importar as notas.',
+      })
+    } finally {
+      extraindoRef.current = false
+      setExtraindo(false)
+    }
+  }
 
   const handleSearch = (event: FormEvent) => {
     event.preventDefault()
@@ -183,8 +283,8 @@ export function NotasPanel() {
   return (
     <div className="memoria-notas-panel">
       <p className="memoria-notas-intro">
-        Lista das notas pendentes de execução na Memória de massa. Importe a lista do SAP
-        (colar) para alimentar a fila.
+        Lista das notas pendentes de execução na Memória de massa. Importar notas roda a
+        extração no SAP deste computador e traz a lista para a fila.
       </p>
 
       {feedback ? (
@@ -213,12 +313,20 @@ export function NotasPanel() {
         <button
           type="button"
           className="primary-button"
+          disabled={extraindo}
+          onClick={() => void handleExtrair()}
+        >
+          {extraindo ? 'Extraindo no SAP…' : 'Importar notas'}
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
           onClick={() => {
             setShowImport((current) => !current)
             setFeedback(null)
           }}
         >
-          {showImport ? 'Fechar importação' : 'Importar notas'}
+          {showImport ? 'Fechar colagem' : 'Colar lista'}
         </button>
       </div>
 
