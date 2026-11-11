@@ -222,7 +222,7 @@ export function NotasPanel() {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Nota, instalação ou cliente"
+              placeholder="Nota ou instalação"
             />
           </label>
           <button type="submit" className="secondary-button" disabled={loading}>
@@ -248,8 +248,6 @@ export function NotasPanel() {
               <tr>
                 <th>Nota</th>
                 <th>Instalação</th>
-                <th>Cliente</th>
-                <th>Observação</th>
                 <th>Incluída em</th>
                 <th>Ações</th>
               </tr>
@@ -260,8 +258,6 @@ export function NotasPanel() {
                   <tr key={nota.id}>
                     <td>{nota.nota}</td>
                     <td>{nota.instalacao || '—'}</td>
-                    <td>{nota.cliente || '—'}</td>
-                    <td>{nota.observacao || '—'}</td>
                     <td>{formatDateTime(nota.createdAt)}</td>
                     <td>
                       <div className="memoria-notas-row-actions">
@@ -287,7 +283,7 @@ export function NotasPanel() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={4}>
                     Nenhuma nota pendente de execução. Use &quot;Importar notas&quot; para
                     carregar a fila.
                   </td>
