@@ -7793,6 +7793,15 @@ input[type='file'] {
   margin-top: 12px;
 }
 
+.shell:has(.memoria-notas-panel) {
+  align-items: start;
+}
+
+.memoria-notas-panel .entrada-table-wrap {
+  max-height: none;
+  overflow: visible;
+}
+
 .memoria-notas-intro {
   margin: 0;
   color: var(--text-soft);
