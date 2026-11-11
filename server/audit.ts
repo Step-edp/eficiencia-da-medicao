@@ -39,6 +39,7 @@ export type AuditEntityType =
   | 'iq09_run'
   | 'consolidacao_carga_cliente'
   | 'grandes_clientes'
+  | 'document_template'
 
 export type AuditLogEntry = {
   action: AuditAction

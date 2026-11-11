@@ -4804,6 +4804,11 @@ button {
   color: #e8f8ff;
 }
 
+.consult-item-header .danger-button {
+  margin-left: auto;
+  padding: 8px 12px;
+}
+
 .consult-simple-password-row {
   display: flex;
   align-items: center;
@@ -10447,5 +10452,366 @@ input[type='file'] {
   .gc-layout,
   .gc-photo-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Padronizar documentos ---------- */
+.doc-std {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.doc-std h3 {
+  margin: 0;
+  color: var(--text-main);
+}
+
+.doc-std-toolbar,
+.doc-std-toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.doc-std .doc-std-inline-button {
+  margin-top: 0;
+  padding: 10px 16px;
+  border-radius: 12px;
+  grid-column: auto;
+}
+
+.doc-std-hint {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.doc-std-hint code {
+  background: rgba(24, 216, 240, 0.12);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.doc-std-empty {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 22px;
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+}
+
+.doc-std-empty p {
+  margin: 0;
+}
+
+.doc-std-list {
+  display: grid;
+  gap: 12px;
+}
+
+.doc-std-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.doc-std-card-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.doc-std-card-info strong {
+  color: var(--text-main);
+}
+
+.doc-std-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.doc-std-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .doc-std-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.doc-std-editor {
+  display: grid;
+  gap: 14px;
+}
+
+.doc-std-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.doc-std-fieldset {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.doc-std-fieldset legend {
+  padding: 0 6px;
+  color: var(--text-main);
+  font-size: 0.95rem;
+}
+
+.doc-std-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.doc-std-field-row-simple {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.doc-std-field-row input,
+.doc-std-field-row select {
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.doc-std-field-actions {
+  display: flex;
+  gap: 6px;
+}
+
+@media (max-width: 560px) {
+  .doc-std-field-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.doc-std-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.doc-std-check input {
+  width: auto;
+}
+
+.doc-std-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: -6px;
+}
+
+.doc-std-chip {
+  border: 1px solid rgba(24, 216, 240, 0.4);
+  background: rgba(24, 216, 240, 0.1);
+  color: #d9f7ff;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+}
+
+.doc-std-preview-wrap {
+  display: grid;
+  gap: 8px;
+  position: sticky;
+  top: 16px;
+}
+
+/* Folha A4 do documento (sempre clara, igual ao papel impresso) */
+.doc-std-page {
+  --doc-ink: #1b2a3a;
+  --doc-muted: #5d6b7a;
+  --doc-accent: #0f8fb3;
+  --doc-line: #d5dde5;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  aspect-ratio: 210 / 297;
+  overflow: auto;
+  padding: 7% 8%;
+  background: #ffffff;
+  color: var(--doc-ink);
+  border-radius: 6px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.doc-std-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 3px solid var(--doc-accent);
+}
+
+.doc-std-page-logo {
+  height: 34px;
+  width: auto;
+}
+
+.doc-std-page-meta {
+  display: grid;
+  justify-items: end;
+  color: var(--doc-muted);
+  font-size: 10.5px;
+}
+
+.doc-std-page-title h1 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--doc-ink);
+  letter-spacing: 0.01em;
+}
+
+.doc-std-page-title p {
+  margin: 2px 0 0;
+  color: var(--doc-muted);
+}
+
+.doc-std-page-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.doc-std-page-table th,
+.doc-std-page-table td {
+  border: 1px solid var(--doc-line);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.doc-std-page-table th {
+  width: 34%;
+  background: #f1f5f8;
+  font-weight: 600;
+}
+
+.doc-std-page-body h2 {
+  margin: 14px 0 4px;
+  font-size: 13.5px;
+  color: var(--doc-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.doc-std-page-body p {
+  margin: 0 0 10px;
+  white-space: pre-wrap;
+  text-align: justify;
+}
+
+.doc-std-placeholder {
+  color: #9aa7b4;
+  font-style: italic;
+}
+
+.doc-std-missing {
+  color: #c0392b;
+}
+
+.doc-std-page-signatures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 28px;
+  margin-top: auto;
+  padding-top: 36px;
+}
+
+.doc-std-signature {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  color: var(--doc-muted);
+}
+
+.doc-std-signature-line {
+  width: 100%;
+  border-top: 1px solid var(--doc-ink);
+}
+
+.doc-std-page-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--doc-line);
+  color: var(--doc-muted);
+  font-size: 10px;
+}
+
+.doc-std-page-signatures + .doc-std-page-footer {
+  margin-top: 0;
+}
+
+.doc-std-page-body + .doc-std-page-footer {
+  margin-top: auto;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body.doc-std-printing {
+    background: #ffffff !important;
+  }
+
+  body.doc-std-printing * {
+    visibility: hidden !important;
+  }
+
+  body.doc-std-printing .doc-std-page,
+  body.doc-std-printing .doc-std-page * {
+    visibility: visible !important;
+  }
+
+  body.doc-std-printing .doc-std-page {
+    position: fixed;
+    inset: 0;
+    width: 210mm;
+    height: 297mm;
+    aspect-ratio: auto;
+    overflow: hidden;
+    padding: 18mm 18mm 14mm;
+    border-radius: 0;
+    box-shadow: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.doc-std-printing .doc-std-placeholder {
+    color: transparent;
   }
 }

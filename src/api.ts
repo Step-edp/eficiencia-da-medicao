@@ -300,6 +300,35 @@ export type StandardCertificateRecord = {
   createdAt: string
 }
 
+export type DocumentTemplateFieldType = 'text' | 'textarea' | 'date' | 'number'
+
+export type DocumentTemplateField = {
+  key: string
+  label: string
+  type: DocumentTemplateFieldType
+}
+
+export type DocumentTemplateConfig = {
+  code: string
+  title: string
+  subtitle: string
+  fields: DocumentTemplateField[]
+  showFieldsTable: boolean
+  body: string
+  signatures: string[]
+  footer: string
+}
+
+export type DocumentTemplateRecord = {
+  id: number
+  name: string
+  config: DocumentTemplateConfig
+  createdAt: string
+  updatedAt: string
+  createdByUserId: string | null
+  createdByName: string
+}
+
 export type SoftwareRecord = {
   id: number
   name: string
@@ -1498,6 +1527,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  deletePasswordRecords: (ids: string[]) =>
+    request<{ deletedIds: string[] }>('/api/password-records/delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
   listMaterials: () => request<{ materials: MaterialRecord[] }>('/api/materials'),
   createMaterial: (payload: Omit<MaterialRecord, 'id'>) =>
     request<{ material: MaterialRecord }>('/api/materials', {
@@ -1601,6 +1635,23 @@ export const api = {
     request<{ attachment: string; attachmentName: string }>(
       `/api/presentations/${id}/attachment`,
     ),
+  listDocumentTemplates: () =>
+    request<{ templates: DocumentTemplateRecord[] }>('/api/document-templates'),
+  createDocumentTemplate: (payload: { name: string; config: DocumentTemplateConfig }) =>
+    request<{ template: DocumentTemplateRecord }>('/api/document-templates', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateDocumentTemplate: (
+    id: number,
+    payload: { name: string; config: DocumentTemplateConfig },
+  ) =>
+    request<{ template: DocumentTemplateRecord }>(`/api/document-templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  deleteDocumentTemplate: (id: number) =>
+    request<{ ok: boolean }>(`/api/document-templates/${id}`, { method: 'DELETE' }),
   listSoftwares: () => request<{ softwares: SoftwareRecord[] }>('/api/softwares'),
   createSoftware: (payload: {
     name: string

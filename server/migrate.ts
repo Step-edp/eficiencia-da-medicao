@@ -792,6 +792,16 @@ export async function migrate() {
       ON softwares (created_at DESC)
   `)
   await query(`
+    CREATE TABLE IF NOT EXISTS document_templates (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      config JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
     CREATE TABLE IF NOT EXISTS consolidacao_carga_clientes (
       id SERIAL PRIMARY KEY,
       nome_cliente TEXT NOT NULL,

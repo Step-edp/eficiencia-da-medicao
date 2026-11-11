@@ -302,6 +302,7 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Geração de senha',
     'Geração de número de série',
     'Sap Hana',
+    'Padronizar documentos',
   ],
   'Laboratório de Medição': [
     'Agendar',

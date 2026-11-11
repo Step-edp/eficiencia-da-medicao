@@ -13,6 +13,7 @@ import { materialRoutes } from './routes/materials.js'
 import { meterModelRoutes, createMeterModel, updateMeterModel } from './routes/meter-models.js'
 import { presentationRoutes, createPresentation } from './routes/presentations.js'
 import { softwareRoutes, createSoftware } from './routes/softwares.js'
+import { documentTemplateRoutes } from './routes/document-templates.js'
 import {
   standardCertificateRoutes,
   createStandardCertificate,
@@ -297,6 +298,11 @@ async function start() {
     createSoftware,
   )
   app.get('/api/softwares/:id/attachment', ...wrap(softwareRoutes.attachment))
+
+  app.get('/api/document-templates', ...wrap(documentTemplateRoutes.list))
+  app.post('/api/document-templates', ...wrap(documentTemplateRoutes.create))
+  app.put('/api/document-templates/:id', ...wrap(documentTemplateRoutes.update))
+  app.delete('/api/document-templates/:id', ...wrap(documentTemplateRoutes.remove))
 
   app.get('/api/standard-certificates', ...wrap(standardCertificateRoutes.list))
   app.post(

@@ -26,6 +26,7 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   meter_model: 'Modelo de medidor',
   presentation: 'Apresentação',
   software: 'Software',
+  document_template: 'Modelo de documento',
   consolidacao_carga_cliente: 'Cliente consolidação da carga',
 }
 

@@ -49,6 +49,7 @@ import { LabMeasurementTrail, LabTrailNav } from './LabMeasurementTrail'
 import { EnsaiosCalendar } from './EnsaiosCalendar'
 import { CsdsPanel } from './CsdsPanel'
 import { CriarModeloPanel } from './CriarModeloPanel'
+import { PadronizarDocumentosPanel } from './PadronizarDocumentosPanel'
 import { ApresentacaoPanel } from './ApresentacaoPanel'
 import { CertificadosPadroesPanel } from './CertificadosPadroesPanel'
 import { SoftwaresPanel } from './SoftwaresPanel'
@@ -1100,7 +1101,7 @@ const AUDITORIA_AREAS = [
 ] as const
 
 function ItemIcon({ title }: { title: string }) {
-  const iconByTitle: Record<string, 'chart' | 'flask' | 'calendar' | 'search' | 'inbox' | 'cube' | 'check' | 'image' | 'bolt' | 'ruler' | 'smile' | 'shield' | 'archive' | 'trash' | 'presentation' | 'truck' | 'book' | 'code' | 'lock' | 'key' | 'database' | 'repeat' | 'building' | 'layer' | 'monitor' | 'star' | 'users' | 'headset' | 'clock' | 'barcode'> = {
+  const iconByTitle: Record<string, 'chart' | 'flask' | 'calendar' | 'search' | 'inbox' | 'cube' | 'check' | 'image' | 'bolt' | 'ruler' | 'smile' | 'shield' | 'archive' | 'trash' | 'presentation' | 'truck' | 'book' | 'code' | 'lock' | 'key' | 'database' | 'repeat' | 'building' | 'layer' | 'monitor' | 'star' | 'users' | 'headset' | 'clock' | 'barcode' | 'file'> = {
     Dashboard: 'chart',
     Ensaiar: 'flask',
     Agendar: 'calendar',
@@ -1164,6 +1165,7 @@ function ItemIcon({ title }: { title: string }) {
     'Consultar senhas': 'lock',
     'Geração de número de série': 'key',
     'Sap Hana': 'monitor',
+    'Padronizar documentos': 'file',
     Ensaio: 'flask',
     'Pedidos de Homologação': 'archive',
     'Código de materiais': 'code',
@@ -1226,6 +1228,12 @@ function ItemIcon({ title }: { title: string }) {
         {icon === 'repeat' ? <path d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /> : null}
         {icon === 'building' ? <path d="M4 21h16M6 21V7h12v14M9 10h2m2 0h2m-6 4h2m2 0h2" fill="none" stroke="currentColor" strokeWidth="2" /> : null}
         {icon === 'layer' ? <path d="M12 4l8 4-8 4-8-4 8-4zm8 8l-8 4-8-4m16 4l-8 4-8-4" fill="none" stroke="currentColor" strokeWidth="2" /> : null}
+        {icon === 'file' ? (
+          <>
+            <path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+            <path d="M14 3v5h5M9 13h6M9 17h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </>
+        ) : null}
         {icon === 'monitor' ? <path d="M3 5h18v12H3V5zm6 16h6m-4-4h2" fill="none" stroke="currentColor" strokeWidth="2" /> : null}
         {icon === 'users' ? (
           <>
@@ -2320,6 +2328,7 @@ function HomePanel({
     type: 'success' | 'error'
     message: string
   } | null>(null)
+  const [deletingPasswordIds, setDeletingPasswordIds] = useState<string[] | null>(null)
   const [materialFeedback, setMaterialFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -2494,6 +2503,7 @@ function HomePanel({
     'Geração de senha',
     'Geração de número de série',
     'Sap Hana',
+    'Padronizar documentos',
   ]
 
   const labHighlightedSections = [
@@ -3670,6 +3680,44 @@ function HomePanel({
         type: 'error',
         message: 'Não foi possível copiar a senha.',
       })
+    }
+  }
+
+  const handleDeletePasswordRecords = async (records: PasswordRecord[]) => {
+    if (!records.length) {
+      setPasswordFeedback({
+        type: 'error',
+        message: 'Nenhuma senha encontrada para excluir.',
+      })
+      return
+    }
+
+    const confirmation =
+      records.length === 1
+        ? `Excluir a senha do medidor ${records[0]?.meter}?`
+        : `Excluir ${records.length} senha(s) desta pesquisa?`
+    if (!window.confirm(confirmation)) return
+
+    setDeletingPasswordIds(records.map((record) => record.id))
+    try {
+      const response = await api.deletePasswordRecords(records.map((record) => record.id))
+      const removed = new Set(response.deletedIds)
+      setPasswordRecords((current) => current.filter((record) => !removed.has(record.id)))
+      setPasswordFeedback({
+        type: 'success',
+        message:
+          response.deletedIds.length === 1
+            ? `Senha do medidor ${records[0]?.meter} excluída.`
+            : `${response.deletedIds.length} senha(s) excluída(s).`,
+      })
+    } catch (error) {
+      setPasswordFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError ? error.message : 'Não foi possível excluir a senha.',
+      })
+    } finally {
+      setDeletingPasswordIds(null)
     }
   }
 
@@ -5423,6 +5471,149 @@ function HomePanel({
           )
         }
 
+        if (selectedPasswordAction === 'excluir' && isAdmin) {
+          const deleting = Boolean(deletingPasswordIds)
+          return (
+            <main className="shell">
+              <section className="home-card area-screen-card">
+                <TopActionBar
+                  onBack={() => setSelectedPasswordAction(null)}
+                  onHome={() => {
+                    setSelectedPasswordAction(null)
+                    setSelectedMeasurementSection(null)
+                    setSelectedArea(null)
+                  }}
+                  onLogout={onLogout}
+                />
+                <p className="section-tag">Geração de Senha</p>
+                <h2>Excluir senha</h2>
+                <p>
+                  Pesquise as senhas salvas no banco local por medidor, fabricante e codigo de material.
+                </p>
+
+                <div className="consult-filters-grid">
+                  <label>
+                    Fabricante
+                    <select
+                      value={filterManufacturer}
+                      onChange={(event) => setFilterManufacturer(event.target.value)}
+                    >
+                      <option value="Todos">Todos</option>
+                      {manufacturers.map((manufacturer) => (
+                        <option key={manufacturer} value={manufacturer}>
+                          {manufacturer}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    Codigo de material
+                    <select
+                      value={filterMaterialType}
+                      onChange={(event) => setFilterMaterialType(event.target.value)}
+                    >
+                      <option value="Todos">Todos</option>
+                      {materialTypeOptions.map((material) => (
+                        <option key={material} value={material}>
+                          {material}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    Data inicial
+                    <input
+                      type="date"
+                      value={filterStartDate}
+                      onChange={(event) => setFilterStartDate(event.target.value)}
+                    />
+                  </label>
+
+                  <label>
+                    Data final
+                    <input
+                      type="date"
+                      value={filterEndDate}
+                      onChange={(event) => setFilterEndDate(event.target.value)}
+                    />
+                  </label>
+                </div>
+
+                <div className="area-actions">
+                  <button
+                    className="danger-button"
+                    type="button"
+                    disabled={deleting || filteredPasswordRecords.length === 0}
+                    onClick={() => void handleDeletePasswordRecords(filteredPasswordRecords)}
+                  >
+                    {deleting ? 'Excluindo...' : 'Excluir pesquisa'}
+                  </button>
+                </div>
+
+                <label className="consult-meter-field">
+                  Medidores
+                  <textarea
+                    rows={4}
+                    placeholder="Digite um ou mais medidores, um por linha ou separados por vírgula"
+                    value={filterMetersInput}
+                    onChange={(event) => setFilterMetersInput(event.target.value)}
+                  />
+                </label>
+
+                <div className="consult-results" aria-label="Senhas para excluir">
+                  {filteredPasswordRecords.length ? (
+                    filteredPasswordRecords.map((record) => (
+                      <article key={record.id} className="consult-item">
+                        <div className="consult-item-header">
+                          <strong>{record.meter}</strong>
+                          {record.isPassive || record.source === 'passivo' ? (
+                            <span className="consult-passivo-badge">Passivo</span>
+                          ) : null}
+                          <button
+                            className="danger-button"
+                            type="button"
+                            disabled={deleting}
+                            onClick={() => void handleDeletePasswordRecords([record])}
+                          >
+                            {deletingPasswordIds?.includes(record.id) ? 'Excluindo...' : 'Excluir'}
+                          </button>
+                        </div>
+                        <span>Senha: {record.password}</span>
+                        <span>Fabricante: {record.manufacturer}</span>
+                        <span>Codigo de material: {record.materialType}</span>
+                        <span>Numero de pedido: {record.orderNumber || '-'}</span>
+                        <span>
+                          Origem:{' '}
+                          {record.isPassive || record.source === 'passivo' ? 'Passivo' : 'Gerada'}
+                        </span>
+                        <span>
+                          Data carimbo: {new Date(record.createdAt).toLocaleString('pt-BR')}
+                        </span>
+                      </article>
+                    ))
+                  ) : (
+                    <p className="generated-password-empty">
+                      {filterMetersInput.trim()
+                        ? 'Nenhuma senha encontrada para este medidor.'
+                        : 'Digite um ou mais medidores para excluir as senhas.'}
+                    </p>
+                  )}
+                </div>
+
+                {passwordFeedback ? (
+                  <LoginFeedback
+                    type={passwordFeedback.type}
+                    message={passwordFeedback.message}
+                    onClose={() => setPasswordFeedback(null)}
+                  />
+                ) : null}
+              </section>
+            </main>
+          )
+        }
+
         return (
           <main className="shell">
             <section className="home-card area-screen-card">
@@ -5488,7 +5679,9 @@ function HomePanel({
               <p>
                 {selectedMeasurementSection === 'Memória de massa'
                   ? `Etapa ${selectedMemoryMassStep} da subárea Memória de massa.`
-                  : `Página dedicada da subárea ${selectedMeasurementSection}. Aqui você poderá concentrar funcionalidades, filtros e relatórios específicos.`}
+                  : selectedMeasurementSection === 'Padronizar documentos'
+                    ? 'Crie modelos de documento com o layout padrão da área, preencha as informações e gere o documento pronto para imprimir ou salvar em PDF.'
+                    : `Página dedicada da subárea ${selectedMeasurementSection}. Aqui você poderá concentrar funcionalidades, filtros e relatórios específicos.`}
               </p>
             )}
             {selectedMeasurementSection === 'Memória de massa' ? (
@@ -5507,6 +5700,9 @@ function HomePanel({
             {selectedMeasurementSection === 'Memória de massa' &&
             selectedMemoryMassStep === 'Executadas' ? (
               <ExecutadasPanel />
+            ) : null}
+            {selectedMeasurementSection === 'Padronizar documentos' ? (
+              <PadronizarDocumentosPanel userName={currentUser.name} />
             ) : null}
             {selectedMeasurementSection === 'Faturamento de clientes livres' ? (
               <div
@@ -5546,6 +5742,15 @@ function HomePanel({
                 >
                   Consultar senhas
                 </button>
+                {isAdmin ? (
+                  <button
+                    className="measurement-item"
+                    type="button"
+                    onClick={() => setSelectedPasswordAction('excluir')}
+                  >
+                    Excluir senha
+                  </button>
+                ) : null}
                 {isAdmin ? (
                   <button
                     className="measurement-item"
