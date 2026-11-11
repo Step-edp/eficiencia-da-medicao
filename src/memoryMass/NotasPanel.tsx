@@ -299,8 +299,13 @@ export function NotasPanel() {
           >
             <header>
               <h3 id="nota-detalhe-titulo">Nota {notaAberta.nota}</h3>
-              <button type="button" className="secondary-button" onClick={() => setNotaAberta(null)}>
-                Fechar
+              <button
+                type="button"
+                className="nota-detalhe-fechar"
+                aria-label="Fechar"
+                onClick={() => setNotaAberta(null)}
+              >
+                X
               </button>
             </header>
             <p>Instalação {notaAberta.instalacao || '—'}</p>

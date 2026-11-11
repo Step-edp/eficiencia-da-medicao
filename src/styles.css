@@ -7909,6 +7909,17 @@ input[type='file'] {
   gap: 12px;
 }
 
+.nota-detalhe-fechar {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .nota-detalhe h3,
 .nota-detalhe p {
   margin: 0;
