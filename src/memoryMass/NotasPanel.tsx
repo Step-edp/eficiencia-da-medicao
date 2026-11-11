@@ -19,6 +19,8 @@ const CAMPOS_DETALHE = [
   { rotulo: 'Cidade', testes: ['cidade'] },
   { rotulo: 'Centro (CtPl)', testes: ['ctpl', 'centro'] },
   { rotulo: 'Conclusão desejada', testes: ['conclusao desej', 'concl'] },
+  { rotulo: 'BT ou MT', testes: ['bt ou mt', 'bt/mt'] },
+  { rotulo: 'Nível de tensão', testes: ['nivel de tensao'] },
   { rotulo: 'Referência', testes: ['referencia', 'refer'] },
   { rotulo: 'MMGD', testes: ['mmgd', 'mm/gi', 'mm/g', 'mmgi'] },
   { rotulo: 'Duas linhas', testes: ['duas linha'] },
