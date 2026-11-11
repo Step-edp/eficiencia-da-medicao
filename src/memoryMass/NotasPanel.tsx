@@ -254,11 +254,6 @@ export function NotasPanel() {
 
   return (
     <div className="memoria-notas-panel">
-      <p className="memoria-notas-intro">
-        Lista das notas pendentes de execução na Memória de massa. Importar notas roda a
-        extração no SAP deste computador e traz a lista para a fila.
-      </p>
-
       {feedback ? (
         <LoginFeedback
           type={feedback.type}

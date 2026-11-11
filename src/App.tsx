@@ -5483,7 +5483,8 @@ function HomePanel({
                 canReleaseSab
                 initialTab="destinacao"
               />
-            ) : (
+            ) : selectedMeasurementSection === 'Memória de massa' &&
+              selectedMemoryMassStep === 'Notas' ? null : (
               <p>
                 {selectedMeasurementSection === 'Memória de massa'
                   ? `Etapa ${selectedMemoryMassStep} da subárea Memória de massa.`
