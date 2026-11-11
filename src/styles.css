@@ -7798,8 +7798,21 @@ input[type='file'] {
 }
 
 .memoria-notas-panel .entrada-table-wrap {
+  width: fit-content;
+  max-width: 100%;
   max-height: none;
   overflow: visible;
+}
+
+.memoria-notas-panel .entrada-table-wrap .data-table {
+  width: auto;
+  min-width: 0;
+}
+
+.memoria-notas-panel .entrada-table-wrap .data-table th,
+.memoria-notas-panel .entrada-table-wrap .data-table td {
+  white-space: nowrap;
+  padding: 10px 16px;
 }
 
 .memoria-notas-intro {
