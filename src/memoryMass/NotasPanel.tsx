@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   api,
   ApiError,
@@ -82,7 +82,6 @@ function formatDateTime(iso: string) {
 export function NotasPanel() {
   const [notas, setNotas] = useState<MemoriaMassaNotaRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [extraindo, setExtraindo] = useState(false)
   const [notaAberta, setNotaAberta] = useState<MemoriaMassaNotaRecord | null>(null)
@@ -92,12 +91,11 @@ export function NotasPanel() {
     message: string
   } | null>(null)
 
-  const load = useCallback(async (searchValue = '') => {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       const response = await api.listMemoriaMassaNotas({
         status: 'pendente',
-        search: searchValue.trim() || undefined,
       })
       setNotas(response.notas)
     } catch (error) {
@@ -115,8 +113,17 @@ export function NotasPanel() {
   }, [])
 
   useEffect(() => {
-    void load('')
+    void load()
   }, [load])
+
+  const notasVisiveis = useMemo(() => {
+    const termo = semAcento(search)
+    if (!termo) return notas
+    return notas.filter(
+      (nota) =>
+        semAcento(nota.nota).includes(termo) || semAcento(nota.instalacao).includes(termo),
+    )
+  }, [notas, search])
 
   useEffect(() => {
     if (!notaAberta) return
@@ -182,7 +189,7 @@ export function NotasPanel() {
         type: 'success',
         message: `${response.inserted} nota(s) importada(s) do SAP.${atualMsg}`,
       })
-      await load(search)
+      await load()
     } catch (error) {
       const semPrograma = error instanceof TypeError
       setFeedback({
@@ -199,59 +206,6 @@ export function NotasPanel() {
     }
   }
 
-  const handleSearch = (event: FormEvent) => {
-    event.preventDefault()
-    void load(search)
-  }
-
-  const markExecutada = async (nota: MemoriaMassaNotaRecord) => {
-    setUpdatingId(nota.id)
-    setFeedback(null)
-    try {
-      await api.updateMemoriaMassaNotaStatus(nota.id, 'executada')
-      setNotas((current) => current.filter((item) => item.id !== nota.id))
-      setNotaAberta((aberta) => (aberta?.id === nota.id ? null : aberta))
-      setFeedback({
-        type: 'success',
-        message: `Nota ${nota.nota} marcada como executada.`,
-      })
-    } catch (error) {
-      setFeedback({
-        type: 'error',
-        message:
-          error instanceof ApiError
-            ? error.message
-            : 'Não foi possível atualizar a nota.',
-      })
-    } finally {
-      setUpdatingId(null)
-    }
-  }
-
-  const removeNota = async (nota: MemoriaMassaNotaRecord) => {
-    setUpdatingId(nota.id)
-    setFeedback(null)
-    try {
-      await api.deleteMemoriaMassaNota(nota.id)
-      setNotas((current) => current.filter((item) => item.id !== nota.id))
-      setNotaAberta((aberta) => (aberta?.id === nota.id ? null : aberta))
-      setFeedback({
-        type: 'success',
-        message: `Nota ${nota.nota} removida.`,
-      })
-    } catch (error) {
-      setFeedback({
-        type: 'error',
-        message:
-          error instanceof ApiError
-            ? error.message
-            : 'Não foi possível remover a nota.',
-      })
-    } finally {
-      setUpdatingId(null)
-    }
-  }
-
   return (
     <div className="memoria-notas-panel">
       {feedback ? (
@@ -263,7 +217,7 @@ export function NotasPanel() {
       ) : null}
 
       <div className="memoria-notas-toolbar">
-        <form className="memoria-notas-search" onSubmit={handleSearch}>
+        <form className="memoria-notas-search" onSubmit={(event) => event.preventDefault()}>
           <label>
             Buscar
             <input
@@ -273,9 +227,6 @@ export function NotasPanel() {
               placeholder="Nota ou instalação"
             />
           </label>
-          <button type="submit" className="secondary-button" disabled={loading}>
-            Filtrar
-          </button>
         </form>
         <button
           type="button"
@@ -297,12 +248,11 @@ export function NotasPanel() {
                 <th>Nota</th>
                 <th>Instalação</th>
                 <th>Incluída em</th>
-                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {notas.length ? (
-                notas.map((nota) => (
+              {notasVisiveis.length ? (
+                notasVisiveis.map((nota) => (
                   <tr key={nota.id}>
                     <td>
                       <button
@@ -315,33 +265,14 @@ export function NotasPanel() {
                     </td>
                     <td>{nota.instalacao || '—'}</td>
                     <td>{formatDateTime(nota.createdAt)}</td>
-                    <td>
-                      <div className="memoria-notas-row-actions">
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          disabled={updatingId === nota.id}
-                          onClick={() => void markExecutada(nota)}
-                        >
-                          Marcar executada
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          disabled={updatingId === nota.id}
-                          onClick={() => void removeNota(nota)}
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4}>
-                    Nenhuma nota pendente de execução. Use &quot;Importar notas&quot; para
-                    carregar a fila.
+                  <td colSpan={3}>
+                    {notas.length
+                      ? 'Nenhuma nota encontrada para essa busca.'
+                      : 'Nenhuma nota pendente de execução. Use "Importar notas" para carregar a fila.'}
                   </td>
                 </tr>
               )}
@@ -352,7 +283,7 @@ export function NotasPanel() {
 
       {!loading ? (
         <p className="memoria-notas-count" role="status">
-          {notas.length} nota(s) para executar
+          {notasVisiveis.length} nota(s) para executar
         </p>
       ) : null}
 
