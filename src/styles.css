@@ -7950,6 +7950,50 @@ input[type='file'] {
   line-height: 1.45;
 }
 
+.executadas-meta {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.executadas-meta label,
+.executadas-medidor-2,
+.executadas-sap {
+  display: grid;
+  gap: 6px;
+}
+
+.executadas-medidor-2 input {
+  max-width: 280px;
+}
+
+.executadas-sap textarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  white-space: pre;
+}
+
+.executadas-segunda {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+}
+
+.executadas-comparacao-impede td {
+  background: rgba(156, 0, 6, 0.35);
+  color: #ffd6d6;
+}
+
+@media (max-width: 900px) {
+  .executadas-meta {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .produtividade-panel {
   display: grid;
   gap: 16px;
