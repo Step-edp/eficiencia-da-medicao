@@ -35,6 +35,7 @@ import {
   isLabMedicaoOperator,
   isConsumoIrregular,
   isConsumoIrregularAnalista,
+  isPureComprasPortal,
   skipsVacationAgenda,
   listUsersForCadastroProfile,
   PORTAL_AREAS,
@@ -4012,18 +4013,10 @@ function HomePanel({
     }
   }
 
-  const isPureComprasPortal =
-    currentUser.role === 'compras' &&
-    !(currentUser.accessAreas?.length) &&
-    !(currentUser.accessProcesses?.length) &&
-    !(
-      currentUser.workArea?.trim() === 'CSD' &&
-      isFieldTeamCsdScope(currentUser.workSubtype)
-    ) &&
-    !isConsumoIrregular(currentUser)
+  const restrictedToComprasForm = isPureComprasPortal(currentUser)
 
   // Link fixo (#/compras/pedidos-homologacao) e perfil Compras puro abrem o formulário.
-  if (isPureComprasPortal || activeRoute === 'compras-homologacao' || showPurchaseRequestForm) {
+  if (restrictedToComprasForm || activeRoute === 'compras-homologacao' || showPurchaseRequestForm) {
     const leaveFixedRequestForm = () => {
       setShowPurchaseRequestForm(false)
       if (window.location.hash) {
@@ -4037,9 +4030,9 @@ function HomePanel({
         activeRoute={activeRoute}
         manufacturers={manufacturers}
         materialCatalog={homologationMaterialCatalog}
-        restrictedAccess={isPureComprasPortal}
-        onBack={isPureComprasPortal ? undefined : leaveFixedRequestForm}
-        onHome={isPureComprasPortal ? undefined : leaveFixedRequestForm}
+        restrictedAccess={restrictedToComprasForm}
+        onBack={restrictedToComprasForm ? undefined : leaveFixedRequestForm}
+        onHome={restrictedToComprasForm ? undefined : leaveFixedRequestForm}
         onCreateHomologationRequest={onCreateHomologationRequest}
         onLogout={onLogout}
       />

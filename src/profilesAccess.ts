@@ -774,6 +774,40 @@ export function userMatchesCadastroProfile(
   return true
 }
 
+/**
+ * Compras sem perfil de negócio: só o formulário de pedidos de homologação.
+ * Responsável por célula (e demais perfis de cadastro) entra na home mesmo
+ * com accessAreas/accessProcesses vazios — o acesso vem da área e do cargo.
+ */
+export function isPureComprasPortal(user: {
+  role: UserRole
+  accessAreas?: string[] | null
+  accessProcesses?: string[] | null
+  workArea?: string | null
+  jobTitle?: string | null
+  workSubtype?: string | null
+  approvalStatus?: string
+}): boolean {
+  if (user.role !== 'compras') return false
+  if (user.accessAreas?.length) return false
+  if (user.accessProcesses?.length) return false
+  if (user.workArea?.trim() === 'CSD' && isFieldTeamCsdScope(user.workSubtype)) {
+    return false
+  }
+  if (isConsumoIrregular(user)) return false
+
+  const matchedProfile = CADASTRO_PROFILES.find((profile) =>
+    userMatchesCadastroProfile(
+      {
+        ...user,
+        approvalStatus: user.approvalStatus ?? 'approved',
+      },
+      profile,
+    ),
+  )
+  return !matchedProfile
+}
+
 export function listUsersForCadastroProfile<T extends {
   approvalStatus?: string
   role?: string
