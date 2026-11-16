@@ -114,6 +114,12 @@ import {
 
 const FIXED_PURCHASE_REQUEST_HASH = '#/compras/pedidos-homologacao'
 
+/** Nome exibido do card. O identificador interno permanece para acesso e navegação salva. */
+function measurementSectionTitle(section: string) {
+  if (section === 'Geração de senha') return 'Senhas'
+  return section
+}
+
 const THIRD_PARTY_COMPANIES = ['BMB', 'Cosampa', 'Engelmig', 'Engeserv', 'Provider', 'ROTARY', 'TIVIT'] as const
 
 const AREA_OPTIONS = [...DEFAULT_AREA_OPTIONS] as const
@@ -5658,7 +5664,7 @@ function HomePanel({
             <h2>
               {selectedMeasurementSection === 'Memória de massa'
                 ? selectedMemoryMassStep
-                : selectedMeasurementSection}
+                : measurementSectionTitle(selectedMeasurementSection ?? '')}
             </h2>
             {selectedMeasurementSection === 'Retirada Grandes Clientes' ? (
               <GrandesClientesPanel
@@ -5674,7 +5680,7 @@ function HomePanel({
                   ? `Etapa ${selectedMemoryMassStep} da subárea Memória de massa.`
                   : selectedMeasurementSection === 'Padronizar documentos'
                     ? 'Crie modelos de documento com o layout padrão da área, preencha as informações e gere o documento pronto para imprimir ou salvar em PDF.'
-                    : `Página dedicada da subárea ${selectedMeasurementSection}. Aqui você poderá concentrar funcionalidades, filtros e relatórios específicos.`}
+                    : `Página dedicada da subárea ${measurementSectionTitle(selectedMeasurementSection)}. Aqui você poderá concentrar funcionalidades, filtros e relatórios específicos.`}
               </p>
             )}
             {selectedMeasurementSection === 'Memória de massa' ? (
@@ -6040,7 +6046,7 @@ function HomePanel({
                     Cadastre o agendamento de medidores que chegaram ao laboratório
                     sem agendamento em campo (passivo de agendamento). Não se
                     confunde com o cadastro de senhas passivas em{' '}
-                    <strong>Medição → Geração de senha</strong>.
+                    <strong>Medição → Senhas</strong>.
                   </p>
                   <ScheduleAgendarForm showPassiveFields />
                 </>
@@ -6582,7 +6588,7 @@ function HomePanel({
                 >
                   <span className="item-with-icon">
                     <ItemIcon title={section} />
-                    <span>{section}</span>
+                    <span>{measurementSectionTitle(section)}</span>
                   </span>
                 </button>
               ))}
