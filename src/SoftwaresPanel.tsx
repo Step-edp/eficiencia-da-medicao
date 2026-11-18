@@ -32,6 +32,44 @@ function agrupar(linhas: SoftwareRecord[]) {
     .sort((a, b) => b.atual.createdAt.localeCompare(a.atual.createdAt))
 }
 
+const EXTENSOES_PERMITIDAS = new Set(['exe', 'msi', 'msix', 'appx', 'apk', 'pdf'])
+const EXTENSOES_COMPACTADAS = new Set([
+  'zip', 'rar', '7z', 'tar', 'gz', 'tgz', 'bz2', 'tbz2', 'xz', 'txz',
+  'cab', 'iso', 'jar', 'war', 'ear', 'zst', 'lz', 'lzma', 'arj', 'lzh', 'ace',
+])
+const MENSAGEM_TIPO_ARQUIVO =
+  'Esse tipo de arquivo não é aceito. Envie EXE, MSI, MSIX, APK ou PDF. Arquivos compactados (ZIP, RAR, 7z e semelhantes) não entram.'
+
+function extensaoDoArquivo(nome: string) {
+  const base = nome.trim().split(/[/\\]/).pop() ?? ''
+  const ponto = base.lastIndexOf('.')
+  if (ponto <= 0) return ''
+  return base.slice(ponto + 1).toLocaleLowerCase('pt-BR')
+}
+
+function assinaturaCompactada(bytes: Uint8Array) {
+  if (bytes.length < 4) return false
+  if (bytes[0] === 0x50 && bytes[1] === 0x4b && (bytes[2] === 0x03 || bytes[2] === 0x05 || bytes[2] === 0x07)) {
+    return true
+  }
+  if (bytes[0] === 0x52 && bytes[1] === 0x61 && bytes[2] === 0x72 && bytes[3] === 0x21) return true
+  if (bytes[0] === 0x37 && bytes[1] === 0x7a && bytes[2] === 0xbc && bytes[3] === 0xaf) return true
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) return true
+  if (bytes[0] === 0xfd && bytes[1] === 0x37 && bytes[2] === 0x7a && bytes[3] === 0x58) return true
+  if (bytes[0] === 0x4d && bytes[1] === 0x53 && bytes[2] === 0x43 && bytes[3] === 0x46) return true
+  return false
+}
+
+async function arquivoRecusado(file: File) {
+  const extensao = extensaoDoArquivo(file.name)
+  if (EXTENSOES_COMPACTADAS.has(extensao) || !EXTENSOES_PERMITIDAS.has(extensao)) {
+    return MENSAGEM_TIPO_ARQUIVO
+  }
+  if (extensao === 'apk' || extensao === 'msix' || extensao === 'appx') return ''
+  const bytes = new Uint8Array(await file.slice(0, 8).arrayBuffer())
+  return assinaturaCompactada(bytes) ? MENSAGEM_TIPO_ARQUIVO : ''
+}
+
 function rotuloVersao(item: SoftwareRecord) {
   const quando = new Date(item.createdAt).toLocaleString('pt-BR')
   return item.versionLabel ? `${item.versionLabel} · ${quando}` : quando
@@ -269,6 +307,7 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
                   id={attachmentInputId}
                   className="file-picker-input"
                   type="file"
+                  accept=".exe,.msi,.msix,.appx,.apk,.pdf,application/pdf"
                   disabled={creating}
                   onChange={(event) => {
                     const file = event.target.files?.[0]
@@ -277,14 +316,23 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
                       setAttachmentName('')
                       return
                     }
-                  void readAttachmentAsDataUrl(file, {
-                    maxBytes: 200_000_000,
-                    allowAnyFile: true,
-                  })
-                      .then((dataUrl) => {
-                        setAttachment(dataUrl)
-                        setAttachmentName(file.name)
-                        setFeedback(null)
+                    void arquivoRecusado(file)
+                      .then((recusa) => {
+                        if (recusa) {
+                          setAttachment('')
+                          setAttachmentName('')
+                          event.target.value = ''
+                          setFeedback({ type: 'error', message: recusa })
+                          return
+                        }
+                        return readAttachmentAsDataUrl(file, {
+                          maxBytes: 200_000_000,
+                          allowAnyFile: true,
+                        }).then((dataUrl) => {
+                          setAttachment(dataUrl)
+                          setAttachmentName(file.name)
+                          setFeedback(null)
+                        })
                       })
                       .catch((error: unknown) => {
                         setAttachment('')
@@ -323,8 +371,8 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
           )}
           <p className="field-hint full-width">
             {formMode.kind === 'version'
-              ? 'O arquivo ou o link novo vira a versão atual. Os anteriores permanecem disponíveis. O arquivo pode ter até 200 MB.'
-              : 'Se o nome já existir, isto entra como versão nova e a anterior continua guardada. O arquivo pode ter até 200 MB.'}
+              ? 'O arquivo ou o link novo vira a versão atual. Os anteriores permanecem disponíveis. Aceita EXE, MSI, MSIX, APK ou PDF, até 200 MB. ZIP, RAR e 7z não entram.'
+              : 'Se o nome já existir, isto entra como versão nova e a anterior continua guardada. Aceita EXE, MSI, MSIX, APK ou PDF, até 200 MB. ZIP, RAR e 7z não entram.'}
           </p>
           <div className="agenda-form-actions full-width">
             <button
