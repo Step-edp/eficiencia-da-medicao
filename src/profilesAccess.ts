@@ -605,7 +605,8 @@ export function skipsVacationAgenda(workSubtype?: string | null) {
     normalized === 'Lavratura de TOI - Equipe de Campo' ||
     normalized === 'Lavratura de TOI' || // legado
     normalized === 'Lavratura de TOI - Ponto Focal' ||
-    normalized === 'Lavratura de TOI - Backoffice'
+    normalized === 'Lavratura de TOI - Backoffice' ||
+    normalized === 'Backoffice'
   )
 }
 
