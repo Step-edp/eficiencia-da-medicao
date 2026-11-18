@@ -784,6 +784,7 @@ export async function migrate() {
       version_label TEXT NOT NULL DEFAULT '',
       attachment TEXT NOT NULL DEFAULT '',
       attachment_name TEXT NOT NULL DEFAULT '',
+      link_url TEXT NOT NULL DEFAULT '',
       created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -791,6 +792,10 @@ export async function migrate() {
   await query(`
     ALTER TABLE softwares
       ADD COLUMN IF NOT EXISTS version_label TEXT NOT NULL DEFAULT ''
+  `)
+  await query(`
+    ALTER TABLE softwares
+      ADD COLUMN IF NOT EXISTS link_url TEXT NOT NULL DEFAULT ''
   `)
   await query(`
     CREATE INDEX IF NOT EXISTS idx_softwares_created_at

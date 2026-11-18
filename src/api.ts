@@ -335,6 +335,7 @@ export type SoftwareRecord = {
   description: string
   versionLabel: string
   attachmentName: string
+  linkUrl: string
   hasAttachment: boolean
   createdAt: string
   createdByUserId?: string | null
@@ -1658,8 +1659,9 @@ export const api = {
     name: string
     description?: string
     versionLabel?: string
-    attachment: string
-    attachmentName: string
+    attachment?: string
+    attachmentName?: string
+    linkUrl?: string
   }) =>
     request<{ software: SoftwareRecord }>('/api/softwares', {
       method: 'POST',

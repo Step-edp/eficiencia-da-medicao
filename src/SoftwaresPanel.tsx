@@ -3,6 +3,7 @@ import { api, ApiError, type SoftwareRecord } from './api'
 import { readAttachmentAsDataUrl } from './readAttachmentAsDataUrl'
 
 type FormMode = { kind: 'new' } | { kind: 'version'; name: string }
+type Origem = 'arquivo' | 'link'
 
 function nomeChave(nome: string) {
   return nome.trim().toLocaleLowerCase('pt-BR')
@@ -48,8 +49,10 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
 
   const [name, setName] = useState('')
   const [versionLabel, setVersionLabel] = useState('')
+  const [origem, setOrigem] = useState<Origem>('arquivo')
   const [attachment, setAttachment] = useState('')
   const [attachmentName, setAttachmentName] = useState('')
+  const [linkUrl, setLinkUrl] = useState('')
   const attachmentInputId = useId()
   const grupos = useMemo(() => agrupar(softwares), [softwares])
 
@@ -79,8 +82,10 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
   const resetForm = () => {
     setName('')
     setVersionLabel('')
+    setOrigem('arquivo')
     setAttachment('')
     setAttachmentName('')
+    setLinkUrl('')
   }
 
   const abrirNovo = () => {
@@ -108,8 +113,13 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
       setFeedback({ type: 'error', message: 'Informe o nome do software.' })
       return
     }
-    if (!attachment) {
+    const link = linkUrl.trim()
+    if (origem === 'arquivo' && !attachment) {
       setFeedback({ type: 'error', message: 'Anexe o arquivo do software.' })
+      return
+    }
+    if (origem === 'link' && !link) {
+      setFeedback({ type: 'error', message: 'Informe o link do software.' })
       return
     }
 
@@ -120,8 +130,9 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
       const { software } = await api.createSoftware({
         name: nome,
         versionLabel: versionLabel.trim(),
-        attachment,
-        attachmentName: attachmentName || 'arquivo',
+        ...(origem === 'arquivo'
+          ? { attachment, attachmentName: attachmentName || 'arquivo' }
+          : { linkUrl: link }),
       })
       setSoftwares((current) => [software, ...current])
       resetForm()
@@ -167,15 +178,24 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
     }
   }
 
-  const arquivoDo = (item: SoftwareRecord) => (
-    <button
-      type="button"
-      className="link-button"
-      disabled={!item.hasAttachment || downloadingId === item.id}
-      onClick={() => void handleDownloadAttachment(item)}
-    >
-      {downloadingId === item.id ? 'Baixando…' : item.attachmentName || 'Baixar arquivo'}
-    </button>
+  const recursoDo = (item: SoftwareRecord) => (
+    <>
+      {item.hasAttachment ? (
+        <button
+          type="button"
+          className="link-button"
+          disabled={downloadingId === item.id}
+          onClick={() => void handleDownloadAttachment(item)}
+        >
+          {downloadingId === item.id ? 'Baixando…' : item.attachmentName || 'Baixar arquivo'}
+        </button>
+      ) : null}
+      {item.linkUrl ? (
+        <a className="link-button" href={item.linkUrl} target="_blank" rel="noopener noreferrer">
+          {item.linkUrl}
+        </a>
+      ) : null}
+    </>
   )
 
   return (
@@ -218,57 +238,94 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
               disabled={creating}
             />
           </label>
-          <div className="full-width">
-            <span className="agenda-attachment-label">Arquivo</span>
-            <div className="file-picker">
+          <fieldset className="software-origem full-width">
+            <legend>O que guardar</legend>
+            <label>
               <input
-                id={attachmentInputId}
-                className="file-picker-input"
-                type="file"
+                type="radio"
+                name="origem-software"
+                checked={origem === 'arquivo'}
                 disabled={creating}
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  if (!file) {
-                    setAttachment('')
-                    setAttachmentName('')
-                    return
-                  }
-                  void readAttachmentAsDataUrl(file, {
-                    maxBytes: 15_000_000,
-                    allowAnyFile: true,
-                  })
-                    .then((dataUrl) => {
-                      setAttachment(dataUrl)
-                      setAttachmentName(file.name)
-                      setFeedback(null)
-                    })
-                    .catch((error: unknown) => {
+                onChange={() => setOrigem('arquivo')}
+              />
+              Arquivo
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="origem-software"
+                checked={origem === 'link'}
+                disabled={creating}
+                onChange={() => setOrigem('link')}
+              />
+              Link
+            </label>
+          </fieldset>
+          {origem === 'arquivo' ? (
+            <div className="full-width">
+              <span className="agenda-attachment-label">Arquivo</span>
+              <div className="file-picker">
+                <input
+                  id={attachmentInputId}
+                  className="file-picker-input"
+                  type="file"
+                  disabled={creating}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (!file) {
                       setAttachment('')
                       setAttachmentName('')
-                      event.target.value = ''
-                      setFeedback({
-                        type: 'error',
-                        message:
-                          error instanceof Error
-                            ? error.message
-                            : 'Não foi possível carregar o arquivo.',
-                      })
+                      return
+                    }
+                    void readAttachmentAsDataUrl(file, {
+                      maxBytes: 15_000_000,
+                      allowAnyFile: true,
                     })
-                }}
-              />
-              <label htmlFor={attachmentInputId} className="file-picker-button">
-                Selecionar arquivo
-              </label>
-              <span className="file-picker-name">
-                {attachmentName || 'Nenhum arquivo selecionado'}
-              </span>
+                      .then((dataUrl) => {
+                        setAttachment(dataUrl)
+                        setAttachmentName(file.name)
+                        setFeedback(null)
+                      })
+                      .catch((error: unknown) => {
+                        setAttachment('')
+                        setAttachmentName('')
+                        event.target.value = ''
+                        setFeedback({
+                          type: 'error',
+                          message:
+                            error instanceof Error
+                              ? error.message
+                              : 'Não foi possível carregar o arquivo.',
+                        })
+                      })
+                  }}
+                />
+                <label htmlFor={attachmentInputId} className="file-picker-button">
+                  Selecionar arquivo
+                </label>
+                <span className="file-picker-name">
+                  {attachmentName || 'Nenhum arquivo selecionado'}
+                </span>
+              </div>
             </div>
-            <p className="field-hint">
-              {formMode.kind === 'version'
-                ? 'O arquivo novo vira a versão atual. Os arquivos anteriores permanecem para download.'
-                : 'Se o nome já existir, este arquivo entra como versão nova e a anterior continua guardada.'}
-            </p>
-          </div>
+          ) : (
+            <label className="full-width">
+              Link
+              <input
+                type="url"
+                value={linkUrl}
+                onChange={(event) => setLinkUrl(event.target.value)}
+                placeholder="https://"
+                disabled={creating}
+                required
+              />
+            </label>
+          )}
+          <p className="field-hint full-width">
+            {formMode.kind === 'version'
+              ? 'O arquivo ou o link novo vira a versão atual. Os anteriores permanecem disponíveis.'
+              : 'Se o nome já existir, isto entra como versão nova e a anterior continua guardada.'}
+          </p>
           <div className="agenda-form-actions full-width">
             <button
               type="button"
@@ -314,7 +371,7 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
               <p className="software-version-line">
                 <span className="software-badge">Atual</span>
                 <span>{rotuloVersao(grupo.atual)}</span>
-                {arquivoDo(grupo.atual)}
+                {recursoDo(grupo.atual)}
               </p>
               {grupo.anteriores.length ? (
                 <div className="software-previous">
@@ -323,7 +380,7 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
                     {grupo.anteriores.map((item) => (
                       <li key={item.id}>
                         <span>{rotuloVersao(item)}</span>
-                        {arquivoDo(item)}
+                        {recursoDo(item)}
                       </li>
                     ))}
                   </ul>
@@ -334,7 +391,7 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
         </div>
       ) : (
         <p className="entrada-panel-empty">
-          Nenhum software guardado. Use Novo software para enviar o arquivo.
+          Nenhum software guardado. Use Novo software para enviar um arquivo ou um link.
         </p>
       )}
     </div>

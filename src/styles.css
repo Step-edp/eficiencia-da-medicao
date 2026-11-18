@@ -10849,6 +10849,26 @@ input[type='file'] {
   }
 }
 
+.software-origem {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.software-origem legend {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.software-origem label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .software-list {
   display: grid;
   gap: 14px;
@@ -10879,6 +10899,11 @@ input[type='file'] {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+
+.software-version-line a,
+.software-previous a {
+  overflow-wrap: anywhere;
 }
 
 .software-badge {

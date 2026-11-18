@@ -12,6 +12,7 @@ type SoftwareRow = {
   version_label: string
   attachment: string
   attachment_name: string
+  link_url: string
   created_at: Date
   created_by_user_id: string | null
   created_by_name: string | null
@@ -28,7 +29,8 @@ function mapSoftware(
     description: row.description,
     versionLabel: row.version_label || '',
     attachmentName: row.attachment_name || '',
-    hasAttachment: Boolean(row.attachment_name || (row.attachment && row.attachment.length > 0)),
+    linkUrl: row.link_url || '',
+    hasAttachment: Boolean(row.attachment && row.attachment.length > 0),
     ...(includeAttachment ? { attachment: row.attachment || '' } : {}),
     createdAt: row.created_at.toISOString(),
     createdByUserId: row.created_by_user_id,
@@ -41,9 +43,18 @@ function isAllowedAttachment(dataUrl: string) {
   return dataUrl.startsWith('data:') && dataUrl.includes(';base64,')
 }
 
+function linkPermitido(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export async function listSoftwares(_req: Request, res: Response) {
   const result = await query<Omit<SoftwareRow, 'attachment'> & { has_attachment: boolean }>(
-    `SELECT s.id, s.name, s.description, s.version_label, s.attachment_name,
+    `SELECT s.id, s.name, s.description, s.version_label, s.attachment_name, s.link_url,
             s.created_at, s.created_by_user_id,
             (s.attachment IS NOT NULL AND s.attachment <> '') AS has_attachment,
             u.name AS created_by_name,
@@ -60,6 +71,7 @@ export async function listSoftwares(_req: Request, res: Response) {
       description: row.description,
       versionLabel: row.version_label || '',
       attachmentName: row.attachment_name || '',
+      linkUrl: row.link_url || '',
       hasAttachment: Boolean(row.has_attachment),
       createdAt: row.created_at.toISOString(),
       createdByUserId: row.created_by_user_id,
@@ -70,7 +82,7 @@ export async function listSoftwares(_req: Request, res: Response) {
 }
 
 export async function createSoftware(req: Request, res: Response) {
-  const { name, description, versionLabel, attachment, attachmentName } = req.body as Record<
+  const { name, description, versionLabel, attachment, attachmentName, linkUrl } = req.body as Record<
     string,
     string | undefined
   >
@@ -83,15 +95,25 @@ export async function createSoftware(req: Request, res: Response) {
   const attachmentValue = typeof attachment === 'string' ? attachment.trim() : ''
   const attachmentNameValue =
     typeof attachmentName === 'string' ? attachmentName.trim() : ''
+  const linkValue = typeof linkUrl === 'string' ? linkUrl.trim() : ''
+  const temArquivo = attachmentValue.length > 0
+  const temLink = linkValue.length > 0
 
+  if (!temArquivo && !temLink) {
+    res.status(400).json({ error: 'Anexe um arquivo ou informe um link.' })
+    return
+  }
   if (
-    !attachmentValue ||
-    !isAllowedAttachment(attachmentValue) ||
-    attachmentValue.length > MAX_ATTACHMENT_CHARS
+    temArquivo &&
+    (!isAllowedAttachment(attachmentValue) || attachmentValue.length > MAX_ATTACHMENT_CHARS)
   ) {
     res.status(400).json({
       error: 'Anexe o arquivo do software. O limite é 15 MB.',
     })
+    return
+  }
+  if (temLink && (linkValue.length > 2000 || !linkPermitido(linkValue))) {
+    res.status(400).json({ error: 'Informe um link que comece com http:// ou https://.' })
     return
   }
 
@@ -99,15 +121,16 @@ export async function createSoftware(req: Request, res: Response) {
     Omit<SoftwareRow, 'created_by_name' | 'created_by_registration'>
   >(
     `INSERT INTO softwares
-       (name, description, version_label, attachment, attachment_name, created_by_user_id)
-     VALUES ($1, $2, $3, $4, $5, $6)
+       (name, description, version_label, attachment, attachment_name, link_url, created_by_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
     [
       name.trim(),
       description?.trim() || '',
       versionLabel?.trim() || '',
       attachmentValue,
-      attachmentNameValue || 'arquivo',
+      temArquivo ? attachmentNameValue || 'arquivo' : '',
+      linkValue,
       req.user?.id ?? null,
     ],
   )
@@ -129,6 +152,7 @@ export async function createSoftware(req: Request, res: Response) {
     newData: {
       ...created,
       attachment: attachmentValue ? '[arquivo anexado]' : '',
+      linkUrl: linkValue,
     },
   })
 
