@@ -282,6 +282,18 @@ export function CadastrosPanel({ isAdmin }: CadastrosPanelProps) {
           </section>
           <section className="catalog-card">
             <header className="catalog-card-header">
+              <h3>Escopo · Telemedição</h3>
+            </header>
+            <ul className="catalog-option-list">
+              {TECHNICIAN_SCOPES_BY_AREA.Telemedição.map((option) => (
+                <li key={option}>
+                  <span>{option}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="catalog-card">
+            <header className="catalog-card-header">
               <h3>Abrangência do engenheiro</h3>
             </header>
             <ul className="catalog-option-list">

@@ -249,6 +249,28 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
       workSubtype: 'Atividades administrativas da Medição',
     },
   },
+  {
+    id: 'telemedicao-tecnico-backoffice',
+    name: profileName('Telemedição', 'Técnico', 'Backoffice'),
+    description: 'Técnico de Telemedição no escopo Backoffice.',
+    areas: ['Telemedição'],
+    match: {
+      workArea: 'Telemedição',
+      jobTitle: 'Técnico',
+      workSubtype: 'Backoffice',
+    },
+  },
+  {
+    id: 'telemedicao-tecnico-equipe-campo',
+    name: profileName('Telemedição', 'Técnico', 'Equipe de Campo'),
+    description: 'Técnico de Telemedição no escopo Equipe de Campo.',
+    areas: ['Telemedição'],
+    match: {
+      workArea: 'Telemedição',
+      jobTitle: 'Técnico',
+      workSubtype: 'Equipe de Campo',
+    },
+  },
   // Engenheiro – Responsável por célula | Responsável por sub-célula
   {
     id: 'engenheiro-responsavel-celula-medicao',

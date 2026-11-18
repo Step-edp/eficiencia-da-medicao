@@ -40,6 +40,9 @@ function accessAreasForTechnician(workArea: string, subtype: string): string[] {
   if (workArea === 'CSD') {
     return ['Equipe de campo']
   }
+  if (workArea === 'Telemedição') {
+    return ['Telemedição']
+  }
   if (workArea === 'Consumo Irregular') {
     return ['Laboratório de Medição']
   }
@@ -881,6 +884,7 @@ export async function approveUser(req: Request, res: Response) {
       'Atividades administrativas da Medição',
       'Laboratório de Medição',
     ],
+    Telemedição: ['Backoffice', 'Equipe de Campo'],
   }
   const csdScopes = await listCatalogValues('escopo_csd')
   const legacyCsdScopes = ['Lavratura de TOI', 'Lavratura de TOI - Ponto Focal']
@@ -1319,6 +1323,7 @@ export async function updateUser(req: Request, res: Response) {
       'Atividades administrativas da Medição',
       'Laboratório de Medição',
     ],
+    Telemedição: ['Backoffice', 'Equipe de Campo'],
   }
   const csdScopes = await listCatalogValues('escopo_csd')
   const legacyCsdScopes = ['Lavratura de TOI', 'Lavratura de TOI - Ponto Focal']

@@ -12,6 +12,7 @@ export const TECHNICIAN_SCOPES_BY_AREA: Record<string, readonly string[]> = {
     'Lavratura de TOI - Backoffice',
     'Leituras de faturamento',
   ],
+  Telemedição: ['Backoffice', 'Equipe de Campo'],
 }
 
 export const TECHNICIAN_SUBTYPES = [
