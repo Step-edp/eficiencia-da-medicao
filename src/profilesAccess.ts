@@ -252,8 +252,9 @@ export const CADASTRO_PROFILES: CadastroProfile[] = [
   {
     id: 'telemedicao-tecnico-backoffice',
     name: profileName('Telemedição', 'Técnico', 'Backoffice'),
-    description: 'Técnico de Telemedição no escopo Backoffice.',
-    areas: ['Telemedição'],
+    description:
+      'Técnico de Telemedição no escopo Backoffice. Aprova os cadastros da própria área em Usuários.',
+    areas: ['Telemedição', 'Usuários'],
     match: {
       workArea: 'Telemedição',
       jobTitle: 'Técnico',
@@ -547,6 +548,17 @@ export function isLabMedicaoOperator(user: {
   )
 }
 
+/** Técnico de Telemedição no escopo Backoffice: aprova cadastros da própria área. */
+export function isTelemedicaoBackoffice(user: {
+  workArea?: string | null
+  workSubtype?: string | null
+}) {
+  return (
+    (user.workArea?.trim() ?? '') === 'Telemedição' &&
+    normalizeWorkSubtype(user.workSubtype) === 'Backoffice'
+  )
+}
+
 /** Escopo CSD – Leituras de faturamento (consulta de senhas em Medição). */
 export function isCsdLeiturasFaturamentoScope(workSubtype?: string | null) {
   return normalizeWorkSubtype(workSubtype) === 'Leituras de faturamento'
@@ -667,6 +679,11 @@ export function getAccessiblePortals(user: {
 
   // Perfil Laboratório de Medição: consulta de usuários sem visualizar senha.
   if (isLabMedicaoOperator(user) && !portals.includes('Usuários')) {
+    portals = [...portals, 'Usuários']
+  }
+
+  // Backoffice de Telemedição aprova os cadastros da própria área.
+  if (isTelemedicaoBackoffice(user) && !portals.includes('Usuários')) {
     portals = [...portals, 'Usuários']
   }
 

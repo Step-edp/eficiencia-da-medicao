@@ -168,12 +168,67 @@ export async function requireAdminOrLabMedicao(
       next()
       return
     }
+    if (
+      user?.approval_status === 'approved' &&
+      user.work_area?.trim() === 'Telemedição' &&
+      subtype === 'Backoffice'
+    ) {
+      next()
+      return
+    }
   } catch {
     res.status(500).json({ error: 'Falha ao validar permissão.' })
     return
   }
 
-  res.status(403).json({ error: 'Acesso restrito ao administrador ou ao Laboratório de Medição.' })
+  res.status(403).json({
+    error:
+      'Acesso restrito ao administrador, ao Laboratório de Medição ou ao Backoffice de Telemedição.',
+  })
+}
+
+/** Admin aprova qualquer área. Backoffice de Telemedição aprova só a própria área. */
+export async function requireAdminOrTelemedicaoBackoffice(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  if (!req.user) {
+    res.status(401).json({ error: 'Não autenticado.' })
+    return
+  }
+  if (req.user.role === 'admin') {
+    next()
+    return
+  }
+
+  try {
+    const result = await query<{
+      work_area: string
+      work_subtype: string
+      approval_status: string
+    }>(
+      `SELECT work_area, work_subtype, approval_status FROM users WHERE id = $1`,
+      [req.user.id],
+    )
+    const user = result.rows[0]
+    const subtype = (user?.work_subtype?.trim() ?? '')
+      .replace(/\u2013/g, '-')
+      .replace(/\u2014/g, '-')
+    if (
+      user?.approval_status === 'approved' &&
+      user.work_area?.trim() === 'Telemedição' &&
+      subtype === 'Backoffice'
+    ) {
+      next()
+      return
+    }
+  } catch {
+    res.status(500).json({ error: 'Falha ao validar permissão.' })
+    return
+  }
+
+  res.status(403).json({ error: 'Acesso restrito ao administrador.' })
 }
 
 declare global {

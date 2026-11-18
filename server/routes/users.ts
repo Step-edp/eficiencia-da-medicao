@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { query } from '../db.js'
-import { clearAuthCookie, requireAdmin, requireAdminOrLabMedicao, requireAuth, setAuthCookie, signSsoToken, signToken, verifySsoToken } from '../auth.js'
+import { clearAuthCookie, requireAdmin, requireAdminOrLabMedicao, requireAdminOrTelemedicaoBackoffice, requireAuth, setAuthCookie, signSsoToken, signToken, verifySsoToken } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 import {
   isAllowedEngineerSubtype,
@@ -40,6 +40,9 @@ function accessAreasForTechnician(workArea: string, subtype: string): string[] {
   if (workArea === 'CSD') {
     return ['Equipe de campo']
   }
+  if (workArea === 'Telemedição' && subtype === 'Backoffice') {
+    return ['Telemedição', 'Usuários']
+  }
   if (workArea === 'Telemedição') {
     return ['Telemedição']
   }
@@ -47,6 +50,30 @@ function accessAreasForTechnician(workArea: string, subtype: string): string[] {
     return ['Laboratório de Medição']
   }
   return []
+}
+
+type DirectoryScope = 'all' | 'telemedicao' | 'except-telemedicao'
+
+async function directoryScopeFor(req: Request): Promise<DirectoryScope> {
+  if (req.user?.role === 'admin') return 'all'
+  const result = await query<{ work_area: string; work_subtype: string }>(
+    `SELECT work_area, work_subtype FROM users WHERE id = $1 AND approval_status = 'approved'`,
+    [req.user?.id ?? ''],
+  )
+  const row = result.rows[0]
+  const subtype = (row?.work_subtype?.trim() ?? '')
+    .replace(/\u2013/g, '-')
+    .replace(/\u2014/g, '-')
+  if (row?.work_area?.trim() === 'Telemedição' && subtype === 'Backoffice') {
+    return 'telemedicao'
+  }
+  return 'except-telemedicao'
+}
+
+function directoryAreaSql(scope: DirectoryScope) {
+  if (scope === 'telemedicao') return `u.work_area = 'Telemedição'`
+  if (scope === 'except-telemedicao') return `u.work_area <> 'Telemedição'`
+  return 'TRUE'
 }
 
 async function findSubcellResponsibilityConflicts(
@@ -785,6 +812,7 @@ export async function lookupUserByRegistration(req: Request, res: Response) {
 
 export async function listUsers(req: Request, res: Response) {
   const includePassword = req.user?.role === 'admin'
+  const scope = await directoryScopeFor(req)
   const result = await query<UserRow>(
     `SELECT u.id, u.name, u.registration, u.email, u.role, u.approval_status,
             u.requested_at, u.approved_at, u.rejected_at, u.rejection_reason,
@@ -799,6 +827,7 @@ export async function listUsers(req: Request, res: Response) {
             a.registration AS approved_by_registration
      FROM users u
      LEFT JOIN users a ON a.id = u.approved_by_user_id
+     WHERE ${directoryAreaSql(scope)}
      ORDER BY u.requested_at DESC`,
   )
   const users = await Promise.all(
@@ -819,10 +848,12 @@ export async function listUserProfilePhotos(req: Request, res: Response) {
     return
   }
 
+  const scope = await directoryScopeFor(req)
   const result = await query<{ id: string; profile_photo: string }>(
-    `SELECT id, profile_photo
-     FROM users
-     WHERE id = ANY($1::text[])`,
+    `SELECT u.id, u.profile_photo
+     FROM users u
+     WHERE u.id = ANY($1::text[])
+       AND ${directoryAreaSql(scope)}`,
     [ids],
   )
 
@@ -856,6 +887,11 @@ export async function approveUser(req: Request, res: Response) {
   }
 
   const pending = previous.rows[0]
+
+  if (req.user?.role !== 'admin' && pending.work_area?.trim() !== 'Telemedição') {
+    res.status(403).json({ error: 'O Backoffice de Telemedição só aprova cadastros da própria área.' })
+    return
+  }
 
   if (pending.approval_status !== 'pending') {
     res.status(400).json({
@@ -1562,6 +1598,13 @@ export async function rejectUser(req: Request, res: Response) {
 
     const pending = mapUser(previous.rows[0])
 
+    if (req.user?.role !== 'admin' && pending.workArea?.trim() !== 'Telemedição') {
+      res.status(403).json({
+        error: 'O Backoffice de Telemedição só reprova cadastros da própria área.',
+      })
+      return
+    }
+
     const result = await query<UserRow>(
       `UPDATE users
        SET approval_status = 'rejected',
@@ -1843,9 +1886,9 @@ export const authRoutes = {
   listUsers: [requireAuth, requireAdminOrLabMedicao, listUsers],
   lookupUserByRegistration: [requireAuth, lookupUserByRegistration],
   listUserProfilePhotos: [requireAuth, requireAdminOrLabMedicao, listUserProfilePhotos],
-  approveUser: [requireAuth, requireAdmin, approveUser],
+  approveUser: [requireAuth, requireAdminOrTelemedicaoBackoffice, approveUser],
   updateUser: [requireAuth, requireAdmin, updateUser],
-  rejectUser: [requireAuth, requireAdmin, rejectUser],
+  rejectUser: [requireAuth, requireAdminOrTelemedicaoBackoffice, rejectUser],
   resetUserToPending: [requireAuth, requireAdmin, resetUserToPending],
   deleteUser: [requireAuth, requireAdmin, deleteUser],
   permanentlyDeleteRejectedUser: [requireAuth, requireAdmin, permanentlyDeleteRejectedUser],

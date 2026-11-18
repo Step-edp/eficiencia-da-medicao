@@ -33,6 +33,7 @@ import {
   isMedicaoEstagiario,
   isLabMedicaoViewOnly,
   isLabMedicaoOperator,
+  isTelemedicaoBackoffice,
   isConsumoIrregular,
   isConsumoIrregularAnalista,
   isPureComprasPortal,
@@ -240,7 +241,7 @@ export default function App() {
               setHomologationRequests([])
             }
           })
-        } else if (isLabMedicaoOperator(user)) {
+        } else if (isLabMedicaoOperator(user) || isTelemedicaoBackoffice(user)) {
           void loadUsersDirectory().catch(() => {
             if (active) {
               setRegisteredUsers([])
@@ -405,7 +406,8 @@ export default function App() {
         onRefreshAdminData={
           authenticatedUser.role === 'admin'
             ? loadAdminData
-            : isLabMedicaoOperator(authenticatedUser)
+            : isLabMedicaoOperator(authenticatedUser) ||
+                isTelemedicaoBackoffice(authenticatedUser)
               ? loadUsersDirectory
               : undefined
         }
@@ -467,7 +469,7 @@ export default function App() {
                 setAuthenticatedUser(user)
                 if (user.role === 'admin') {
                   void loadAdminData()
-                } else if (isLabMedicaoOperator(user)) {
+                } else if (isLabMedicaoOperator(user) || isTelemedicaoBackoffice(user)) {
                   void loadUsersDirectory()
                 }
               }}
@@ -1345,6 +1347,7 @@ type PendingApprovalItemProps = {
   csdScopeOptions: string[]
   showPassword?: boolean
   allowManage?: boolean
+  allowEdit?: boolean
   onApprove: (userId: string, payload: ApproveUserPayload) => Promise<void>
   onReject: (
     userId: string,
@@ -1363,6 +1366,7 @@ function PendingApprovalItem({
   csdScopeOptions,
   showPassword = false,
   allowManage = true,
+  allowEdit = true,
   onApprove,
   onReject,
   onEdit,
@@ -1786,13 +1790,15 @@ function PendingApprovalItem({
           {allowManage ? (
             <>
           <div className="approval-item-actions">
-            <button
-              className="secondary-button compact-button"
-              type="button"
-              onClick={() => onEdit(user)}
-            >
-              Editar
-            </button>
+            {allowEdit ? (
+              <button
+                className="secondary-button compact-button"
+                type="button"
+                onClick={() => onEdit(user)}
+              >
+                Editar
+              </button>
+            ) : null}
             <button
               className="danger-button compact-button"
               type="button"
@@ -2354,7 +2360,8 @@ function HomePanel({
   )
   const [userSearchFilter, setUserSearchFilter] = useState('')
   const isAdmin = currentUser.role === 'admin'
-  const canAccessUsers = isAdmin || isLabMedicaoOperator(currentUser)
+  const telemedicaoBackoffice = isTelemedicaoBackoffice(currentUser)
+  const canAccessUsers = isAdmin || isLabMedicaoOperator(currentUser) || telemedicaoBackoffice
   const canManageUsers = isAdmin
 
   useEffect(() => {
@@ -2369,6 +2376,11 @@ function HomePanel({
     const idsForTab = users
       .filter((user) => {
         if (!user.hasProfilePhoto) return false
+        if (!isAdmin) {
+          const area = user.workArea?.trim() ?? ''
+          if (telemedicaoBackoffice && area !== 'Telemedição') return false
+          if (isLabMedicaoOperator(currentUser) && area === 'Telemedição') return false
+        }
         if (usersView === 'pendentes') {
           return user.role === 'compras' && user.approvalStatus === 'pending'
         }
@@ -2385,15 +2397,21 @@ function HomePanel({
     if (idsForTab.length) {
       onLoadUserProfilePhotos(idsForTab)
     }
-  }, [selectedArea?.title, canAccessUsers, usersView, users, onLoadUserProfilePhotos])
+  }, [selectedArea?.title, canAccessUsers, telemedicaoBackoffice, usersView, users, onLoadUserProfilePhotos])
 
-  const pendingApprovalUsers = users.filter(
+  const directoryUsers = users.filter((user) => {
+    if (isAdmin) return true
+    if (telemedicaoBackoffice) return user.workArea?.trim() === 'Telemedição'
+    if (isLabMedicaoOperator(currentUser)) return user.workArea?.trim() !== 'Telemedição'
+    return true
+  })
+  const pendingApprovalUsers = directoryUsers.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'pending',
   )
-  const rejectedUsers = users.filter(
+  const rejectedUsers = directoryUsers.filter(
     (user) => user.role === 'compras' && user.approvalStatus === 'rejected',
   )
-  const registeredUsers = users.filter(
+  const registeredUsers = directoryUsers.filter(
     (user) => user.role !== 'admin' && user.approvalStatus === 'approved',
   )
   const filteredRegisteredUsers = useMemo(() => {
@@ -4464,10 +4482,10 @@ function HomePanel({
             <p className="section-tag">Usuários</p>
             <h2>Gestão de usuários</h2>
             <p>
-              Consulte os usuários com acesso ao portal, os cadastros pendentes e o
-              dashboard de distribuição. Clique em um usuário para ver os dados
-              {canManageUsers ? ' e editar as informações' : ''}.
-              {canAccessUsers && !canManageUsers
+              {telemedicaoBackoffice
+                ? 'Aprove ou reprove os cadastros da Telemedição. Cadastros de outras áreas, como Medição, ficam com o administrador.'
+                : `Consulte os usuários com acesso ao portal, os cadastros pendentes e o dashboard de distribuição. Clique em um usuário para ver os dados${canManageUsers ? ' e editar as informações' : ''}.`}
+              {canAccessUsers && !canManageUsers && !telemedicaoBackoffice
                 ? ' Neste perfil a senha não é exibida e a gestão de cadastros permanece com o administrador.'
                 : ''}
             </p>
@@ -4540,7 +4558,8 @@ function HomePanel({
                           terceiraOptions={terceiraOptions}
                           csdScopeOptions={csdScopeOptions}
                           showPassword={canViewUserPasswords}
-                          allowManage={canManageUsers}
+                          allowManage={canManageUsers || telemedicaoBackoffice}
+                          allowEdit={canManageUsers}
                           onApprove={onApproveUser}
                           onReject={async (userId, reason) => {
                             const result = await onRejectUser(userId, reason)
@@ -4586,7 +4605,7 @@ function HomePanel({
                 ) : usersView === 'dashboard' ? (
                   <ErrorBoundary fallbackTitle="Não foi possível carregar o dashboard de usuários">
                     <UsersDashboard
-                      users={users.filter((user) => user.role !== 'admin')}
+                      users={directoryUsers.filter((user) => user.role !== 'admin')}
                       pendingCount={pendingApprovalUsers.length}
                       approvedCount={registeredUsers.length}
                     />
