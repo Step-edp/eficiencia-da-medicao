@@ -63,7 +63,11 @@ export function readAttachmentAsDataUrl(
     }
     if (file.size > maxBytes) {
       const maxMb = Math.max(1, Math.round(maxBytes / 1_000_000))
-      reject(new Error(`O arquivo deve ter no máximo ${maxMb} MB.`))
+      const sizeLabel =
+        file.size < 1_000_000
+          ? `${Math.max(1, Math.round(file.size / 1000))} KB`
+          : `${(file.size / 1_000_000).toFixed(1)} MB`
+      reject(new Error(`O arquivo tem ${sizeLabel}. O limite é ${maxMb} MB.`))
       return
     }
 

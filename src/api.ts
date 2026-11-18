@@ -1666,6 +1666,7 @@ export const api = {
     request<{ software: SoftwareRecord }>('/api/softwares', {
       method: 'POST',
       body: JSON.stringify(payload),
+      timeoutMs: 180_000,
     }),
   getSoftwareAttachment: (id: number) =>
     request<{ attachment: string; attachmentName: string }>(

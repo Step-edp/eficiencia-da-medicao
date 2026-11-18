@@ -3,7 +3,7 @@ import { query } from '../db.js'
 import { requireAuth } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 
-const MAX_ATTACHMENT_CHARS = 20_000_000
+const MAX_ATTACHMENT_CHARS = 280_000_000
 
 type SoftwareRow = {
   id: number
@@ -40,7 +40,9 @@ function mapSoftware(
 }
 
 function isAllowedAttachment(dataUrl: string) {
-  return dataUrl.startsWith('data:') && dataUrl.includes(';base64,')
+  if (!dataUrl.startsWith('data:')) return false
+  const comma = dataUrl.indexOf(',')
+  return comma > 5 && comma < 300
 }
 
 function linkPermitido(value: string) {
@@ -103,12 +105,13 @@ export async function createSoftware(req: Request, res: Response) {
     res.status(400).json({ error: 'Anexe um arquivo ou informe um link.' })
     return
   }
-  if (
-    temArquivo &&
-    (!isAllowedAttachment(attachmentValue) || attachmentValue.length > MAX_ATTACHMENT_CHARS)
-  ) {
+  if (temArquivo && attachmentValue.length > MAX_ATTACHMENT_CHARS) {
+    res.status(400).json({ error: 'O arquivo passa do limite de 200 MB.' })
+    return
+  }
+  if (temArquivo && !isAllowedAttachment(attachmentValue)) {
     res.status(400).json({
-      error: 'Anexe o arquivo do software. O limite é 15 MB.',
+      error: 'Não foi possível ler o arquivo. Selecione de novo.',
     })
     return
   }

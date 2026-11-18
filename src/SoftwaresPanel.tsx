@@ -277,10 +277,10 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
                       setAttachmentName('')
                       return
                     }
-                    void readAttachmentAsDataUrl(file, {
-                      maxBytes: 15_000_000,
-                      allowAnyFile: true,
-                    })
+                  void readAttachmentAsDataUrl(file, {
+                    maxBytes: 200_000_000,
+                    allowAnyFile: true,
+                  })
                       .then((dataUrl) => {
                         setAttachment(dataUrl)
                         setAttachmentName(file.name)
@@ -323,8 +323,8 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
           )}
           <p className="field-hint full-width">
             {formMode.kind === 'version'
-              ? 'O arquivo ou o link novo vira a versão atual. Os anteriores permanecem disponíveis.'
-              : 'Se o nome já existir, isto entra como versão nova e a anterior continua guardada.'}
+              ? 'O arquivo ou o link novo vira a versão atual. Os anteriores permanecem disponíveis. O arquivo pode ter até 200 MB.'
+              : 'Se o nome já existir, isto entra como versão nova e a anterior continua guardada. O arquivo pode ter até 200 MB.'}
           </p>
           <div className="agenda-form-actions full-width">
             <button
