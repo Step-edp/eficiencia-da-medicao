@@ -20,6 +20,35 @@ export type ReadAttachmentOptions = {
   allowAnyFile?: boolean
 }
 
+function mimeDoArquivo(file: File) {
+  const extensao = file.name.split('.').pop()?.toLowerCase() ?? ''
+  const porExtensao: Record<string, string> = {
+    zip: 'application/zip',
+    rar: 'application/vnd.rar',
+    '7z': 'application/x-7z-compressed',
+    tar: 'application/x-tar',
+    gz: 'application/gzip',
+    tgz: 'application/gzip',
+    bz2: 'application/x-bzip2',
+    xz: 'application/x-xz',
+    apk: 'application/vnd.android.package-archive',
+    cab: 'application/vnd.ms-cab-compressed',
+    iso: 'application/x-iso9660-image',
+    exe: 'application/octet-stream',
+    msi: 'application/octet-stream',
+  }
+  return porExtensao[extensao] || file.type || 'application/octet-stream'
+}
+
+function bufferParaDataUrl(buffer: ArrayBuffer, mime: string) {
+  const bytes = new Uint8Array(buffer)
+  let binario = ''
+  const passo = 8192
+  for (let i = 0; i < bytes.length; i += passo) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + passo))
+  }
+  return `data:${mime};base64,${btoa(binario)}`
+}
 function isAllowedAttachment(
   file: File,
   allowOfficeDocuments: boolean,
@@ -68,6 +97,20 @@ export function readAttachmentAsDataUrl(
           ? `${Math.max(1, Math.round(file.size / 1000))} KB`
           : `${(file.size / 1_000_000).toFixed(1)} MB`
       reject(new Error(`O arquivo tem ${sizeLabel}. O limite é ${maxMb} MB.`))
+      return
+    }
+
+    if (allowAnyFile) {
+      const bufferReader = new FileReader()
+      bufferReader.onload = () => {
+        if (!(bufferReader.result instanceof ArrayBuffer)) {
+          reject(new Error('Não foi possível ler o arquivo selecionado.'))
+          return
+        }
+        resolve(bufferParaDataUrl(bufferReader.result, mimeDoArquivo(file)))
+      }
+      bufferReader.onerror = () => reject(new Error('Não foi possível ler o arquivo selecionado.'))
+      bufferReader.readAsArrayBuffer(file)
       return
     }
 

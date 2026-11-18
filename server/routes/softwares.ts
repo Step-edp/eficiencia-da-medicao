@@ -39,47 +39,10 @@ function mapSoftware(
   }
 }
 
-const EXTENSOES_PERMITIDAS = new Set(['exe', 'msi', 'msix', 'appx', 'apk', 'pdf'])
-const EXTENSOES_COMPACTADAS = new Set([
-  'zip', 'rar', '7z', 'tar', 'gz', 'tgz', 'bz2', 'tbz2', 'xz', 'txz',
-  'cab', 'iso', 'jar', 'war', 'ear', 'zst', 'lz', 'lzma', 'arj', 'lzh', 'ace',
-])
-const MENSAGEM_TIPO_ARQUIVO =
-  'Esse tipo de arquivo não é aceito. Envie EXE, MSI, MSIX, APK ou PDF. Arquivos compactados (ZIP, RAR, 7z e semelhantes) não entram.'
-
-function extensaoDoArquivo(nome: string) {
-  const base = nome.trim().split(/[/\\]/).pop() ?? ''
-  const ponto = base.lastIndexOf('.')
-  if (ponto <= 0) return ''
-  return base.slice(ponto + 1).toLowerCase()
-}
-
 function isAllowedAttachment(dataUrl: string) {
   if (!dataUrl.startsWith('data:')) return false
   const comma = dataUrl.indexOf(',')
-  return comma > 5 && comma < 300
-}
-
-function assinaturaCompactada(bytes: Uint8Array) {
-  if (bytes.length < 4) return false
-  if (bytes[0] === 0x50 && bytes[1] === 0x4b && (bytes[2] === 0x03 || bytes[2] === 0x05 || bytes[2] === 0x07)) {
-    return true
-  }
-  if (bytes[0] === 0x52 && bytes[1] === 0x61 && bytes[2] === 0x72 && bytes[3] === 0x21) return true
-  if (bytes[0] === 0x37 && bytes[1] === 0x7a && bytes[2] === 0xbc && bytes[3] === 0xaf) return true
-  if (bytes[0] === 0x1f && bytes[1] === 0x8b) return true
-  if (bytes[0] === 0xfd && bytes[1] === 0x37 && bytes[2] === 0x7a && bytes[3] === 0x58) return true
-  if (bytes[0] === 0x4d && bytes[1] === 0x53 && bytes[2] === 0x43 && bytes[3] === 0x46) return true
-  return false
-}
-
-function arquivoDisfarcado(dataUrl: string, extensao: string) {
-  if (extensao === 'apk' || extensao === 'msix' || extensao === 'appx') return false
-  const comma = dataUrl.indexOf(',')
-  if (comma < 0) return true
-  const amostra = dataUrl.slice(comma + 1).replace(/\s/g, '').slice(0, 24)
-  const bytes = new Uint8Array(Buffer.from(amostra, 'base64'))
-  return assinaturaCompactada(bytes)
+  return comma > 5 && dataUrl.length > comma + 1
 }
 
 function linkPermitido(value: string) {
@@ -151,17 +114,6 @@ export async function createSoftware(req: Request, res: Response) {
       error: 'Não foi possível ler o arquivo. Selecione de novo.',
     })
     return
-  }
-  if (temArquivo) {
-    const extensao = extensaoDoArquivo(attachmentNameValue)
-    if (
-      !EXTENSOES_PERMITIDAS.has(extensao) ||
-      EXTENSOES_COMPACTADAS.has(extensao) ||
-      arquivoDisfarcado(attachmentValue, extensao)
-    ) {
-      res.status(400).json({ error: MENSAGEM_TIPO_ARQUIVO })
-      return
-    }
   }
   if (temLink && (linkValue.length > 2000 || !linkPermitido(linkValue))) {
     res.status(400).json({ error: 'Informe um link que comece com http:// ou https://.' })
