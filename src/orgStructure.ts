@@ -358,6 +358,7 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Monitoramento remoto',
     'Coleta de dados em tempo real',
     'Gestão de alertas',
+    'Softwares',
   ],
 }
 

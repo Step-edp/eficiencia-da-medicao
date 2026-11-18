@@ -9,6 +9,7 @@ type SoftwareRow = {
   id: number
   name: string
   description: string
+  version_label: string
   attachment: string
   attachment_name: string
   created_at: Date
@@ -25,6 +26,7 @@ function mapSoftware(
     id: row.id,
     name: row.name,
     description: row.description,
+    versionLabel: row.version_label || '',
     attachmentName: row.attachment_name || '',
     hasAttachment: Boolean(row.attachment_name || (row.attachment && row.attachment.length > 0)),
     ...(includeAttachment ? { attachment: row.attachment || '' } : {}),
@@ -41,7 +43,7 @@ function isAllowedAttachment(dataUrl: string) {
 
 export async function listSoftwares(_req: Request, res: Response) {
   const result = await query<Omit<SoftwareRow, 'attachment'> & { has_attachment: boolean }>(
-    `SELECT s.id, s.name, s.description, s.attachment_name,
+    `SELECT s.id, s.name, s.description, s.version_label, s.attachment_name,
             s.created_at, s.created_by_user_id,
             (s.attachment IS NOT NULL AND s.attachment <> '') AS has_attachment,
             u.name AS created_by_name,
@@ -56,6 +58,7 @@ export async function listSoftwares(_req: Request, res: Response) {
       id: row.id,
       name: row.name,
       description: row.description,
+      versionLabel: row.version_label || '',
       attachmentName: row.attachment_name || '',
       hasAttachment: Boolean(row.has_attachment),
       createdAt: row.created_at.toISOString(),
@@ -67,7 +70,7 @@ export async function listSoftwares(_req: Request, res: Response) {
 }
 
 export async function createSoftware(req: Request, res: Response) {
-  const { name, description, attachment, attachmentName } = req.body as Record<
+  const { name, description, versionLabel, attachment, attachmentName } = req.body as Record<
     string,
     string | undefined
   >
@@ -77,39 +80,34 @@ export async function createSoftware(req: Request, res: Response) {
     return
   }
 
-  if (!description?.trim()) {
-    res.status(400).json({ error: 'Informe a descrição do software.' })
-    return
-  }
-
   const attachmentValue = typeof attachment === 'string' ? attachment.trim() : ''
   const attachmentNameValue =
     typeof attachmentName === 'string' ? attachmentName.trim() : ''
 
-  if (attachmentValue) {
-    if (
-      !isAllowedAttachment(attachmentValue) ||
-      attachmentValue.length > MAX_ATTACHMENT_CHARS
-    ) {
-      res.status(400).json({
-        error: 'Anexo inválido ou muito grande. Use um arquivo de até 15 MB.',
-      })
-      return
-    }
+  if (
+    !attachmentValue ||
+    !isAllowedAttachment(attachmentValue) ||
+    attachmentValue.length > MAX_ATTACHMENT_CHARS
+  ) {
+    res.status(400).json({
+      error: 'Anexe o arquivo do software. O limite é 15 MB.',
+    })
+    return
   }
 
   const result = await query<
     Omit<SoftwareRow, 'created_by_name' | 'created_by_registration'>
   >(
     `INSERT INTO softwares
-       (name, description, attachment, attachment_name, created_by_user_id)
-     VALUES ($1, $2, $3, $4, $5)
+       (name, description, version_label, attachment, attachment_name, created_by_user_id)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
     [
       name.trim(),
-      description.trim(),
+      description?.trim() || '',
+      versionLabel?.trim() || '',
       attachmentValue,
-      attachmentValue ? attachmentNameValue || 'anexo' : '',
+      attachmentNameValue || 'arquivo',
       req.user?.id ?? null,
     ],
   )

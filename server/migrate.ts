@@ -781,11 +781,16 @@ export async function migrate() {
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
+      version_label TEXT NOT NULL DEFAULT '',
       attachment TEXT NOT NULL DEFAULT '',
       attachment_name TEXT NOT NULL DEFAULT '',
       created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `)
+  await query(`
+    ALTER TABLE softwares
+      ADD COLUMN IF NOT EXISTS version_label TEXT NOT NULL DEFAULT ''
   `)
   await query(`
     CREATE INDEX IF NOT EXISTS idx_softwares_created_at

@@ -10848,3 +10848,62 @@ input[type='file'] {
     color: transparent;
   }
 }
+
+.software-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.software-card {
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 216, 240, 0.22);
+  background: rgba(5, 26, 44, 0.74);
+}
+
+.software-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.software-card-header h3 {
+  margin: 0;
+}
+
+.software-version-line,
+.software-previous li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.software-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #28ff52;
+  color: #212e3e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.software-previous {
+  margin-top: 8px;
+}
+
+.software-previous-title {
+  margin: 0 0 6px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.software-previous ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}

@@ -2095,6 +2095,9 @@ function HomePanel({
   const [selectedHomologationSection, setSelectedHomologationSection] = useState<string | null>(
     () => savedNav?.selectedHomologationSection ?? null,
   )
+  const [selectedTelemedicaoSection, setSelectedTelemedicaoSection] = useState<string | null>(
+    null,
+  )
   const [selectedUserDetail, setSelectedUserDetail] = useState<AppUser | null>(null)
   const [userDetailStartEditing, setUserDetailStartEditing] = useState(false)
   const [usersView, setUsersView] = useState<UsersViewTab>(
@@ -2892,6 +2895,7 @@ function HomePanel({
     setSelectedLabMeasurementSection(null)
     setSelectedFieldTeamSection(null)
     setSelectedHomologationSection(null)
+    setSelectedTelemedicaoSection(null)
     setSelectedPasswordAction(null)
     setSelectedCodeMaterialsAction(null)
     setUsersView('usuarios')
@@ -6557,6 +6561,23 @@ function HomePanel({
       )
     }
 
+    if (selectedArea.title === 'Telemedição' && selectedTelemedicaoSection === 'Softwares') {
+      return (
+        <main className="shell">
+          <section className="home-card area-screen-card">
+            <TopActionBar
+              onBack={() => setSelectedTelemedicaoSection(null)}
+              onHome={exitToHome}
+              onLogout={onLogout}
+            />
+            <p className="section-tag">Telemedição</p>
+            <h2>Softwares</h2>
+            <SoftwaresPanel />
+          </section>
+        </main>
+      )
+    }
+
     return (
       <main className="shell">
         <section className="home-card area-screen-card">
@@ -6710,6 +6731,20 @@ function HomePanel({
               steps={HOMOLOGATION_TRAIL_STEPS}
               ariaLabel="Trilha operacional da homologação"
             />
+          ) : null}
+          {selectedArea.title === 'Telemedição' ? (
+            <div className="measurement-sections" aria-label="Funções de telemedição">
+              <button
+                className="measurement-item"
+                type="button"
+                onClick={() => setSelectedTelemedicaoSection('Softwares')}
+              >
+                <span className="item-with-icon">
+                  <ItemIcon title="Softwares" />
+                  <span>Softwares</span>
+                </span>
+              </button>
+            </div>
           ) : null}
           {selectedArea.title === 'Equipe de campo' ? (
             flattenFieldTeamHome ? null : (

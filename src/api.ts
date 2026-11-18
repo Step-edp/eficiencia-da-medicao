@@ -333,6 +333,7 @@ export type SoftwareRecord = {
   id: number
   name: string
   description: string
+  versionLabel: string
   attachmentName: string
   hasAttachment: boolean
   createdAt: string
@@ -1655,9 +1656,10 @@ export const api = {
   listSoftwares: () => request<{ softwares: SoftwareRecord[] }>('/api/softwares'),
   createSoftware: (payload: {
     name: string
-    description: string
-    attachment?: string
-    attachmentName?: string
+    description?: string
+    versionLabel?: string
+    attachment: string
+    attachmentName: string
   }) =>
     request<{ software: SoftwareRecord }>('/api/softwares', {
       method: 'POST',
