@@ -210,6 +210,9 @@ export type PasswordRecord = {
   id: string
   meter: string
   password: string
+  passwordAk?: string
+  passwordEk?: string
+  passwordLls?: string
   masterPassword?: string
   manufacturer: string
   materialType: string
@@ -1485,7 +1488,7 @@ export const api = {
       fileName: string
       fileBase64: string
       model: string
-      individualDigits: number
+      passwordSummary: string
       masterDigits: number
       generatedCount: number
       existingCount: number

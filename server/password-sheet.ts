@@ -2,26 +2,65 @@ import { randomInt } from 'node:crypto'
 import ExcelJS from 'exceljs'
 import xlsx from 'xlsx'
 
+export type SheetPasswordKey = 'password' | 'ak' | 'ek' | 'lls'
+
+type ColumnRule = {
+  key: SheetPasswordKey
+  label: string
+  digits: number
+  matches: (header: string) => boolean
+}
+
 export type PasswordSheetProfile = {
   id: string
   label: string
-  individualDigits: number
   masterDigits: number
   passwordType: 'alphanumeric'
+  columns: ColumnRule[]
 }
 
-/** Regras gravadas por modelo de planilha. ZEUS THS: senha de 32 e senha mestra de 16. */
+/**
+ * ZEUS THS: uma senha de 32 e senha mestra de 16.
+ * ZEUS: senha AK e EK de 16, senha LLS de 8 e senha mestra de 16.
+ * O campo amarelo de senha única fica vazio nos dois modelos.
+ */
 const PROFILES: PasswordSheetProfile[] = [
   {
     id: 'zeus-ths',
     label: 'ZEUS THS',
-    individualDigits: 32,
     masterDigits: 16,
     passwordType: 'alphanumeric',
+    columns: [
+      {
+        key: 'password',
+        label: 'Senha',
+        digits: 32,
+        matches: (header) => header === 'senha (individual)',
+      },
+    ],
+  },
+  {
+    id: 'zeus',
+    label: 'ZEUS',
+    masterDigits: 16,
+    passwordType: 'alphanumeric',
+    columns: [
+      { key: 'ak', label: 'Senha AK', digits: 16, matches: (header) => header === 'senha ak' },
+      { key: 'ek', label: 'Senha EK', digits: 16, matches: (header) => header === 'senha ek' },
+      { key: 'lls', label: 'Senha LLS', digits: 8, matches: (header) => header === 'senha lls' },
+    ],
   },
 ]
 
 const CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+
+export type ParsedPasswordCell = {
+  key: SheetPasswordKey
+  label: string
+  digits: number
+  cell: string
+  existing: string
+}
 
 export type ParsedPasswordSheet = {
   profile: PasswordSheetProfile
@@ -31,13 +70,12 @@ export type ParsedPasswordSheet = {
   orderNumber: string
   client: string
   masterCell: string
-  /** Campo amarelo de senha única. Fica vazio quando cada medidor tem senha individual. */
-  uniquePasswordCell: string
+  /** Campos amarelos de senha única. Ficam vazios quando cada medidor tem senha própria. */
+  uniquePasswordCells: string[]
   existingMaster: string
   meters: Array<{
     meter: string
-    cell: string
-    existingPassword: string
+    passwords: ParsedPasswordCell[]
   }>
 }
 
@@ -60,7 +98,14 @@ function matchProfile(workbookText: string) {
   if (/zeus\s*ths/i.test(workbookText)) {
     return PROFILES.find((profile) => profile.id === 'zeus-ths') ?? null
   }
+  if (/medidores\s+zeus/i.test(workbookText)) {
+    return PROFILES.find((profile) => profile.id === 'zeus') ?? null
+  }
   return null
+}
+
+function isUniqueHeader(value: string) {
+  return value.includes('(unica)')
 }
 
 export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet {
@@ -82,7 +127,7 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
   const profile = matchProfile(texts.join('\n'))
   if (!profile) {
     throw new Error(
-      'Este modelo de planilha ainda não está cadastrado. O modelo disponível é o ZEUS THS.',
+      'Este modelo de planilha ainda não está cadastrado. Os modelos disponíveis são ZEUS THS e ZEUS.',
     )
   }
 
@@ -93,13 +138,13 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
   let client = ''
   let headerRow = -1
   let masterCell = ''
-  let uniquePasswordCell = ''
   let existingMaster = ''
+  const uniquePasswordCells: string[] = []
 
   for (let row = range.s.r; row <= range.e.r; row += 1) {
     const label = normalizeLabel(cellText(sheet, row, 0))
     const value = cellText(sheet, row, 1)
-    if (!title && /zeus\s*ths/i.test(value)) title = value
+    if (!title && /zeus/i.test(value)) title = value
     if (label === 'fabricante') manufacturer = value
     if (label === 'cliente') client = value
     if (label === 'codigo de material') materialCode = value
@@ -115,8 +160,8 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
 
     for (let column = range.s.c; column <= range.e.c; column += 1) {
       const text = normalizeLabel(cellText(sheet, row, column))
-      if (text !== 'senha (unica)' && text !== 'senha unica') continue
-      uniquePasswordCell = xlsx.utils.encode_cell({ r: row + 1, c: column })
+      if (!isUniqueHeader(text)) continue
+      uniquePasswordCells.push(xlsx.utils.encode_cell({ r: row + 1, c: column }))
     }
   }
 
@@ -132,6 +177,21 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
     )
   }
 
+  const columns = profile.columns.map((rule) => {
+    let column = -1
+    for (let index = range.s.c; index <= range.e.c; index += 1) {
+      const header = normalizeLabel(cellText(sheet, headerRow, index))
+      if (rule.matches(header)) {
+        column = index
+        break
+      }
+    }
+    if (column < 0) {
+      throw new Error(`Não encontrei a coluna ${rule.label} nesta planilha.`)
+    }
+    return { ...rule, column }
+  })
+
   const meters: ParsedPasswordSheet['meters'] = []
   const seen = new Set<string>()
   for (let row = headerRow + 1; row <= range.e.r; row += 1) {
@@ -146,8 +206,13 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
     seen.add(meter)
     meters.push({
       meter,
-      cell: xlsx.utils.encode_cell({ r: row, c: 1 }),
-      existingPassword: cellText(sheet, row, 1),
+      passwords: columns.map((column) => ({
+        key: column.key,
+        label: column.label,
+        digits: column.digits,
+        cell: xlsx.utils.encode_cell({ r: row, c: column.column }),
+        existing: cellText(sheet, row, column.column),
+      })),
     })
   }
 
@@ -163,7 +228,7 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
     orderNumber,
     client,
     masterCell,
-    uniquePasswordCell,
+    uniquePasswordCells,
     existingMaster,
     meters,
   }

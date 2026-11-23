@@ -3681,7 +3681,15 @@ function HomePanel({
         }
         const origem =
           record.isPassive || record.source === 'passivo' ? 'Passivo' : 'Gerada'
-        return `${record.meter}\t${record.password}\t${record.masterPassword || ''}\t${record.manufacturer}\t${origem}`
+        return [
+          record.meter,
+          record.passwordAk || record.password,
+          record.passwordEk || '',
+          record.passwordLls || '',
+          record.masterPassword || '',
+          record.manufacturer,
+          origem,
+        ].join('\t')
       })
       .join('\n')
 
@@ -3699,10 +3707,21 @@ function HomePanel({
     }
   }
 
-  const handleCopySinglePassword = async (meter: string, password: string, masterPassword = '') => {
-    const text = masterPassword
-      ? `Senha: ${password}\nSenha mestra: ${masterPassword}`
-      : password
+  const handleCopySinglePassword = async (
+    meter: string,
+    password: string,
+    masterPassword = '',
+    passwordAk = '',
+    passwordEk = '',
+    passwordLls = '',
+  ) => {
+    const lines = [
+      passwordAk ? `Senha AK: ${passwordAk}` : `Senha: ${password}`,
+      passwordEk ? `Senha EK: ${passwordEk}` : '',
+      passwordLls ? `Senha LLS: ${passwordLls}` : '',
+      masterPassword ? `Senha mestra: ${masterPassword}` : '',
+    ].filter(Boolean)
+    const text = lines.join('\n')
     try {
       await navigator.clipboard.writeText(text)
       setPasswordFeedback({
@@ -3895,7 +3914,7 @@ function HomePanel({
         : ''
       setPasswordFeedback({
         type: 'success',
-        message: `Planilha ${response.model} preenchida: ${response.generatedCount} senha(s) de ${response.individualDigits} dígitos e senha mestra de ${response.masterDigits} salvas.${existingNote}`,
+        message: `Planilha ${response.model} preenchida: ${response.generatedCount} medidor(es) com ${response.passwordSummary}.${existingNote}`,
       })
     } catch (error) {
       setPasswordFeedback({
@@ -5340,8 +5359,9 @@ function HomePanel({
                   />
                 </div>
                 <p>
-                  No modelo ZEUS THS a planilha volta preenchida: senha individual de 32 dígitos
-                  e senha mestra de 16, salvas juntas no banco.
+                  ZEUS THS volta com senha de 32 dígitos. ZEUS volta com senha AK e EK de 16
+                  e senha LLS de 8. Nos dois, a senha mestra de 16 fica salva junto e o campo
+                  amarelo de senha única permanece vazio.
                 </p>
               </section>
             </main>
@@ -5520,12 +5540,18 @@ function HomePanel({
                                   record.meter,
                                   record.password,
                                   record.masterPassword,
+                                  record.passwordAk,
+                                  record.passwordEk,
+                                  record.passwordLls,
                                 )
                               }
                             >
                               Copiar
                             </button>
                           </div>
+                          {record.passwordAk ? <span>Senha AK: {record.passwordAk}</span> : null}
+                          {record.passwordEk ? <span>Senha EK: {record.passwordEk}</span> : null}
+                          {record.passwordLls ? <span>Senha LLS: {record.passwordLls}</span> : null}
                           {record.masterPassword ? (
                             <span>Senha mestra: {record.masterPassword}</span>
                           ) : null}
@@ -5538,7 +5564,13 @@ function HomePanel({
                               <span className="consult-passivo-badge">Passivo</span>
                             ) : null}
                           </div>
-                          <span>Senha: {record.password}</span>
+                          {record.passwordAk ? (
+                            <span>Senha AK: {record.passwordAk}</span>
+                          ) : (
+                            <span>Senha: {record.password}</span>
+                          )}
+                          {record.passwordEk ? <span>Senha EK: {record.passwordEk}</span> : null}
+                          {record.passwordLls ? <span>Senha LLS: {record.passwordLls}</span> : null}
                           {record.masterPassword ? (
                             <span>Senha mestra: {record.masterPassword}</span>
                           ) : null}
@@ -5702,7 +5734,13 @@ function HomePanel({
                             {deletingPasswordIds?.includes(record.id) ? 'Excluindo...' : 'Excluir'}
                           </button>
                         </div>
-                        <span>Senha: {record.password}</span>
+                        {record.passwordAk ? (
+                          <span>Senha AK: {record.passwordAk}</span>
+                        ) : (
+                          <span>Senha: {record.password}</span>
+                        )}
+                        {record.passwordEk ? <span>Senha EK: {record.passwordEk}</span> : null}
+                        {record.passwordLls ? <span>Senha LLS: {record.passwordLls}</span> : null}
                         {record.masterPassword ? (
                           <span>Senha mestra: {record.masterPassword}</span>
                         ) : null}

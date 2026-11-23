@@ -13,6 +13,9 @@ type PasswordRow = {
   id: string
   meter: string
   password: string
+  password_ak?: string | null
+  password_ek?: string | null
+  password_lls?: string | null
   master_password?: string | null
   manufacturer: string
   material_type: string
@@ -30,6 +33,9 @@ function mapPassword(row: PasswordRow) {
     id: row.id,
     meter: row.meter,
     password: row.password,
+    passwordAk: row.password_ak?.trim() ?? '',
+    passwordEk: row.password_ek?.trim() ?? '',
+    passwordLls: row.password_lls?.trim() ?? '',
     masterPassword: row.master_password?.trim() ?? '',
     manufacturer: row.manufacturer,
     materialType: row.material_type,
@@ -538,6 +544,16 @@ export async function deletePasswordRecords(req: Request, res: Response) {
   res.json({ deletedIds })
 }
 
+function storedSheetPassword(
+  row: PasswordRow,
+  key: 'password' | 'ak' | 'ek' | 'lls',
+) {
+  if (key === 'ak') return row.password_ak?.trim() ?? ''
+  if (key === 'ek') return row.password_ek?.trim() ?? ''
+  if (key === 'lls') return row.password_lls?.trim() ?? ''
+  return row.password?.trim() ?? ''
+}
+
 export async function importPasswordSheet(req: Request, res: Response) {
   const { fileName, fileBase64 } = req.body as { fileName?: string; fileBase64?: string }
   const base64 = String(fileBase64 ?? '').replace(/^data:.*?;base64,/, '').trim()
@@ -570,8 +586,8 @@ export async function importPasswordSheet(req: Request, res: Response) {
 
   const { profile } = parsed
   const existing = await query<PasswordRow>(
-    `SELECT id, meter, password, master_password, manufacturer, material_type, order_number,
-            password_type, digits, source, created_at
+    `SELECT id, meter, password, password_ak, password_ek, password_lls, master_password,
+            manufacturer, material_type, order_number, password_type, digits, source, created_at
      FROM password_records
      WHERE meter = ANY($1::text[])`,
     [parsed.meters.map((item) => item.meter)],
@@ -592,22 +608,26 @@ export async function importPasswordSheet(req: Request, res: Response) {
 
   const planned: Array<{
     meter: string
-    cell: string
-    password: string
     existing: PasswordRow | null
+    fields: Array<{ key: 'password' | 'ak' | 'ek' | 'lls'; cell: string; value: string }>
   }> = []
   for (const item of parsed.meters) {
     const current = existingByMeter.get(item.meter) ?? null
-    let password = item.existingPassword
-    if (password && password.length !== profile.individualDigits) {
-      res.status(400).json({
-        error: `A senha do medidor ${item.meter} precisa ter ${profile.individualDigits} dígitos.`,
-      })
-      return
+    const fields = []
+    for (const slot of item.passwords) {
+      let value = slot.existing
+      if (value && value.length !== slot.digits) {
+        res.status(400).json({
+          error: `A ${slot.label.toLowerCase()} do medidor ${item.meter} precisa ter ${slot.digits} dígitos.`,
+        })
+        return
+      }
+      const stored = current ? storedSheetPassword(current, slot.key) : ''
+      if (stored) value = stored
+      else if (!value) value = randomPassword(slot.digits)
+      fields.push({ key: slot.key, cell: slot.cell, value })
     }
-    if (current) password = current.password
-    else if (!password) password = randomPassword(profile.individualDigits)
-    planned.push({ meter: item.meter, cell: item.cell, password, existing: current })
+    planned.push({ meter: item.meter, existing: current, fields })
   }
 
   const results: Array<{ meter: string; status: 'generated' | 'existing' }> = []
@@ -615,12 +635,33 @@ export async function importPasswordSheet(req: Request, res: Response) {
 
   for (const item of planned) {
     if (item.existing) {
-      if (!item.existing.master_password?.trim()) {
-        await query(`UPDATE password_records SET master_password = $1 WHERE id = $2`, [
-          masterPassword,
-          item.existing.id,
-        ])
-        item.existing.master_password = masterPassword
+      const sets: string[] = []
+      const params: unknown[] = []
+      const remember = (column: string, next: string, current: string, apply: (value: string) => void) => {
+        if (current.trim() || !next) return
+        params.push(next)
+        sets.push(`${column} = $${params.length}`)
+        apply(next)
+      }
+      const byKey = Object.fromEntries(item.fields.map((field) => [field.key, field.value]))
+      remember('password_ak', byKey.ak || '', item.existing.password_ak || '', (value) => {
+        item.existing!.password_ak = value
+      })
+      remember('password_ek', byKey.ek || '', item.existing.password_ek || '', (value) => {
+        item.existing!.password_ek = value
+      })
+      remember('password_lls', byKey.lls || '', item.existing.password_lls || '', (value) => {
+        item.existing!.password_lls = value
+      })
+      remember('master_password', masterPassword, item.existing.master_password || '', (value) => {
+        item.existing!.master_password = value
+      })
+      if (sets.length) {
+        params.push(item.existing.id)
+        await query(
+          `UPDATE password_records SET ${sets.join(', ')} WHERE id = $${params.length}`,
+          params,
+        )
       }
       saved.push(item.existing)
       results.push({ meter: item.meter, status: 'existing' })
@@ -628,27 +669,35 @@ export async function importPasswordSheet(req: Request, res: Response) {
     }
 
     const createdAt = new Date()
+    const byKey = Object.fromEntries(item.fields.map((field) => [field.key, field.value]))
     const record: PasswordRow = {
       id: `sheet-${createdAt.getTime()}-${item.meter}`,
       meter: item.meter,
-      password: item.password,
+      password: byKey.password || byKey.ak || '',
+      password_ak: byKey.ak || '',
+      password_ek: byKey.ek || '',
+      password_lls: byKey.lls || '',
       master_password: masterPassword,
       manufacturer: parsed.manufacturer,
       material_type: parsed.materialCode,
       order_number: parsed.orderNumber,
       password_type: profile.passwordType,
-      digits: profile.individualDigits,
+      digits: item.fields[0]?.value.length ?? profile.masterDigits,
       source: 'generated',
       created_at: createdAt,
     }
     await query(
       `INSERT INTO password_records
-       (id, meter, password, master_password, manufacturer, material_type, order_number, password_type, digits, source, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+       (id, meter, password, password_ak, password_ek, password_lls, master_password,
+        manufacturer, material_type, order_number, password_type, digits, source, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
       [
         record.id,
         record.meter,
         record.password,
+        record.password_ak,
+        record.password_ek,
+        record.password_lls,
         masterPassword,
         record.manufacturer,
         record.material_type,
@@ -665,8 +714,8 @@ export async function importPasswordSheet(req: Request, res: Response) {
 
   const filled = await fillOriginalWorkbook(buffer, [
     { cell: parsed.masterCell, value: masterPassword },
-    ...(parsed.uniquePasswordCell ? [{ cell: parsed.uniquePasswordCell, value: '' }] : []),
-    ...planned.map((item) => ({ cell: item.cell, value: item.password })),
+    ...parsed.uniquePasswordCells.map((cell) => ({ cell, value: '' })),
+    ...planned.flatMap((item) => item.fields.map((field) => ({ cell: field.cell, value: field.value }))),
   ])
 
   const generatedCount = results.filter((item) => item.status === 'generated').length
@@ -681,7 +730,6 @@ export async function importPasswordSheet(req: Request, res: Response) {
         manufacturer: parsed.manufacturer,
         materialType: parsed.materialCode,
         orderNumber: parsed.orderNumber,
-        individualDigits: profile.individualDigits,
         masterDigits: profile.masterDigits,
         generatedCount,
         existingCount,
@@ -694,7 +742,10 @@ export async function importPasswordSheet(req: Request, res: Response) {
     fileName: `${originalName}-preenchido.xlsx`,
     fileBase64: filled.toString('base64'),
     model: profile.label,
-    individualDigits: profile.individualDigits,
+    passwordSummary: [
+      ...profile.columns.map((column) => `${column.label} de ${column.digits} dígitos`),
+      `senha mestra de ${profile.masterDigits} dígitos`,
+    ].join(', '),
     masterDigits: profile.masterDigits,
     generatedCount,
     existingCount,
