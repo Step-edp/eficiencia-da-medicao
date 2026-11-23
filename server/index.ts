@@ -891,6 +891,17 @@ async function start() {
         })
         return
       }
+      const faultMessage = error instanceof Error ? error.message : ''
+      if (
+        /timeout expired|timeout exceeded when trying to connect|Connection terminated|ECONNREFUSED|ENOTFOUND|the database system is (starting up|in recovery)/i.test(
+          faultMessage,
+        )
+      ) {
+        res.status(503).json({
+          error: 'O banco do portal não está respondendo. Tente novamente em alguns minutos.',
+        })
+        return
+      }
       res.status(500).json({ error: 'Erro interno do servidor.' })
     },
   )
