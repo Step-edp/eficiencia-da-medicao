@@ -3724,8 +3724,8 @@ function HomePanel({
       passwordAk ? `Senha AK: ${passwordAk}` : `Senha: ${password}`,
       passwordEk ? `Senha EK: ${passwordEk}` : '',
       passwordLls ? `Senha LLS: ${passwordLls}` : '',
-      passwordComplement ? `Senha com 333333: ${passwordComplement}` : '',
-      passwordHex ? `Senha hexadecimal: ${passwordHex}` : '',
+      passwordComplement ? `Senha de Produção: ${passwordComplement}` : '',
+      passwordHex ? `Senha AK e EK: ${passwordHex}` : '',
       masterPassword ? `Senha mestra: ${masterPassword}` : '',
     ].filter(Boolean)
     const text = lines.join('\n')
@@ -5368,7 +5368,7 @@ function HomePanel({
                 <p>
                   ZEUS THS volta com senha de 32 dígitos. ZEUS volta com senha AK e EK de 16
                   e senha LLS de 8. Cronos NG+ volta com senha de 32 dígitos. NSX ABNT guarda a
-                  senha de 10, o complemento com 333333 e o hexadecimal da fórmula. Quando o modelo
+                  senha de 10, a senha de produção e a senha AK e EK. Quando o modelo
                   tem senha mestra, ela fica salva junto e o campo amarelo de senha única
                   permanece vazio. No ZEUS, se o medidor já estiver no banco, a senha salva é
                   mantida e só entram senha EK, senha LLS e senha mestra.
@@ -5565,10 +5565,10 @@ function HomePanel({
                           {record.passwordEk ? <span>Senha EK: {record.passwordEk}</span> : null}
                           {record.passwordLls ? <span>Senha LLS: {record.passwordLls}</span> : null}
                           {record.passwordComplement ? (
-                            <span>Senha com 333333: {record.passwordComplement}</span>
+                            <span>Senha de Produção: {record.passwordComplement}</span>
                           ) : null}
                           {record.passwordHex ? (
-                            <span>Senha hexadecimal: {record.passwordHex}</span>
+                            <span>Senha AK e EK: {record.passwordHex}</span>
                           ) : null}
                           {record.masterPassword ? (
                             <span>Senha mestra: {record.masterPassword}</span>
@@ -5593,10 +5593,10 @@ function HomePanel({
                           {record.passwordEk ? <span>Senha EK: {record.passwordEk}</span> : null}
                           {record.passwordLls ? <span>Senha LLS: {record.passwordLls}</span> : null}
                           {record.passwordComplement ? (
-                            <span>Senha com 333333: {record.passwordComplement}</span>
+                            <span>Senha de Produção: {record.passwordComplement}</span>
                           ) : null}
                           {record.passwordHex ? (
-                            <span>Senha hexadecimal: {record.passwordHex}</span>
+                            <span>Senha AK e EK: {record.passwordHex}</span>
                           ) : null}
                           {record.masterPassword ? (
                             <span>Senha mestra: {record.masterPassword}</span>
@@ -5772,10 +5772,10 @@ function HomePanel({
                         {record.passwordEk ? <span>Senha EK: {record.passwordEk}</span> : null}
                         {record.passwordLls ? <span>Senha LLS: {record.passwordLls}</span> : null}
                         {record.passwordComplement ? (
-                          <span>Senha com 333333: {record.passwordComplement}</span>
+                          <span>Senha de Produção: {record.passwordComplement}</span>
                         ) : null}
                         {record.passwordHex ? (
-                          <span>Senha hexadecimal: {record.passwordHex}</span>
+                          <span>Senha AK e EK: {record.passwordHex}</span>
                         ) : null}
                         {record.masterPassword ? (
                           <span>Senha mestra: {record.masterPassword}</span>

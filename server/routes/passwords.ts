@@ -774,7 +774,7 @@ export async function importPasswordSheet(req: Request, res: Response) {
     model: profile.label,
     passwordSummary:
       profile.id === 'nansen-nsx'
-        ? 'senha de 10 caracteres, complemento com 333333 e senha hexadecimal'
+        ? 'senha de 10 caracteres, senha de produção e senha AK e EK'
         : [
             ...profile.columns.map((column) => `${column.label} de ${column.digits} dígitos`),
             ...(profile.masterDigits ? [`senha mestra de ${profile.masterDigits} dígitos`] : []),
