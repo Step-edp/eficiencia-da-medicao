@@ -4,9 +4,8 @@ import { requireAuth, requireAdmin } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 import {
   fillOriginalWorkbook,
-  parsePasswordSheet,
+  parsePasswordBuffer,
   randomPassword,
-  workbookFromBuffer,
 } from '../password-sheet.js'
 
 type PasswordRow = {
@@ -16,6 +15,8 @@ type PasswordRow = {
   password_ak?: string | null
   password_ek?: string | null
   password_lls?: string | null
+  password_complement?: string | null
+  password_hex?: string | null
   master_password?: string | null
   manufacturer: string
   material_type: string
@@ -36,6 +37,8 @@ function mapPassword(row: PasswordRow) {
     passwordAk: row.password_ak?.trim() ?? '',
     passwordEk: row.password_ek?.trim() ?? '',
     passwordLls: row.password_lls?.trim() ?? '',
+    passwordComplement: row.password_complement?.trim() ?? '',
+    passwordHex: row.password_hex?.trim() ?? '',
     masterPassword: row.master_password?.trim() ?? '',
     manufacturer: row.manufacturer,
     materialType: row.material_type,
@@ -576,7 +579,7 @@ export async function importPasswordSheet(req: Request, res: Response) {
 
   let parsed
   try {
-    parsed = parsePasswordSheet(workbookFromBuffer(buffer))
+    parsed = await parsePasswordBuffer(buffer)
   } catch (error) {
     res.status(400).json({
       error: error instanceof Error ? error.message : 'Não foi possível ler a planilha.',
@@ -586,8 +589,9 @@ export async function importPasswordSheet(req: Request, res: Response) {
 
   const { profile } = parsed
   const existing = await query<PasswordRow>(
-    `SELECT id, meter, password, password_ak, password_ek, password_lls, master_password,
-            manufacturer, material_type, order_number, password_type, digits, source, created_at
+    `SELECT id, meter, password, password_ak, password_ek, password_lls, password_complement,
+            password_hex, master_password, manufacturer, material_type, order_number,
+            password_type, digits, source, created_at
      FROM password_records
      WHERE meter = ANY($1::text[])`,
     [parsed.meters.map((item) => item.meter)],
@@ -613,6 +617,8 @@ export async function importPasswordSheet(req: Request, res: Response) {
     meter: string
     existing: PasswordRow | null
     fields: Array<{ key: 'password' | 'ak' | 'ek' | 'lls'; cell: string; value: string }>
+    complement: string
+    hex: string
   }> = []
   for (const item of parsed.meters) {
     const current = existingByMeter.get(item.meter) ?? null
@@ -630,7 +636,13 @@ export async function importPasswordSheet(req: Request, res: Response) {
       else if (!value) value = randomPassword(slot.digits)
       fields.push({ key: slot.key, cell: slot.cell, value })
     }
-    planned.push({ meter: item.meter, existing: current, fields })
+    planned.push({
+      meter: item.meter,
+      existing: current,
+      fields,
+      complement: item.complement ?? '',
+      hex: item.hex ?? '',
+    })
   }
 
   const results: Array<{ meter: string; status: 'generated' | 'existing' }> = []
@@ -656,6 +668,12 @@ export async function importPasswordSheet(req: Request, res: Response) {
       remember('password_lls', byKey.lls || '', item.existing.password_lls || '', (value) => {
         item.existing!.password_lls = value
       })
+      remember('password_complement', item.complement, item.existing.password_complement || '', (value) => {
+        item.existing!.password_complement = value
+      })
+      remember('password_hex', item.hex, item.existing.password_hex || '', (value) => {
+        item.existing!.password_hex = value
+      })
       remember('master_password', masterPassword, item.existing.master_password || '', (value) => {
         item.existing!.master_password = value
       })
@@ -680,6 +698,8 @@ export async function importPasswordSheet(req: Request, res: Response) {
       password_ak: byKey.ak || '',
       password_ek: byKey.ek || '',
       password_lls: byKey.lls || '',
+      password_complement: item.complement,
+      password_hex: item.hex,
       master_password: masterPassword,
       manufacturer: parsed.manufacturer,
       material_type: parsed.materialCode,
@@ -691,9 +711,10 @@ export async function importPasswordSheet(req: Request, res: Response) {
     }
     await query(
       `INSERT INTO password_records
-       (id, meter, password, password_ak, password_ek, password_lls, master_password,
-        manufacturer, material_type, order_number, password_type, digits, source, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+       (id, meter, password, password_ak, password_ek, password_lls, password_complement,
+        password_hex, master_password, manufacturer, material_type, order_number, password_type,
+        digits, source, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
       [
         record.id,
         record.meter,
@@ -701,6 +722,8 @@ export async function importPasswordSheet(req: Request, res: Response) {
         record.password_ak,
         record.password_ek,
         record.password_lls,
+        record.password_complement,
+        record.password_hex,
         masterPassword,
         record.manufacturer,
         record.material_type,
@@ -715,11 +738,15 @@ export async function importPasswordSheet(req: Request, res: Response) {
     results.push({ meter: item.meter, status: 'generated' })
   }
 
-  const filled = await fillOriginalWorkbook(buffer, [
-    ...(parsed.masterCell ? [{ cell: parsed.masterCell, value: masterPassword }] : []),
-    ...parsed.uniquePasswordCells.map((cell) => ({ cell, value: '' })),
-    ...planned.flatMap((item) => item.fields.map((field) => ({ cell: field.cell, value: field.value }))),
-  ])
+  const filled = parsed.keepFormulas
+    ? buffer
+    : await fillOriginalWorkbook(buffer, [
+        ...(parsed.masterCell ? [{ cell: parsed.masterCell, value: masterPassword }] : []),
+        ...parsed.uniquePasswordCells.map((cell) => ({ cell, value: '' })),
+        ...planned.flatMap((item) =>
+          item.fields.map((field) => ({ cell: field.cell, value: field.value })),
+        ),
+      ])
 
   const generatedCount = results.filter((item) => item.status === 'generated').length
   const existingCount = results.length - generatedCount
@@ -745,10 +772,13 @@ export async function importPasswordSheet(req: Request, res: Response) {
     fileName: `${originalName}-preenchido.xlsx`,
     fileBase64: filled.toString('base64'),
     model: profile.label,
-    passwordSummary: [
-      ...profile.columns.map((column) => `${column.label} de ${column.digits} dígitos`),
-      ...(profile.masterDigits ? [`senha mestra de ${profile.masterDigits} dígitos`] : []),
-    ].join(', '),
+    passwordSummary:
+      profile.id === 'nansen-nsx'
+        ? 'senha de 10 caracteres, complemento com 333333 e senha hexadecimal'
+        : [
+            ...profile.columns.map((column) => `${column.label} de ${column.digits} dígitos`),
+            ...(profile.masterDigits ? [`senha mestra de ${profile.masterDigits} dígitos`] : []),
+          ].join(', '),
     masterDigits: profile.masterDigits,
     generatedCount,
     existingCount,

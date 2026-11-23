@@ -213,6 +213,8 @@ export type PasswordRecord = {
   passwordAk?: string
   passwordEk?: string
   passwordLls?: string
+  passwordComplement?: string
+  passwordHex?: string
   masterPassword?: string
   manufacturer: string
   materialType: string
