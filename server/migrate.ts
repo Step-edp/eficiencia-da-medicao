@@ -4,7 +4,40 @@ import { ensureMeterRegistryFromSchedules } from './ensure-meter-registry.js'
 import { ensureFillingDeviationsFromSchedules } from './filling-deviations.js'
 import { seedAlinhamentoPadroes } from './alinhamento-padroes-seed.js'
 
+const CRITICAL_COLUMNS = [
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS scheduling_notes TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS partner_user_id TEXT`,
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS partner_name TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS partner_registration TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS envelope_photo TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS envelope_seal TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS toi_collaborator1_name TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS toi_collaborator1_registration TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS toi_collaborator2_name TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS toi_collaborator2_registration TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS toi_team_reason TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS delay_dismissed_at TIMESTAMPTZ`,
+  `ALTER TABLE meter_schedules ADD COLUMN IF NOT EXISTS trail_step TEXT NOT NULL DEFAULT 'Entrada de medidores'`,
+  `ALTER TABLE ratm_laudos ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ`,
+  `ALTER TABLE ratm_laudos ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ`,
+  `ALTER TABLE ratm_laudos ADD COLUMN IF NOT EXISTS approved_by_user_id TEXT`,
+  `ALTER TABLE meter_registry ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE meter_registry ADD COLUMN IF NOT EXISTS trail_step TEXT NOT NULL DEFAULT ''`,
+]
+
+/** Colunas usadas no agendamento e na aprovação, mesmo se o restante da migração falhar. */
+export async function ensureCriticalColumns() {
+  for (const sql of CRITICAL_COLUMNS) {
+    try {
+      await query(sql)
+    } catch (error) {
+      console.error('Coluna essencial não aplicada:', error)
+    }
+  }
+}
+
 export async function migrate() {
+  await ensureCriticalColumns()
   await query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,

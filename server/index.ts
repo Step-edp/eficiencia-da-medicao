@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isDiskFullError, query } from './db.js'
+import { rememberFault, runHealthChecks } from './health-check.js'
 import { warmupInspectionOcr } from './inspection-pdf-ocr.js'
 import { migrate } from './migrate.js'
 import { seed } from './seed.js'
@@ -224,8 +225,13 @@ async function start() {
   app.use(express.json({ limit: '320mb' }))
   app.use(cookieParser())
 
-  app.get('/api/health', (_req, res) => {
-    res.json({ ok: true })
+  app.get('/api/health', async (_req, res) => {
+    try {
+      res.json(await runHealthChecks())
+    } catch (error) {
+      rememberFault(error)
+      res.status(200).json({ ok: false, error: 'Banco indisponível.' })
+    }
   })
 
   app.get('/api/mail/status', ...wrap(mailRoutes.status))
@@ -863,6 +869,7 @@ async function start() {
       _next: express.NextFunction,
     ) => {
       console.error('Erro não tratado na API:', error)
+      rememberFault(error)
       if (res.headersSent) {
         return
       }

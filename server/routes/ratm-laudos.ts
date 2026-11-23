@@ -793,8 +793,13 @@ export async function approveRatmLaudo(req: Request, res: Response) {
     return
   }
 
+  const storedForm = existing.rows[0].form_data
+  const formRecord =
+    storedForm && typeof storedForm === 'object' && !Array.isArray(storedForm)
+      ? storedForm
+      : {}
   const formData = {
-    ...existing.rows[0].form_data,
+    ...formRecord,
     clientAccompanied: clientPresent,
     ratmApprovedBy: formatPortalUser(approver),
     clientDocumentPhoto: clientPresent === 'Sim' ? clientDocumentPhoto : '',
