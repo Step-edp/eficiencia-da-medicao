@@ -29,17 +29,10 @@ export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   try {
     return await pool.query<T>(text, params)
   } catch (error) {
-    if (!isDiskFullError(error) || attempt > 0) throw error
-    try {
-      const { reclaimDiskForWrite } = await import('./reclaim-disk.js')
-      const freed = await reclaimDiskForWrite()
-      if (!freed) throw error
-    } catch (reclaimError) {
-      if (reclaimError !== error) {
-        console.error('Falha ao liberar espaço em disco:', reclaimError)
-      }
-      throw error
-    }
+    if (attempt > 0 || !isDiskFullError(error)) throw error
+    const { reclaimDiskOnce } = await import('./reclaim-disk.js')
+    const freed = await reclaimDiskOnce()
+    if (!freed) throw error
     return query<T>(text, params, attempt + 1)
   }
 }

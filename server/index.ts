@@ -905,21 +905,9 @@ async function start() {
   } catch (error) {
     console.error('Falha ao preparar o banco. O site continua no ar.', error)
     if (isDiskFullError(error)) {
-      try {
-        const { reclaimDiskForWrite } = await import('./reclaim-disk.js')
-        const freed = await reclaimDiskForWrite()
-        if (freed) {
-          await migrate()
-          await seed()
-          console.log('Banco de dados pronto depois de liberar espaço.')
-        } else {
-          console.error(
-            'Não foi possível liberar espaço. Gravações novas podem falhar.',
-          )
-        }
-      } catch (retryError) {
-        console.error('A liberação de espaço não concluiu. O site continua no ar.', retryError)
-      }
+      console.error(
+        'Disco do Postgres cheio (53100). O portal segue no ar; gravações novas podem falhar até haver espaço.',
+      )
     }
     try {
       const sizes = await query<{ table: string; total: string }>(

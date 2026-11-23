@@ -265,8 +265,21 @@ async function mapUserWithVacation(row: UserRow, options?: { includePassword?: b
   }
 }
 
+const USER_COLUMNS_WITHOUT_PHOTO = `
+  id, name, registration, email, role, approval_status, requested_at, approved_at,
+  rejected_at, rejection_reason, approved_by_user_id, birth_date, job_title, cpf,
+  personal_description, hobby, work_area, work_subtype, whatsapp, employment_type,
+  third_party_company, locality, edp_unit, access_areas, access_processes,
+  password_plain, must_change_password,
+  false AS has_profile_photo,
+  '' AS profile_photo
+`
+
 async function findUserById(id: string) {
-  const result = await query<UserRow>('SELECT * FROM users WHERE id = $1', [id])
+  const result = await query<UserRow>(
+    `SELECT ${USER_COLUMNS_WITHOUT_PHOTO} FROM users WHERE id = $1`,
+    [id],
+  )
   return result.rows[0] ?? null
 }
 

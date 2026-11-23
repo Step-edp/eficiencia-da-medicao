@@ -55,8 +55,8 @@ function mapRatmLaudo(row: RatmLaudoRow) {
     toi: row.toi || '',
     note: row.note || '',
     meterReading: row.meter_reading || '',
-    revokedAt: row.revoked_at ? row.revoked_at.toISOString() : null,
-    approvedAt: row.approved_at ? row.approved_at.toISOString() : null,
+    revokedAt: row.revoked_at ? isoTimestamp(row.revoked_at) : null,
+    approvedAt: row.approved_at ? isoTimestamp(row.approved_at) : null,
     approvedByUserId: row.approved_by_user_id ?? null,
   }
 }
