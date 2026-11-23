@@ -230,7 +230,8 @@ async function start() {
       res.json(await runHealthChecks())
     } catch (error) {
       rememberFault(error)
-      res.status(200).json({ ok: false, error: 'Banco indisponível.' })
+      const fault = error instanceof Error ? error.message.split('\n')[0].slice(0, 180) : 'falha'
+      res.status(200).json({ ok: false, error: fault })
     }
   })
 

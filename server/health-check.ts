@@ -1,4 +1,4 @@
-import { pool } from './db.js'
+import pg from 'pg'
 
 export type Fault = { at: string; code: string; message: string }
 
@@ -45,9 +45,19 @@ const READS: Array<[string, string]> = [
   ],
 ]
 
+function openProbeClient() {
+  return new pg.Client({
+    connectionString: process.env.DATABASE_URL,
+    connectionTimeoutMillis: 8_000,
+    statement_timeout: 8_000,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+  })
+}
+
 export async function runHealthChecks() {
   const checks: Record<string, string> = {}
-  const client = await pool.connect()
+  const client = openProbeClient()
+  await client.connect()
   try {
     await client.query("SET statement_timeout = '8s'")
     for (const [name, sql] of READS) {
@@ -82,8 +92,29 @@ export async function runHealthChecks() {
     } catch (error) {
       checks.bytes = describeFault(error).message
     }
+    try {
+      const activity = await client.query<{
+        state: string | null
+        wait: string | null
+        query: string
+      }>(
+        `SELECT state,
+                NULLIF(wait_event_type || ':' || wait_event, ':') AS wait,
+                LEFT(regexp_replace(query, '\\s+', ' ', 'g'), 80) AS query
+         FROM pg_stat_activity
+         WHERE datname = current_database()
+           AND pid <> pg_backend_pid()
+         ORDER BY state NULLS LAST
+         LIMIT 8`,
+      )
+      checks.activity = activity.rows
+        .map((row) => [row.state ?? '?', row.wait ?? '', row.query].filter(Boolean).join(' | '))
+        .join(' || ')
+    } catch (error) {
+      checks.activity = describeFault(error).message
+    }
   } finally {
-    client.release()
+    await client.end().catch(() => undefined)
   }
 
   return {
