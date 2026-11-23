@@ -210,6 +210,7 @@ export type PasswordRecord = {
   id: string
   meter: string
   password: string
+  masterPassword?: string
   manufacturer: string
   materialType: string
   orderNumber: string
@@ -1478,6 +1479,20 @@ export const api = {
     request<{ name: string }>('/api/manufacturers', {
       method: 'POST',
       body: JSON.stringify({ name }),
+    }),
+  importPasswordSheet: (payload: { fileName: string; fileBase64: string }) =>
+    request<{
+      fileName: string
+      fileBase64: string
+      model: string
+      individualDigits: number
+      masterDigits: number
+      generatedCount: number
+      existingCount: number
+      records: PasswordRecord[]
+    }>('/api/password-records/import-sheet', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     }),
   generatePasswords: (payload: {
     meters: string[]

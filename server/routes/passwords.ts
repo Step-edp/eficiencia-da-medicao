@@ -2,11 +2,19 @@ import type { Request, Response } from 'express'
 import { query } from '../db.js'
 import { requireAuth, requireAdmin } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
+import {
+  parsePasswordSheet,
+  randomPassword,
+  workbookFromBuffer,
+  workbookToBuffer,
+  writeSheetCell,
+} from '../password-sheet.js'
 
 type PasswordRow = {
   id: string
   meter: string
   password: string
+  master_password?: string | null
   manufacturer: string
   material_type: string
   order_number: string
@@ -23,6 +31,7 @@ function mapPassword(row: PasswordRow) {
     id: row.id,
     meter: row.meter,
     password: row.password,
+    masterPassword: row.master_password?.trim() ?? '',
     manufacturer: row.manufacturer,
     materialType: row.material_type,
     orderNumber: row.order_number,
@@ -530,6 +539,170 @@ export async function deletePasswordRecords(req: Request, res: Response) {
   res.json({ deletedIds })
 }
 
+export async function importPasswordSheet(req: Request, res: Response) {
+  const { fileName, fileBase64 } = req.body as { fileName?: string; fileBase64?: string }
+  const base64 = String(fileBase64 ?? '').replace(/^data:.*?;base64,/, '').trim()
+  if (!base64) {
+    res.status(400).json({ error: 'Envie a planilha no formato .xlsx.' })
+    return
+  }
+
+  let buffer: Buffer
+  try {
+    buffer = Buffer.from(base64, 'base64')
+  } catch {
+    res.status(400).json({ error: 'Não foi possível ler a planilha.' })
+    return
+  }
+  if (!buffer.length || buffer.length > 15_000_000) {
+    res.status(400).json({ error: 'A planilha está vazia ou passou de 15 MB.' })
+    return
+  }
+
+  let parsed
+  let workbook
+  try {
+    workbook = workbookFromBuffer(buffer)
+    parsed = parsePasswordSheet(workbook)
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : 'Não foi possível ler a planilha.',
+    })
+    return
+  }
+
+  const sheet = workbook.Sheets[workbook.SheetNames[0]]
+  const { profile } = parsed
+  const existing = await query<PasswordRow>(
+    `SELECT id, meter, password, master_password, manufacturer, material_type, order_number,
+            password_type, digits, source, created_at
+     FROM password_records
+     WHERE meter = ANY($1::text[])`,
+    [parsed.meters.map((item) => item.meter)],
+  )
+  const existingByMeter = new Map(existing.rows.map((row) => [row.meter.trim(), row]))
+
+  const knownMaster = existing.rows
+    .map((row) => row.master_password?.trim() ?? '')
+    .find((value) => value.length === profile.masterDigits)
+  let masterPassword = parsed.existingMaster
+  if (masterPassword && masterPassword.length !== profile.masterDigits) {
+    res.status(400).json({
+      error: `A senha mestra da planilha precisa ter ${profile.masterDigits} dígitos.`,
+    })
+    return
+  }
+  if (!masterPassword) masterPassword = knownMaster || randomPassword(profile.masterDigits)
+
+  const planned: Array<{
+    meter: string
+    cell: string
+    password: string
+    existing: PasswordRow | null
+  }> = []
+  for (const item of parsed.meters) {
+    const current = existingByMeter.get(item.meter) ?? null
+    let password = item.existingPassword
+    if (password && password.length !== profile.individualDigits) {
+      res.status(400).json({
+        error: `A senha do medidor ${item.meter} precisa ter ${profile.individualDigits} dígitos.`,
+      })
+      return
+    }
+    if (current) password = current.password
+    else if (!password) password = randomPassword(profile.individualDigits)
+    planned.push({ meter: item.meter, cell: item.cell, password, existing: current })
+  }
+
+  const results: Array<{ meter: string; status: 'generated' | 'existing' }> = []
+  const saved: PasswordRow[] = []
+
+  for (const item of planned) {
+    writeSheetCell(sheet, item.cell, item.password)
+    if (item.existing) {
+      if (!item.existing.master_password?.trim()) {
+        await query(`UPDATE password_records SET master_password = $1 WHERE id = $2`, [
+          masterPassword,
+          item.existing.id,
+        ])
+        item.existing.master_password = masterPassword
+      }
+      saved.push(item.existing)
+      results.push({ meter: item.meter, status: 'existing' })
+      continue
+    }
+
+    const createdAt = new Date()
+    const record: PasswordRow = {
+      id: `sheet-${createdAt.getTime()}-${item.meter}`,
+      meter: item.meter,
+      password: item.password,
+      master_password: masterPassword,
+      manufacturer: parsed.manufacturer,
+      material_type: parsed.materialCode,
+      order_number: parsed.orderNumber,
+      password_type: profile.passwordType,
+      digits: profile.individualDigits,
+      source: 'generated',
+      created_at: createdAt,
+    }
+    await query(
+      `INSERT INTO password_records
+       (id, meter, password, master_password, manufacturer, material_type, order_number, password_type, digits, source, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [
+        record.id,
+        record.meter,
+        record.password,
+        masterPassword,
+        record.manufacturer,
+        record.material_type,
+        record.order_number,
+        record.password_type,
+        record.digits,
+        record.source,
+        record.created_at,
+      ],
+    )
+    saved.push(record)
+    results.push({ meter: item.meter, status: 'generated' })
+  }
+
+  writeSheetCell(sheet, parsed.masterCell, masterPassword)
+
+  const generatedCount = results.filter((item) => item.status === 'generated').length
+  const existingCount = results.length - generatedCount
+  if (generatedCount) {
+    await writeAuditLog(req, {
+      action: 'create',
+      entityType: 'password_record',
+      summary: `${generatedCount} senha(s) do modelo ${profile.label} importada(s) da planilha`,
+      newData: {
+        model: profile.label,
+        manufacturer: parsed.manufacturer,
+        materialType: parsed.materialCode,
+        orderNumber: parsed.orderNumber,
+        individualDigits: profile.individualDigits,
+        masterDigits: profile.masterDigits,
+        generatedCount,
+        existingCount,
+      },
+    })
+  }
+
+  const originalName = String(fileName ?? 'senhas.xlsx').replace(/\.(xlsx|xlsm)$/i, '')
+  res.json({
+    fileName: `${originalName}-preenchido.xlsx`,
+    fileBase64: workbookToBuffer(workbook).toString('base64'),
+    model: profile.label,
+    individualDigits: profile.individualDigits,
+    masterDigits: profile.masterDigits,
+    generatedCount,
+    existingCount,
+    records: saved.map(mapPassword),
+  })
+}
+
 export const passwordRoutes = {
   list: [requireAuth, listPasswordRecords],
   manufacturers: [requireAuth, listManufacturers],
@@ -537,4 +710,5 @@ export const passwordRoutes = {
   generate: [requireAuth, generatePasswords],
   createPassive: [requireAuth, requireAdmin, createPassivePasswords],
   deleteRecords: [requireAuth, requireAdmin, deletePasswordRecords],
+  importSheet: [requireAuth, importPasswordSheet],
 }

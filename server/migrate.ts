@@ -307,6 +307,7 @@ export async function migrate() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS access_areas JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS access_processes JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE password_records ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'generated';
+    ALTER TABLE password_records ADD COLUMN IF NOT EXISTS master_password TEXT NOT NULL DEFAULT '';
     ALTER TABLE ensaios_manual_blocks ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT '';
     ALTER TABLE csds ADD COLUMN IF NOT EXISTS cities JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE csds ALTER COLUMN responsible_user_id DROP NOT NULL;
@@ -337,6 +338,11 @@ export async function migrate() {
 
     CREATE INDEX IF NOT EXISTS idx_user_vacation_periods_user
       ON user_vacation_periods (user_id, start_date);
+  `)
+
+  await query(`
+    ALTER TABLE password_records
+      ADD COLUMN IF NOT EXISTS master_password TEXT NOT NULL DEFAULT '';
   `)
 
   await query(`

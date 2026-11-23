@@ -2320,6 +2320,8 @@ function HomePanel({
   const [newManufacturer, setNewManufacturer] = useState('')
   const [generatedPasswords, setGeneratedPasswords] = useState<GeneratedPasswordResult[]>([])
   const [passwordRecords, setPasswordRecords] = useState<PasswordRecord[]>([])
+  const [importingPasswordSheet, setImportingPasswordSheet] = useState(false)
+  const passwordSheetInputRef = useRef<HTMLInputElement>(null)
   const [materialRows, setMaterialRows] = useState<MaterialRecord[]>([])
   const [materialForm, setMaterialForm] = useState<MaterialRecord>({
     material: '',
@@ -3679,7 +3681,7 @@ function HomePanel({
         }
         const origem =
           record.isPassive || record.source === 'passivo' ? 'Passivo' : 'Gerada'
-        return `${record.meter}\t${record.password}\t${record.manufacturer}\t${origem}`
+        return `${record.meter}\t${record.password}\t${record.masterPassword || ''}\t${record.manufacturer}\t${origem}`
       })
       .join('\n')
 
@@ -3697,12 +3699,17 @@ function HomePanel({
     }
   }
 
-  const handleCopySinglePassword = async (meter: string, password: string) => {
+  const handleCopySinglePassword = async (meter: string, password: string, masterPassword = '') => {
+    const text = masterPassword
+      ? `Senha: ${password}\nSenha mestra: ${masterPassword}`
+      : password
     try {
-      await navigator.clipboard.writeText(password)
+      await navigator.clipboard.writeText(text)
       setPasswordFeedback({
         type: 'success',
-        message: `Senha do medidor ${meter} copiada.`,
+        message: masterPassword
+          ? `Senha e senha mestra do medidor ${meter} copiadas.`
+          : `Senha do medidor ${meter} copiada.`,
       })
     } catch {
       setPasswordFeedback({
@@ -3838,6 +3845,66 @@ function HomePanel({
             ? error.message
             : 'Não foi possível gerar as senhas.',
       })
+    }
+  }
+
+  const handleImportPasswordSheet = async (file: File) => {
+    const extension = file.name.split('.').pop()?.toLowerCase()
+    if (extension !== 'xlsx' && extension !== 'xlsm') {
+      setPasswordFeedback({
+        type: 'error',
+        message: 'Envie a planilha no formato .xlsx.',
+      })
+      return
+    }
+
+    setImportingPasswordSheet(true)
+    setPasswordFeedback(null)
+    try {
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = String(reader.result ?? '')
+          const encoded = result.includes(',') ? result.split(',')[1] : result
+          resolve(encoded ?? '')
+        }
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(file)
+      })
+      const response = await api.importPasswordSheet({ fileName: file.name, fileBase64 })
+      const bytes = Uint8Array.from(atob(response.fileBase64), (char) => char.charCodeAt(0))
+      const url = URL.createObjectURL(
+        new Blob([bytes], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }),
+      )
+      const link = document.createElement('a')
+      link.href = url
+      link.download = response.fileName
+      link.click()
+      URL.revokeObjectURL(url)
+      if (response.records.length) {
+        setPasswordRecords((current) => {
+          const incoming = new Map(response.records.map((record) => [record.id, record]))
+          const kept = current.filter((record) => !incoming.has(record.id))
+          return [...response.records, ...kept]
+        })
+      }
+      const existingNote = response.existingCount
+        ? ` ${response.existingCount} já tinham senha e foram reaproveitadas.`
+        : ''
+      setPasswordFeedback({
+        type: 'success',
+        message: `Planilha ${response.model} preenchida: ${response.generatedCount} senha(s) de ${response.individualDigits} dígitos e senha mestra de ${response.masterDigits} salvas.${existingNote}`,
+      })
+    } catch (error) {
+      setPasswordFeedback({
+        type: 'error',
+        message:
+          error instanceof ApiError ? error.message : 'Não foi possível importar a planilha.',
+      })
+    } finally {
+      setImportingPasswordSheet(false)
     }
   }
 
@@ -5252,7 +5319,30 @@ function HomePanel({
                   <button className="secondary-button" type="button" onClick={handleCopyAllPasswords}>
                     Copiar
                   </button>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={importingPasswordSheet}
+                    onClick={() => passwordSheetInputRef.current?.click()}
+                  >
+                    {importingPasswordSheet ? 'Importando...' : 'Importar planilha'}
+                  </button>
+                  <input
+                    ref={passwordSheetInputRef}
+                    type="file"
+                    accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    hidden
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      event.target.value = ''
+                      if (file) void handleImportPasswordSheet(file)
+                    }}
+                  />
                 </div>
+                <p>
+                  No modelo ZEUS THS a planilha volta preenchida: senha individual de 32 dígitos
+                  e senha mestra de 16, salvas juntas no banco.
+                </p>
               </section>
             </main>
           )
@@ -5426,12 +5516,19 @@ function HomePanel({
                               className="secondary-button"
                               type="button"
                               onClick={() =>
-                                void handleCopySinglePassword(record.meter, record.password)
+                                void handleCopySinglePassword(
+                                  record.meter,
+                                  record.password,
+                                  record.masterPassword,
+                                )
                               }
                             >
                               Copiar
                             </button>
                           </div>
+                          {record.masterPassword ? (
+                            <span>Senha mestra: {record.masterPassword}</span>
+                          ) : null}
                         </article>
                       ) : (
                         <article key={record.id} className="consult-item">
@@ -5442,6 +5539,9 @@ function HomePanel({
                             ) : null}
                           </div>
                           <span>Senha: {record.password}</span>
+                          {record.masterPassword ? (
+                            <span>Senha mestra: {record.masterPassword}</span>
+                          ) : null}
                           <span>Fabricante: {record.manufacturer}</span>
                           <span>Codigo de material: {record.materialType}</span>
                           <span>Numero de pedido: {record.orderNumber || '-'}</span>
@@ -5603,6 +5703,9 @@ function HomePanel({
                           </button>
                         </div>
                         <span>Senha: {record.password}</span>
+                        {record.masterPassword ? (
+                          <span>Senha mestra: {record.masterPassword}</span>
+                        ) : null}
                         <span>Fabricante: {record.manufacturer}</span>
                         <span>Codigo de material: {record.materialType}</span>
                         <span>Numero de pedido: {record.orderNumber || '-'}</span>
