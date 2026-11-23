@@ -2,7 +2,7 @@ import express from 'express'
 import cookieParser from 'cookie-parser'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { query } from './db.js'
+import { isDiskFullError, query } from './db.js'
 import { warmupInspectionOcr } from './inspection-pdf-ocr.js'
 import { migrate } from './migrate.js'
 import { seed } from './seed.js'
@@ -866,6 +866,23 @@ async function start() {
       if (res.headersSent) {
         return
       }
+      const status =
+        error && typeof error === 'object' && 'status' in error
+          ? Number((error as { status?: unknown }).status)
+          : 500
+      if (status === 413) {
+        res.status(413).json({
+          error: 'O arquivo enviado é grande demais. Reduza a foto e tente novamente.',
+        })
+        return
+      }
+      if (isDiskFullError(error)) {
+        res.status(503).json({
+          error:
+            'O armazenamento do portal está cheio e o agendamento não foi gravado. Tente novamente em alguns minutos.',
+        })
+        return
+      }
       res.status(500).json({ error: 'Erro interno do servidor.' })
     },
   )
@@ -886,17 +903,24 @@ async function start() {
       console.error('Falha ao pré-carregar OCR de inspeção:', error)
     })
   } catch (error) {
-    const code =
-      error && typeof error === 'object' && 'code' in error
-        ? String((error as { code?: unknown }).code)
-        : ''
-    if (code !== '53100') {
+    if (!isDiskFullError(error)) {
       throw error
     }
     console.error(
-      'Disco do Postgres cheio (53100). O site continua no ar em leitura; aumente o volume no Railway.',
+      'Disco do Postgres cheio (53100). Liberando espaço para o agendamento voltar a gravar.',
       error,
     )
+    const { reclaimDiskForWrite } = await import('./reclaim-disk.js')
+    const freed = await reclaimDiskForWrite()
+    if (freed) {
+      await migrate()
+      await seed()
+      console.log('Banco de dados pronto depois de liberar espaço.')
+    } else {
+      console.error(
+        'Não foi possível liberar espaço. O site continua no ar, mas gravações novas podem falhar.',
+      )
+    }
     try {
       const sizes = await query<{ table: string; total: string }>(
         `SELECT relname AS table, pg_size_pretty(pg_total_relation_size(relid)) AS total

@@ -27,6 +27,23 @@ import { STILL_AWAITING_ENTRADA_SQL, normalizedMeterColumnSql, scheduleCountedFr
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 
+function asDate(value: Date | string | null | undefined): Date | null {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function blockDateKey(value: Date | string | null | undefined): string {
+  if (value instanceof Date) {
+    const year = value.getFullYear()
+    const month = String(value.getMonth() + 1).padStart(2, '0')
+    const day = String(value.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  const key = String(value ?? '').slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : ''
+}
+
 async function findMeterAlreadyInBase(meter: string) {
   const normalized = normalizeScheduleMeter(meter)
   if (!normalized) return false
@@ -307,9 +324,12 @@ function mapMeterSchedule(
   row: MeterScheduleRow,
   viewer?: { id?: string; registration?: string | null } | null,
 ) {
-  const deliveryDeadlineAt = lastFridayBeforeAssay(row.scheduled_at)
+  const scheduledAt = asDate(row.scheduled_at) ?? new Date()
+  const createdAt = asDate(row.created_at) ?? scheduledAt
+  const receivedAt = asDate(row.received_at)
+  const deliveryDeadlineAt = lastFridayBeforeAssay(scheduledAt)
   const isLate = isMeterDeliveryLate({
-    scheduledAt: row.scheduled_at,
+    scheduledAt,
     trailStep: row.trail_step,
     entradaTrailStep: ENTRADA_TRAIL_STEP,
     received: Boolean(row.received_at),
@@ -341,14 +361,14 @@ function mapMeterSchedule(
     envelopeSeal: row.envelope_seal || '',
     scheduledByName: row.scheduled_by_name || '',
     schedulingDate: row.scheduling_date,
-    scheduledAt: row.scheduled_at.toISOString(),
-    scheduledAtLabel: formatAvailableSlot(row.scheduled_at),
+    scheduledAt: scheduledAt.toISOString(),
+    scheduledAtLabel: formatAvailableSlot(scheduledAt),
     deliveryDeadlineAt: deliveryDeadlineAt.toISOString(),
     deliveryDeadlineLabel: formatDeliveryDeadlineLabel(deliveryDeadlineAt),
     isLate,
     trailStep: row.trail_step,
     source: row.source,
-    createdAt: row.created_at.toISOString(),
+    createdAt: createdAt.toISOString(),
     createdByUserId: row.created_by_user_id,
     createdByRegistration: row.created_by_registration,
     createdByName: row.created_by_name || '',
@@ -357,7 +377,7 @@ function mapMeterSchedule(
     demmDocumentNumber: row.demm_document_number ?? null,
     demmMeterCount: Number(row.demm_meter_count ?? 0),
     registryStatus: row.registry_status || '',
-    receivedAt: row.received_at?.toISOString() ?? null,
+    receivedAt: receivedAt?.toISOString() ?? null,
     inspectionAnalysisCompleted: Boolean(row.inspection_analysis_completed_at),
     analysisBlockReason: (row.inspection_analysis_block_reason ?? '').trim(),
     delayJustification: (row.delay_justification ?? '').trim(),
@@ -911,15 +931,20 @@ export async function createMeterSchedule(req: Request, res: Response) {
   const blocks = await query<{ blocked_date: string }>(
     `SELECT blocked_date::text FROM ensaios_manual_blocks`,
   )
-  const manualBlocks = new Set(blocks.rows.map((block) => block.blocked_date.slice(0, 10)))
-  const occupied = await query<{ scheduled_at: Date }>(
+  const manualBlocks = new Set(
+    blocks.rows.map((block) => blockDateKey(block.blocked_date)).filter(Boolean),
+  )
+  const occupied = await query<{ scheduled_at: Date | string }>(
     `SELECT scheduled_at
      FROM meter_schedules
-     WHERE delay_dismissed_at IS NULL`,
+     WHERE delay_dismissed_at IS NULL
+       AND scheduled_at >= NOW()`,
   )
-  const occupiedSlots = new Set(
-    occupied.rows.map((row) => scheduleSlotKey(new Date(row.scheduled_at))),
-  )
+  const occupiedSlots = new Set<string>()
+  for (const row of occupied.rows) {
+    const slot = asDate(row.scheduled_at)
+    if (slot) occupiedSlots.add(scheduleSlotKey(slot))
+  }
   const nextSlot = findNextAvailableSlot(manualBlocks, occupiedSlots)
 
   if (!nextSlot) {
@@ -1243,7 +1268,9 @@ export async function rescheduleMeterSchedule(req: Request, res: Response) {
   const blocks = await query<{ blocked_date: string }>(
     `SELECT blocked_date::text FROM ensaios_manual_blocks`,
   )
-  const manualBlocks = new Set(blocks.rows.map((block) => block.blocked_date.slice(0, 10)))
+  const manualBlocks = new Set(
+    blocks.rows.map((block) => blockDateKey(block.blocked_date)).filter(Boolean),
+  )
 
   if (isScheduleDayBlocked(nextDate, manualBlocks)) {
     res.status(400).json({

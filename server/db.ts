@@ -12,9 +12,27 @@ export const pool = new Pool({
       : undefined,
 })
 
+export function isDiskFullError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      String((error as { code?: unknown }).code) === '53100',
+  )
+}
+
 export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   text: string,
   params?: unknown[],
-) {
-  return pool.query<T>(text, params)
+  attempt = 0,
+): Promise<pg.QueryResult<T>> {
+  try {
+    return await pool.query<T>(text, params)
+  } catch (error) {
+    if (!isDiskFullError(error) || attempt > 0) throw error
+    const { reclaimDiskForWrite } = await import('./reclaim-disk.js')
+    const freed = await reclaimDiskForWrite()
+    if (!freed) throw error
+    return query<T>(text, params, attempt + 1)
+  }
 }
