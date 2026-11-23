@@ -313,6 +313,7 @@ export async function migrate() {
     ALTER TABLE password_records ADD COLUMN IF NOT EXISTS password_lls TEXT NOT NULL DEFAULT '';
     ALTER TABLE password_records ADD COLUMN IF NOT EXISTS password_complement TEXT NOT NULL DEFAULT '';
     ALTER TABLE password_records ADD COLUMN IF NOT EXISTS password_hex TEXT NOT NULL DEFAULT '';
+    ALTER TABLE password_records ADD COLUMN IF NOT EXISTS password_extra TEXT NOT NULL DEFAULT '';
     ALTER TABLE ensaios_manual_blocks ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT '';
     ALTER TABLE csds ADD COLUMN IF NOT EXISTS cities JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE csds ALTER COLUMN responsible_user_id DROP NOT NULL;
@@ -358,7 +359,8 @@ export async function migrate() {
   await query(`
     ALTER TABLE password_records
       ADD COLUMN IF NOT EXISTS password_complement TEXT NOT NULL DEFAULT '',
-      ADD COLUMN IF NOT EXISTS password_hex TEXT NOT NULL DEFAULT '';
+      ADD COLUMN IF NOT EXISTS password_hex TEXT NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS password_extra TEXT NOT NULL DEFAULT '';
   `)
 
   await query(`

@@ -22,8 +22,10 @@ export type PasswordSheetProfile = {
 /**
  * ZEUS THS: uma senha de 32 e senha mestra de 16.
  * ZEUS: senha AK e EK de 16, senha LLS de 8 e senha mestra de 16.
- * Cronos NG+: uma senha de 32, sem senha mestra.
+ * Cronos NG+ e ARES: uma senha, em geral de 32, sem senha mestra.
  * NSX ABNT: senha de 10. A fórmula junta 333333 e converte os 16 caracteres para hexadecimal.
+ * Pantheon: senhas coletivas, repetidas para cada série do nome do arquivo.
+ * DR NG: senhas coletivas e, quando a planilha traz, senhas por medidor.
  * O campo amarelo de senha única fica vazio.
  */
 const PROFILES: PasswordSheetProfile[] = [
@@ -60,6 +62,29 @@ const PROFILES: PasswordSheetProfile[] = [
     columns: [
       { key: 'password', label: 'Senha', digits: 32, matches: (header) => header === 'senha' },
     ],
+  },
+  {
+    id: 'ares',
+    label: 'ARES',
+    masterDigits: 0,
+    passwordType: 'alphanumeric',
+    columns: [
+      { key: 'password', label: 'Senha', digits: 32, matches: (header) => header === 'senha' },
+    ],
+  },
+  {
+    id: 'pantheon',
+    label: 'Pantheon',
+    masterDigits: 0,
+    passwordType: 'alphanumeric',
+    columns: [],
+  },
+  {
+    id: 'dr-ng',
+    label: 'DR NG',
+    masterDigits: 0,
+    passwordType: 'alphanumeric',
+    columns: [],
   },
   {
     id: 'nansen-nsx',
@@ -100,6 +125,7 @@ export type ParsedPasswordSheet = {
     passwords: ParsedPasswordCell[]
     complement?: string
     hex?: string
+    extras?: Array<{ label: string; value: string }>
   }>
 }
 
@@ -129,6 +155,9 @@ function matchProfile(workbookText: string) {
   if (/cronos\s*ng\+/i.test(workbookText)) {
     return PROFILES.find((profile) => profile.id === 'cronos-ng') ?? null
   }
+  if (/medidores\s+ares/i.test(workbookText)) {
+    return PROFILES.find((profile) => profile.id === 'ares') ?? null
+  }
   return null
 }
 
@@ -155,7 +184,7 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
   const profile = matchProfile(texts.join('\n'))
   if (!profile) {
     throw new Error(
-      'Este modelo de planilha ainda não está cadastrado. Os modelos disponíveis são ZEUS THS, ZEUS, Cronos NG+ e NSX ABNT.',
+      'Este modelo de planilha ainda não está cadastrado. Os modelos disponíveis são ZEUS THS, ZEUS, Cronos NG+, ARES, Pantheon, DR NG e NSX ABNT.',
     )
   }
 
@@ -172,7 +201,7 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
   for (let row = range.s.r; row <= range.e.r; row += 1) {
     const label = normalizeLabel(cellText(sheet, row, 0))
     const value = cellText(sheet, row, 1)
-    if (!title && /zeus|cronos/i.test(value)) title = value
+    if (!title && /zeus|cronos|ares|pantheon|dr ng/i.test(value)) title = value
     if (label === 'fabricante') manufacturer = value
     if (label === 'cliente') client = value
     if (label === 'codigo de material') materialCode = value
@@ -214,6 +243,11 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
         break
       }
     }
+    if (column < 0 && rule.key === 'password') {
+      const header = normalizeLabel(cellText(sheet, headerRow, 1))
+      const sample = cellText(sheet, headerRow + 1, 1)
+      if (!header && sample) column = 1
+    }
     if (column < 0) {
       throw new Error(`Não encontrei a coluna ${rule.label} nesta planilha.`)
     }
@@ -225,7 +259,7 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
   for (let row = headerRow + 1; row <= range.e.r; row += 1) {
     const meter = cellText(sheet, row, 0).replace(/\s+/g, '')
     if (!meter) continue
-    if (!/^\d+$/.test(meter)) {
+    if (!/^D?\d+$/i.test(meter)) {
       throw new Error(`Número de série inválido na linha ${row + 1}: ${meter}.`)
     }
     if (seen.has(meter)) {
@@ -370,14 +404,188 @@ async function parseNansenNsx(buffer: Buffer): Promise<ParsedPasswordSheet> {
   }
 }
 
-export async function parsePasswordBuffer(buffer: Buffer): Promise<ParsedPasswordSheet> {
+function serialsFromFileName(fileName: string) {
+  const match = fileName.match(/serie\s+(D?\d+)\s+a\s+(D?\d+)/i)
+  if (!match) return []
+  const left = match[1].toUpperCase()
+  const right = match[2].toUpperCase()
+  const leftPrefixed = left.startsWith('D')
+  const rightPrefixed = right.startsWith('D')
+  if (leftPrefixed !== rightPrefixed) return []
+  const prefix = leftPrefixed ? 'D' : ''
+  const startText = left.slice(prefix.length)
+  const endText = right.slice(prefix.length)
+  const start = Number(startText)
+  const end = Number(endText)
+  if (!Number.isInteger(start) || !Number.isInteger(end) || end < start || end - start > 20000) {
+    return []
+  }
+  const meters: string[] = []
+  for (let value = start; value <= end; value += 1) {
+    meters.push(prefix + String(value).padStart(startText.length, '0'))
+  }
+  return meters
+}
+
+function collectiveKind(label: string) {
+  if (label.includes('prefixo ssid')) return 'ssid'
+  if (label.includes('wifi')) return 'wifi'
+  if (label.includes('repareamento')) return 'repair'
+  if (label === 'senha mk' || label.startsWith('senha mk ')) return 'mk'
+  if (label === 'senha ak' || label.startsWith('senha ak ')) return 'ak'
+  if (label === 'senha ek' || label.startsWith('senha ek ')) return 'ek'
+  if (label === 'senha bk' || label.startsWith('senha bk ')) return 'bk'
+  if (label === 'senha lls' || label.startsWith('senha lls ')) return 'lls'
+  if (label === 'senha aes' || label.startsWith('senha aes ')) return 'aes'
+  return ''
+}
+
+function usableCollectiveValue(kind: string, value: string) {
+  if (!value || /deve possuir|preencher|utilizada no modo|utilizada para/i.test(value)) return false
+  if (kind === 'wifi' || kind === 'ssid') return value.length >= 3 && value.length <= 48
+  return value.length >= 8 && value.length <= 64 && !/\s/.test(value)
+}
+
+/** Pantheon traz só senhas coletivas. DR NG traz as coletivas e, em alguns arquivos, senhas por medidor sem título de coluna. */
+function parseCollectiveWorkbook(
+  workbook: xlsx.WorkBook,
+  fileName: string,
+): ParsedPasswordSheet | null {
+  const sheetName = workbook.SheetNames[0]
+  const sheet = sheetName ? workbook.Sheets[sheetName] : undefined
+  if (!sheet) return null
+  const range = xlsx.utils.decode_range(sheet['!ref'] || 'A1:B1')
+  const texts: string[] = []
+  for (let row = range.s.r; row <= Math.min(range.e.r, 20); row += 1) {
+    for (let column = range.s.c; column <= Math.min(range.e.c, 3); column += 1) {
+      const text = cellText(sheet, row, column)
+      if (text) texts.push(text)
+    }
+  }
+  const blob = texts.join('\n')
+  const isPantheon = /pantheon/i.test(blob)
+  const isDr = /\bdr\s*ng\b/i.test(blob)
+  if (!isPantheon && !isDr) return null
+  const profile = PROFILES.find((item) => item.id === (isDr ? 'dr-ng' : 'pantheon'))
+  if (!profile) return null
+
+  let title = ''
+  let manufacturer = ''
+  let materialCode = ''
+  let orderNumber = ''
+  let client = ''
+  const shared = new Map<string, string>()
+  for (let row = range.s.r; row <= Math.min(range.e.r, 30); row += 1) {
+    const rawLabel = cellText(sheet, row, 0)
+    const label = normalizeLabel(rawLabel)
+    const value = cellText(sheet, row, 1)
+    if (!title && /pantheon|dr\s*ng/i.test(value || rawLabel)) title = value || rawLabel
+    if (label === 'fabricante') manufacturer = value
+    if (label === 'cliente') client = value
+    if (label === 'codigo de material') materialCode = value
+    if (label === 'pedido de compra') orderNumber = value
+    const kind = collectiveKind(label)
+    if (kind && usableCollectiveValue(kind, value)) shared.set(kind, value)
+  }
+
+  if (!manufacturer || !materialCode || !orderNumber) {
+    throw new Error(
+      'A planilha precisa informar fabricante, código de material e pedido de compra.',
+    )
+  }
+
+  const extraShared = [
+    shared.get('mk') ? { label: 'Senha MK (coletiva)', value: shared.get('mk')! } : null,
+    shared.get('repair')
+      ? { label: 'Senha de Repareamento (coletiva)', value: shared.get('repair')! }
+      : null,
+    shared.get('bk') ? { label: 'Senha BK (coletiva)', value: shared.get('bk')! } : null,
+    shared.get('aes') ? { label: 'Senha AES (coletiva)', value: shared.get('aes')! } : null,
+    shared.get('wifi') ? { label: 'Senha Wifi (coletiva)', value: shared.get('wifi')! } : null,
+    shared.get('ssid') ? { label: 'Prefixo SSID', value: shared.get('ssid')! } : null,
+  ].filter((item): item is { label: string; value: string } => Boolean(item))
+
+  const meters: ParsedPasswordSheet['meters'] = []
+  const seen = new Set<string>()
+  for (let row = range.s.r; row <= range.e.r; row += 1) {
+    const meter = cellText(sheet, row, 0).replace(/\s+/g, '')
+    if (!/^D?\d+$/i.test(meter)) continue
+    if (seen.has(meter)) throw new Error(`O número de série ${meter} está repetido na planilha.`)
+    seen.add(meter)
+    const individualB = cellText(sheet, row, 1)
+    const individualC = cellText(sheet, row, 2)
+    const individualD = cellText(sheet, row, 3)
+    const extras = [...extraShared]
+    if (usableCollectiveValue('mk', individualC)) {
+      extras.push({ label: 'Senha MK', value: individualC })
+    }
+    if (usableCollectiveValue('aes', individualD)) {
+      extras.push({ label: 'Senha AES', value: individualD })
+    }
+    const passwords: ParsedPasswordCell[] = []
+    if (usableCollectiveValue('password', individualB)) {
+      passwords.push({
+        key: 'password',
+        label: 'Senha',
+        digits: individualB.length,
+        cell: xlsx.utils.encode_cell({ r: row, c: 1 }),
+        existing: individualB,
+      })
+    }
+    meters.push({ meter: meter.toUpperCase().startsWith('D') ? `D${meter.replace(/\D/g, '')}` : meter, passwords, extras })
+  }
+
+  if (!meters.length && isPantheon) {
+    const serials = serialsFromFileName(fileName)
+    if (!serials.length) {
+      throw new Error('A planilha Pantheon não informa os números de série.')
+    }
+    const passwords: ParsedPasswordCell[] = []
+    const pushSlot = (key: SheetPasswordKey, label: string, value: string | undefined) => {
+      if (!value) return
+      passwords.push({ key, label, digits: value.length, cell: '', existing: value })
+    }
+    pushSlot('ak', 'Senha AK', shared.get('ak'))
+    pushSlot('ek', 'Senha EK', shared.get('ek'))
+    pushSlot('lls', 'Senha LLS', shared.get('lls'))
+    for (const meter of serials) {
+      meters.push({ meter, passwords, extras: extraShared })
+    }
+  }
+
+  if (!meters.length) {
+    throw new Error('Nenhum número de série encontrado na planilha.')
+  }
+
+  return {
+    profile: {
+      ...profile,
+      label: isDr ? 'DR NG' : /ng/i.test(title) ? 'Pantheon NG' : 'Pantheon',
+    },
+    title: title || profile.label,
+    manufacturer,
+    materialCode,
+    orderNumber,
+    client,
+    masterCell: '',
+    uniquePasswordCells: [],
+    existingMaster: '',
+    keepFormulas: true,
+    meters,
+  }
+}
+
+export async function parsePasswordBuffer(buffer: Buffer, fileName = ''): Promise<ParsedPasswordSheet> {
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.load(buffer)
   const marker = workbook.worksheets
     .map((sheet) => excelText(sheet.getCell(1, 1).value))
     .join('\n')
   if (/familia nsx|protocolo abnt/i.test(marker)) return parseNansenNsx(buffer)
-  return parsePasswordSheet(workbookFromBuffer(buffer))
+  const sheetWorkbook = workbookFromBuffer(buffer)
+  const collective = parseCollectiveWorkbook(sheetWorkbook, fileName)
+  if (collective) return collective
+  return parsePasswordSheet(sheetWorkbook)
 }
 
 export function randomPassword(length: number) {

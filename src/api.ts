@@ -215,6 +215,7 @@ export type PasswordRecord = {
   passwordLls?: string
   passwordComplement?: string
   passwordHex?: string
+  passwordExtras?: Array<{ label: string; value: string }>
   masterPassword?: string
   manufacturer: string
   materialType: string
@@ -1494,6 +1495,7 @@ export const api = {
       masterDigits: number
       generatedCount: number
       existingCount: number
+      skipped?: Array<{ name: string; reason: string }>
       records: PasswordRecord[]
     }>('/api/password-records/import-sheet', {
       method: 'POST',

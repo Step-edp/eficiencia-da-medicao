@@ -155,6 +155,39 @@ function extractSsoTokenFromHash(hash: string): string | null {
   return match?.[1] ? decodeURIComponent(match[1]) : null
 }
 
+function primaryPasswordLabel(record: {
+  password: string
+  passwordExtras?: Array<{ label: string; value: string }>
+}) {
+  return record.passwordExtras?.find((item) => item.value && item.value === record.password)?.label || 'Senha'
+}
+
+function visiblePasswordExtras(record: {
+  password: string
+  passwordAk?: string
+  passwordEk?: string
+  passwordLls?: string
+  passwordComplement?: string
+  passwordHex?: string
+  masterPassword?: string
+  passwordExtras?: Array<{ label: string; value: string }>
+}) {
+  const shown = new Set(
+    [
+      record.password,
+      record.passwordAk,
+      record.passwordEk,
+      record.passwordLls,
+      record.passwordComplement,
+      record.passwordHex,
+      record.masterPassword,
+    ]
+      .map((value) => value?.trim())
+      .filter(Boolean),
+  )
+  return (record.passwordExtras ?? []).filter((item) => item.value && !shown.has(item.value))
+}
+
 export default function App() {
   const [activePanel, setActivePanel] = useState<Panel>('login')
   const [activeRoute, setActiveRoute] = useState<AppRoute>(() =>
@@ -3689,6 +3722,7 @@ function HomePanel({
           record.passwordComplement || '',
           record.passwordHex || '',
           record.masterPassword || '',
+          ...visiblePasswordExtras(record).map((item) => item.value),
           record.manufacturer,
           origem,
         ].join('\t')
@@ -3718,15 +3752,28 @@ function HomePanel({
     passwordLls = '',
     passwordComplement = '',
     passwordHex = '',
+    passwordExtras: Array<{ label: string; value: string }> = [],
   ) => {
     const lines = [
-      passwordAk && password && password !== passwordAk ? `Senha: ${password}` : '',
-      passwordAk ? `Senha AK: ${passwordAk}` : `Senha: ${password}`,
+      passwordAk && password && password !== passwordAk
+        ? `${primaryPasswordLabel({ password, passwordExtras })}: ${password}`
+        : '',
+      passwordAk ? `Senha AK: ${passwordAk}` : `${primaryPasswordLabel({ password, passwordExtras })}: ${password}`,
       passwordEk ? `Senha EK: ${passwordEk}` : '',
       passwordLls ? `Senha LLS: ${passwordLls}` : '',
       passwordComplement ? `Senha de Produção: ${passwordComplement}` : '',
       passwordHex ? `Senha AK e EK: ${passwordHex}` : '',
       masterPassword ? `Senha mestra: ${masterPassword}` : '',
+      ...visiblePasswordExtras({
+        password,
+        passwordAk,
+        passwordEk,
+        passwordLls,
+        passwordComplement,
+        passwordHex,
+        masterPassword,
+        passwordExtras,
+      }).map((item) => `${item.label}: ${item.value}`),
     ].filter(Boolean)
     const text = lines.join('\n')
     try {
@@ -3876,10 +3923,10 @@ function HomePanel({
 
   const handleImportPasswordSheet = async (file: File) => {
     const extension = file.name.split('.').pop()?.toLowerCase()
-    if (extension !== 'xlsx' && extension !== 'xlsm') {
+    if (extension !== 'xlsx' && extension !== 'xlsm' && extension !== 'zip') {
       setPasswordFeedback({
         type: 'error',
-        message: 'Envie a planilha no formato .xlsx.',
+        message: 'Envie a planilha no formato .xlsx ou um zip com as planilhas.',
       })
       return
     }
@@ -3898,18 +3945,23 @@ function HomePanel({
         reader.readAsDataURL(file)
       })
       const response = await api.importPasswordSheet({ fileName: file.name, fileBase64 })
-      const bytes = Uint8Array.from(atob(response.fileBase64), (char) => char.charCodeAt(0))
-      const url = URL.createObjectURL(
-        new Blob([bytes], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        }),
-      )
-      const link = document.createElement('a')
-      link.href = url
-      link.download = response.fileName
-      link.click()
-      URL.revokeObjectURL(url)
-      if (response.records.length) {
+      if (response.fileBase64) {
+        const bytes = Uint8Array.from(atob(response.fileBase64), (char) => char.charCodeAt(0))
+        const url = URL.createObjectURL(
+          new Blob([bytes], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          }),
+        )
+        const link = document.createElement('a')
+        link.href = url
+        link.download = response.fileName
+        link.click()
+        URL.revokeObjectURL(url)
+      }
+      if (extension === 'zip') {
+        const listed = await api.listPasswordRecords()
+        setPasswordRecords(listed.records)
+      } else if (response.records.length) {
         setPasswordRecords((current) => {
           const incoming = new Map(response.records.map((record) => [record.id, record]))
           const kept = current.filter((record) => !incoming.has(record.id))
@@ -3917,11 +3969,14 @@ function HomePanel({
         })
       }
       const existingNote = response.existingCount
-        ? ` ${response.existingCount} já tinham senha: ela foi mantida e senha AK, EK, LLS e senha mestra foram acrescentadas quando faltavam.`
+        ? ` ${response.existingCount} já tinham senha e foram completados só no que faltava.`
+        : ''
+      const skippedNote = response.skipped?.length
+        ? ` ${response.skipped.length} planilha(s) sem senha ou sem número de série ficaram de fora.`
         : ''
       setPasswordFeedback({
         type: 'success',
-        message: `Planilha ${response.model} preenchida: ${response.generatedCount} medidor(es) com ${response.passwordSummary}.${existingNote}`,
+        message: `Planilha ${response.model} preenchida: ${response.generatedCount} medidor(es) com ${response.passwordSummary}.${existingNote}${skippedNote}`,
       })
     } catch (error) {
       setPasswordFeedback({
@@ -5356,7 +5411,7 @@ function HomePanel({
                   <input
                     ref={passwordSheetInputRef}
                     type="file"
-                    accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    accept=".xlsx,.xlsm,.zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip"
                     hidden
                     onChange={(event) => {
                       const file = event.target.files?.[0]
@@ -5367,11 +5422,13 @@ function HomePanel({
                 </div>
                 <p>
                   ZEUS THS volta com senha de 32 dígitos. ZEUS volta com senha AK e EK de 16
-                  e senha LLS de 8. Cronos NG+ volta com senha de 32 dígitos. NSX ABNT guarda a
-                  senha de 10, a senha de produção e a senha AK e EK. Quando o modelo
-                  tem senha mestra, ela fica salva junto e o campo amarelo de senha única
-                  permanece vazio. No ZEUS, se o medidor já estiver no banco, a senha salva é
-                  mantida e só entram senha EK, senha LLS e senha mestra.
+                  e senha LLS de 8. Cronos NG+ e ARES voltam com a senha da planilha. NSX ABNT
+                  guarda a senha de 10, a senha de produção e a senha AK e EK. Pantheon e DR NG
+                  guardam as senhas coletivas de cada série. Um zip com várias planilhas cadastra
+                  só o que já está preenchido. Quando o modelo tem senha mestra, ela fica salva
+                  junto e o campo amarelo de senha única permanece vazio. No ZEUS, se o medidor
+                  já estiver no banco, a senha salva é mantida e só entram senha EK, senha LLS e
+                  senha mestra.
                 </p>
               </section>
             </main>
@@ -5555,6 +5612,7 @@ function HomePanel({
                                   record.passwordLls,
                                   record.passwordComplement,
                                   record.passwordHex,
+                                  record.passwordExtras,
                                 )
                               }
                             >
@@ -5573,6 +5631,11 @@ function HomePanel({
                           {record.masterPassword ? (
                             <span>Senha mestra: {record.masterPassword}</span>
                           ) : null}
+                          {visiblePasswordExtras(record).map((item) => (
+                            <span key={item.label}>
+                              {item.label}: {item.value}
+                            </span>
+                          ))}
                         </article>
                       ) : (
                         <article key={record.id} className="consult-item">
@@ -5583,12 +5646,12 @@ function HomePanel({
                             ) : null}
                           </div>
                           {record.passwordAk && record.password !== record.passwordAk ? (
-                            <span>Senha: {record.password}</span>
+                            <span>{primaryPasswordLabel(record)}: {record.password}</span>
                           ) : null}
                           {record.passwordAk ? (
                             <span>Senha AK: {record.passwordAk}</span>
                           ) : (
-                            <span>Senha: {record.password}</span>
+                            <span>{primaryPasswordLabel(record)}: {record.password}</span>
                           )}
                           {record.passwordEk ? <span>Senha EK: {record.passwordEk}</span> : null}
                           {record.passwordLls ? <span>Senha LLS: {record.passwordLls}</span> : null}
@@ -5601,6 +5664,11 @@ function HomePanel({
                           {record.masterPassword ? (
                             <span>Senha mestra: {record.masterPassword}</span>
                           ) : null}
+                          {visiblePasswordExtras(record).map((item) => (
+                            <span key={item.label}>
+                              {item.label}: {item.value}
+                            </span>
+                          ))}
                           <span>Fabricante: {record.manufacturer}</span>
                           <span>Codigo de material: {record.materialType}</span>
                           <span>Numero de pedido: {record.orderNumber || '-'}</span>
@@ -5762,12 +5830,12 @@ function HomePanel({
                           </button>
                         </div>
                         {record.passwordAk && record.password !== record.passwordAk ? (
-                          <span>Senha: {record.password}</span>
+                          <span>{primaryPasswordLabel(record)}: {record.password}</span>
                         ) : null}
                         {record.passwordAk ? (
                           <span>Senha AK: {record.passwordAk}</span>
                         ) : (
-                          <span>Senha: {record.password}</span>
+                          <span>{primaryPasswordLabel(record)}: {record.password}</span>
                         )}
                         {record.passwordEk ? <span>Senha EK: {record.passwordEk}</span> : null}
                         {record.passwordLls ? <span>Senha LLS: {record.passwordLls}</span> : null}
@@ -5780,6 +5848,11 @@ function HomePanel({
                         {record.masterPassword ? (
                           <span>Senha mestra: {record.masterPassword}</span>
                         ) : null}
+                        {visiblePasswordExtras(record).map((item) => (
+                          <span key={item.label}>
+                            {item.label}: {item.value}
+                          </span>
+                        ))}
                         <span>Fabricante: {record.manufacturer}</span>
                         <span>Codigo de material: {record.materialType}</span>
                         <span>Numero de pedido: {record.orderNumber || '-'}</span>

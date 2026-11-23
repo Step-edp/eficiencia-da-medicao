@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express'
+import { inflateRawSync } from 'node:zlib'
 import { query } from '../db.js'
 import { requireAuth, requireAdmin } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
@@ -17,6 +18,7 @@ type PasswordRow = {
   password_lls?: string | null
   password_complement?: string | null
   password_hex?: string | null
+  password_extra?: string | null
   master_password?: string | null
   manufacturer: string
   material_type: string
@@ -25,6 +27,36 @@ type PasswordRow = {
   digits: number
   source?: string | null
   created_at: Date
+}
+
+function mergePasswordExtras(
+  current: string | null | undefined,
+  incoming: Array<{ label: string; value: string }>,
+) {
+  const merged = parsePasswordExtras(current)
+  const labels = new Set(merged.map((item) => item.label))
+  for (const item of incoming) {
+    if (!item.value || labels.has(item.label)) continue
+    merged.push(item)
+    labels.add(item.label)
+  }
+  return JSON.stringify(merged)
+}
+
+function parsePasswordExtras(value?: string | null) {
+  if (!value) return [] as Array<{ label: string; value: string }>
+  try {
+    const parsed = JSON.parse(value) as Array<{ label?: unknown; value?: unknown }>
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .map((item) => ({
+        label: String(item?.label ?? '').trim(),
+        value: String(item?.value ?? '').trim(),
+      }))
+      .filter((item) => item.label && item.value)
+  } catch {
+    return []
+  }
 }
 
 function mapPassword(row: PasswordRow) {
@@ -39,6 +71,7 @@ function mapPassword(row: PasswordRow) {
     passwordLls: row.password_lls?.trim() ?? '',
     passwordComplement: row.password_complement?.trim() ?? '',
     passwordHex: row.password_hex?.trim() ?? '',
+    passwordExtras: parsePasswordExtras(row.password_extra),
     masterPassword: row.master_password?.trim() ?? '',
     manufacturer: row.manufacturer,
     materialType: row.material_type,
@@ -557,6 +590,260 @@ function storedSheetPassword(
   return row.password?.trim() ?? ''
 }
 
+type ArchiveDraft = {
+  meter: string
+  manufacturer: string
+  materialCode: string
+  orderNumber: string
+  password: string
+  ak: string
+  ek: string
+  lls: string
+  complement: string
+  hex: string
+  master: string
+  extras: Array<{ label: string; value: string }>
+  rank: number
+  expected: number
+}
+
+function fileRank(name: string) {
+  const date = name.match(/(\d{4})-(\d{2})-(\d{2})/)
+  const stamp = date ? Number(`${date[1]}${date[2]}${date[3]}`) : 0
+  return stamp * 10 + (/_2_/.test(name) ? 0 : 1)
+}
+
+function chooseFilled(
+  current: string,
+  incoming: string,
+  currentRank: number,
+  incomingRank: number,
+  expected = 0,
+) {
+  if (!incoming) return current
+  if (!current) return incoming
+  if (expected > 0 && current.length === expected && incoming.length !== expected) return current
+  if (expected > 0 && incoming.length === expected && current.length !== expected) return incoming
+  if (incoming.length !== current.length) return incoming.length > current.length ? incoming : current
+  return incomingRank >= currentRank ? incoming : current
+}
+
+function unzipSpreadsheets(buffer: Buffer) {
+  const files: Array<{ name: string; data: Buffer }> = []
+  let offset = 0
+  while (offset + 30 <= buffer.length && buffer.readUInt32LE(offset) === 0x04034b50) {
+    const flags = buffer.readUInt16LE(offset + 6)
+    const method = buffer.readUInt16LE(offset + 8)
+    const compressedSize = buffer.readUInt32LE(offset + 18)
+    const nameLength = buffer.readUInt16LE(offset + 26)
+    const extraLength = buffer.readUInt16LE(offset + 28)
+    const nameStart = offset + 30
+    const rawName = buffer.subarray(nameStart, nameStart + nameLength)
+    const name = (flags & 0x800 ? rawName.toString('utf8') : rawName.toString('latin1'))
+      .split(/[/\\]/)
+      .pop()
+    const dataStart = nameStart + nameLength + extraLength
+    const compressed = buffer.subarray(dataStart, dataStart + compressedSize)
+    offset = dataStart + compressedSize
+    if (!name?.toLowerCase().endsWith('.xlsx') || !compressed.length) continue
+    if (method === 0) files.push({ name, data: Buffer.from(compressed) })
+    else if (method === 8) files.push({ name, data: inflateRawSync(compressed) })
+  }
+  return files
+}
+
+async function importPasswordZip(req: Request, res: Response, buffer: Buffer) {
+  const spreadsheets = unzipSpreadsheets(buffer)
+  if (!spreadsheets.length) {
+    res.status(400).json({ error: 'O zip não contém planilhas .xlsx.' })
+    return
+  }
+
+  const drafts = new Map<string, ArchiveDraft>()
+  const skipped: Array<{ name: string; reason: string }> = []
+  for (const file of spreadsheets) {
+    try {
+      const parsed = await parsePasswordBuffer(file.data, file.name)
+      const rank = fileRank(file.name)
+      let kept = 0
+      for (const item of parsed.meters) {
+        const byKey = Object.fromEntries(item.passwords.map((slot) => [slot.key, slot.existing || '']))
+        const extras = (item.extras ?? []).filter((extra) => extra.value)
+        const password =
+          byKey.password || byKey.ak || extras.find((extra) => extra.value)?.value || ''
+        if (!password) continue
+        kept += 1
+        const incoming: ArchiveDraft = {
+          meter: item.meter,
+          manufacturer: parsed.manufacturer,
+          materialCode: parsed.materialCode,
+          orderNumber: parsed.orderNumber,
+          password,
+          ak: byKey.ak || '',
+          ek: byKey.ek || '',
+          lls: byKey.lls || '',
+          complement: item.complement ?? '',
+          hex: item.hex ?? '',
+          master: parsed.existingMaster,
+          extras,
+          rank,
+          expected: parsed.profile.columns[0]?.digits ?? 0,
+        }
+        const current = drafts.get(item.meter)
+        if (!current) {
+          drafts.set(item.meter, incoming)
+          continue
+        }
+        const passwordValue = chooseFilled(
+          current.password,
+          incoming.password,
+          current.rank,
+          incoming.rank,
+          current.expected || incoming.expected,
+        )
+        const mergedExtras = new Map(current.extras.map((extra) => [extra.label, extra.value]))
+        for (const extra of incoming.extras) {
+          mergedExtras.set(
+            extra.label,
+            chooseFilled(mergedExtras.get(extra.label) || '', extra.value, current.rank, incoming.rank),
+          )
+        }
+        const base = passwordValue === incoming.password ? incoming : current
+        drafts.set(item.meter, {
+          ...base,
+          password: passwordValue,
+          ak: chooseFilled(current.ak, incoming.ak, current.rank, incoming.rank, 16),
+          ek: chooseFilled(current.ek, incoming.ek, current.rank, incoming.rank, 16),
+          lls: chooseFilled(current.lls, incoming.lls, current.rank, incoming.rank, 8),
+          complement: chooseFilled(current.complement, incoming.complement, current.rank, incoming.rank),
+          hex: chooseFilled(current.hex, incoming.hex, current.rank, incoming.rank),
+          master: chooseFilled(current.master, incoming.master, current.rank, incoming.rank, 16),
+          extras: [...mergedExtras.entries()]
+            .filter(([, value]) => value)
+            .map(([label, value]) => ({ label, value })),
+          rank: Math.max(current.rank, incoming.rank),
+          expected: current.expected || incoming.expected,
+        })
+      }
+      if (!kept) skipped.push({ name: file.name, reason: 'Nenhuma senha preenchida.' })
+    } catch (error) {
+      skipped.push({
+        name: file.name,
+        reason: error instanceof Error ? error.message : 'Não foi possível ler a planilha.',
+      })
+    }
+  }
+
+  const meters = [...drafts.values()]
+  const existingByMeter = new Map<string, PasswordRow>()
+  for (let index = 0; index < meters.length; index += 2000) {
+    const chunk = meters.slice(index, index + 2000).map((item) => item.meter)
+    const existing = await query<PasswordRow>(
+      `SELECT id, meter, password, password_ak, password_ek, password_lls, password_complement,
+              password_hex, password_extra, master_password, manufacturer, material_type, order_number,
+              password_type, digits, source, created_at
+       FROM password_records
+       WHERE meter = ANY($1::text[])`,
+      [chunk],
+    )
+    for (const row of existing.rows) existingByMeter.set(row.meter.trim(), row)
+  }
+
+  let generatedCount = 0
+  let existingCount = 0
+  const pending: ArchiveDraft[] = []
+  for (const item of meters) {
+    const current = existingByMeter.get(item.meter)
+    if (!current) {
+      pending.push(item)
+      continue
+    }
+    existingCount += 1
+    const sets: string[] = []
+    const params: unknown[] = []
+    const remember = (column: string, next: string, stored: string) => {
+      if (stored.trim() || !next) return
+      params.push(next)
+      sets.push(`${column} = $${params.length}`)
+    }
+    remember('password_ak', item.ak, current.password_ak || '')
+    remember('password_ek', item.ek, current.password_ek || '')
+    remember('password_lls', item.lls, current.password_lls || '')
+    remember('password_complement', item.complement, current.password_complement || '')
+    remember('password_hex', item.hex, current.password_hex || '')
+    remember('master_password', item.master, current.master_password || '')
+    const mergedExtras = mergePasswordExtras(current.password_extra, item.extras)
+    if (item.extras.length && mergedExtras !== (current.password_extra || '[]') && mergedExtras !== (current.password_extra || '')) {
+      params.push(mergedExtras)
+      sets.push(`password_extra = $${params.length}`)
+    }
+    if (sets.length) {
+      params.push(current.id)
+      await query(`UPDATE password_records SET ${sets.join(', ')} WHERE id = $${params.length}`, params)
+    }
+  }
+
+  const createdAt = new Date()
+  for (let index = 0; index < pending.length; index += 200) {
+    const chunk = pending.slice(index, index + 200)
+    const params: unknown[] = []
+    const values = chunk.map((item, itemIndex) => {
+      const base = params.length
+      params.push(
+        `sheet-${createdAt.getTime()}-${index + itemIndex}-${item.meter}`,
+        item.meter,
+        item.password,
+        item.ak,
+        item.ek,
+        item.lls,
+        item.complement,
+        item.hex,
+        JSON.stringify(item.extras),
+        item.master,
+        item.manufacturer,
+        item.materialCode,
+        item.orderNumber,
+        'alphanumeric',
+        item.password.length,
+        'generated',
+        createdAt,
+      )
+      const placeholders = Array.from({ length: 17 }, (_, place) => `$${base + place + 1}`)
+      return `(${placeholders.join(',')})`
+    })
+    await query(
+      `INSERT INTO password_records
+       (id, meter, password, password_ak, password_ek, password_lls, password_complement,
+        password_hex, password_extra, master_password, manufacturer, material_type, order_number,
+        password_type, digits, source, created_at)
+       VALUES ${values.join(',')}`,
+      params,
+    )
+    generatedCount += chunk.length
+  }
+
+  if (generatedCount) {
+    await writeAuditLog(req, {
+      action: 'create',
+      entityType: 'password_record',
+      summary: `${generatedCount} senha(s) importada(s) do pacote de planilhas`,
+      newData: { generatedCount, existingCount, skipped: skipped.length },
+    })
+  }
+
+  res.json({
+    fileName: '',
+    fileBase64: '',
+    model: 'planilhas',
+    passwordSummary: 'as senhas já preenchidas, sem gerar senha nova onde a célula estava vazia',
+    masterDigits: 0,
+    generatedCount,
+    existingCount,
+    skipped,
+    records: [],
+  })
+}
+
 export async function importPasswordSheet(req: Request, res: Response) {
   const { fileName, fileBase64 } = req.body as { fileName?: string; fileBase64?: string }
   const base64 = String(fileBase64 ?? '').replace(/^data:.*?;base64,/, '').trim()
@@ -572,14 +859,21 @@ export async function importPasswordSheet(req: Request, res: Response) {
     res.status(400).json({ error: 'Não foi possível ler a planilha.' })
     return
   }
-  if (!buffer.length || buffer.length > 15_000_000) {
-    res.status(400).json({ error: 'A planilha está vazia ou passou de 15 MB.' })
+  const isZip =
+    String(fileName ?? '').toLowerCase().endsWith('.zip') ||
+    (buffer.length >= 4 && buffer.readUInt32LE(0) === 0x04034b50)
+  if (!buffer.length || buffer.length > (isZip ? 40_000_000 : 15_000_000)) {
+    res.status(400).json({ error: 'A planilha está vazia ou passou do tamanho aceito.' })
+    return
+  }
+  if (isZip) {
+    await importPasswordZip(req, res, buffer)
     return
   }
 
   let parsed
   try {
-    parsed = await parsePasswordBuffer(buffer)
+    parsed = await parsePasswordBuffer(buffer, String(fileName ?? ''))
   } catch (error) {
     res.status(400).json({
       error: error instanceof Error ? error.message : 'Não foi possível ler a planilha.',
@@ -590,7 +884,7 @@ export async function importPasswordSheet(req: Request, res: Response) {
   const { profile } = parsed
   const existing = await query<PasswordRow>(
     `SELECT id, meter, password, password_ak, password_ek, password_lls, password_complement,
-            password_hex, master_password, manufacturer, material_type, order_number,
+            password_hex, password_extra, master_password, manufacturer, material_type, order_number,
             password_type, digits, source, created_at
      FROM password_records
      WHERE meter = ANY($1::text[])`,
@@ -604,13 +898,9 @@ export async function importPasswordSheet(req: Request, res: Response) {
       .map((row) => row.master_password?.trim() ?? '')
       .find((value) => value.length === profile.masterDigits)
     masterPassword = parsed.existingMaster
-    if (masterPassword && masterPassword.length !== profile.masterDigits) {
-      res.status(400).json({
-        error: `A senha mestra da planilha precisa ter ${profile.masterDigits} dígitos.`,
-      })
-      return
+    if (!masterPassword) {
+      masterPassword = knownMaster || (parsed.keepFormulas ? '' : randomPassword(profile.masterDigits))
     }
-    if (!masterPassword) masterPassword = knownMaster || randomPassword(profile.masterDigits)
   }
 
   const planned: Array<{
@@ -619,21 +909,16 @@ export async function importPasswordSheet(req: Request, res: Response) {
     fields: Array<{ key: 'password' | 'ak' | 'ek' | 'lls'; cell: string; value: string }>
     complement: string
     hex: string
+    extras: Array<{ label: string; value: string }>
   }> = []
   for (const item of parsed.meters) {
     const current = existingByMeter.get(item.meter) ?? null
     const fields = []
     for (const slot of item.passwords) {
       let value = slot.existing
-      if (value && value.length !== slot.digits) {
-        res.status(400).json({
-          error: `A ${slot.label.toLowerCase()} do medidor ${item.meter} precisa ter ${slot.digits} dígitos.`,
-        })
-        return
-      }
       const stored = current ? storedSheetPassword(current, slot.key) : ''
       if (stored) value = stored
-      else if (!value) value = randomPassword(slot.digits)
+      else if (!value && !parsed.keepFormulas) value = randomPassword(slot.digits)
       fields.push({ key: slot.key, cell: slot.cell, value })
     }
     planned.push({
@@ -642,6 +927,7 @@ export async function importPasswordSheet(req: Request, res: Response) {
       fields,
       complement: item.complement ?? '',
       hex: item.hex ?? '',
+      extras: item.extras ?? [],
     })
   }
 
@@ -677,6 +963,12 @@ export async function importPasswordSheet(req: Request, res: Response) {
       remember('master_password', masterPassword, item.existing.master_password || '', (value) => {
         item.existing!.master_password = value
       })
+      const mergedExtras = mergePasswordExtras(item.existing.password_extra, item.extras)
+      if (mergedExtras !== (item.existing.password_extra || '') && item.extras.length) {
+        params.push(mergedExtras)
+        sets.push(`password_extra = $${params.length}`)
+        item.existing.password_extra = mergedExtras
+      }
       if (sets.length) {
         params.push(item.existing.id)
         await query(
@@ -691,30 +983,34 @@ export async function importPasswordSheet(req: Request, res: Response) {
 
     const createdAt = new Date()
     const byKey = Object.fromEntries(item.fields.map((field) => [field.key, field.value]))
+    const password =
+      byKey.password || byKey.ak || item.extras.find((extra) => extra.value)?.value || ''
+    if (!password) continue
     const record: PasswordRow = {
       id: `sheet-${createdAt.getTime()}-${item.meter}`,
       meter: item.meter,
-      password: byKey.password || byKey.ak || '',
+      password,
       password_ak: byKey.ak || '',
       password_ek: byKey.ek || '',
       password_lls: byKey.lls || '',
       password_complement: item.complement,
       password_hex: item.hex,
+      password_extra: JSON.stringify(item.extras),
       master_password: masterPassword,
       manufacturer: parsed.manufacturer,
       material_type: parsed.materialCode,
       order_number: parsed.orderNumber,
       password_type: profile.passwordType,
-      digits: item.fields[0]?.value.length ?? profile.masterDigits,
+      digits: password.length,
       source: 'generated',
       created_at: createdAt,
     }
     await query(
       `INSERT INTO password_records
        (id, meter, password, password_ak, password_ek, password_lls, password_complement,
-        password_hex, master_password, manufacturer, material_type, order_number, password_type,
-        digits, source, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+        password_hex, password_extra, master_password, manufacturer, material_type, order_number,
+        password_type, digits, source, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
       [
         record.id,
         record.meter,
@@ -724,6 +1020,7 @@ export async function importPasswordSheet(req: Request, res: Response) {
         record.password_lls,
         record.password_complement,
         record.password_hex,
+        record.password_extra,
         masterPassword,
         record.manufacturer,
         record.material_type,
@@ -775,7 +1072,11 @@ export async function importPasswordSheet(req: Request, res: Response) {
     passwordSummary:
       profile.id === 'nansen-nsx'
         ? 'senha de 10 caracteres, senha de produção e senha AK e EK'
-        : [
+        : profile.id === 'pantheon'
+          ? 'senhas coletivas do Pantheon'
+          : profile.id === 'dr-ng'
+            ? 'senhas do DR NG'
+            : [
             ...profile.columns.map((column) => `${column.label} de ${column.digits} dígitos`),
             ...(profile.masterDigits ? [`senha mestra de ${profile.masterDigits} dígitos`] : []),
           ].join(', '),
