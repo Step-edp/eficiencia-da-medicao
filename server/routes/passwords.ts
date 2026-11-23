@@ -3,11 +3,10 @@ import { query } from '../db.js'
 import { requireAuth, requireAdmin } from '../auth.js'
 import { writeAuditLog } from '../audit.js'
 import {
+  fillOriginalWorkbook,
   parsePasswordSheet,
   randomPassword,
   workbookFromBuffer,
-  workbookToBuffer,
-  writeSheetCell,
 } from '../password-sheet.js'
 
 type PasswordRow = {
@@ -560,10 +559,8 @@ export async function importPasswordSheet(req: Request, res: Response) {
   }
 
   let parsed
-  let workbook
   try {
-    workbook = workbookFromBuffer(buffer)
-    parsed = parsePasswordSheet(workbook)
+    parsed = parsePasswordSheet(workbookFromBuffer(buffer))
   } catch (error) {
     res.status(400).json({
       error: error instanceof Error ? error.message : 'Não foi possível ler a planilha.',
@@ -571,7 +568,6 @@ export async function importPasswordSheet(req: Request, res: Response) {
     return
   }
 
-  const sheet = workbook.Sheets[workbook.SheetNames[0]]
   const { profile } = parsed
   const existing = await query<PasswordRow>(
     `SELECT id, meter, password, master_password, manufacturer, material_type, order_number,
@@ -618,7 +614,6 @@ export async function importPasswordSheet(req: Request, res: Response) {
   const saved: PasswordRow[] = []
 
   for (const item of planned) {
-    writeSheetCell(sheet, item.cell, item.password)
     if (item.existing) {
       if (!item.existing.master_password?.trim()) {
         await query(`UPDATE password_records SET master_password = $1 WHERE id = $2`, [
@@ -668,7 +663,10 @@ export async function importPasswordSheet(req: Request, res: Response) {
     results.push({ meter: item.meter, status: 'generated' })
   }
 
-  writeSheetCell(sheet, parsed.masterCell, masterPassword)
+  const filled = await fillOriginalWorkbook(buffer, [
+    { cell: parsed.masterCell, value: masterPassword },
+    ...planned.map((item) => ({ cell: item.cell, value: item.password })),
+  ])
 
   const generatedCount = results.filter((item) => item.status === 'generated').length
   const existingCount = results.length - generatedCount
@@ -693,7 +691,7 @@ export async function importPasswordSheet(req: Request, res: Response) {
   const originalName = String(fileName ?? 'senhas.xlsx').replace(/\.(xlsx|xlsm)$/i, '')
   res.json({
     fileName: `${originalName}-preenchido.xlsx`,
-    fileBase64: workbookToBuffer(workbook).toString('base64'),
+    fileBase64: filled.toString('base64'),
     model: profile.label,
     individualDigits: profile.individualDigits,
     masterDigits: profile.masterDigits,

@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto'
+import ExcelJS from 'exceljs'
 import xlsx from 'xlsx'
 
 export type PasswordSheetProfile = {
@@ -165,14 +166,22 @@ export function randomPassword(length: number) {
   return Array.from({ length }, () => CHARSET[randomInt(CHARSET.length)]).join('')
 }
 
-export function writeSheetCell(sheet: xlsx.WorkSheet, address: string, value: string) {
-  sheet[address] = { t: 's', v: value }
-}
-
 export function workbookFromBuffer(buffer: Buffer) {
   return xlsx.read(buffer, { type: 'buffer', cellDates: true })
 }
 
-export function workbookToBuffer(workbook: xlsx.WorkBook) {
-  return xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+/** Grava só os valores, em cima do arquivo original, para manter colunas, mesclas e larguras. */
+export async function fillOriginalWorkbook(
+  buffer: Buffer,
+  values: Array<{ cell: string; value: string }>,
+) {
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(buffer)
+  const sheet = workbook.worksheets[0]
+  if (!sheet) throw new Error('A planilha está vazia.')
+  for (const item of values) {
+    sheet.getCell(item.cell).value = item.value
+  }
+  const out = await workbook.xlsx.writeBuffer()
+  return Buffer.from(out)
 }
