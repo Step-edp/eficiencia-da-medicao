@@ -903,23 +903,23 @@ async function start() {
       console.error('Falha ao pré-carregar OCR de inspeção:', error)
     })
   } catch (error) {
-    if (!isDiskFullError(error)) {
-      throw error
-    }
-    console.error(
-      'Disco do Postgres cheio (53100). Liberando espaço para o agendamento voltar a gravar.',
-      error,
-    )
-    const { reclaimDiskForWrite } = await import('./reclaim-disk.js')
-    const freed = await reclaimDiskForWrite()
-    if (freed) {
-      await migrate()
-      await seed()
-      console.log('Banco de dados pronto depois de liberar espaço.')
-    } else {
-      console.error(
-        'Não foi possível liberar espaço. O site continua no ar, mas gravações novas podem falhar.',
-      )
+    console.error('Falha ao preparar o banco. O site continua no ar.', error)
+    if (isDiskFullError(error)) {
+      try {
+        const { reclaimDiskForWrite } = await import('./reclaim-disk.js')
+        const freed = await reclaimDiskForWrite()
+        if (freed) {
+          await migrate()
+          await seed()
+          console.log('Banco de dados pronto depois de liberar espaço.')
+        } else {
+          console.error(
+            'Não foi possível liberar espaço. Gravações novas podem falhar.',
+          )
+        }
+      } catch (retryError) {
+        console.error('A liberação de espaço não concluiu. O site continua no ar.', retryError)
+      }
     }
     try {
       const sizes = await query<{ table: string; total: string }>(
