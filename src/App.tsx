@@ -3716,6 +3716,7 @@ function HomePanel({
     passwordLls = '',
   ) => {
     const lines = [
+      passwordAk && password && password !== passwordAk ? `Senha: ${password}` : '',
       passwordAk ? `Senha AK: ${passwordAk}` : `Senha: ${password}`,
       passwordEk ? `Senha EK: ${passwordEk}` : '',
       passwordLls ? `Senha LLS: ${passwordLls}` : '',
@@ -3910,7 +3911,7 @@ function HomePanel({
         })
       }
       const existingNote = response.existingCount
-        ? ` ${response.existingCount} já tinham senha: ela foi mantida e senha EK, LLS e senha mestra foram acrescentadas quando faltavam.`
+        ? ` ${response.existingCount} já tinham senha: ela foi mantida e senha AK, EK, LLS e senha mestra foram acrescentadas quando faltavam.`
         : ''
       setPasswordFeedback({
         type: 'success',
@@ -5566,6 +5567,9 @@ function HomePanel({
                               <span className="consult-passivo-badge">Passivo</span>
                             ) : null}
                           </div>
+                          {record.passwordAk && record.password !== record.passwordAk ? (
+                            <span>Senha: {record.password}</span>
+                          ) : null}
                           {record.passwordAk ? (
                             <span>Senha AK: {record.passwordAk}</span>
                           ) : (
@@ -5736,6 +5740,9 @@ function HomePanel({
                             {deletingPasswordIds?.includes(record.id) ? 'Excluindo...' : 'Excluir'}
                           </button>
                         </div>
+                        {record.passwordAk && record.password !== record.passwordAk ? (
+                          <span>Senha: {record.password}</span>
+                        ) : null}
                         {record.passwordAk ? (
                           <span>Senha AK: {record.passwordAk}</span>
                         ) : (

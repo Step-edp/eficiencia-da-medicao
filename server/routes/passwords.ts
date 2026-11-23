@@ -548,7 +548,7 @@ function storedSheetPassword(
   row: PasswordRow,
   key: 'password' | 'ak' | 'ek' | 'lls',
 ) {
-  if (key === 'ak') return row.password_ak?.trim() || row.password?.trim() || ''
+  if (key === 'ak') return row.password_ak?.trim() ?? ''
   if (key === 'ek') return row.password_ek?.trim() ?? ''
   if (key === 'lls') return row.password_lls?.trim() ?? ''
   return row.password?.trim() ?? ''
