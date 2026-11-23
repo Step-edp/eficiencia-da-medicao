@@ -3910,7 +3910,7 @@ function HomePanel({
         })
       }
       const existingNote = response.existingCount
-        ? ` ${response.existingCount} já tinham senha e foram reaproveitadas.`
+        ? ` ${response.existingCount} já tinham senha: ela foi mantida e senha EK, LLS e senha mestra foram acrescentadas quando faltavam.`
         : ''
       setPasswordFeedback({
         type: 'success',
@@ -5361,7 +5361,8 @@ function HomePanel({
                 <p>
                   ZEUS THS volta com senha de 32 dígitos. ZEUS volta com senha AK e EK de 16
                   e senha LLS de 8. Nos dois, a senha mestra de 16 fica salva junto e o campo
-                  amarelo de senha única permanece vazio.
+                  amarelo de senha única permanece vazio. Se o medidor já estiver no banco, a
+                  senha salva é mantida e só entram senha EK, senha LLS e senha mestra.
                 </p>
               </section>
             </main>
