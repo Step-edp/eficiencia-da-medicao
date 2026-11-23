@@ -22,7 +22,8 @@ export type PasswordSheetProfile = {
 /**
  * ZEUS THS: uma senha de 32 e senha mestra de 16.
  * ZEUS: senha AK e EK de 16, senha LLS de 8 e senha mestra de 16.
- * O campo amarelo de senha única fica vazio nos dois modelos.
+ * Cronos NG+: uma senha de 32, sem senha mestra.
+ * O campo amarelo de senha única fica vazio.
  */
 const PROFILES: PasswordSheetProfile[] = [
   {
@@ -48,6 +49,15 @@ const PROFILES: PasswordSheetProfile[] = [
       { key: 'ak', label: 'Senha AK', digits: 16, matches: (header) => header === 'senha ak' },
       { key: 'ek', label: 'Senha EK', digits: 16, matches: (header) => header === 'senha ek' },
       { key: 'lls', label: 'Senha LLS', digits: 8, matches: (header) => header === 'senha lls' },
+    ],
+  },
+  {
+    id: 'cronos-ng',
+    label: 'Cronos NG+',
+    masterDigits: 0,
+    passwordType: 'alphanumeric',
+    columns: [
+      { key: 'password', label: 'Senha', digits: 32, matches: (header) => header === 'senha' },
     ],
   },
 ]
@@ -85,6 +95,7 @@ function normalizeLabel(value: string) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/\s+/g, ' ')
+    .replace(/[:：]+$/g, '')
     .trim()
 }
 
@@ -100,6 +111,9 @@ function matchProfile(workbookText: string) {
   }
   if (/medidores\s+zeus/i.test(workbookText)) {
     return PROFILES.find((profile) => profile.id === 'zeus') ?? null
+  }
+  if (/cronos\s*ng\+/i.test(workbookText)) {
+    return PROFILES.find((profile) => profile.id === 'cronos-ng') ?? null
   }
   return null
 }
@@ -127,7 +141,7 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
   const profile = matchProfile(texts.join('\n'))
   if (!profile) {
     throw new Error(
-      'Este modelo de planilha ainda não está cadastrado. Os modelos disponíveis são ZEUS THS e ZEUS.',
+      'Este modelo de planilha ainda não está cadastrado. Os modelos disponíveis são ZEUS THS, ZEUS e Cronos NG+.',
     )
   }
 
@@ -144,7 +158,7 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
   for (let row = range.s.r; row <= range.e.r; row += 1) {
     const label = normalizeLabel(cellText(sheet, row, 0))
     const value = cellText(sheet, row, 1)
-    if (!title && /zeus/i.test(value)) title = value
+    if (!title && /zeus|cronos/i.test(value)) title = value
     if (label === 'fabricante') manufacturer = value
     if (label === 'cliente') client = value
     if (label === 'codigo de material') materialCode = value
@@ -168,7 +182,7 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
   if (headerRow < 0) {
     throw new Error('Não encontrei a coluna Número de Série nesta planilha.')
   }
-  if (!masterCell) {
+  if (!masterCell && profile.masterDigits > 0) {
     throw new Error('Não encontrei o campo Senha mestra nesta planilha.')
   }
   if (!manufacturer || !materialCode || !orderNumber) {

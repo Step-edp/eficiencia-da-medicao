@@ -594,17 +594,20 @@ export async function importPasswordSheet(req: Request, res: Response) {
   )
   const existingByMeter = new Map(existing.rows.map((row) => [row.meter.trim(), row]))
 
-  const knownMaster = existing.rows
-    .map((row) => row.master_password?.trim() ?? '')
-    .find((value) => value.length === profile.masterDigits)
-  let masterPassword = parsed.existingMaster
-  if (masterPassword && masterPassword.length !== profile.masterDigits) {
-    res.status(400).json({
-      error: `A senha mestra da planilha precisa ter ${profile.masterDigits} dígitos.`,
-    })
-    return
+  let masterPassword = ''
+  if (profile.masterDigits > 0) {
+    const knownMaster = existing.rows
+      .map((row) => row.master_password?.trim() ?? '')
+      .find((value) => value.length === profile.masterDigits)
+    masterPassword = parsed.existingMaster
+    if (masterPassword && masterPassword.length !== profile.masterDigits) {
+      res.status(400).json({
+        error: `A senha mestra da planilha precisa ter ${profile.masterDigits} dígitos.`,
+      })
+      return
+    }
+    if (!masterPassword) masterPassword = knownMaster || randomPassword(profile.masterDigits)
   }
-  if (!masterPassword) masterPassword = knownMaster || randomPassword(profile.masterDigits)
 
   const planned: Array<{
     meter: string
@@ -713,7 +716,7 @@ export async function importPasswordSheet(req: Request, res: Response) {
   }
 
   const filled = await fillOriginalWorkbook(buffer, [
-    { cell: parsed.masterCell, value: masterPassword },
+    ...(parsed.masterCell ? [{ cell: parsed.masterCell, value: masterPassword }] : []),
     ...parsed.uniquePasswordCells.map((cell) => ({ cell, value: '' })),
     ...planned.flatMap((item) => item.fields.map((field) => ({ cell: field.cell, value: field.value }))),
   ])
@@ -744,7 +747,7 @@ export async function importPasswordSheet(req: Request, res: Response) {
     model: profile.label,
     passwordSummary: [
       ...profile.columns.map((column) => `${column.label} de ${column.digits} dígitos`),
-      `senha mestra de ${profile.masterDigits} dígitos`,
+      ...(profile.masterDigits ? [`senha mestra de ${profile.masterDigits} dígitos`] : []),
     ].join(', '),
     masterDigits: profile.masterDigits,
     generatedCount,
