@@ -31,6 +31,8 @@ export type ParsedPasswordSheet = {
   orderNumber: string
   client: string
   masterCell: string
+  /** Campo amarelo de senha única. Fica vazio quando cada medidor tem senha individual. */
+  uniquePasswordCell: string
   existingMaster: string
   meters: Array<{
     meter: string
@@ -91,6 +93,7 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
   let client = ''
   let headerRow = -1
   let masterCell = ''
+  let uniquePasswordCell = ''
   let existingMaster = ''
 
   for (let row = range.s.r; row <= range.e.r; row += 1) {
@@ -102,15 +105,18 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
     if (label === 'codigo de material') materialCode = value
     if (label === 'pedido de compra') orderNumber = value
     if (label.startsWith('numero de serie')) headerRow = row
+    if (label === 'senha mestra') {
+      masterCell = xlsx.utils.encode_cell({ r: row + 1, c: 1 })
+      const next = cellText(sheet, row + 1, 1)
+      if (next.length === profile.masterDigits && !/deve possuir/i.test(next)) {
+        existingMaster = next
+      }
+    }
 
     for (let column = range.s.c; column <= range.e.c; column += 1) {
       const text = normalizeLabel(cellText(sheet, row, column))
       if (text !== 'senha (unica)' && text !== 'senha unica') continue
-      const below = cellText(sheet, row + 1, column)
-      masterCell = xlsx.utils.encode_cell({ r: row + 1, c: column })
-      if (below && !normalizeLabel(below).startsWith('numero de serie')) {
-        existingMaster = below
-      }
+      uniquePasswordCell = xlsx.utils.encode_cell({ r: row + 1, c: column })
     }
   }
 
@@ -118,7 +124,7 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
     throw new Error('Não encontrei a coluna Número de Série nesta planilha.')
   }
   if (!masterCell) {
-    throw new Error('Não encontrei o campo Senha (única) para preencher a senha mestra.')
+    throw new Error('Não encontrei o campo Senha mestra nesta planilha.')
   }
   if (!manufacturer || !materialCode || !orderNumber) {
     throw new Error(
@@ -157,6 +163,7 @@ export function parsePasswordSheet(workbook: xlsx.WorkBook): ParsedPasswordSheet
     orderNumber,
     client,
     masterCell,
+    uniquePasswordCell,
     existingMaster,
     meters,
   }
@@ -180,7 +187,7 @@ export async function fillOriginalWorkbook(
   const sheet = workbook.worksheets[0]
   if (!sheet) throw new Error('A planilha está vazia.')
   for (const item of values) {
-    sheet.getCell(item.cell).value = item.value
+    sheet.getCell(item.cell).value = item.value || null
   }
   const out = await workbook.xlsx.writeBuffer()
   return Buffer.from(out)

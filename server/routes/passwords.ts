@@ -665,6 +665,7 @@ export async function importPasswordSheet(req: Request, res: Response) {
 
   const filled = await fillOriginalWorkbook(buffer, [
     { cell: parsed.masterCell, value: masterPassword },
+    ...(parsed.uniquePasswordCell ? [{ cell: parsed.uniquePasswordCell, value: '' }] : []),
     ...planned.map((item) => ({ cell: item.cell, value: item.password })),
   ])
 
