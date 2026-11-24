@@ -15,9 +15,20 @@ export const STATUS_CISC = [
   { numero: 12, codigo: 'ENCI', nome: 'Encerrado Improcedente' },
 ] as const
 
-const NOME_STATUS = new Map<string, string>(
-  STATUS_CISC.map((item) => [item.codigo, item.nome]),
-)
+const STATUS_COMPLEMENTO = [
+  { codigo: 'VIMP', nome: 'Verificado Improcedente' },
+  { codigo: 'VPRO', nome: 'Verificado Procedente' },
+  { codigo: 'DILA', nome: 'Dilatação' },
+  { codigo: 'ENPD', nome: 'Encer Proc Dilatação' },
+  { codigo: 'ENID', nome: 'Encer Impr Dilatação' },
+  { codigo: 'EARD', nome: 'Encer Aguard Cliente Dilatação' },
+  { codigo: 'ENDD', nome: 'Encerr Orgao Ext Dilatação' },
+] as const
+
+const NOME_STATUS = new Map<string, string>([
+  ...STATUS_CISC.map((item) => [item.codigo, item.nome] as const),
+  ...STATUS_COMPLEMENTO.map((item) => [item.codigo, item.nome] as const),
+])
 
 type Nota = {
   nota: number
@@ -392,14 +403,23 @@ export function CiscCaptarPanel() {
 
       {foraDaLista.length > 0 ? (
         <GraficoBarras
-          titulo="Códigos da planilha fora da lista"
+          titulo="Outros status"
           ativo={status}
           onEscolher={(codigo) => setStatus(status === codigo ? null : codigo)}
-          itens={foraDaLista.map(([codigo, total]) => ({
-            id: codigo,
-            rotulo: codigo,
-            total,
-          }))}
+          itens={[
+            ...STATUS_COMPLEMENTO.map((item) => ({
+              id: item.codigo,
+              rotulo: `${item.codigo} ${item.nome}`,
+              total: contagem.get(item.codigo) ?? 0,
+            })),
+            ...foraDaLista
+              .filter(([codigo]) => !NOME_STATUS.has(codigo))
+              .map(([codigo, total]) => ({
+                id: codigo,
+                rotulo: codigo,
+                total,
+              })),
+          ]}
         />
       ) : null}
 
