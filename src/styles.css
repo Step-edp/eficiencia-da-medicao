@@ -11393,11 +11393,74 @@ input[type='file'] {
   background: linear-gradient(180deg, #5bf000, #18d8f0);
 }
 
+.cisc-donut-layout {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.cisc-donut {
+  width: 168px;
+  height: 168px;
+}
+
+.cisc-donut circle {
+  cursor: pointer;
+}
+
+.cisc-legend {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+
+.cisc-panel .cisc-legend button {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.cisc-panel .cisc-legend button.is-active span {
+  color: var(--green-500);
+}
+
+.cisc-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(150, 187, 215, 0.35);
+}
+
+.cisc-legend b {
+  font-variant-numeric: tabular-nums;
+}
+
+.cisc-line {
+  width: 100%;
+  height: auto;
+}
+
 @media (max-width: 900px) {
   .cisc-filters,
   .cisc-status-grid,
   .cisc-dash-grid,
-  .cisc-kpis {
+  .cisc-kpis,
+  .cisc-donut-layout {
     grid-template-columns: 1fr;
+  }
+
+  .cisc-donut {
+    justify-self: center;
   }
 }

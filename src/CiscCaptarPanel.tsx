@@ -106,6 +106,153 @@ function mesesEntre(inicio: string, fim: string) {
   return itens
 }
 
+const CORES = [
+  '#18d8f0',
+  '#5bf000',
+  '#fbbf24',
+  '#60a5fa',
+  '#f472b6',
+  '#a78bfa',
+  '#fb923c',
+  '#34d399',
+  '#f87171',
+  '#e879f9',
+  '#facc15',
+  '#38bdf8',
+]
+
+function GraficoRosca({
+  titulo,
+  itens,
+  ativo,
+  onEscolher,
+}: {
+  titulo: string
+  itens: { id: string; rotulo: string; total: number }[]
+  ativo: string | null
+  onEscolher: (id: string) => void
+}) {
+  const desenhaveis = itens.filter((item) => item.total > 0)
+  const soma = desenhaveis.reduce((total, item) => total + item.total, 0)
+  const raio = 54
+  const circunferencia = 2 * Math.PI * raio
+  let cursor = 0
+  const fatias = desenhaveis.map((item) => {
+    const indice = itens.findIndex((origem) => origem.id === item.id)
+    const tamanho = soma === 0 ? 0 : (item.total / soma) * circunferencia
+    const folga = desenhaveis.length > 1 && tamanho > 3 ? 1.6 : 0
+    const fatia = { item, indice, cursor, dash: Math.max(0.4, tamanho - folga) }
+    cursor += tamanho
+    return fatia
+  })
+
+  return (
+    <section className="cisc-card cisc-chart">
+      <p className="cisc-kicker">{titulo}</p>
+      <div className="cisc-donut-layout">
+        <svg viewBox="0 0 140 140" className="cisc-donut" role="img" aria-label={titulo}>
+          {fatias.map((fatia) => (
+            <circle
+              key={fatia.item.id}
+              cx="70"
+              cy="70"
+              r={raio}
+              fill="none"
+              stroke={CORES[fatia.indice % CORES.length]}
+              strokeWidth={ativo === fatia.item.id ? 18 : 14}
+              strokeDasharray={`${fatia.dash} ${circunferencia - fatia.dash}`}
+              strokeDashoffset={-fatia.cursor}
+              transform="rotate(-90 70 70)"
+              opacity={!ativo || ativo === fatia.item.id ? 1 : 0.4}
+              onClick={() => onEscolher(fatia.item.id)}
+            />
+          ))}
+          <text x="70" y="66" textAnchor="middle" fill="#ebf5ff" fontSize="15" fontWeight="700">
+            {numeroBr(soma)}
+          </text>
+          <text x="70" y="84" textAnchor="middle" fill="#9eb7cb" fontSize="9">
+            notas
+          </text>
+        </svg>
+        <ul className="cisc-legend">
+          {itens.map((item, indice) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                className={ativo === item.id ? 'is-active' : undefined}
+                onClick={() => onEscolher(item.id)}
+              >
+                <i style={{ background: item.total === 0 ? 'transparent' : CORES[indice % CORES.length] }} />
+                <span>{item.rotulo}</span>
+                <b>{numeroBr(item.total)}</b>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+function GraficoLinha({
+  titulo,
+  itens,
+}: {
+  titulo: string
+  itens: { id: string; rotulo: string; total: number }[]
+}) {
+  const largura = 720
+  const altura = 200
+  const margem = { esquerda: 8, direita: 8, topo: 18, base: 28 }
+  const maximo = Math.max(1, ...itens.map((item) => item.total))
+  const internoLargura = largura - margem.esquerda - margem.direita
+  const internoAltura = altura - margem.topo - margem.base
+  const pontos = itens.map((item, indice) => {
+    const x =
+      margem.esquerda +
+      (itens.length <= 1 ? internoLargura / 2 : (indice / (itens.length - 1)) * internoLargura)
+    const y = margem.topo + internoAltura - (item.total / maximo) * internoAltura
+    return { ...item, x, y }
+  })
+  const linha = pontos.map((ponto, indice) => `${indice === 0 ? 'M' : 'L'} ${ponto.x} ${ponto.y}`).join(' ')
+  const ultimo = pontos[pontos.length - 1]
+  const area = pontos.length
+    ? `${linha} L ${ultimo.x} ${margem.topo + internoAltura} L ${pontos[0].x} ${margem.topo + internoAltura} Z`
+    : ''
+  const mostrarRotulo = itens.length <= 14
+
+  if (itens.length === 0) {
+    return (
+      <section className="cisc-card cisc-chart">
+        <p className="cisc-kicker">{titulo}</p>
+        <p>Nenhuma nota neste filtro.</p>
+      </section>
+    )
+  }
+
+  return (
+    <section className="cisc-card cisc-chart">
+      <p className="cisc-kicker">{titulo}</p>
+      <svg viewBox={`0 0 ${largura} ${altura}`} className="cisc-line" role="img" aria-label={titulo}>
+        <path d={area} fill="rgba(24, 216, 240, 0.16)" />
+        <path d={linha} fill="none" stroke="#5bf000" strokeWidth="2.5" strokeLinejoin="round" />
+        {pontos.map((ponto) => (
+          <g key={ponto.id}>
+            <circle cx={ponto.x} cy={ponto.y} r="3.2" fill="#18d8f0">
+              <title>{`${ponto.rotulo}: ${numeroBr(ponto.total)}`}</title>
+            </circle>
+            {mostrarRotulo || ponto.rotulo.startsWith('01') || ponto.rotulo.startsWith('07') ? (
+              <text x={ponto.x} y={altura - 8} textAnchor="middle" fill="#9eb7cb" fontSize="9">
+                {ponto.rotulo}
+              </text>
+            ) : null}
+          </g>
+        ))}
+      </svg>
+    </section>
+  )
+}
+
 function GraficoBarras({
   titulo,
   itens,
@@ -289,7 +436,7 @@ export function CiscCaptarPanel() {
       <section className="cisc-card">
         <p className="cisc-kicker">Captação desde 2024</p>
         <p>
-          {numeroBr(notas.length)} notas com início desejado a partir de 2024. Clique em uma barra
+          {numeroBr(notas.length)} notas com início desejado a partir de 2024. Clique em um gráfico
           para filtrar a lista.
         </p>
         <div className="cisc-filters">
@@ -358,7 +505,7 @@ export function CiscCaptarPanel() {
         </article>
       </div>
 
-      <GraficoBarras
+      <GraficoRosca
         titulo="Status configurados"
         ativo={status}
         onEscolher={(codigo) => setStatus(status === codigo ? null : codigo)}
@@ -370,13 +517,13 @@ export function CiscCaptarPanel() {
       />
 
       <div className="cisc-dash-grid">
-        <GraficoBarras
+        <GraficoRosca
           titulo="Por ano"
           ativo={ano === 'todos' ? null : String(ano)}
           onEscolher={(valor) => setAno(ano === Number(valor) ? 'todos' : Number(valor))}
           itens={porAno}
         />
-        <GraficoBarras
+        <GraficoRosca
           titulo="Por canal"
           ativo={canal || null}
           onEscolher={(valor) => setCanal(canal === valor ? '' : valor)}
@@ -384,22 +531,7 @@ export function CiscCaptarPanel() {
         />
       </div>
 
-      <section className="cisc-card cisc-chart">
-        <p className="cisc-kicker">Notas por mês</p>
-        <div className="cisc-vbars" aria-label="Notas por mês">
-          {porMes.map((item) => {
-            const maximo = Math.max(1, ...porMes.map((mes) => mes.total))
-            const altura = item.total === 0 ? '0%' : `${Math.max(4, (item.total / maximo) * 100)}%`
-            return (
-              <div key={item.id} className="cisc-vbar" title={`${item.rotulo}: ${numeroBr(item.total)}`}>
-                <span>{item.total > 0 ? numeroBr(item.total) : ''}</span>
-                <i style={{ height: altura }} />
-                <em>{item.rotulo}</em>
-              </div>
-            )
-          })}
-        </div>
-      </section>
+      <GraficoLinha titulo="Notas por mês" itens={porMes} />
 
       {foraDaLista.length > 0 ? (
         <GraficoBarras
