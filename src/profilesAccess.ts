@@ -16,6 +16,7 @@ export const PORTAL_AREAS = [
   'Equipe de campo',
   'Usuários',
   'Cadastros',
+  'CISC',
   'Agenda',
 ] as const
 

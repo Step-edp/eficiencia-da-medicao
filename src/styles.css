@@ -277,8 +277,12 @@ button {
   order: 9;
 }
 
-.area-card-agenda {
+.area-card-cisc {
   order: 10;
+}
+
+.area-card-agenda {
+  order: 11;
 }
 
 .agenda-alert {

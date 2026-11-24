@@ -1215,6 +1215,7 @@ function ItemIcon({ title }: { title: string }) {
     'Equipe de campo': 'truck',
     Usuários: 'users',
     Cadastros: 'archive',
+    CISC: 'building',
     Agenda: 'calendar',
     Consultar: 'search',
     'Meus TOIs': 'inbox',
@@ -2652,6 +2653,11 @@ function HomePanel({
       description: 'Cadastros operacionais e dados de apoio do portal.',
       details:
         'Centralize cadastros de apoio da área de Medição, como bases, parâmetros e informações operacionais.',
+    },
+    {
+      title: 'CISC',
+      description: 'Área CISC do portal de Eficiência da Medição.',
+      details: 'Espaço da área CISC. Os processos desta área entram aqui.',
     },
     {
       title: 'Agenda',
@@ -7813,6 +7819,10 @@ function getAreaCardClassName(title: string) {
 
   if (title === 'Cadastros') {
     return 'area-card-cadastros'
+  }
+
+  if (title === 'CISC') {
+    return 'area-card-cisc'
   }
 
   if (title === 'Agenda') {
