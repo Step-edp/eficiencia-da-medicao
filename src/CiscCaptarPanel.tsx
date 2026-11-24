@@ -298,7 +298,6 @@ export function CiscCaptarPanel() {
   const [status, setStatus] = useState<string | null>(null)
   const [ano, setAno] = useState<'todos' | number>('todos')
   const [canal, setCanal] = useState('')
-  const [descricao, setDescricao] = useState('')
   const [busca, setBusca] = useState('')
   const [pagina, setPagina] = useState(0)
 
@@ -318,7 +317,7 @@ export function CiscCaptarPanel() {
 
   useEffect(() => {
     setPagina(0)
-  }, [status, ano, canal, descricao, busca])
+  }, [status, ano, canal, busca])
 
   const base = useMemo(() => {
     if (!notas) return []
@@ -326,11 +325,10 @@ export function CiscCaptarPanel() {
     return notas.filter((nota) => {
       if (ano !== 'todos' && !nota.inicio.startsWith(String(ano))) return false
       if (canal && nota.canal !== canal) return false
-      if (descricao && nota.descricao !== descricao) return false
       if (termo && !String(nota.nota).includes(termo)) return false
       return true
     })
-  }, [notas, ano, canal, descricao, busca])
+  }, [notas, ano, canal, busca])
 
   const contagem = useMemo(() => {
     const mapa = new Map<string, number>()
@@ -358,16 +356,20 @@ export function CiscCaptarPanel() {
     return [...conjunto].sort()
   }, [notas])
 
-  const opcoesCanal = useMemo(() => {
-    const conjunto = new Set<string>()
-    for (const nota of notas ?? []) if (nota.canal) conjunto.add(nota.canal)
-    return [...conjunto].sort((a, b) => a.localeCompare(b, 'pt-BR'))
-  }, [notas])
-
-  const opcoesDescricao = useMemo(() => {
-    const conjunto = new Set<string>()
-    for (const nota of notas ?? []) if (nota.descricao) conjunto.add(nota.descricao)
-    return [...conjunto].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  const opcoesStatus = useMemo(() => {
+    const conhecidos = [
+      ...STATUS_CISC.map((item) => ({ codigo: item.codigo, rotulo: item.nome })),
+      ...STATUS_COMPLEMENTO.map((item) => ({ codigo: item.codigo, rotulo: item.nome })),
+    ]
+    const conhecidosCodigo = new Set<string>(conhecidos.map((item) => item.codigo))
+    const extras = new Set<string>()
+    for (const nota of notas ?? []) {
+      if (nota.status && !conhecidosCodigo.has(nota.status)) extras.add(nota.status)
+    }
+    return [
+      ...conhecidos,
+      ...[...extras].sort().map((codigo) => ({ codigo, rotulo: codigo })),
+    ]
   }, [notas])
 
   const porAno = useMemo(() => {
@@ -376,7 +378,6 @@ export function CiscCaptarPanel() {
     const mapa = new Map<string, number>()
     for (const nota of notas) {
       if (canal && nota.canal !== canal) continue
-      if (descricao && nota.descricao !== descricao) continue
       if (termo && !String(nota.nota).includes(termo)) continue
       if (status && nota.status !== status) continue
       const anoNota = nota.inicio.slice(0, 4)
@@ -385,7 +386,7 @@ export function CiscCaptarPanel() {
     return [...mapa.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([id, total]) => ({ id, rotulo: id, total }))
-  }, [notas, canal, descricao, busca, status])
+  }, [notas, canal, busca, status])
 
   const porCanal = useMemo(() => {
     if (!notas) return []
@@ -393,7 +394,6 @@ export function CiscCaptarPanel() {
     const mapa = new Map<string, number>()
     for (const nota of notas) {
       if (ano !== 'todos' && !nota.inicio.startsWith(String(ano))) continue
-      if (descricao && nota.descricao !== descricao) continue
       if (termo && !String(nota.nota).includes(termo)) continue
       if (status && nota.status !== status) continue
       const nome = nota.canal || 'Sem canal'
@@ -402,7 +402,7 @@ export function CiscCaptarPanel() {
     return [...mapa.entries()]
       .sort((a, b) => b[1] - a[1])
       .map(([id, total]) => ({ id, rotulo: id, total }))
-  }, [notas, ano, descricao, busca, status])
+  }, [notas, ano, busca, status])
 
   const porMes = useMemo(() => {
     if (visiveis.length === 0) return []
@@ -457,23 +457,15 @@ export function CiscCaptarPanel() {
             </select>
           </label>
           <label>
-            Canal
-            <select value={canal} onChange={(evento) => setCanal(evento.target.value)}>
+            Status
+            <select
+              value={status ?? ''}
+              onChange={(evento) => setStatus(evento.target.value || null)}
+            >
               <option value="">Todos</option>
-              {opcoesCanal.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Assunto
-            <select value={descricao} onChange={(evento) => setDescricao(evento.target.value)}>
-              <option value="">Todos</option>
-              {opcoesDescricao.map((item) => (
-                <option key={item} value={item}>
-                  {item}
+              {opcoesStatus.map((item) => (
+                <option key={item.codigo} value={item.codigo}>
+                  {item.rotulo}
                 </option>
               ))}
             </select>
@@ -497,7 +489,7 @@ export function CiscCaptarPanel() {
         </article>
         <article className="cisc-card">
           <p className="cisc-kicker">Status</p>
-          <strong>{status ? `${status}${NOME_STATUS.get(status) ? ` · ${NOME_STATUS.get(status)}` : ''}` : 'Todos'}</strong>
+          <strong>{status ? (NOME_STATUS.get(status) ?? status) : 'Todos'}</strong>
         </article>
         <article className="cisc-card">
           <p className="cisc-kicker">Ano</p>
@@ -559,9 +551,7 @@ export function CiscCaptarPanel() {
         <div className="cisc-table-head">
           <p>
             {numeroBr(visiveis.length)} {visiveis.length === 1 ? 'nota' : 'notas'}
-            {status
-              ? ` em ${status}${NOME_STATUS.get(status) ? ` · ${NOME_STATUS.get(status)}` : ''}`
-              : ''}
+            {status ? ` em ${NOME_STATUS.get(status) ?? status}` : ''}
           </p>
           <div className="cisc-pager">
             <button
