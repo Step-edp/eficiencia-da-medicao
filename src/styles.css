@@ -11280,9 +11280,124 @@ input[type='file'] {
   font-weight: 400;
 }
 
+.cisc-kpis,
+.cisc-dash-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cisc-dash-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.cisc-panel .cisc-kpis strong {
+  color: var(--text-main);
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+.cisc-panel .cisc-bars button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "name value"
+    "track track";
+  gap: 4px 8px;
+  align-items: center;
+  width: 100%;
+  padding: 4px 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
+}
+
+.cisc-bar-name {
+  grid-area: name;
+}
+
+.cisc-bar-value {
+  grid-area: value;
+}
+
+.cisc-bar-track {
+  grid-area: track;
+}
+
+.cisc-bar-name,
+.cisc-bar-value {
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.cisc-bar-value {
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cisc-bar-track {
+  display: block;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(24, 216, 240, 0.12);
+  overflow: hidden;
+}
+
+.cisc-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #18d8f0, #5bf000);
+}
+
+.cisc-panel .cisc-bars button.is-active .cisc-bar-fill {
+  background: #5bf000;
+}
+
+.cisc-vbars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 210px;
+  overflow-x: auto;
+  padding-top: 8px;
+}
+
+.cisc-vbar {
+  flex: 1 0 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+  gap: 4px;
+}
+
+.cisc-vbar span,
+.cisc-vbar em {
+  color: var(--text-soft);
+  font-size: 0.62rem;
+  font-style: normal;
+  line-height: 1;
+  text-align: center;
+}
+
+.cisc-vbar i {
+  display: block;
+  width: 100%;
+  max-width: 22px;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, #5bf000, #18d8f0);
+}
+
 @media (max-width: 900px) {
   .cisc-filters,
-  .cisc-status-grid {
-    grid-template-columns: 1fr 1fr;
+  .cisc-status-grid,
+  .cisc-dash-grid,
+  .cisc-kpis {
+    grid-template-columns: 1fr;
   }
 }

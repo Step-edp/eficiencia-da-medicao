@@ -80,6 +80,60 @@ function numeroBr(valor: number) {
   return valor.toLocaleString('pt-BR')
 }
 
+function mesesEntre(inicio: string, fim: string) {
+  const itens: string[] = []
+  let [ano, mes] = inicio.split('-').map(Number)
+  const [anoFim, mesFim] = fim.split('-').map(Number)
+  while (ano < anoFim || (ano === anoFim && mes <= mesFim)) {
+    itens.push(`${ano}-${String(mes).padStart(2, '0')}`)
+    mes += 1
+    if (mes > 12) {
+      mes = 1
+      ano += 1
+    }
+  }
+  return itens
+}
+
+function GraficoBarras({
+  titulo,
+  itens,
+  ativo,
+  onEscolher,
+}: {
+  titulo: string
+  itens: { id: string; rotulo: string; total: number }[]
+  ativo: string | null
+  onEscolher: (id: string) => void
+}) {
+  const maximo = Math.max(1, ...itens.map((item) => item.total))
+  return (
+    <section className="cisc-card cisc-chart">
+      <p className="cisc-kicker">{titulo}</p>
+      <div className="cisc-bars">
+        {itens.map((item) => {
+          const selecionado = ativo === item.id
+          const largura = item.total === 0 ? '0%' : `${Math.max(2, (item.total / maximo) * 100)}%`
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={selecionado ? 'is-active' : undefined}
+              onClick={() => onEscolher(item.id)}
+            >
+              <span className="cisc-bar-name">{item.rotulo}</span>
+              <span className="cisc-bar-track">
+                <span className="cisc-bar-fill" style={{ width: largura }} />
+              </span>
+              <span className="cisc-bar-value">{numeroBr(item.total)}</span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 export function CiscCaptarPanel() {
   const [notas, setNotas] = useState<Nota[] | null>(null)
   const [erro, setErro] = useState(false)
@@ -158,6 +212,55 @@ export function CiscCaptarPanel() {
     return [...conjunto].sort((a, b) => a.localeCompare(b, 'pt-BR'))
   }, [notas])
 
+  const porAno = useMemo(() => {
+    if (!notas) return []
+    const termo = busca.trim()
+    const mapa = new Map<string, number>()
+    for (const nota of notas) {
+      if (canal && nota.canal !== canal) continue
+      if (descricao && nota.descricao !== descricao) continue
+      if (termo && !String(nota.nota).includes(termo)) continue
+      if (status && nota.status !== status) continue
+      const anoNota = nota.inicio.slice(0, 4)
+      mapa.set(anoNota, (mapa.get(anoNota) ?? 0) + 1)
+    }
+    return [...mapa.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([id, total]) => ({ id, rotulo: id, total }))
+  }, [notas, canal, descricao, busca, status])
+
+  const porCanal = useMemo(() => {
+    if (!notas) return []
+    const termo = busca.trim()
+    const mapa = new Map<string, number>()
+    for (const nota of notas) {
+      if (ano !== 'todos' && !nota.inicio.startsWith(String(ano))) continue
+      if (descricao && nota.descricao !== descricao) continue
+      if (termo && !String(nota.nota).includes(termo)) continue
+      if (status && nota.status !== status) continue
+      const nome = nota.canal || 'Sem canal'
+      mapa.set(nome, (mapa.get(nome) ?? 0) + 1)
+    }
+    return [...mapa.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([id, total]) => ({ id, rotulo: id, total }))
+  }, [notas, ano, descricao, busca, status])
+
+  const porMes = useMemo(() => {
+    if (visiveis.length === 0) return []
+    const mapa = new Map<string, number>()
+    for (const nota of visiveis) {
+      const chave = nota.inicio.slice(0, 7)
+      mapa.set(chave, (mapa.get(chave) ?? 0) + 1)
+    }
+    const chaves = [...mapa.keys()].sort()
+    return mesesEntre(chaves[0], chaves[chaves.length - 1]).map((chave) => ({
+      id: chave,
+      rotulo: `${chave.slice(5)}/${chave.slice(2, 4)}`,
+      total: mapa.get(chave) ?? 0,
+    }))
+  }, [visiveis])
+
   if (erro) {
     return <p className="cisc-footnote">Não foi possível carregar as notas.</p>
   }
@@ -175,8 +278,8 @@ export function CiscCaptarPanel() {
       <section className="cisc-card">
         <p className="cisc-kicker">Captação desde 2024</p>
         <p>
-          {numeroBr(notas.length)} notas com início desejado a partir de 2024. Os doze status
-          abaixo são a lista configurada. Clique em um status para ver as notas.
+          {numeroBr(notas.length)} notas com início desejado a partir de 2024. Clique em uma barra
+          para filtrar a lista.
         </p>
         <div className="cisc-filters">
           <label>
@@ -229,47 +332,75 @@ export function CiscCaptarPanel() {
         </div>
       </section>
 
-      <div className="cisc-status-grid" aria-label="Status configurados">
-        {STATUS_CISC.map((item) => {
-          const total = contagem.get(item.codigo) ?? 0
-          const ativo = status === item.codigo
-          return (
-            <button
-              key={item.codigo}
-              type="button"
-              className={`cisc-status${ativo ? ' is-active' : ''}${total === 0 ? ' is-empty' : ''}`}
-              onClick={() => setStatus(ativo ? null : item.codigo)}
-            >
-              <span className="cisc-status-num">{item.numero}</span>
-              <strong>{item.codigo}</strong>
-              <em>{item.nome}</em>
-              <b>{numeroBr(total)}</b>
-            </button>
-          )
-        })}
+      <div className="cisc-kpis">
+        <article className="cisc-card">
+          <p className="cisc-kicker">No filtro</p>
+          <strong>{numeroBr(visiveis.length)}</strong>
+        </article>
+        <article className="cisc-card">
+          <p className="cisc-kicker">Status</p>
+          <strong>{status ? `${status}${NOME_STATUS.get(status) ? ` · ${NOME_STATUS.get(status)}` : ''}` : 'Todos'}</strong>
+        </article>
+        <article className="cisc-card">
+          <p className="cisc-kicker">Ano</p>
+          <strong>{ano === 'todos' ? '2024 a 2026' : ano}</strong>
+        </article>
       </div>
 
+      <GraficoBarras
+        titulo="Status configurados"
+        ativo={status}
+        onEscolher={(codigo) => setStatus(status === codigo ? null : codigo)}
+        itens={STATUS_CISC.map((item) => ({
+          id: item.codigo,
+          rotulo: `${item.numero}. ${item.codigo} ${item.nome}`,
+          total: contagem.get(item.codigo) ?? 0,
+        }))}
+      />
+
+      <div className="cisc-dash-grid">
+        <GraficoBarras
+          titulo="Por ano"
+          ativo={ano === 'todos' ? null : String(ano)}
+          onEscolher={(valor) => setAno(ano === Number(valor) ? 'todos' : Number(valor))}
+          itens={porAno}
+        />
+        <GraficoBarras
+          titulo="Por canal"
+          ativo={canal || null}
+          onEscolher={(valor) => setCanal(canal === valor ? '' : valor)}
+          itens={porCanal}
+        />
+      </div>
+
+      <section className="cisc-card cisc-chart">
+        <p className="cisc-kicker">Notas por mês</p>
+        <div className="cisc-vbars" aria-label="Notas por mês">
+          {porMes.map((item) => {
+            const maximo = Math.max(1, ...porMes.map((mes) => mes.total))
+            const altura = item.total === 0 ? '0%' : `${Math.max(4, (item.total / maximo) * 100)}%`
+            return (
+              <div key={item.id} className="cisc-vbar" title={`${item.rotulo}: ${numeroBr(item.total)}`}>
+                <span>{item.total > 0 ? numeroBr(item.total) : ''}</span>
+                <i style={{ height: altura }} />
+                <em>{item.rotulo}</em>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
       {foraDaLista.length > 0 ? (
-        <section className="cisc-card">
-          <p className="cisc-kicker">Códigos da planilha fora da lista</p>
-          <div className="cisc-status-grid">
-            {foraDaLista.map(([codigo, total]) => {
-              const ativo = status === codigo
-              return (
-                <button
-                  key={codigo}
-                  type="button"
-                  className={`cisc-status${ativo ? ' is-active' : ''}`}
-                  onClick={() => setStatus(ativo ? null : codigo)}
-                >
-                  <strong>{codigo}</strong>
-                  <em>Sem nome na lista configurada</em>
-                  <b>{numeroBr(total)}</b>
-                </button>
-              )
-            })}
-          </div>
-        </section>
+        <GraficoBarras
+          titulo="Códigos da planilha fora da lista"
+          ativo={status}
+          onEscolher={(codigo) => setStatus(status === codigo ? null : codigo)}
+          itens={foraDaLista.map(([codigo, total]) => ({
+            id: codigo,
+            rotulo: codigo,
+            total,
+          }))}
+        />
       ) : null}
 
       <section className="cisc-card">
