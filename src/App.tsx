@@ -18,6 +18,7 @@ import { UserProfilePhoto } from './UserProfilePhoto'
 import { UsersDashboard } from './UsersDashboard'
 import { GestaoDashboard, CellResponsibleEditor, CreateOrgAreaForm, AreaLeadershipEditor, GestaoPessoasPanel } from './GestaoDashboard'
 import { AgendaPanel, agendaViewTitle, type AgendaView } from './AgendaPanel'
+import { CiscPanel } from './CiscPanel'
 import {
   ADMIN_PREVIEW_PROFILE_ID,
   CADASTRO_PROFILES,
@@ -2656,8 +2657,9 @@ function HomePanel({
     },
     {
       title: 'CISC',
-      description: 'Área CISC do portal de Eficiência da Medição.',
-      details: 'Espaço da área CISC. Os processos desta área entram aqui.',
+      description: 'Relatos de Experiência a partir da voz do cliente.',
+      details:
+        'A frente transforma experiências reais em relatos validados e os disponibiliza às demais frentes da CISC.',
     },
     {
       title: 'Agenda',
@@ -6848,6 +6850,23 @@ function HomePanel({
             <p className="section-tag">Telemedição</p>
             <h2>Softwares</h2>
             <SoftwaresPanel />
+          </section>
+        </main>
+      )
+    }
+
+    if (selectedArea.title === 'CISC') {
+      return (
+        <main className="shell">
+          <section className="home-card area-screen-card">
+            <TopActionBar
+              onBack={handleAreaBack}
+              onHome={exitToHome}
+              onLogout={onLogout}
+            />
+            <p className="section-tag">CISC</p>
+            <h2>Relatos de Experiência</h2>
+            <CiscPanel />
           </section>
         </main>
       )
