@@ -15,7 +15,9 @@ export const STATUS_CISC = [
   { numero: 12, codigo: 'ENCI', nome: 'Encerrado Improcedente' },
 ] as const
 
-const NOME_STATUS = new Map(STATUS_CISC.map((item) => [item.codigo, item.nome]))
+const NOME_STATUS = new Map<string, string>(
+  STATUS_CISC.map((item) => [item.codigo, item.nome]),
+)
 
 type Nota = {
   nota: number
