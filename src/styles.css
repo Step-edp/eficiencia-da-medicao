@@ -11144,3 +11144,145 @@ input[type='file'] {
     grid-template-columns: 1fr;
   }
 }
+
+.cisc-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cisc-filters label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.cisc-panel .cisc-filters select,
+.cisc-panel .cisc-filters input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(150, 187, 215, 0.28);
+  background: rgba(3, 16, 30, 0.72);
+  color: var(--text-main);
+}
+
+.cisc-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cisc-status {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(24, 216, 240, 0.18);
+  background: rgba(5, 26, 44, 0.45);
+  color: var(--text-main);
+  text-align: left;
+}
+
+.cisc-status.is-active {
+  border-color: rgba(91, 240, 0, 0.7);
+  background: rgba(91, 240, 0, 0.12);
+}
+
+.cisc-status.is-empty {
+  opacity: 0.55;
+}
+
+.cisc-status-num,
+.cisc-status strong,
+.cisc-status em,
+.cisc-status b {
+  display: block;
+}
+
+.cisc-status-num {
+  color: var(--cyan-500);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.cisc-status em {
+  color: var(--text-soft);
+  font-style: normal;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.cisc-status b {
+  margin-top: 4px;
+  font-size: 1.15rem;
+}
+
+.cisc-table-head,
+.cisc-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.cisc-table-head {
+  justify-content: space-between;
+}
+
+.cisc-pager button {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(24, 216, 240, 0.28);
+  background: rgba(5, 26, 44, 0.55);
+  color: var(--text-main);
+}
+
+.cisc-pager button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.cisc-table-wrap {
+  overflow: auto;
+}
+
+.cisc-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+}
+
+.cisc-table th,
+.cisc-table td {
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(24, 216, 240, 0.12);
+  color: var(--text-soft);
+  font-size: 0.86rem;
+}
+
+.cisc-table th,
+.cisc-table td strong {
+  color: var(--text-main);
+  font-weight: 650;
+}
+
+.cisc-table td small {
+  display: block;
+  color: var(--text-soft);
+  font-weight: 400;
+}
+
+@media (max-width: 900px) {
+  .cisc-filters,
+  .cisc-status-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

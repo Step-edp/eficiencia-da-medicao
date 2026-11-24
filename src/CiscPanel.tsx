@@ -1,6 +1,8 @@
 import { useRef, useState, type RefObject } from 'react'
+import { CiscCaptarPanel } from './CiscCaptarPanel'
 
 type CiscView =
+  | 'captar'
   | 'norte'
   | 'equipes'
   | 'ciclo'
@@ -10,6 +12,7 @@ type CiscView =
   | 'indicadores'
 
 const VIEWS: { id: CiscView; label: string }[] = [
+  { id: 'captar', label: 'Captar' },
   { id: 'norte', label: 'Norte' },
   { id: 'equipes', label: 'Equipes' },
   { id: 'ciclo', label: 'Ciclo' },
@@ -90,7 +93,7 @@ RELATO DA RECLAMAÇÃO
 [COLE AQUI O RELATO COMPLETO]`
 
 export function CiscPanel() {
-  const [view, setView] = useState<CiscView>('norte')
+  const [view, setView] = useState<CiscView>('captar')
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const promptRef = useRef<HTMLTextAreaElement>(null)
 
@@ -135,6 +138,7 @@ export function CiscPanel() {
         ))}
       </nav>
 
+      {view === 'captar' ? <CiscCaptarPanel /> : null}
       {view === 'norte' ? <Norte /> : null}
       {view === 'equipes' ? <Equipes /> : null}
       {view === 'ciclo' ? <Ciclo /> : null}
