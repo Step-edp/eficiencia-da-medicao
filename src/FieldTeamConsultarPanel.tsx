@@ -92,6 +92,7 @@ function scheduleSearchText(item: MeterScheduleRecord) {
       deliveryStatusLabel(item),
       item.trailStep,
       getLabTrailLabel(item.trailStep),
+      item.registryStatus,
       item.toiCollaborator1Name,
       item.toiCollaborator1Registration,
       item.toiCollaborator2Name,
@@ -127,6 +128,7 @@ function scheduleSourceLabel(source: string) {
   if (source === 'bulk_import') return 'Importação em massa'
   if (source === 'passivo') return 'Passivo (Lab)'
   if (source === 'field_team') return 'Equipe de campo'
+  if (source === 'meter_registry') return 'Base de medidores'
   return source || '—'
 }
 
@@ -150,7 +152,10 @@ function meterBaseStatusLabel(
   if (summary?.analysisBlocked) return 'Bloqueado'
   if (item.registryStatus === 'Aprovado' || item.trailStep === 'Sucata') return 'Aprovado'
   if (item.registryStatus === 'Ensaiado' || item.trailStep === 'Aprovação de RATM') return 'Ensaiado'
-  if (item.receivedAt && (item.registryStatus === 'Recebido' || item.trailStep === 'Ensaiar')) {
+  if (
+    item.registryStatus === 'Recebido' ||
+    (item.receivedAt && item.trailStep === 'Ensaiar')
+  ) {
     return 'Recebido'
   }
   const hasDocument = Boolean(summary?.hasToi || summary?.hasComunicado)
@@ -1367,7 +1372,7 @@ export function FieldTeamConsultarPanel({
                           : inspectionStatusLabel(summary)}
                       </span>
                       <div className="table-inspection-actions__buttons">
-                        {hideInspectionImport ? null : (
+                        {hideInspectionImport || item.source === 'meter_registry' ? null : (
                           <>
                             <input
                               id={`consultar-inspection-${item.id}`}
@@ -1433,6 +1438,9 @@ export function FieldTeamConsultarPanel({
                   )}
                   {allowCancelSchedule ? (
                     <td>
+                      {item.source === 'meter_registry' ? (
+                        '—'
+                      ) : (
                       <button
                         type="button"
                         className="icon-button schedule-cancel-button"
@@ -1454,6 +1462,7 @@ export function FieldTeamConsultarPanel({
                           />
                         </svg>
                       </button>
+                      )}
                     </td>
                   ) : null}
                 </tr>
@@ -1467,8 +1476,8 @@ export function FieldTeamConsultarPanel({
       {selectedSchedule ? (
         <ScheduleDetailModal
           schedule={selectedSchedule}
-          allowEdit={allowEdit}
-          allowCancel={allowCancelSchedule}
+          allowEdit={allowEdit && selectedSchedule.source !== 'meter_registry'}
+          allowCancel={allowCancelSchedule && selectedSchedule.source !== 'meter_registry'}
           hideDemm={hideDemm}
           onClose={() => setSelectedSchedule(null)}
           onPreviewEnvelope={setEnvelopePreview}

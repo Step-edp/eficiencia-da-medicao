@@ -23,7 +23,12 @@ import {
   resolvePontoFocalCsdNames,
   isBackofficeScopeUser,
 } from '../ponto-focal-csds.js'
-import { STILL_AWAITING_ENTRADA_SQL, normalizedMeterColumnSql, scheduleCountedFromTodaySql } from '../lab-trail-status.js'
+import {
+  STILL_AWAITING_ENTRADA_SQL,
+  mapMeterStatusToTrailStep,
+  normalizedMeterColumnSql,
+  scheduleCountedFromTodaySql,
+} from '../lab-trail-status.js'
 
 export const ENTRADA_TRAIL_STEP = 'Entrada de medidores'
 
@@ -396,6 +401,96 @@ function mapMeterSchedule(
   }
 }
 
+type RegistryConsultRow = {
+  id: string
+  meter: string
+  installation: string
+  toi: string
+  note: string
+  csd: string
+  status: string
+  trail_step: string
+  scheduling_notes: string
+  scheduled_at: Date | null
+  received_at: Date | null
+  imported_at: Date | null
+}
+
+/** Medidor que existe só na base, sem agendamento ativo. */
+function mapRegistryMeterForConsult(row: RegistryConsultRow) {
+  const scheduledAt = asDate(row.scheduled_at)
+  const receivedAt = asDate(row.received_at)
+  const importedAt = asDate(row.imported_at)
+  const sortAt = scheduledAt ?? receivedAt ?? importedAt ?? new Date(0)
+  const trailStep = row.trail_step?.trim() || mapMeterStatusToTrailStep(row.status || '')
+  const deliveryDeadlineAt = scheduledAt ? lastFridayBeforeAssay(scheduledAt) : null
+  const isLate = scheduledAt
+    ? isMeterDeliveryLate({
+        scheduledAt,
+        trailStep,
+        entradaTrailStep: ENTRADA_TRAIL_STEP,
+        received: Boolean(receivedAt),
+      })
+    : false
+
+  return {
+    id: row.id,
+    meter: row.meter,
+    installation: row.installation ?? '',
+    toi: row.toi ?? '',
+    note: row.note ?? '',
+    csd: row.csd ?? '',
+    clientPresent: 'nao' as const,
+    schedulingNotes: row.scheduling_notes ?? '',
+    toiCollaborator1Name: '',
+    toiCollaborator1Registration: '',
+    toiCollaborator2Name: '',
+    toiCollaborator2Registration: '',
+    toiTeamReason: '',
+    partnerUserId: null,
+    partnerName: '',
+    partnerRegistration: '',
+    envelopePhoto: '',
+    envelopeSeal: '',
+    scheduledByName: '',
+    schedulingDate: null,
+    scheduledAt: sortAt.toISOString(),
+    scheduledAtLabel: scheduledAt ? formatAvailableSlot(scheduledAt) : '',
+    deliveryDeadlineAt: deliveryDeadlineAt?.toISOString() ?? '',
+    deliveryDeadlineLabel: deliveryDeadlineAt
+      ? formatDeliveryDeadlineLabel(deliveryDeadlineAt)
+      : '',
+    isLate,
+    trailStep,
+    source: 'meter_registry',
+    createdAt: (importedAt ?? sortAt).toISOString(),
+    createdByUserId: null,
+    createdByRegistration: null,
+    createdByName: '',
+    demmDocumentId: null,
+    demmFileName: null,
+    demmDocumentNumber: null,
+    demmMeterCount: 0,
+    registryStatus: row.status ?? '',
+    receivedAt: receivedAt?.toISOString() ?? null,
+    inspectionAnalysisCompleted: false,
+    analysisBlockReason: '',
+    delayJustification: '',
+    installationTypedWrong: false,
+    previousInstallation: '',
+    installationMark: null,
+    toiTypedWrong: false,
+    previousToi: '',
+    toiMark: null,
+    noteTypedWrong: false,
+    previousNote: '',
+    noteMark: null,
+    csdTypedWrong: false,
+    previousCsd: '',
+    csdMark: null,
+  }
+}
+
 export async function listMeterSchedules(req: Request, res: Response) {
   const galleryMode =
     req.query.gallery === '1' ||
@@ -461,6 +556,7 @@ export async function listMeterSchedules(req: Request, res: Response) {
   }
 
   let mineFilter = ''
+  let consultCsdNames: string[] | null = null
 
   if (mineOnly) {
     if (!req.user?.id) {
@@ -488,7 +584,8 @@ export async function listMeterSchedules(req: Request, res: Response) {
           res.json({ schedules: [], total: 0 })
           return
         }
-        params.push(csdNames.map((name) => name.toUpperCase()))
+        consultCsdNames = csdNames.map((name) => name.toUpperCase())
+        params.push(consultCsdNames)
         filters.push(`UPPER(TRIM(ms.csd)) = ANY($${params.length}::text[])`)
       }
     }
@@ -508,7 +605,14 @@ export async function listMeterSchedules(req: Request, res: Response) {
             COALESCE(jsonb_array_length(d.extracted_meters), 0) AS demm_meter_count
      FROM meter_schedules ms
      LEFT JOIN users u ON u.id = ms.created_by_user_id
-     LEFT JOIN meter_registry mr ON mr.meter = ms.meter
+     LEFT JOIN LATERAL (
+       SELECT registry_match.status
+       FROM meter_registry registry_match
+       WHERE ${normalizedMeterColumnSql('registry_match')} = ${normalizedMeterColumnSql('ms')}
+       ORDER BY CASE WHEN registry_match.meter = ms.meter THEN 0 ELSE 1 END,
+                registry_match.received_at DESC NULLS LAST
+       LIMIT 1
+     ) mr ON true
      LEFT JOIN LATERAL (
        SELECT demm.id, demm.file_name, demm.document_number, demm.extracted_meters
        FROM demm_documents demm
@@ -542,6 +646,35 @@ export async function listMeterSchedules(req: Request, res: Response) {
     ? { id: req.user.id, registration: req.user.registration }
     : undefined
   const schedules = result.rows.map((row) => mapMeterSchedule(row, viewer))
+
+  if (allTrailSteps && !mineOnly && !meterSearch && !galleryMode) {
+    const registryParams: unknown[] = []
+    const registryFilters = [
+      `BTRIM(COALESCE(mr.meter, '')) <> ''`,
+      `NOT EXISTS (
+        SELECT 1
+        FROM meter_schedules ms
+        WHERE ms.delay_dismissed_at IS NULL
+          AND ${normalizedMeterColumnSql('ms')} = ${normalizedMeterColumnSql('mr')}
+      )`,
+    ]
+    if (consultCsdNames) {
+      registryParams.push(consultCsdNames)
+      registryFilters.push(`UPPER(TRIM(mr.csd)) = ANY($${registryParams.length}::text[])`)
+    }
+    const registryResult = await query<RegistryConsultRow>(
+      `SELECT mr.id, mr.meter, mr.installation, mr.toi, mr.note, mr.csd,
+              mr.status, mr.trail_step, mr.scheduling_notes,
+              mr.scheduled_at, mr.received_at, mr.imported_at
+       FROM meter_registry mr
+       WHERE ${registryFilters.join(' AND ')}`,
+      registryParams,
+    )
+    for (const row of registryResult.rows) {
+      schedules.push(mapRegistryMeterForConsult(row))
+    }
+  }
+
   const newestFirst = Boolean(meterSearch || allTrailSteps)
   schedules.sort((a, b) => {
     if (!newestFirst && a.isLate !== b.isLate) return a.isLate ? -1 : 1
@@ -552,7 +685,7 @@ export async function listMeterSchedules(req: Request, res: Response) {
 
   res.json({
     schedules,
-    total: result.rowCount ?? 0,
+    total: schedules.length,
   })
 }
 
