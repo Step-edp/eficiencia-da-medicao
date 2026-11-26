@@ -1037,14 +1037,21 @@ export function FieldTeamConsultarPanel({
 
   const filteredSchedules = useMemo(() => {
     const query = normalizeSearch(searchQuery)
-    const matched = query ? schedules.filter((item) => scheduleMatchesQuery(item, query)) : schedules
+    const matched = query
+      ? schedules.filter((item) => {
+          if (scheduleMatchesQuery(item, query)) return true
+          return normalizeSearch(
+            meterBaseStatusLabel(item, inspectionSummaryByScheduleId[item.id]),
+          ).includes(query)
+        })
+      : schedules
     if (!allTrailSteps) return matched
     return [...matched].sort((a, b) => {
       const scheduledDelta = new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
       const createdDelta = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       return newestFirst ? -scheduledDelta || createdDelta : scheduledDelta || createdDelta
     })
-  }, [allTrailSteps, newestFirst, schedules, searchQuery])
+  }, [allTrailSteps, inspectionSummaryByScheduleId, newestFirst, schedules, searchQuery])
 
   const totalCount = schedules.length
   const shownCount = filteredSchedules.length
@@ -1100,7 +1107,7 @@ export function FieldTeamConsultarPanel({
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Pesquisar por medidor, nota, CSD, colaborador, usuário, data de agendamento, status…"
+              placeholder="Pesquisar por medidor, status, nota, CSD, colaborador, usuário…"
               autoComplete="off"
               spellCheck={false}
             />
