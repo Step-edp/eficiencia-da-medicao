@@ -333,7 +333,8 @@ export async function importMeterSchedulesFromCsv(content: string, sourceLabel =
     query<{ meter: string }>(
       `SELECT ${normalizedMeterColumnSql()} AS meter
        FROM meter_registry
-       WHERE ${normalizedMeterColumnSql()} = ANY($1::text[])`,
+       WHERE excluded_at IS NULL
+         AND ${normalizedMeterColumnSql()} = ANY($1::text[])`,
       [normalizedMeters],
     ),
     query<{ name: string; cities: string[] | null }>(

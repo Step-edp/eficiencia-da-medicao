@@ -23,6 +23,7 @@ export async function getMeterRegistryTrailCounts(_req: Request, res: Response) 
   const registryCounts = await query<{ trail_step: string; total: string }>(
     `SELECT trail_step, COUNT(*)::text AS total
      FROM meter_registry
+     WHERE excluded_at IS NULL
      GROUP BY trail_step`,
   )
 

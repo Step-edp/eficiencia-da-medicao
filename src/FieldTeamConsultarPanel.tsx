@@ -977,7 +977,10 @@ export function FieldTeamConsultarPanel({
     setFeedback(null)
     try {
       const { schedule } = await api.cancelMeterSchedule(cancelTarget.id, justification)
-      setSchedules((current) => current.filter((item) => item.id !== schedule.id))
+      const removedId = cancelTarget.id
+      setSchedules((current) =>
+        current.filter((item) => item.id !== removedId && item.id !== schedule.id),
+      )
       setCancelTarget(null)
       setCancelDraft('')
       setSelectedSchedule(null)
@@ -1445,9 +1448,6 @@ export function FieldTeamConsultarPanel({
                   )}
                   {allowCancelSchedule ? (
                     <td>
-                      {item.source === 'meter_registry' ? (
-                        '—'
-                      ) : (
                       <button
                         type="button"
                         className="icon-button schedule-cancel-button"
@@ -1469,7 +1469,6 @@ export function FieldTeamConsultarPanel({
                           />
                         </svg>
                       </button>
-                      )}
                     </td>
                   ) : null}
                 </tr>
@@ -1484,7 +1483,7 @@ export function FieldTeamConsultarPanel({
         <ScheduleDetailModal
           schedule={selectedSchedule}
           allowEdit={allowEdit && selectedSchedule.source !== 'meter_registry'}
-          allowCancel={allowCancelSchedule && selectedSchedule.source !== 'meter_registry'}
+          allowCancel={allowCancelSchedule}
           hideDemm={hideDemm}
           onClose={() => setSelectedSchedule(null)}
           onPreviewEnvelope={setEnvelopePreview}

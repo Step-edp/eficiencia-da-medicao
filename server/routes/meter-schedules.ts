@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { query } from '../db.js'
+import { pool, query } from '../db.js'
 import { writeAuditLog } from '../audit.js'
 import { normalizeScheduleMeter, validateScheduleNumericField } from '../numeric-field-validation.js'
 import { fixBulkScheduleCollaboratorsFromCsv, fixBulkScheduleCsdFromCsv, fixBulkScheduleDigitsFromCsv, fixBulkScheduleNotesFromCsv, fixBulkScheduleUsersFromCsv, importMeterSchedulesFromCsv } from '../import-meter-schedules-bulk.js'
@@ -61,7 +61,8 @@ async function findMeterAlreadyInBase(meter: string) {
      UNION ALL
      SELECT 1 AS found
      FROM meter_registry
-     WHERE ${normalizedMeterColumnSql()} = $1
+     WHERE excluded_at IS NULL
+       AND ${normalizedMeterColumnSql()} = $1
      LIMIT 1`,
     [normalized],
   )
@@ -659,6 +660,7 @@ export async function listMeterSchedules(req: Request, res: Response) {
     const registryParams: unknown[] = []
     const registryFilters = [
       `BTRIM(COALESCE(mr.meter, '')) <> ''`,
+      `mr.excluded_at IS NULL`,
       `NOT EXISTS (
         SELECT 1
         FROM meter_schedules ms
@@ -1918,6 +1920,143 @@ export async function dismissDelayMeter(req: Request, res: Response) {
   res.json({ schedule })
 }
 
+async function cancelRegistryMeter(
+  req: Request,
+  res: Response,
+  id: string,
+  justification: string,
+) {
+  const existing = await query<RegistryConsultRow & { excluded_at: Date | null }>(
+    `SELECT id, meter, installation, toi, note, csd, status, trail_step, scheduling_notes,
+            scheduled_at, received_at, imported_at, excluded_at
+     FROM meter_registry
+     WHERE id = $1`,
+    [id],
+  )
+  const registry = existing.rows[0]
+  if (!registry) {
+    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    return
+  }
+  if (registry.excluded_at) {
+    res.status(400).json({ error: 'Este agendamento já foi excluído.' })
+    return
+  }
+
+  const labOrAdmin = await canEditLabSchedule(req)
+  if (!labOrAdmin) {
+    const userId = req.user?.id ?? ''
+    const allowedCsdNames = userId ? await resolvePontoFocalCsdNames(userId) : []
+    if (allowedCsdNames === null) {
+      if (!(userId && (await isBackofficeScopeUser(userId)))) {
+        res.status(403).json({
+          error: 'Apenas o ponto focal responsável do CSD pode excluir o agendamento.',
+        })
+        return
+      }
+    } else {
+      const scheduleCsd = (registry.csd ?? '').trim().toUpperCase()
+      if (!allowedCsdNames.some((name) => name.toUpperCase() === scheduleCsd)) {
+        res.status(403).json({
+          error: 'Você só pode excluir agendamentos dos CSDs em que é responsável.',
+        })
+        return
+      }
+    }
+  }
+
+  const scheduledAt = asDate(registry.scheduled_at) ?? asDate(registry.imported_at) ?? new Date()
+  const trailStep = registry.trail_step?.trim() || mapMeterStatusToTrailStep(registry.status || '')
+  const isLate = isMeterDeliveryLate({
+    scheduledAt,
+    trailStep,
+    entradaTrailStep: ENTRADA_TRAIL_STEP,
+    received: Boolean(registry.received_at),
+  })
+  const deadline = lastFridayBeforeAssay(scheduledAt)
+  const frozenDaysLate = isLate ? calendarDaysBetween(deadline, new Date()) : 0
+  const scheduleId = `excluded-${registry.id}`
+  const actorId = req.user?.id ?? null
+
+  const client = await pool.connect()
+  let dismissedAt: Date | null = null
+  try {
+    await client.query('BEGIN')
+    const updated = await client.query<{ excluded_at: Date }>(
+      `UPDATE meter_registry
+       SET excluded_at = NOW(),
+           excluded_by = $2,
+           exclusion_justification = $3
+       WHERE id = $1
+         AND excluded_at IS NULL
+       RETURNING excluded_at`,
+      [id, actorId, justification],
+    )
+    if (!updated.rows[0]) {
+      await client.query('ROLLBACK')
+      res.status(400).json({ error: 'Este agendamento já foi excluído.' })
+      return
+    }
+    dismissedAt = updated.rows[0].excluded_at
+    await client.query(
+      `INSERT INTO meter_schedules (
+         id, meter, installation, toi, note, csd, client_present,
+         scheduling_notes, scheduled_at, trail_step, source, created_by_user_id,
+         delay_justification, delay_dismissed_at, delay_dismissed_by, delay_dismissed_days
+       ) VALUES (
+         $1, $2, $3, $4, $5, $6, 'nao',
+         $7, $8, $9, 'meter_registry', $10,
+         $11, $12, $13, $14
+       )
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        scheduleId,
+        registry.meter,
+        registry.installation ?? '',
+        registry.toi ?? '',
+        registry.note ?? '',
+        registry.csd ?? '',
+        registry.scheduling_notes ?? '',
+        scheduledAt.toISOString(),
+        trailStep || ENTRADA_TRAIL_STEP,
+        actorId,
+        justification,
+        dismissedAt,
+        actorId,
+        frozenDaysLate,
+      ],
+    )
+    await client.query('COMMIT')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+
+  await writeAuditLog(req, {
+    action: 'update',
+    entityType: 'meter_schedule',
+    entityId: scheduleId,
+    summary: `Agendamento do medidor ${registry.meter} excluído${
+      req.user?.role === 'admin' ? ' pelo administrador' : labOrAdmin ? ' pelo laboratório' : ' pelo ponto focal'
+    }`,
+    oldData: { delayDismissedAt: null, delayJustification: '' },
+    newData: {
+      delayDismissedAt: dismissedAt,
+      delayJustification: justification,
+    },
+    metadata: { meter: registry.meter, kind: 'schedule_cancelled', source: 'meter_registry' },
+  })
+
+  res.json({
+    schedule: {
+      ...mapRegistryMeterForConsult(registry),
+      delayJustification: justification,
+    },
+  })
+}
+
 export async function cancelMeterSchedule(req: Request, res: Response) {
   const id = typeof req.params.id === 'string' ? req.params.id.trim() : ''
   if (!id) {
@@ -1944,7 +2083,7 @@ export async function cancelMeterSchedule(req: Request, res: Response) {
   )
   const row = existing.rows[0]
   if (!row) {
-    res.status(404).json({ error: 'Agendamento não encontrado.' })
+    await cancelRegistryMeter(req, res, id, justification)
     return
   }
 

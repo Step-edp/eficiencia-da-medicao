@@ -23,6 +23,9 @@ const CRITICAL_COLUMNS = [
   `ALTER TABLE ratm_laudos ADD COLUMN IF NOT EXISTS approved_by_user_id TEXT`,
   `ALTER TABLE meter_registry ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE meter_registry ADD COLUMN IF NOT EXISTS trail_step TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE meter_registry ADD COLUMN IF NOT EXISTS excluded_at TIMESTAMPTZ`,
+  `ALTER TABLE meter_registry ADD COLUMN IF NOT EXISTS excluded_by TEXT`,
+  `ALTER TABLE meter_registry ADD COLUMN IF NOT EXISTS exclusion_justification TEXT NOT NULL DEFAULT ''`,
 ]
 
 /** Colunas usadas no agendamento e na aprovação, mesmo se o restante da migração falhar. */
