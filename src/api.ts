@@ -336,6 +336,17 @@ export type DocumentTemplateRecord = {
   createdByName: string
 }
 
+export type SoftwareDownloadRecord = {
+  id: number
+  softwareId: number
+  softwareName: string
+  versionLabel: string
+  userName: string
+  userRegistration: string
+  kind: 'arquivo' | 'link'
+  downloadedAt: string
+}
+
 export type SoftwareRecord = {
   id: number
   name: string
@@ -1677,6 +1688,12 @@ export const api = {
   deleteDocumentTemplate: (id: number) =>
     request<{ ok: boolean }>(`/api/document-templates/${id}`, { method: 'DELETE' }),
   listSoftwares: () => request<{ softwares: SoftwareRecord[] }>('/api/softwares'),
+  listSoftwareDownloads: () =>
+    request<{ downloads: SoftwareDownloadRecord[] }>('/api/softwares/downloads'),
+  registerSoftwareLinkDownload: (id: number) =>
+    request<{ download: SoftwareDownloadRecord }>(`/api/softwares/${id}/download-log`, {
+      method: 'POST',
+    }),
   createSoftware: (payload: {
     name: string
     description?: string

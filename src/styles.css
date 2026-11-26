@@ -10926,6 +10926,12 @@ input[type='file'] {
   overflow-wrap: anywhere;
 }
 
+.software-copy-button {
+  min-width: 0;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
 .software-badge {
   padding: 2px 8px;
   border-radius: 999px;
@@ -10933,6 +10939,24 @@ input[type='file'] {
   color: #212e3e;
   font-size: 12px;
   font-weight: 700;
+}
+
+.software-history {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(24, 216, 240, 0.16);
+}
+
+.software-history ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.software-history li,
+.software-history p {
+  margin: 4px 0 0;
+  color: rgba(232, 244, 252, 0.82);
+  font-size: 14px;
 }
 
 .software-previous {

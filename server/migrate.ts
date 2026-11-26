@@ -862,6 +862,19 @@ export async function migrate() {
       ON softwares (created_at DESC)
   `)
   await query(`
+    CREATE TABLE IF NOT EXISTS software_downloads (
+      id SERIAL PRIMARY KEY,
+      software_id INTEGER NOT NULL REFERENCES softwares(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      kind TEXT NOT NULL DEFAULT 'arquivo',
+      downloaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_software_downloads_software
+      ON software_downloads (software_id, downloaded_at DESC)
+  `)
+  await query(`
     CREATE TABLE IF NOT EXISTS document_templates (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,

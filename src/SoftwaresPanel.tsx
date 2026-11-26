@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useId, useMemo, useState } from 'react'
-import { api, ApiError, type SoftwareRecord } from './api'
+import { api, ApiError, type SoftwareDownloadRecord, type SoftwareRecord } from './api'
 import { readAttachmentAsDataUrl } from './readAttachmentAsDataUrl'
 
 type FormMode = { kind: 'new' } | { kind: 'version'; name: string }
@@ -37,12 +37,26 @@ function rotuloVersao(item: SoftwareRecord) {
   return item.versionLabel ? `${item.versionLabel} · ${quando}` : quando
 }
 
+function rotuloDownload(item: SoftwareDownloadRecord) {
+  const pessoa = item.userName
+    ? item.userRegistration
+      ? `${item.userName} (${item.userRegistration})`
+      : item.userName
+    : item.userRegistration || 'Usuário removido'
+  const quando = new Date(item.downloadedAt).toLocaleString('pt-BR')
+  const versao = item.versionLabel ? ` · ${item.versionLabel}` : ''
+  const tipo = item.kind === 'link' ? 'link' : 'arquivo'
+  return `${pessoa} · ${quando}${versao} · ${tipo}`
+}
+
 export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
   const [softwares, setSoftwares] = useState<SoftwareRecord[]>([])
+  const [downloads, setDownloads] = useState<SoftwareDownloadRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [formMode, setFormMode] = useState<FormMode | null>(null)
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
+  const [copiedId, setCopiedId] = useState<number | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
@@ -59,8 +73,12 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const { softwares: rows } = await api.listSoftwares()
+      const [{ softwares: rows }, history] = await Promise.all([
+        api.listSoftwares(),
+        api.listSoftwareDownloads().catch(() => ({ downloads: [] as SoftwareDownloadRecord[] })),
+      ])
       setSoftwares(rows)
+      setDownloads(history.downloads)
     } catch (error) {
       setSoftwares([])
       setFeedback({
@@ -170,6 +188,8 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
       anchor.click()
       anchor.remove()
       window.setTimeout(() => URL.revokeObjectURL(url), 1500)
+      const history = await api.listSoftwareDownloads()
+      setDownloads(history.downloads)
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -181,25 +201,71 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
     }
   }
 
-  const recursoDo = (item: SoftwareRecord) => (
-    <>
-      {item.hasAttachment ? (
-        <button
-          type="button"
-          className="link-button"
-          disabled={downloadingId === item.id}
-          onClick={() => void handleDownloadAttachment(item)}
-        >
-          {downloadingId === item.id ? 'Baixando…' : item.attachmentName || 'Baixar arquivo'}
-        </button>
-      ) : null}
-      {item.linkUrl ? (
-        <a className="link-button" href={item.linkUrl} target="_blank" rel="noopener noreferrer">
-          {item.linkUrl}
-        </a>
-      ) : null}
-    </>
-  )
+  const linkDeDownload = (item: SoftwareRecord) => {
+    const externo = item.linkUrl?.trim()
+    if (externo) return externo
+    if (item.hasAttachment) return `${window.location.origin}/api/softwares/${item.id}/download`
+    return ''
+  }
+
+  const copiarLink = async (item: SoftwareRecord) => {
+    const link = linkDeDownload(item)
+    if (!link) return
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopiedId(item.id)
+      window.setTimeout(() => {
+        setCopiedId((atual) => (atual === item.id ? null : atual))
+      }, 2000)
+    } catch {
+      setFeedback({ type: 'error', message: 'Não foi possível copiar o link.' })
+    }
+  }
+
+  const recursoDo = (item: SoftwareRecord) => {
+    const link = linkDeDownload(item)
+    return (
+      <>
+        {item.hasAttachment ? (
+          <button
+            type="button"
+            className="link-button"
+            disabled={downloadingId === item.id}
+            onClick={() => void handleDownloadAttachment(item)}
+          >
+            {downloadingId === item.id ? 'Baixando…' : item.attachmentName || 'Baixar arquivo'}
+          </button>
+        ) : null}
+        {item.linkUrl ? (
+          <a
+            className="link-button"
+            href={item.linkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => {
+              void api
+                .registerSoftwareLinkDownload(item.id)
+                .then(({ download }) => {
+                  setDownloads((current) => [download, ...current.filter((row) => row.id !== download.id)])
+                })
+                .catch(() => undefined)
+            }}
+          >
+            {item.linkUrl}
+          </a>
+        ) : null}
+        {link ? (
+          <button
+            type="button"
+            className="secondary-button software-copy-button"
+            onClick={() => void copiarLink(item)}
+          >
+            {copiedId === item.id ? 'Copiado' : 'Copiar link'}
+          </button>
+        ) : null}
+      </>
+    )
+  }
 
   return (
     <div className="softwares-panel">
@@ -390,6 +456,20 @@ export function SoftwaresPanel({ readOnly = false }: { readOnly?: boolean }) {
                   </ul>
                 </div>
               ) : null}
+              <div className="software-history">
+                <p className="software-previous-title">Histórico de downloads</p>
+                {downloads.some((item) => nomeChave(item.softwareName) === grupo.chave) ? (
+                  <ul>
+                    {downloads
+                      .filter((item) => nomeChave(item.softwareName) === grupo.chave)
+                      .map((item) => (
+                        <li key={item.id}>{rotuloDownload(item)}</li>
+                      ))}
+                  </ul>
+                ) : (
+                  <p>Nenhum download registrado.</p>
+                )}
+              </div>
             </article>
           ))}
         </div>

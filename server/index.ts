@@ -306,6 +306,9 @@ async function start() {
     rejectLabMedicaoViewOnlyMutations,
     createSoftware,
   )
+  app.get('/api/softwares/downloads', ...wrap(softwareRoutes.downloads))
+  app.post('/api/softwares/:id/download-log', ...wrap(softwareRoutes.logDownload))
+  app.get('/api/softwares/:id/download', ...wrap(softwareRoutes.download))
   app.get('/api/softwares/:id/attachment', ...wrap(softwareRoutes.attachment))
 
   app.get('/api/document-templates', ...wrap(documentTemplateRoutes.list))
