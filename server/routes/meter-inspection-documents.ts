@@ -25,7 +25,11 @@ import {
   normalizeScheduleMeter,
   validateScheduleNumericField,
 } from '../numeric-field-validation.js'
-import { pontoFocalScopeUserId, resolvePontoFocalCsdNames } from '../ponto-focal-csds.js'
+import {
+  isPontoFocalProfileUser,
+  pontoFocalScopeUserId,
+  resolvePontoFocalCsdNames,
+} from '../ponto-focal-csds.js'
 import { ensureFillingDeviationsFromSchedules } from '../filling-deviations.js'
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024
@@ -3109,7 +3113,7 @@ export async function listInspectionPendencias(req: Request, res: Response) {
   const scopeUserId = pontoFocalScopeUserId(req.user?.role, req.user?.id, forUserId)
 
   let csdNames: string[] | null = null
-  if (scopeUserId) {
+  if (scopeUserId && !(await isPontoFocalProfileUser(scopeUserId))) {
     csdNames = await resolvePontoFocalCsdNames(scopeUserId)
   }
 

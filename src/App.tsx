@@ -6110,6 +6110,7 @@ function HomePanel({
               <EnviarDocumentosPanel scopeUserId={enviarDocumentosScopeUserId} />
             ) : (
               <FieldTeamConsultarPanel
+                allTrailSteps={isLavraturaPontoFocalScope(activeFieldTeamSubtype)}
                 hideInspectionImport={
                   isLavraturaPontoFocalScope(activeFieldTeamSubtype) || csdResponsible
                 }

@@ -38,6 +38,22 @@ export async function resolvePontoFocalCsdNames(userId: string): Promise<string[
   return isPontoFocal ? [] : null
 }
 
+/** Perfil Lavratura de TOI - Ponto Focal, inclusive quem foi promovido ao assumir um CSD. */
+export async function isPontoFocalProfileUser(userId: string): Promise<boolean> {
+  const userResult = await query<{ work_subtype: string }>(
+    `SELECT work_subtype FROM users WHERE id = $1`,
+    [userId],
+  )
+  const subtype = (userResult.rows[0]?.work_subtype ?? '')
+    .replace(/[–—−‑]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return (
+    subtype === PONTO_FOCAL_SCOPE ||
+    /lavratura de toi.*ponto focal/i.test(subtype)
+  )
+}
+
 export async function isBackofficeScopeUser(userId: string): Promise<boolean> {
   const userResult = await query<{ work_area: string; work_subtype: string }>(
     `SELECT work_area, work_subtype FROM users WHERE id = $1`,

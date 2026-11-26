@@ -19,6 +19,7 @@ import {
 } from '../delivery-deadline.js'
 import {
   PONTO_FOCAL_SCOPE,
+  isPontoFocalProfileUser,
   pontoFocalScopeUserId,
   resolvePontoFocalCsdNames,
   isBackofficeScopeUser,
@@ -574,10 +575,11 @@ export async function listMeterSchedules(req: Request, res: Response) {
         OR UPPER(TRIM(ms.toi_collaborator2_registration)) = $${registrationParam}
       )`
   } else if (!galleryMode && !meterSearch) {
-    // Consultar: Ponto Focal vê só agendamentos dos CSDs atribuídos a ele.
+    // Responsável de CSD que não é Ponto Focal vê só os CSDs atribuídos a ele.
+    // Ponto Focal consulta a base inteira.
     const scopeUserId = pontoFocalScopeUserId(req.user?.role, req.user?.id, forUserId)
 
-    if (scopeUserId) {
+    if (scopeUserId && !(await isPontoFocalProfileUser(scopeUserId))) {
       const csdNames = await resolvePontoFocalCsdNames(scopeUserId)
       if (csdNames !== null) {
         if (csdNames.length === 0) {
@@ -2274,7 +2276,7 @@ export async function updateMeterSchedule(req: Request, res: Response) {
   res.json({ schedule })
 }
 
-/** Dashboard de atraso de entrega para Ponto Focal (CSDs sob responsabilidade). */
+/** Dashboard de atraso de entrega. Ponto Focal vê todos os medidores. */
 export async function getPontoFocalDashboard(req: Request, res: Response) {
   const forUserId =
     typeof req.query.forUserId === 'string' && req.query.forUserId.trim()
@@ -2288,8 +2290,10 @@ export async function getPontoFocalDashboard(req: Request, res: Response) {
   }
 
   const fromToday = req.query.fromToday === '1'
-  const csdNames = await resolvePontoFocalCsdNames(scopeUserId)
-  const backofficeAccess = csdNames === null && (await isBackofficeScopeUser(scopeUserId))
+  const pontoFocalSeesAll = await isPontoFocalProfileUser(scopeUserId)
+  const csdNames = pontoFocalSeesAll ? null : await resolvePontoFocalCsdNames(scopeUserId)
+  const backofficeAccess =
+    pontoFocalSeesAll || (csdNames === null && (await isBackofficeScopeUser(scopeUserId)))
   if (csdNames === null && !backofficeAccess) {
     res.status(403).json({
       error: 'Disponível apenas para o responsável do CSD.',
