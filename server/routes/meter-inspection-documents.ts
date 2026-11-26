@@ -4704,6 +4704,118 @@ export async function adjustScheduleDateFromDocument(req: Request, res: Response
   })
 }
 
+export async function getDeviationAnalysis(_req: Request, res: Response) {
+  try {
+    await ensureFillingDeviationsFromSchedules()
+  } catch (error) {
+    console.error('Não foi possível sincronizar desvios de preenchimento.', error)
+  }
+
+  const [totals, byType, byPerson, exclusionTotals, byJustification] = await Promise.all([
+    query<{ pending: number; adjusted: number }>(
+      `SELECT
+         (COUNT(*) FILTER (WHERE physically_adjusted_at IS NULL))::int AS pending,
+         (COUNT(*) FILTER (WHERE physically_adjusted_at IS NOT NULL))::int AS adjusted
+       FROM toi_schedule_deviations`,
+    ),
+    query<{ label: string; pending: number; adjusted: number }>(
+      `SELECT
+         COALESCE(NULLIF(BTRIM(description), ''), kind) AS label,
+         (COUNT(*) FILTER (WHERE physically_adjusted_at IS NULL))::int AS pending,
+         (COUNT(*) FILTER (WHERE physically_adjusted_at IS NOT NULL))::int AS adjusted
+       FROM toi_schedule_deviations
+       GROUP BY 1
+       ORDER BY (COUNT(*)) DESC, 1`,
+    ),
+    query<{ label: string; pending: number; adjusted: number }>(
+      `SELECT label,
+              (COUNT(*) FILTER (WHERE physically_adjusted_at IS NULL))::int AS pending,
+              (COUNT(*) FILTER (WHERE physically_adjusted_at IS NOT NULL))::int AS adjusted
+       FROM (
+         SELECT
+           TRIM(BOTH FROM CONCAT_WS(
+             ' ',
+             NULLIF(BTRIM(collaborator1_name), ''),
+             CASE
+               WHEN BTRIM(COALESCE(collaborator1_registration, '')) = '' THEN NULL
+               ELSE '(' || BTRIM(collaborator1_registration) || ')'
+             END
+           )) AS label,
+           physically_adjusted_at
+         FROM toi_schedule_deviations
+         WHERE BTRIM(COALESCE(collaborator1_name, '')) <> ''
+            OR BTRIM(COALESCE(collaborator1_registration, '')) <> ''
+         UNION ALL
+         SELECT
+           TRIM(BOTH FROM CONCAT_WS(
+             ' ',
+             NULLIF(BTRIM(collaborator2_name), ''),
+             CASE
+               WHEN BTRIM(COALESCE(collaborator2_registration, '')) = '' THEN NULL
+               ELSE '(' || BTRIM(collaborator2_registration) || ')'
+             END
+           )) AS label,
+           physically_adjusted_at
+         FROM toi_schedule_deviations
+         WHERE (
+             BTRIM(COALESCE(collaborator2_name, '')) <> ''
+             OR BTRIM(COALESCE(collaborator2_registration, '')) <> ''
+           )
+           AND (
+             UPPER(TRIM(COALESCE(collaborator2_registration, '')))
+               <> UPPER(TRIM(COALESCE(collaborator1_registration, '')))
+             OR (
+               BTRIM(COALESCE(collaborator2_registration, '')) = ''
+               AND BTRIM(COALESCE(collaborator1_registration, '')) = ''
+               AND UPPER(TRIM(COALESCE(collaborator2_name, '')))
+                 <> UPPER(TRIM(COALESCE(collaborator1_name, '')))
+             )
+           )
+       ) people
+       WHERE BTRIM(COALESCE(label, '')) <> ''
+       GROUP BY label
+       ORDER BY pending DESC, adjusted DESC, label
+       LIMIT 12`,
+    ),
+    query<{ total: number }>(
+      `SELECT COUNT(*)::int AS total
+       FROM meter_schedules
+       WHERE delay_dismissed_at IS NOT NULL`,
+    ),
+    query<{ label: string; total: number }>(
+      `SELECT
+         COALESCE(NULLIF(BTRIM(delay_justification), ''), 'Sem justificativa') AS label,
+         COUNT(*)::int AS total
+       FROM meter_schedules
+       WHERE delay_dismissed_at IS NOT NULL
+       GROUP BY 1
+       ORDER BY total DESC, label
+       LIMIT 12`,
+    ),
+  ])
+
+  const summary = totals.rows[0]
+  res.json({
+    pending: Number(summary?.pending ?? 0),
+    adjusted: Number(summary?.adjusted ?? 0),
+    exclusions: Number(exclusionTotals.rows[0]?.total ?? 0),
+    byType: byType.rows.map((row) => ({
+      label: row.label,
+      pending: Number(row.pending ?? 0),
+      adjusted: Number(row.adjusted ?? 0),
+    })),
+    byPerson: byPerson.rows.map((row) => ({
+      label: row.label,
+      pending: Number(row.pending ?? 0),
+      adjusted: Number(row.adjusted ?? 0),
+    })),
+    byExclusionJustification: byJustification.rows.map((row) => ({
+      label: row.label,
+      total: Number(row.total ?? 0),
+    })),
+  })
+}
+
 export async function listScheduleDateAdjustments(req: Request, res: Response) {
   try {
     await ensureFillingDeviationsFromSchedules()

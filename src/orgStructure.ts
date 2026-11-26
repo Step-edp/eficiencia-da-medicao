@@ -319,6 +319,7 @@ export const PROCESSES_BY_HOME_SUBAREA: Record<EngineerHomeSubarea, readonly str
     'Reagendar',
     'Alteração de data',
     'Desvios',
+    'Análise de desvios',
     'Auditoria',
     'Log do sistema',
     'Analisadores de Tensão',

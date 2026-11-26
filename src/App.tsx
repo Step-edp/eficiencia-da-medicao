@@ -10,6 +10,7 @@ import { PontoFocalDashboard } from './PontoFocalDashboard'
 import { EnviarDocumentosPanel } from './EnviarDocumentosPanel'
 import { ScheduleDateAdjustmentsPanel } from './ScheduleDateAdjustmentsPanel'
 import { DeviationsPanel } from './DeviationsPanel'
+import { DeviationAnalysisPanel } from './DeviationAnalysisPanel'
 import { EnsaiarForm } from './EnsaiarForm'
 import { CadastrosPanel } from './CadastrosPanel'
 import { UserDetailModal } from './UserDetailModal'
@@ -1156,6 +1157,7 @@ function ItemIcon({ title }: { title: string }) {
     Reagendar: 'repeat',
     'Alteração de data': 'clock',
     Desvios: 'shield',
+    'Análise de desvios': 'chart',
     'Minha produtividade': 'chart',
     'Produtividade da equipe': 'users',
     'Adicionar passivo': 'calendar',
@@ -2589,6 +2591,7 @@ function HomePanel({
     'Reagendar',
     'Alteração de data',
     'Desvios',
+    'Análise de desvios',
     'Log do sistema',
     'Criar Modelo',
     'Galeria',
@@ -6234,6 +6237,8 @@ function HomePanel({
                 readOnly={labMedicaoReadOnly}
                 onPendingCountChange={setLabDeviationsCount}
               />
+            ) : selectedLabMeasurementSection === 'Análise de desvios' ? (
+              <DeviationAnalysisPanel />
             ) : selectedLabMeasurementSection === 'Minha produtividade' &&
               showMinhaProdutividade ? (
               <MinhaProdutividadePanel

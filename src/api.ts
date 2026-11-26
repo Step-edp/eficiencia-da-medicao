@@ -2414,6 +2414,15 @@ export const api = {
     request<{ exclusions: ScheduleExclusionRecord[]; total: number }>(
       '/api/meter-schedules/exclusions',
     ),
+  getDeviationAnalysis: () =>
+    request<{
+      pending: number
+      adjusted: number
+      exclusions: number
+      byType: Array<{ label: string; pending: number; adjusted: number }>
+      byPerson: Array<{ label: string; pending: number; adjusted: number }>
+      byExclusionJustification: Array<{ label: string; total: number }>
+    }>('/api/meter-schedules/deviation-analysis'),
   listInspectionPhotos: (meterScheduleId: string) =>
     request<{ photos: InspectionPhotoRecord[] }>(
       `/api/meter-schedules/${meterScheduleId}/inspection-photos`,

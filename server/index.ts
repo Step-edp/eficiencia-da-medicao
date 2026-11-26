@@ -135,6 +135,7 @@ import {
   updateInspectionExtracted,
   adjustScheduleDateFromDocument,
   listScheduleDateAdjustments,
+  getDeviationAnalysis,
   markScheduleDatePhysicallyAdjusted,
   completeInspectionAnalysis,
   blockInspectionAnalysis,
@@ -567,6 +568,7 @@ async function start() {
     listCompletedInspectionAnalyses,
   )
   app.get('/api/meter-schedules/date-adjustments', requireAuth, listScheduleDateAdjustments)
+  app.get('/api/meter-schedules/deviation-analysis', requireAuth, getDeviationAnalysis)
   app.get('/api/meter-schedules/exclusions', requireAuth, listScheduleExclusions)
   app.post(
     '/api/meter-schedules/date-adjustments/:id/physical',

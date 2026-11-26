@@ -10110,6 +10110,21 @@ input[type='file'] {
   margin: 4px 0 16px;
 }
 
+.deviation-analysis-kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.deviation-analysis-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.deviation-analysis-wide {
+  grid-column: 1 / -1;
+}
+
 .exclusion-justification-chart .lab-bi-chart {
   width: 100%;
   height: auto;
@@ -10221,7 +10236,8 @@ input[type='file'] {
 @media (max-width: 1100px) {
   .lab-bi-kpis,
   .lab-bi-bottom,
-  .lab-bi-layout {
+  .lab-bi-layout,
+  .deviation-analysis-charts {
     grid-template-columns: 1fr;
   }
 }
