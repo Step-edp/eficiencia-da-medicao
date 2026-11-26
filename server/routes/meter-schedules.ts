@@ -649,7 +649,13 @@ export async function listMeterSchedules(req: Request, res: Response) {
     : undefined
   const schedules = result.rows.map((row) => mapMeterSchedule(row, viewer))
 
-  if (allTrailSteps && !mineOnly && !meterSearch && !galleryMode) {
+  const includeRegistryMeters =
+    !mineOnly &&
+    !meterSearch &&
+    !galleryMode &&
+    (allTrailSteps || trailStep === ENTRADA_TRAIL_STEP)
+
+  if (includeRegistryMeters) {
     const registryParams: unknown[] = []
     const registryFilters = [
       `BTRIM(COALESCE(mr.meter, '')) <> ''`,
@@ -660,6 +666,19 @@ export async function listMeterSchedules(req: Request, res: Response) {
           AND ${normalizedMeterColumnSql('ms')} = ${normalizedMeterColumnSql('mr')}
       )`,
     ]
+    if (!allTrailSteps) {
+      registryFilters.push(`mr.received_at IS NULL`)
+      registryFilters.push(`(
+        BTRIM(COALESCE(mr.status, '')) = 'Agendado'
+        OR (
+          BTRIM(COALESCE(mr.status, '')) = ''
+          AND BTRIM(COALESCE(mr.trail_step, '')) IN ('', '${ENTRADA_TRAIL_STEP}')
+        )
+      )`)
+      registryFilters.push(
+        `BTRIM(COALESCE(mr.trail_step, '')) NOT IN ('Sucata', 'Aprovação de RATM', 'Pesquisa de satisfação')`,
+      )
+    }
     if (consultCsdNames) {
       registryParams.push(consultCsdNames)
       registryFilters.push(`UPPER(TRIM(mr.csd)) = ANY($${registryParams.length}::text[])`)
@@ -673,7 +692,11 @@ export async function listMeterSchedules(req: Request, res: Response) {
       registryParams,
     )
     for (const row of registryResult.rows) {
-      schedules.push(mapRegistryMeterForConsult(row))
+      const mapped = mapRegistryMeterForConsult(row)
+      if (!allTrailSteps && mapped.trailStep.trim() !== ENTRADA_TRAIL_STEP) {
+        mapped.trailStep = ENTRADA_TRAIL_STEP
+      }
+      schedules.push(mapped)
     }
   }
 
