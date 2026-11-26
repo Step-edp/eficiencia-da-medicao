@@ -628,8 +628,63 @@ function chooseFilled(
   return incomingRank >= currentRank ? incoming : current
 }
 
+function findZipEocd(buffer: Buffer) {
+  const min = Math.max(0, buffer.length - 22 - 65535)
+  for (let offset = buffer.length - 22; offset >= min; offset -= 1) {
+    if (buffer.readUInt32LE(offset) === 0x06054b50) return offset
+  }
+  return -1
+}
+
+function zipEntryName(rawName: Buffer, flags: number) {
+  return (flags & 0x800 ? rawName.toString('utf8') : rawName.toString('latin1')).replace(/\\/g, '/')
+}
+
+function pushSpreadsheet(
+  files: Array<{ name: string; data: Buffer }>,
+  fullName: string,
+  method: number,
+  compressed: Buffer,
+) {
+  const name = fullName.split('/').pop() ?? ''
+  if (!name.toLowerCase().endsWith('.xlsx') || fullName.includes('__MACOSX')) return
+  if (method === 0) files.push({ name, data: Buffer.from(compressed) })
+  else if (method === 8) files.push({ name, data: inflateRawSync(compressed) })
+}
+
 function unzipSpreadsheets(buffer: Buffer) {
   const files: Array<{ name: string; data: Buffer }> = []
+  const eocd = findZipEocd(buffer)
+  if (eocd >= 0) {
+    const total = buffer.readUInt16LE(eocd + 10)
+    let cursor = buffer.readUInt32LE(eocd + 16)
+    for (let index = 0; index < total && cursor + 46 <= buffer.length; index += 1) {
+      if (buffer.readUInt32LE(cursor) !== 0x02014b50) break
+      const flags = buffer.readUInt16LE(cursor + 8)
+      const method = buffer.readUInt16LE(cursor + 10)
+      const compressedSize = buffer.readUInt32LE(cursor + 20)
+      const nameLength = buffer.readUInt16LE(cursor + 28)
+      const extraLength = buffer.readUInt16LE(cursor + 30)
+      const commentLength = buffer.readUInt16LE(cursor + 32)
+      const localOffset = buffer.readUInt32LE(cursor + 42)
+      const fullName = zipEntryName(buffer.subarray(cursor + 46, cursor + 46 + nameLength), flags)
+      cursor += 46 + nameLength + extraLength + commentLength
+      if (localOffset === 0xffffffff || compressedSize === 0xffffffff) continue
+      if (localOffset + 30 > buffer.length || buffer.readUInt32LE(localOffset) !== 0x04034b50) continue
+      const localNameLength = buffer.readUInt16LE(localOffset + 26)
+      const localExtraLength = buffer.readUInt16LE(localOffset + 28)
+      const dataStart = localOffset + 30 + localNameLength + localExtraLength
+      const compressed = buffer.subarray(dataStart, dataStart + compressedSize)
+      if (compressed.length !== compressedSize) continue
+      try {
+        pushSpreadsheet(files, fullName, method, compressed)
+      } catch {
+        // Entrada compactada inválida não impede as outras planilhas do zip.
+      }
+    }
+    return files
+  }
+
   let offset = 0
   while (offset + 30 <= buffer.length && buffer.readUInt32LE(offset) === 0x04034b50) {
     const flags = buffer.readUInt16LE(offset + 6)
@@ -638,16 +693,17 @@ function unzipSpreadsheets(buffer: Buffer) {
     const nameLength = buffer.readUInt16LE(offset + 26)
     const extraLength = buffer.readUInt16LE(offset + 28)
     const nameStart = offset + 30
-    const rawName = buffer.subarray(nameStart, nameStart + nameLength)
-    const name = (flags & 0x800 ? rawName.toString('utf8') : rawName.toString('latin1'))
-      .split(/[/\\]/)
-      .pop()
+    const fullName = zipEntryName(buffer.subarray(nameStart, nameStart + nameLength), flags)
     const dataStart = nameStart + nameLength + extraLength
+    if (flags & 0x8 || dataStart + compressedSize > buffer.length) break
     const compressed = buffer.subarray(dataStart, dataStart + compressedSize)
     offset = dataStart + compressedSize
-    if (!name?.toLowerCase().endsWith('.xlsx') || !compressed.length) continue
-    if (method === 0) files.push({ name, data: Buffer.from(compressed) })
-    else if (method === 8) files.push({ name, data: inflateRawSync(compressed) })
+    if (!compressed.length) continue
+    try {
+      pushSpreadsheet(files, fullName, method, compressed)
+    } catch {
+      // Entrada compactada inválida não impede as outras planilhas do zip.
+    }
   }
   return files
 }
@@ -859,9 +915,10 @@ export async function importPasswordSheet(req: Request, res: Response) {
     res.status(400).json({ error: 'Não foi possível ler a planilha.' })
     return
   }
-  const isZip =
-    String(fileName ?? '').toLowerCase().endsWith('.zip') ||
-    (buffer.length >= 4 && buffer.readUInt32LE(0) === 0x04034b50)
+  const lowerName = String(fileName ?? '').toLowerCase()
+  // .xlsx e .xlsm também começam com o cabeçalho PK de zip. Só um arquivo .zip
+  // é um pacote de várias planilhas.
+  const isZip = lowerName.endsWith('.zip')
   if (!buffer.length || buffer.length > (isZip ? 40_000_000 : 15_000_000)) {
     res.status(400).json({ error: 'A planilha está vazia ou passou do tamanho aceito.' })
     return
